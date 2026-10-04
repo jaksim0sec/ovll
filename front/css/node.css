@@ -1136,11 +1136,6 @@
   border-radius: .7rem;
 }
 
-.vc-file-node .vc-node-icon svg {
-  width: 1.16rem;
-  height: 1.16rem;
-}
-
 .vc-file-node .vc-file-title-wrap {
   gap: .2rem;
 }
