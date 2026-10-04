@@ -19,11 +19,6 @@
       "#canvas-page"
     );
 
-  const libraryPage =
-    document.querySelector(
-      "#library-page"
-    );
-
   const modeSwitch =
     document.querySelector(
       "#mode-switch"
@@ -39,20 +34,13 @@
       '#mode-switch [data-mode="canvas"]'
     );
 
-  const modeLibrary =
-    document.querySelector(
-      '#mode-switch [data-mode="library"]'
-    );
-
   if (
     !workspace ||
     !chatPage ||
     !canvasPage ||
-    !libraryPage ||
     !modeSwitch ||
     !modeChat ||
-    !modeCanvas ||
-    !modeLibrary
+    !modeCanvas
   ) {
     throw new Error(
       "Astra UI DOM 구조가 올바르지 않습니다."
@@ -71,52 +59,6 @@
         value
       )
     );
-
-  const MODE_INDEX =
-    Object.freeze({
-      chat: 0,
-      canvas: 1,
-      library: 2
-    });
-
-  const MODES =
-    Object.keys(
-      MODE_INDEX
-    );
-
-  function normalizeMode(
-    mode
-  ) {
-    return MODES.includes(
-      mode
-    )
-      ? mode
-      : "chat";
-  }
-
-  function modeIndex(
-    mode
-  ) {
-    return MODE_INDEX[
-      normalizeMode(mode)
-    ];
-  }
-
-  function modeFromIndex(
-    value
-  ) {
-    const index =
-      clamp(
-        Math.round(
-          Number(value) || 0
-        ),
-        0,
-        2
-      );
-
-    return MODES[index] ||
-      "chat";
-  }
 
   const events =
     new Map();
@@ -155,9 +97,10 @@
           "mode"
         );
 
-    return normalizeMode(
-      value
-    );
+    return value ===
+      "canvas"
+      ? "canvas"
+      : "chat";
   }
 
   function setUrlMode(
@@ -171,9 +114,9 @@
 
       url.searchParams.set(
         "mode",
-        normalizeMode(
-          mode
-        )
+        mode === "canvas"
+          ? "canvas"
+          : "chat"
       );
 
       global.history
@@ -292,9 +235,9 @@
     mode:
       initialMode,
     progress:
-      modeIndex(
-        initialMode
-      ),
+      initialMode === "canvas"
+        ? 1
+        : 0,
     viewportWidth:
       getViewportWidth(),
     viewportHeight:
@@ -406,7 +349,7 @@
       clamp(
         state.progress,
         0,
-        2
+        1
       );
 
     document.documentElement
@@ -418,10 +361,6 @@
         )
       );
 
-    document.documentElement
-      .dataset.workspaceMode =
-      state.mode;
-
     workspace.dataset.mode =
       state.mode;
 
@@ -429,43 +368,11 @@
       -progress *
       state.viewportWidth;
 
-    const pages = [
-      [chatPage, 0],
-      [canvasPage, 1],
-      [libraryPage, 2]
-    ];
+    chatPage.style.transform =
+      `translate3d(${offset}px,0,0)`;
 
-    for (
-      const [
-        page,
-        index
-      ]
-      of pages
-    ) {
-      page.style.transform =
-        `translate3d(${offset}px,0,0)`;
-
-      const distance =
-        Math.min(
-          1,
-          Math.abs(
-            progress -
-            index
-          )
-        );
-
-      page.style.opacity =
-        String(
-          1 -
-          distance *
-          .14
-        );
-
-      page.style.filter =
-        distance < .001
-          ? "none"
-          : `blur(${distance * .125}rem)`;
-    }
+    canvasPage.style.transform =
+      `translate3d(${offset}px,0,0)`;
 
     modeChat.setAttribute(
       "aria-selected",
@@ -480,14 +387,6 @@
       String(
         state.mode ===
           "canvas"
-      )
-    );
-
-    modeLibrary.setAttribute(
-      "aria-selected",
-      String(
-        state.mode ===
-          "library"
       )
     );
   }
@@ -561,7 +460,7 @@
         Number(target) ||
         0,
         0,
-        2
+        1
       );
 
     if (
@@ -590,7 +489,7 @@
       clamp(
         state.progress,
         0,
-        2
+        1
       );
 
     const distance =
@@ -739,9 +638,9 @@
     }
 
     const target =
-      normalizeMode(
-        mode
-      );
+      mode === "canvas"
+        ? "canvas"
+        : "chat";
 
     const previous =
       state.mode;
@@ -772,9 +671,9 @@
     }
 
     snapTo(
-      modeIndex(
-        target
-      ),
+      target === "canvas"
+        ? 1
+        : 0,
       {
         immediate:
           options.immediate ===
@@ -1118,9 +1017,10 @@
 
     if (restore) {
       state.progress =
-        modeIndex(
-          state.mode
-        );
+        state.mode ===
+          "canvas"
+          ? 1
+          : 0;
 
       render();
     }
@@ -1428,7 +1328,7 @@
       clamp(
         state.progress,
         0,
-        2
+        1
       );
     pillGesture.lastX =
       event.clientX;
@@ -1492,19 +1392,12 @@
           .width
       );
 
-    const tabWidth =
-      width / 3;
-
     const next =
       clamp(
         pillGesture.startProgress +
-        dx /
-          Math.max(
-            1,
-            tabWidth
-          ),
+        dx / width,
         -.12,
-        2.12
+        1.12
       );
 
     const now =
@@ -1561,7 +1454,7 @@
       clamp(
         state.progress,
         0,
-        2
+        1
       );
 
     try {
@@ -1575,9 +1468,10 @@
 
     if (!moved) {
       state.progress =
-        modeIndex(
-          state.mode
-        );
+        state.mode ===
+          "canvas"
+          ? 1
+          : 0;
 
       render();
       return;
@@ -1588,44 +1482,27 @@
 
     event.preventDefault();
 
-    const startIndex =
-      modeIndex(
-        state.mode
-      );
-
     let target;
 
     if (
       velocity > .34
     ) {
-      target =
-        Math.min(
-          2,
-          startIndex + 1
-        );
+      target = 1;
     } else if (
       velocity < -.34
     ) {
-      target =
-        Math.max(
-          0,
-          startIndex - 1
-        );
+      target = 0;
     } else {
       target =
-        clamp(
-          Math.round(
-            progress
-          ),
-          0,
-          2
-        );
+        progress >= .5
+          ? 1
+          : 0;
     }
 
     setMode(
-      modeFromIndex(
-        target
-      )
+      target === 1
+        ? "canvas"
+        : "chat"
     );
 
     setTimeout(
@@ -1655,9 +1532,10 @@
     resetPillGesture();
 
     state.progress =
-      modeIndex(
-        state.mode
-      );
+      state.mode ===
+        "canvas"
+        ? 1
+        : 0;
 
     render();
   }
@@ -1692,9 +1570,8 @@
       button.dataset.mode;
 
     if (
-      MODES.includes(
-        mode
-      )
+      mode === "chat" ||
+      mode === "canvas"
     ) {
       setMode(
         mode
