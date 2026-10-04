@@ -50,6 +50,17 @@ test("global stylesheet defines semantic layout and layer tokens", () => {
   ]) {
     assert.match(css, new RegExp(token + "\\s*:"));
   }
+
+  assert.match(
+    css,
+    /\.ovll-workspace-shell\s*\{[^}]*z-index:\s*var\(--layer-content\)/
+  );
+
+  const ui = compact(read("front/css/ui.css"));
+  assert.match(
+    ui,
+    /#topbar-left\s*,\s*#topbar-right\s*\{[^}]*width:\s*var\(--control-size\)[^}]*height:\s*var\(--control-size\)/
+  );
 });
 
 test("workspace controls have one consolidated ownership section", () => {
