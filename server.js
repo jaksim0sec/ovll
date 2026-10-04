@@ -87,7 +87,7 @@ const geminiExecution =
  * The frontend compares this server value with its locally stored version
  * before loading application assets.
  */
-const APP_VERSION = '2026.10.04.33';
+const APP_VERSION = '2026.10.04.34';
 
 /* =========================================================
    CANONICAL NODE DEFINITION
@@ -2426,10 +2426,10 @@ function geminiHttpFailure(
 
 app.post(
   '/api/create-artifact',
-  (req, res) => {
+  async (req, res) => {
     try {
       const artifact =
-        createStoredArtifact({
+        await createStoredArtifact({
           format:
             req.body?.format,
           filename:
