@@ -1747,6 +1747,22 @@
         "div"
       );
 
+    chatMessages
+      .querySelectorAll(
+        ".astra-workflow-proposal"
+      )
+      .forEach(
+        existing => {
+          if (
+            existing.dataset
+              .workflowProposalId ===
+              id
+          ) {
+            existing.remove();
+          }
+        }
+      );
+
     row.className =
       "astra-workflow-proposal";
 
@@ -3711,31 +3727,6 @@
     return true;
   }
 
-  function commitPendingWorkflowProposal(
-    options = {}
-  ) {
-    const proposal =
-      state.workflowProposal;
-
-    if (
-      !proposal ||
-      proposal.applying
-    ) {
-      return false;
-    }
-
-    return acceptWorkflowProposal(
-      proposal.id,
-      {
-        silent:
-          options.silent !==
-          false,
-        immediate:
-          options.immediate
-      }
-    );
-  }
-
   function handleCanvasChange(workflow) {
     if (!workflow) return;
 
@@ -3763,18 +3754,13 @@
      Planner
      ======================================================= */
   async function plan(text) {
-    if (
-      state.workflowProposal
-    ) {
-      commitPendingWorkflowProposal({
-        silent: true
-      });
-    }
+    const existingProposal =
+      state.workflowProposal;
 
     const workflow =
       syncWorkflow();
 
-    const beforeState =
+    const attemptState =
       state.canvas
         ?.getState?.() ||
       null;
@@ -3811,20 +3797,29 @@
         );
 
       if (changed) {
-        const proposal = {
-          id:
-            `workflow-proposal-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
-          beforeState:
-            beforeState
-              ? clone(
-                  beforeState
-                )
-              : null,
-          applying: true
-        };
+        const isNewProposal =
+          !existingProposal;
+
+        const proposal =
+          existingProposal ||
+          {
+            id:
+              `workflow-proposal-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+            beforeState:
+              attemptState
+                ? clone(
+                    attemptState
+                  )
+                : null,
+            applying:
+              false
+          };
 
         state.workflowProposal =
           proposal;
+
+        proposal.applying =
+          true;
 
         try {
           state.canvas
@@ -3839,20 +3834,22 @@
             proposal.id;
         } catch (error) {
           if (
-            proposal.beforeState &&
+            attemptState &&
             state.canvas?.setState
           ) {
             try {
               state.canvas.setState(
                 clone(
-                  proposal.beforeState
+                  attemptState
                 )
               );
             } catch {}
           }
 
-          state.workflowProposal =
-            null;
+          if (isNewProposal) {
+            state.workflowProposal =
+              null;
+          }
 
           throw error;
         } finally {
