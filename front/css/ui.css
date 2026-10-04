@@ -187,7 +187,12 @@
   justify-content: center;
   border-radius: 62.4375rem;
   color: var(--muted);
-  font-size: 1rem;
+  font-size:
+    clamp(
+      .78rem,
+      4vw,
+      1rem
+    );
   font-weight: 700;
   letter-spacing: -.01em;
   transition: color .18s ease, opacity .15s ease;
