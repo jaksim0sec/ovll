@@ -16,6 +16,7 @@
   const ArtifactVisuals = global.OvllArtifactVisuals;
   const PreviewSandbox = global.OvllPreviewSandbox;
   const PreviewEngine = global.OvllPreviewEngine;
+  const SvgLibrary = global.OvllSvgLibrary;
   const Execution = global.OvllExecutionEngine;
   const mountCanvasNode = global.mountCanvasNode;
 
@@ -46,6 +47,7 @@
     !ArtifactVisuals ||
     !PreviewSandbox ||
     !PreviewEngine ||
+    !SvgLibrary ||
     !Execution ||
     typeof Execution.RuntimeEngine !== "function" ||
     typeof mountCanvasNode !== "function"
@@ -6202,27 +6204,15 @@
       </div>
       <div class="canvas-node-builder-actions">
         <button id="canvas-node-builder-toggle" type="button" aria-expanded="false" aria-controls="canvas-node-builder-panel">
-          <span class="canvas-node-builder-plus" aria-hidden="true">+</span>
+          <span class="canvas-node-builder-action-icon" aria-hidden="true">${SvgLibrary.get("nodeAdd")}</span>
           <span>노드</span>
         </button>
         <button id="canvas-node-builder-reset" type="button" aria-label="캔버스 초기화" title="캔버스 초기화">
-          <span class="canvas-node-builder-action-icon" aria-hidden="true">
-            <svg viewBox="0 0 20 20" fill="none" preserveAspectRatio="xMidYMid meet">
-              <path d="M5.1 6.35A6 6 0 1 1 4.35 12"></path>
-              <path d="M5.1 3.65v2.7h2.7"></path>
-            </svg>
-          </span>
+          <span class="canvas-node-builder-action-icon" aria-hidden="true">${SvgLibrary.get("canvasReset")}</span>
           <span class="canvas-node-builder-reset-label">초기화</span>
         </button>
         <button id="canvas-node-builder-layout" type="button" aria-label="노드 정리하기" title="노드 정리하기">
-          <span class="canvas-node-builder-action-icon" aria-hidden="true">
-            <svg viewBox="0 0 20 20" fill="none" preserveAspectRatio="xMidYMid meet">
-              <rect x="7.5" y="2.5" width="5" height="4" rx="1.5"></rect>
-              <rect x="2.75" y="13.5" width="5" height="4" rx="1.5"></rect>
-              <rect x="12.25" y="13.5" width="5" height="4" rx="1.5"></rect>
-              <path d="M10 6.5v3.25M5.25 13.5V9.75h9.5v3.75"></path>
-            </svg>
-          </span>
+          <span class="canvas-node-builder-action-icon" aria-hidden="true">${SvgLibrary.get("canvasLayout")}</span>
           <span>정리하기</span>
         </button>
       </div>
