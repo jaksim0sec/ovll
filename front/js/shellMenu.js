@@ -282,7 +282,6 @@ root.innerHTML=`
           </span>
           <span class="ovll-sidebar-account-copy">
             <strong>로그인</strong>
-            <small>기기 간 동기화 준비</small>
           </span>
         </button>
       </footer>
