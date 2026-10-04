@@ -13,14 +13,14 @@ function installStyle(){
 .ovll-mascot{
   --agent-color:#4b94ff;
   --react-color:var(--agent-color);
-  --agent-size:2.25rem;
+  --agent-size:2.08rem;
 
-  --body-color:#000;
-  --eye-color:#fff;
+  --body-color:#202120;
+  --eye-color:#efefec;
 
-  --eye-w:.455rem;
-  --eye-h:.475rem;
-  --eye-radius:.145rem;
+  --eye-w:.425rem;
+  --eye-h:.445rem;
+  --eye-radius:.17rem;
 
   --ex:0rem;
   --ey:0rem;
@@ -48,13 +48,18 @@ function installStyle(){
   padding:0;
   overflow:hidden;
 
-  border:0;
+  border:
+    .0625rem solid
+    rgba(0,0,0,.08);
   border-radius:50%;
 
   background:var(--body-color);
 
   box-shadow:
-    0 .22rem .65rem rgba(0,0,0,.18);
+    0 .1rem .36rem
+      rgba(0,0,0,.17),
+    inset 0 0 0 .025rem
+      rgba(255,255,255,.055);
 
   transform:translate(-50%,-50%);
   rotate:var(--lean);
@@ -104,66 +109,72 @@ function installStyle(){
 }
 
 .ovll-mascot[data-mood="idle"]{
-  --eye-w:.455rem;
-  --eye-h:.475rem;
-  --eye-radius:.145rem;
+  --eye-w:.425rem;
+  --eye-h:.445rem;
+  --eye-radius:.17rem;
 }
 
 .ovll-mascot[data-mood="thinking"]{
-  --eye-w:.505rem;
-  --eye-h:.22rem;
-  --eye-radius:.11rem;
+  --eye-w:.472rem;
+  --eye-h:.206rem;
+  --eye-radius:.12rem;
 }
 
 .ovll-mascot[data-mood="focus"],
 .ovll-mascot[data-mood="attention"]{
-  --eye-w:.465rem;
-  --eye-h:.49rem;
-  --eye-radius:.15rem;
+  --eye-w:.434rem;
+  --eye-h:.459rem;
+  --eye-radius:.175rem;
 }
 
 .ovll-mascot[data-mood="curious"]{
-  --eye-w:.49rem;
-  --eye-h:.49rem;
-  --eye-radius:.15rem;
+  --eye-w:.458rem;
+  --eye-h:.459rem;
+  --eye-radius:.175rem;
 }
 
 .ovll-mascot[data-mood="surprised"]{
-  --eye-w:.55rem;
-  --eye-h:.55rem;
-  --eye-radius:.17rem;
+  --eye-w:.514rem;
+  --eye-h:.515rem;
+  --eye-radius:.19rem;
 }
 
 .ovll-mascot[data-mood="annoyed"]{
-  --eye-w:.54rem;
-  --eye-h:.16rem;
-  --eye-radius:.09rem;
-}
-
-.ovll-mascot[data-mood="success"]{
-  --eye-w:.5rem;
-  --eye-h:.35rem;
-  --eye-radius:.12rem;
-}
-
-.ovll-mascot[data-mood="working"]{
-  --eye-w:.4rem;
-  --eye-h:.52rem;
-  --eye-radius:.13rem;
-}
-
-.ovll-mascot[data-mood="bumped"]{
-  --eye-w:.51rem;
-  --eye-h:.2rem;
+  --eye-w:.504rem;
+  --eye-h:.15rem;
   --eye-radius:.1rem;
 }
 
+.ovll-mascot[data-mood="success"]{
+  --eye-w:.467rem;
+  --eye-h:.328rem;
+  --eye-radius:.135rem;
+}
+
+.ovll-mascot[data-mood="working"]{
+  --eye-w:.374rem;
+  --eye-h:.487rem;
+  --eye-radius:.145rem;
+}
+
+.ovll-mascot[data-mood="bumped"]{
+  --eye-w:.476rem;
+  --eye-h:.187rem;
+  --eye-radius:.11rem;
+}
+
 :root.dark .ovll-mascot{
-  --body-color:#fff;
-  --eye-color:#000;
+  --body-color:#dededb;
+  --eye-color:#151617;
+
+  border-color:
+    rgba(255,255,255,.12);
 
   box-shadow:
-    0 .22rem .72rem rgba(0,0,0,.3);
+    0 .1rem .36rem
+      rgba(0,0,0,.24),
+    inset 0 0 0 .025rem
+      rgba(0,0,0,.055);
 }
 
 .ovll-mascot.connecting{
