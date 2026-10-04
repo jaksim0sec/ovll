@@ -3739,16 +3739,6 @@
   function handleCanvasChange(workflow) {
     if (!workflow) return;
 
-    if (
-      state.workflowProposal &&
-      !state.workflowProposal
-        .applying
-    ) {
-      commitPendingWorkflowProposal({
-        silent: true
-      });
-    }
-
     state.workflow =
       clone(workflow);
 
