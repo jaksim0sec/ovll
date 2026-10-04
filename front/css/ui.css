@@ -1419,73 +1419,59 @@
       var(--composer-live-height) +
       var(--safe-bottom) +
       var(--bottom-dock-lift) +
-      .7rem
+      .72rem
     );
   width:
     min(
-      31rem,
-      calc(
-        100% -
-        1rem
-      )
+      28rem,
+      calc(100% - 1.1rem)
     );
-  min-height: 3.15rem;
+  min-height: 2.72rem;
   display: grid;
   grid-template-columns:
-    2rem
+    1.7rem
     minmax(0,1fr)
     auto;
   align-items: center;
-  gap: .62rem;
-  padding:
-    .58rem
-    .62rem;
+  gap: .52rem;
+  padding: .45rem .5rem;
   border:
     .0625rem solid
     color-mix(
       in srgb,
-      #d76b6b 28%,
-      var(--line)
+      var(--line) 90%,
+      transparent
     );
-  border-radius: 1.05rem;
+  border-radius: .96rem;
   color: var(--text);
   background:
     color-mix(
       in srgb,
-      var(--panel) 94%,
+      var(--panel) 91%,
       transparent
     );
   box-shadow:
-    0
-    .7rem
-    2rem
-    rgba(0,0,0,.16),
-    inset
-    0
-    .0625rem
-    0
-    color-mix(
-      in srgb,
-      #fff 7%,
-      transparent
-    );
+    0 .32rem 1.1rem
+      rgba(0,0,0,.11),
+    inset 0 .0625rem 0
+      color-mix(
+        in srgb,
+        #fff 6%,
+        transparent
+      );
   backdrop-filter:
-    blur(1rem)
-    saturate(1.05);
+    blur(.9rem)
+    saturate(1.08);
   -webkit-backdrop-filter:
-    blur(1rem)
-    saturate(1.05);
+    blur(.9rem)
+    saturate(1.08);
   opacity: 0;
   transform:
-    translate3d(
-      -50%,
-      .35rem,
-      0
-    )
-    scale(.985);
+    translate3d(-50%, .28rem, 0)
+    scale(.99);
   transition:
-    opacity .16s ease,
-    transform .2s
+    opacity .15s ease,
+    transform .19s
       cubic-bezier(.2,.82,.2,1);
   pointer-events: auto;
 }
@@ -1493,64 +1479,56 @@
 .ovll-error-notice.is-visible {
   opacity: 1;
   transform:
-    translate3d(
-      -50%,
-      0,
-      0
-    )
+    translate3d(-50%, 0, 0)
     scale(1);
 }
 
 .ovll-error-notice.is-leaving {
   opacity: 0;
   transform:
-    translate3d(
-      -50%,
-      .22rem,
-      0
-    )
-    scale(.99);
+    translate3d(-50%, .18rem, 0)
+    scale(.995);
   pointer-events: none;
 }
 
 .ovll-error-mark {
-  width: 2rem;
-  height: 2rem;
+  width: 1.7rem;
+  height: 1.7rem;
   display: grid;
   place-items: center;
-  border-radius: .72rem;
+  border-radius: .62rem;
   color:
     color-mix(
       in srgb,
-      #e57a7a 82%,
+      #de7373 78%,
       var(--text)
     );
   background:
     color-mix(
       in srgb,
-      #d76b6b 10%,
+      #de7373 7%,
       transparent
     );
 }
 
 .ovll-error-mark svg {
-  width: 1.12rem;
-  height: 1.12rem;
+  width: .94rem;
+  height: .94rem;
 }
 
 .ovll-error-copy {
   min-width: 0;
   display: grid;
-  gap: .1rem;
+  gap: .06rem;
 }
 
 .ovll-error-copy strong {
   min-width: 0;
   overflow: hidden;
   color: var(--text);
-  font-size: .7rem;
-  font-weight: 700;
-  line-height: 1.35;
+  font-size: .67rem;
+  font-weight: 690;
+  line-height: 1.3;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1558,10 +1536,15 @@
 .ovll-error-copy span {
   min-width: 0;
   overflow: hidden;
-  color: var(--muted);
-  font-size: .61rem;
+  color:
+    color-mix(
+      in srgb,
+      var(--muted) 90%,
+      transparent
+    );
+  font-size: .58rem;
   font-weight: 470;
-  line-height: 1.42;
+  line-height: 1.35;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1569,27 +1552,20 @@
 .ovll-error-actions {
   display: flex;
   align-items: center;
-  gap: .28rem;
+  gap: .18rem;
 }
 
 .ovll-error-retry,
 .ovll-error-close {
   appearance: none;
   -webkit-appearance: none;
-  min-height: 2rem;
+  min-height: 1.72rem;
   display: inline-grid;
   place-items: center;
-  border:
-    .0625rem solid
-    var(--line);
-  border-radius: .72rem;
-  color: var(--sub);
-  background:
-    color-mix(
-      in srgb,
-      var(--text) 4%,
-      transparent
-    );
+  border: 0;
+  border-radius: .58rem;
+  color: var(--muted);
+  background: transparent;
   cursor: pointer;
   transition:
     color .14s ease,
@@ -1598,21 +1574,19 @@
 }
 
 .ovll-error-retry {
-  padding:
-    0
-    .68rem;
-  font-size: .61rem;
-  font-weight: 680;
+  padding: 0 .56rem;
+  font-size: .58rem;
+  font-weight: 670;
 }
 
 .ovll-error-close {
-  width: 2rem;
+  width: 1.72rem;
   padding: 0;
 }
 
 .ovll-error-close svg {
-  width: .9rem;
-  height: .9rem;
+  width: .84rem;
+  height: .84rem;
 }
 
 .ovll-error-retry:hover,
@@ -1621,33 +1595,31 @@
   background:
     color-mix(
       in srgb,
-      var(--text) 7%,
+      var(--text) 5%,
       transparent
     );
 }
 
 .ovll-error-retry:active,
 .ovll-error-close:active {
-  transform: scale(.94);
+  transform: scale(.93);
 }
 
 @media (max-width: 43.75rem) {
   .ovll-error-notice {
     width:
-      calc(
-        100% -
-        1rem
-      );
+      calc(100% - .9rem);
     grid-template-columns:
-      1.9rem
+      1.62rem
       minmax(0,1fr)
       auto;
-    gap: .5rem;
+    gap: .44rem;
+    padding: .42rem .46rem;
   }
 
   .ovll-error-mark {
-    width: 1.9rem;
-    height: 1.9rem;
+    width: 1.62rem;
+    height: 1.62rem;
   }
 }
 
@@ -1655,4 +1627,5 @@
   .ovll-error-notice {
     transition: none;
   }
+}
 }
