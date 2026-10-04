@@ -165,6 +165,161 @@
     return {};
   }
 
+  const CONTENT_REQUIRED_NODE_TYPES =
+    new Set([
+      "research",
+      "organize",
+      "judge",
+      "write",
+      "convert",
+      "createFile"
+    ]);
+
+  function hasMeaningfulValue(value) {
+    if (typeof value === "string") {
+      return value.trim().length > 0;
+    }
+
+    if (Array.isArray(value)) {
+      return value.some(
+        item =>
+          hasMeaningfulValue(item)
+      );
+    }
+
+    if (
+      value &&
+      typeof value === "object"
+    ) {
+      return Object.values(value)
+        .some(
+          item =>
+            hasMeaningfulValue(item)
+        );
+    }
+
+    return (
+      value !== undefined &&
+      value !== null &&
+      value !== false
+    );
+  }
+
+  function isNodeReadyForExecution(node) {
+    if (
+      !node ||
+      typeof node !== "object"
+    ) {
+      return false;
+    }
+
+    const type =
+      String(node.type || "");
+
+    if (type === "start") {
+      return true;
+    }
+
+    if (type === "file") {
+      return !!(
+        node.data?.generated ||
+        node.data?.source === "upload" ||
+        node.data?.fileId ||
+        (
+          typeof node.data?.name ===
+            "string" &&
+          node.data.name.trim() &&
+          (
+            Number(node.data?.size || 0) >
+              0 ||
+            typeof node.data?.textPreview ===
+              "string"
+          )
+        )
+      );
+    }
+
+    if (
+      !CONTENT_REQUIRED_NODE_TYPES
+        .has(type)
+    ) {
+      return true;
+    }
+
+    return Object.values(
+      nodeParams(node)
+    ).some(
+      value =>
+        hasMeaningfulValue(value)
+    );
+  }
+
+  function findUnreadyNodes(
+    workflow,
+    scope
+  ) {
+    const ids =
+      new Set(
+        Array.isArray(scope)
+          ? scope.map(String)
+          : []
+      );
+
+    return workflow.nodes
+      .filter(
+        node =>
+          ids.has(node.id) &&
+          !isNodeReadyForExecution(node)
+      )
+      .map(
+        node => ({
+          id: node.id,
+          type: node.type
+        })
+      );
+  }
+
+  function validateExecutionReadiness(
+    inputWorkflow,
+    pivotId,
+    options = {}
+  ) {
+    const workflow =
+      normalizeWorkflow(
+        inputWorkflow
+      );
+
+    const pivot =
+      String(pivotId || "");
+
+    const mode =
+      options.mode === "target"
+        ? "target"
+        : "spread";
+
+    const plan =
+      planExecutionGroups(
+        workflow,
+        pivot,
+        mode,
+        options.maxGroupNodes ?? 6
+      );
+
+    const emptyNodes =
+      findUnreadyNodes(
+        workflow,
+        plan.scope
+      );
+
+    return {
+      ok:
+        emptyNodes.length === 0,
+      emptyNodes,
+      scope:
+        [...plan.scope]
+    };
+  }
+
   function planExecutionGroups(
     workflow,
     pivotId,
@@ -815,6 +970,33 @@
         new Set(
           executionPlan.scope
         );
+
+      const emptyNodes =
+        findUnreadyNodes(
+          workflow,
+          executionPlan.scope
+        );
+
+      if (emptyNodes.length) {
+        const first =
+          emptyNodes[0];
+
+        const error =
+          new Error(
+            "실행할 내용이 비어 있는 노드가 있습니다."
+          );
+
+        error.code =
+          "NODE_INPUT_EMPTY";
+        error.nodeId =
+          first.id;
+        error.nodeType =
+          first.type;
+        error.emptyNodes =
+          emptyNodes;
+
+        throw error;
+      }
 
       const groupByNode =
         new Map();
@@ -1918,6 +2100,8 @@
     RuntimeEngine,
     LocalNodeExecutor,
     normalizeWorkflow,
-    planExecutionGroups
+    planExecutionGroups,
+    validateExecutionReadiness,
+    isNodeReadyForExecution
   };
 })(window);
