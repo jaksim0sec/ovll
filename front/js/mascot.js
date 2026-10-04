@@ -297,6 +297,7 @@ function installStyle(){
   --sat-size:.48rem;
   --sat-angle:0deg;
   --sat-radius:1.02rem;
+  --sat-color:#202120;
 
   position:absolute;
   z-index:1001;
@@ -307,7 +308,7 @@ function installStyle(){
   height:var(--sat-size);
 
   border-radius:50%;
-  background:var(--body-color,#dededb);
+  background:var(--sat-color);
   box-shadow:
     0 .06rem .22rem rgba(0,0,0,.22);
 
@@ -384,7 +385,7 @@ function installStyle(){
 
 :root.dark
 .ovll-mascot-satellite{
-  --body-color:#dededb;
+  --sat-color:#dededb;
 }
 
 @keyframes ovll-satellite-orbit{
