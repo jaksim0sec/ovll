@@ -30,6 +30,11 @@
         <circle class="vc-run-spark-small" cx="15.1" cy="14.7" r="1.1" fill="currentColor"/>
       </svg>
     `,
+    stop: `
+      <svg viewBox="0 0 20 20" fill="none" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+        <rect x="6.3" y="6.3" width="7.4" height="7.4" rx="2.1" fill="currentColor"/>
+      </svg>
+    `,
     fileResult: `
       <svg viewBox="0 0 20 20" fill="none" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
         <rect x="4.5" y="3" width="11" height="14" rx="3" stroke="currentColor" stroke-width="1.5"/>
@@ -125,7 +130,8 @@
       enteringNodes: new Set(),
       runtimeConnections: new Set(),
       runtimeNodes: new Map(),
-      runLocked: false
+      runLocked: false,
+      runPivot: null
     };
     const registry = new Map(
       Object.entries(definitions).map(([type, def]) => [
@@ -824,14 +830,14 @@
                 : `
                   <button
                     type="button"
-                    class="vc-node-run${state.runLocked || runtimeState?.status === 'RUNNING' ? ' is-running' : ''}"
-                    data-action="run"
-                    aria-label="이 노드부터 실행"
-                    aria-disabled="${state.runLocked || runtimeState?.status === 'RUNNING' ? 'true' : 'false'}"
-                    ${state.runLocked || runtimeState?.status === 'RUNNING' ? 'disabled' : ''}
+                    class="vc-node-run${state.runLocked && state.runPivot === node.id ? ' is-cancel' : state.runLocked || runtimeState?.status === 'RUNNING' ? ' is-running' : ''}"
+                    data-action="${state.runLocked && state.runPivot === node.id ? 'cancel-run' : 'run'}"
+                    aria-label="${state.runLocked && state.runPivot === node.id ? '실행 중단' : '이 노드부터 실행'}"
+                    aria-disabled="${state.runLocked && state.runPivot !== node.id ? 'true' : 'false'}"
+                    ${state.runLocked && state.runPivot !== node.id ? 'disabled' : ''}
                   >
-                    ${icons.run}
-                    <span>${state.runLocked || runtimeState?.status === 'RUNNING' ? '실행 중' : '실행하기'}</span>
+                    ${state.runLocked && state.runPivot === node.id ? icons.stop : icons.run}
+                    <span>${state.runLocked && state.runPivot === node.id ? '중단하기' : '실행하기'}</span>
                   </button>
                 `
             }
@@ -3139,6 +3145,20 @@
         if (!node) return;
         if (
           action.dataset.action ===
+          'cancel-run'
+        ) {
+          emit(
+            'nodeRunCancel',
+            {
+              id: node.id,
+              node: clone(node)
+            }
+          );
+          return;
+        }
+
+        if (
+          action.dataset.action ===
           'run'
         ) {
           if (state.runLocked) {
@@ -3892,19 +3912,31 @@
       selectNode,
       toggleNodeExpanded,
       setInteractionEnabled,
-      setRunLocked(locked) {
+      setRunLocked(
+        locked,
+        pivotId = null
+      ) {
         const next =
           !!locked;
 
+        const nextPivot =
+          next
+            ? String(
+                pivotId || ''
+              )
+            : null;
+
         if (
-          state.runLocked ===
-            next
+          state.runLocked === next &&
+          state.runPivot === nextPivot
         ) {
           return api;
         }
 
         state.runLocked =
           next;
+        state.runPivot =
+          nextPivot;
 
         renderNodes();
 
