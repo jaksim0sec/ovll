@@ -1729,6 +1729,165 @@
     );
   }
 
+  function appendWorkflowProposalControls(
+    message,
+    proposalId
+  ) {
+    const id =
+      String(
+        proposalId || ""
+      );
+
+    if (!id) {
+      return;
+    }
+
+    const row =
+      document.createElement(
+        "div"
+      );
+
+    row.className =
+      "astra-workflow-proposal";
+
+    row.dataset
+      .workflowProposalId =
+      id;
+
+    const label =
+      document.createElement(
+        "span"
+      );
+
+    label.className =
+      "astra-workflow-proposal-label";
+
+    label.textContent =
+      "노드 변경 미리보기";
+
+    const accept =
+      document.createElement(
+        "button"
+      );
+
+    accept.type =
+      "button";
+
+    accept.className =
+      "astra-workflow-proposal-action is-accept";
+
+    accept.dataset
+      .workflowProposalAction =
+      "accept";
+
+    accept.textContent =
+      "적용";
+
+    const revert =
+      document.createElement(
+        "button"
+      );
+
+    revert.type =
+      "button";
+
+    revert.className =
+      "astra-workflow-proposal-action";
+
+    revert.dataset
+      .workflowProposalAction =
+      "revert";
+
+    revert.textContent =
+      "되돌리기";
+
+    row.append(
+      label,
+      accept,
+      revert
+    );
+
+    message.appendChild(
+      row
+    );
+  }
+
+  function settleWorkflowProposalUi(
+    proposalId,
+    status,
+    silent = false
+  ) {
+    const id =
+      String(
+        proposalId || ""
+      );
+
+    if (!id) {
+      return;
+    }
+
+    chatMessages
+      .querySelectorAll(
+        ".astra-workflow-proposal"
+      )
+      .forEach(
+        row => {
+          if (
+            row.dataset
+              .workflowProposalId !==
+              id
+          ) {
+            return;
+          }
+
+          if (silent) {
+            row.remove();
+            return;
+          }
+
+          row.classList.add(
+            "is-settled"
+          );
+
+          const label =
+            row.querySelector(
+              ".astra-workflow-proposal-label"
+            );
+
+          if (label) {
+            label.textContent =
+              status ===
+                "accepted"
+                ? "변경 적용됨"
+                : "원래 노드로 복구됨";
+          }
+
+          row.querySelectorAll(
+            "button"
+          )
+            .forEach(
+              button =>
+                button.remove()
+            );
+
+          setTimeout(
+            () => {
+              row.classList.add(
+                "is-leaving"
+              );
+
+              setTimeout(
+                () =>
+                  row.remove(),
+                180
+              );
+            },
+            700
+          );
+        }
+      );
+  }
+
   function createMessage(
     role,
     text,
@@ -1882,6 +2041,16 @@
       });
 
       message.appendChild(canvasButton);
+    }
+
+    if (
+      role === "assistant" &&
+      options.workflowProposalId
+    ) {
+      appendWorkflowProposalControls(
+        message,
+        options.workflowProposalId
+      );
     }
 
     if (
@@ -3268,6 +3437,46 @@
   function handleMessageClick(
     event
   ) {
+    const proposalAction =
+      event.target.closest(
+        "[data-workflow-proposal-action]"
+      );
+
+    if (proposalAction) {
+      const row =
+        proposalAction.closest(
+          ".astra-workflow-proposal"
+        );
+
+      const proposalId =
+        row?.dataset
+          ?.workflowProposalId ||
+        "";
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (
+        proposalAction.dataset
+          .workflowProposalAction ===
+          "accept"
+      ) {
+        acceptWorkflowProposal(
+          proposalId
+        );
+      } else if (
+        proposalAction.dataset
+          .workflowProposalAction ===
+          "revert"
+      ) {
+        rejectWorkflowProposal(
+          proposalId
+        );
+      }
+
+      return;
+    }
+
     const action =
       event.target.closest(
         ".astra-message-action"
