@@ -4468,17 +4468,79 @@
     );
   }
 
+  function copyTextForMessage(
+    message
+  ) {
+    const record =
+      state.messages.find(
+        item =>
+          item.id ===
+          message?.id
+      );
+
+    if (
+      record?.role ===
+        "assistant"
+    ) {
+      const blocks =
+        normalizeGeneratedBlocks(
+          record.text,
+          record.blocks
+        );
+
+      if (blocks.length) {
+        return blocks
+          .map(
+            block => {
+              if (
+                block.type ===
+                  "markup"
+              ) {
+                return block.value;
+              }
+
+              const language =
+                block.language ||
+                (
+                  block.type ===
+                    "live-html"
+                    ? "html"
+                    : ""
+                );
+
+              return [
+                `\`\`\`${language}`,
+                block.value,
+                "\`\`\`"
+              ].join("\n");
+            }
+          )
+          .join("\n\n")
+          .trim();
+      }
+
+      return String(
+        record.text || ""
+      ).trim();
+    }
+
+    return message
+      ?.querySelector(
+        ".astra-message-body"
+      )
+      ?.textContent
+      ?.trim() ||
+      "";
+  }
+
   async function copyMessage(
     message,
     button
   ) {
-    const body =
-      message.querySelector(
-        ".astra-message-body"
-      );
-
     const value =
-      body?.textContent?.trim();
+      copyTextForMessage(
+        message
+      );
 
     if (!value) return;
 
