@@ -677,7 +677,7 @@ async function renderPreview(
       );
 
     note.className=
-      "ovll-library-preview-code-note";
+      "ovll-preview-code-note";
 
     note.textContent=
       "미리보기는 일부만 표시 중";
