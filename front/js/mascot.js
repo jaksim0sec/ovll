@@ -800,14 +800,44 @@ function mount(world,canvas,options={}){
     );
   }
 
+  const PULSE_CLASSES=
+    [
+      "pop",
+      "boop",
+      "bump"
+    ];
+
   function pulse(name,duration){
-    orb.classList.remove(name);
+    for(
+      const className
+      of PULSE_CLASSES
+    ){
+      orb.classList.remove(
+        className
+      );
+    }
+
     void orb.offsetWidth;
+
     orb.classList.add(name);
 
     setTimeout(
       ()=>orb.classList.remove(name),
       duration
+    );
+  }
+
+  function setEffectMode(
+    mode="idle"
+  ){
+    orb.classList.toggle(
+      "thinking",
+      mode==="thinking"
+    );
+
+    orb.classList.toggle(
+      "working",
+      mode==="working"
     );
   }
 
@@ -1781,9 +1811,10 @@ function mount(world,canvas,options={}){
     id,
     active=true
   ){
-    orb.classList.toggle(
-      "working",
-      !!active
+    setEffectMode(
+      active
+        ?"working"
+        :"idle"
     );
 
     if(!active){
@@ -1894,13 +1925,10 @@ function mount(world,canvas,options={}){
   function setThinking(active=true){
     clearTimeout(moodTimer);
 
-    orb.classList.toggle(
-      "thinking",
-      !!active
-    );
-
-    orb.classList.remove(
-      "working"
+    setEffectMode(
+      active
+        ?"thinking"
+        :"idle"
     );
 
     if(active){
@@ -1999,7 +2027,9 @@ function mount(world,canvas,options={}){
       orb.dataset.mood==="thinking"&&
       !global.AstraApp?.isBusy?.()
     ){
-      orb.classList.remove("thinking");
+      setEffectMode(
+        "idle"
+      );
       setMood("idle");
       setSatellite(
         "hidden"
@@ -2160,6 +2190,10 @@ function mount(world,canvas,options={}){
       startClientY:event.clientY,
       moved:false
     };
+
+    setEffectMode(
+      "idle"
+    );
 
     orb.classList.add(
       "grabbed"
@@ -2475,6 +2509,10 @@ function mount(world,canvas,options={}){
     "connectionDragStart",
     event=>{
       noteActivity();
+
+      setEffectMode(
+        "idle"
+      );
 
       setReactColor(
         event.anchor?.node
