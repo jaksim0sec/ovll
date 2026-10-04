@@ -164,8 +164,11 @@ function restorePageFocus(){
 }
 
 function handlePageKeydown(event){
+  const isEscape=
+    event.key==="Escape";
+
   if(
-    event.key!=="Escape"||
+    !isEscape||
     !state.open||
     event.defaultPrevented
   ){
