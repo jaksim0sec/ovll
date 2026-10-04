@@ -561,7 +561,7 @@
         Number(target) ||
         0,
         0,
-        1
+        2
       );
 
     if (
@@ -590,7 +590,7 @@
       clamp(
         state.progress,
         0,
-        1
+        2
       );
 
     const distance =
@@ -739,9 +739,9 @@
     }
 
     const target =
-      mode === "canvas"
-        ? "canvas"
-        : "chat";
+      normalizeMode(
+        mode
+      );
 
     const previous =
       state.mode;
@@ -772,9 +772,9 @@
     }
 
     snapTo(
-      target === "canvas"
-        ? 1
-        : 0,
+      modeIndex(
+        target
+      ),
       {
         immediate:
           options.immediate ===
