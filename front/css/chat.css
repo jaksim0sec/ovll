@@ -536,18 +536,22 @@
 }
 
 .ovll-chat-start-orb {
-  width:3.15rem;
-  height:3.15rem;
+  width:2.92rem;
+  height:2.92rem;
   padding:0;
   display:grid;
   place-items:center;
-  border:0;
+  border:
+    .0625rem solid
+    rgba(0,0,0,.08);
   border-radius:50%;
-  background:var(--text);
-  color:var(--bg);
+  background:#202120;
+  color:#efefec;
   box-shadow:
-    0 .22rem .72rem
-    rgba(0,0,0,.16);
+    0 .1rem .38rem
+      rgba(0,0,0,.16),
+    inset 0 0 0 .025rem
+      rgba(255,255,255,.055);
   pointer-events:auto;
   cursor:pointer;
   animation:
@@ -557,11 +561,24 @@
     infinite;
 }
 
+:root.dark
+.ovll-chat-start-orb {
+  border-color:
+    rgba(255,255,255,.12);
+  background:#dededb;
+  color:#151617;
+  box-shadow:
+    0 .1rem .38rem
+      rgba(0,0,0,.24),
+    inset 0 0 0 .025rem
+      rgba(0,0,0,.055);
+}
+
 .ovll-chat-start-eye {
-  width:.58rem;
-  height:.6rem;
+  width:.542rem;
+  height:.562rem;
   display:block;
-  border-radius:.18rem;
+  border-radius:.205rem;
   background:currentColor;
   transition:
     transform .18s var(--ease),
@@ -580,8 +597,8 @@
 
 .ovll-chat-start-orb.is-reacting
 .ovll-chat-start-eye {
-  width:.72rem;
-  height:.2rem;
+  width:.672rem;
+  height:.188rem;
   border-radius:999rem;
   transform:
     translate(.06rem,-.02rem)
@@ -941,25 +958,30 @@
 }
 
 .chat-ovll-presence {
-  --chat-ovll-body:#000;
-  --chat-ovll-eye:#fff;
+  --chat-ovll-body:#202120;
+  --chat-ovll-eye:#efefec;
 
   position:relative;
 
-  width:2.25rem;
-  height:2.25rem;
+  width:2.08rem;
+  height:2.08rem;
 
   display:grid;
   place-items:center;
 
-  flex:0 0 2.25rem;
+  flex:0 0 2.08rem;
 
+  border:
+    .0625rem solid
+    rgba(0,0,0,.08);
   border-radius:50%;
   background:var(--chat-ovll-body);
 
   box-shadow:
-    0 .16rem .5rem
-    rgba(0,0,0,.15);
+    0 .1rem .36rem
+      rgba(0,0,0,.15),
+    inset 0 0 0 .025rem
+      rgba(255,255,255,.055);
 
   pointer-events:auto;
   cursor:pointer;
@@ -973,20 +995,25 @@
 
 :root.dark
 .chat-ovll-presence {
-  --chat-ovll-body:#fff;
-  --chat-ovll-eye:#000;
+  --chat-ovll-body:#dededb;
+  --chat-ovll-eye:#151617;
+
+  border-color:
+    rgba(255,255,255,.12);
 
   box-shadow:
-    0 .16rem .54rem
-    rgba(0,0,0,.28);
+    0 .1rem .36rem
+      rgba(0,0,0,.24),
+    inset 0 0 0 .025rem
+      rgba(0,0,0,.055);
 }
 
 .chat-ovll-presence-eye {
-  width:.455rem;
-  height:.475rem;
+  width:.425rem;
+  height:.445rem;
 
   display:block;
-  border-radius:.145rem;
+  border-radius:.17rem;
   background:var(--chat-ovll-eye);
   transform-origin:center;
 
@@ -1007,9 +1034,9 @@
 
 .chat-ovll-presence.is-thinking
 .chat-ovll-presence-eye {
-  width:.59rem;
-  height:.23rem;
-  border-radius:.11rem;
+  width:.55rem;
+  height:.215rem;
+  border-radius:.125rem;
 
   animation:
     chat-ovll-think-eye
@@ -1041,8 +1068,8 @@
 
 .chat-ovll-presence.is-reacting
 .chat-ovll-presence-eye {
-  width:.56rem;
-  height:.18rem;
+  width:.523rem;
+  height:.169rem;
   border-radius:999rem;
   animation:none;
   transform:
