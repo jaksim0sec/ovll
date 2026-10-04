@@ -176,6 +176,35 @@ test("library page owns Escape and focus lifecycle", () => {
   assert.match(js, /focusLibraryEntry/);
 });
 
+test("microcopy uses a shared readable token", () => {
+  const globalCss = read("front/css/style.css");
+  const nodeCss = compact(read("front/css/node.css"));
+  const libraryCss = compact(read("front/css/library.css"));
+
+  assert.match(globalCss, /--font-micro:\s*\.625rem/);
+  assert.match(nodeCss, /\.vc-start-badge\s*\{[^}]*font-size:\s*var\(--font-micro\)/);
+  assert.match(libraryCss, /\.ovll-library-card-format\s*\{[^}]*font-size:\s*var\(--font-micro\)/);
+});
+
+test("coarse pointers get usable action targets", () => {
+  const nodeCss = compact(read("front/css/node.css"));
+  const libraryCss = compact(read("front/css/library.css"));
+  const chatCss = compact(read("front/css/chat.css"));
+
+  assert.match(
+    nodeCss,
+    /@media\s*\(hover:\s*none\)\s*and\s*\(pointer:\s*coarse\)[^{]*\{[\s\S]*?\.vc-node-action\s*\{[^}]*width:\s*2\.5rem[^}]*height:\s*2\.5rem/
+  );
+  assert.match(
+    libraryCss,
+    /@media\s*\(hover:\s*none\)\s*and\s*\(pointer:\s*coarse\)[^{]*\{[\s\S]*?\.ovll-library-detail-action\s*\{[^}]*width:\s*2\.5rem[^}]*height:\s*2\.5rem/
+  );
+  assert.match(
+    chatCss,
+    /@media\s*\(hover:\s*none\)\s*and\s*\(pointer:\s*coarse\)[^{]*\{[\s\S]*?\.astra-message-action\s*\{[^}]*width:\s*2\.5rem[^}]*height:\s*2\.5rem/
+  );
+});
+
 test("adjacent source backups are not tracked beside live files", () => {
   for (const relativeDir of ["front/css", "front/js"]) {
     const names = fs.readdirSync(path.join(ROOT, relativeDir));
