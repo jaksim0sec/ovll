@@ -115,52 +115,71 @@ function installStyle(){
 }
 
 .ovll-mascot[data-mood="thinking"]{
-  --eye-w:.472rem;
-  --eye-h:.206rem;
-  --eye-radius:.12rem;
+  --eye-w:.51rem;
+  --eye-h:.16rem;
+  --eye-radius:.1rem;
 }
 
 .ovll-mascot[data-mood="focus"],
 .ovll-mascot[data-mood="attention"]{
-  --eye-w:.434rem;
-  --eye-h:.459rem;
-  --eye-radius:.175rem;
+  --eye-w:.32rem;
+  --eye-h:.5rem;
+  --eye-radius:.14rem;
 }
 
 .ovll-mascot[data-mood="curious"]{
-  --eye-w:.458rem;
-  --eye-h:.459rem;
-  --eye-radius:.175rem;
+  --eye-w:.49rem;
+  --eye-h:.5rem;
+  --eye-radius:.2rem;
 }
 
 .ovll-mascot[data-mood="surprised"]{
-  --eye-w:.514rem;
-  --eye-h:.515rem;
-  --eye-radius:.19rem;
+  --eye-w:.56rem;
+  --eye-h:.56rem;
+  --eye-radius:50%;
 }
 
 .ovll-mascot[data-mood="annoyed"]{
-  --eye-w:.504rem;
-  --eye-h:.15rem;
-  --eye-radius:.1rem;
+  --eye-w:.53rem;
+  --eye-h:.105rem;
+  --eye-radius:.06rem;
 }
 
-.ovll-mascot[data-mood="success"]{
-  --eye-w:.467rem;
-  --eye-h:.328rem;
-  --eye-radius:.135rem;
+.ovll-mascot[data-mood="success"],
+.ovll-mascot[data-mood="happy"]{
+  --eye-w:.49rem;
+  --eye-h:.22rem;
+  --eye-radius:.07rem .07rem .24rem .24rem;
 }
 
 .ovll-mascot[data-mood="working"]{
-  --eye-w:.374rem;
-  --eye-h:.487rem;
-  --eye-radius:.145rem;
+  --eye-w:.28rem;
+  --eye-h:.54rem;
+  --eye-radius:.13rem;
 }
 
 .ovll-mascot[data-mood="bumped"]{
-  --eye-w:.476rem;
-  --eye-h:.187rem;
-  --eye-radius:.11rem;
+  --eye-w:.46rem;
+  --eye-h:.135rem;
+  --eye-radius:.08rem;
+}
+
+.ovll-mascot[data-mood="sleepy"]{
+  --eye-w:.5rem;
+  --eye-h:.07rem;
+  --eye-radius:999px;
+}
+
+.ovll-mascot[data-mood="confused"]{
+  --eye-w:.405rem;
+  --eye-h:.405rem;
+  --eye-radius:.15rem;
+}
+
+.ovll-mascot[data-mood="suspicious"]{
+  --eye-w:.53rem;
+  --eye-h:.095rem;
+  --eye-radius:.055rem;
 }
 
 :root.dark .ovll-mascot{
@@ -274,8 +293,168 @@ function installStyle(){
   45%{scale:1.05 .95}
 }
 
+.ovll-mascot-satellite{
+  --sat-size:.48rem;
+  --sat-angle:0deg;
+  --sat-radius:1.02rem;
+
+  position:absolute;
+  z-index:1001;
+  left:var(--ovll-world-x,0px);
+  top:var(--ovll-world-y,0px);
+
+  width:var(--sat-size);
+  height:var(--sat-size);
+
+  border-radius:50%;
+  background:var(--body-color,#dededb);
+  box-shadow:
+    0 .06rem .22rem rgba(0,0,0,.22);
+
+  opacity:0;
+  pointer-events:none;
+  will-change:transform,opacity;
+
+  transform:
+    translate(-50%,-50%)
+    rotate(var(--sat-angle))
+    translateX(var(--sat-radius))
+    scale(.32);
+
+  transition:
+    opacity .18s ease,
+    transform .28s cubic-bezier(.16,.84,.22,1),
+    width .2s ease,
+    height .2s ease,
+    background .2s ease;
+}
+
+.ovll-mascot-satellite[data-mode="thought"]{
+  --sat-size:.4rem;
+  --sat-radius:.88rem;
+  --sat-angle:-38deg;
+
+  opacity:.88;
+  transform:
+    translate(-50%,-50%)
+    rotate(var(--sat-angle))
+    translateX(var(--sat-radius))
+    scale(.78);
+}
+
+.ovll-mascot-satellite[data-mode="orbit"]{
+  --sat-size:.42rem;
+  --sat-radius:1.06rem;
+
+  opacity:.86;
+  animation:
+    ovll-satellite-orbit
+    2.7s linear infinite;
+}
+
+.ovll-mascot-satellite[data-mode="point"]{
+  --sat-size:.56rem;
+  --sat-radius:1.15rem;
+
+  opacity:.98;
+  transform:
+    translate(-50%,-50%)
+    rotate(var(--sat-angle))
+    translateX(var(--sat-radius))
+    scale(.92);
+}
+
+.ovll-mascot-satellite[data-mode="celebrate"]{
+  --sat-size:.48rem;
+
+  animation:
+    ovll-satellite-celebrate
+    .66s cubic-bezier(.18,.88,.25,1.14)
+    both;
+}
+
+.ovll-mascot-satellite[data-mode="drop"]{
+  --sat-size:.46rem;
+
+  animation:
+    ovll-satellite-drop
+    .62s cubic-bezier(.25,.7,.3,1)
+    both;
+}
+
+:root.dark
+.ovll-mascot-satellite{
+  --body-color:#dededb;
+}
+
+@keyframes ovll-satellite-orbit{
+  from{
+    transform:
+      translate(-50%,-50%)
+      rotate(0deg)
+      translateX(var(--sat-radius))
+      scale(.78);
+  }
+
+  to{
+    transform:
+      translate(-50%,-50%)
+      rotate(360deg)
+      translateX(var(--sat-radius))
+      scale(.78);
+  }
+}
+
+@keyframes ovll-satellite-celebrate{
+  0%{
+    opacity:0;
+    transform:
+      translate(-50%,-50%)
+      rotate(-25deg)
+      translateX(.45rem)
+      scale(.3);
+  }
+
+  35%{
+    opacity:1;
+    transform:
+      translate(-50%,-50%)
+      rotate(-52deg)
+      translateX(1rem)
+      scale(.92);
+  }
+
+  100%{
+    opacity:0;
+    transform:
+      translate(-50%,-50%)
+      rotate(18deg)
+      translateX(.52rem)
+      scale(.2);
+  }
+}
+
+@keyframes ovll-satellite-drop{
+  0%{
+    opacity:.95;
+    transform:
+      translate(-50%,-50%)
+      translate(.58rem,-.22rem)
+      scale(.82);
+  }
+
+  100%{
+    opacity:0;
+    transform:
+      translate(-50%,-50%)
+      translate(.42rem,1.12rem)
+      scale(.4);
+  }
+}
+
 @media(prefers-reduced-motion:reduce){
-  .ovll-mascot{
+  .ovll-mascot,
+  .ovll-mascot-satellite{
     animation:none!important;
   }
 }
