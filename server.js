@@ -700,7 +700,15 @@ Re-read CURRENT WORKFLOW from scratch, identify the structural cause, and build 
 Do not copy an invalid ID, endpoint, parameter, or operation merely because it appeared in the failed output.
 
 RESPONSE:
-message is the natural user-facing response for this turn. It must always be a string.
+message is a concise plain-text fallback/summary for this turn and must always be a string.
+blocks is the optional generative UI body.
+- Use blocks=[] for ordinary short text responses.
+- Use blocks only when structure materially helps, especially code or runnable HTML.
+- block.type="markup" for user-facing prose/Markdown-like text.
+- block.type="code" for source code that should be shown as code.
+- block.type="live-html" only for complete or independently runnable HTML that should render as an interactive preview.
+- When blocks is non-empty, it is the complete visible body. Include any needed explanation as markup blocks.
+- Keep the number of blocks small. Never split plain prose into many tiny blocks.
 question is only for a necessary clarification. It must always be a string; use \"\" when no question is needed.
 Use the user's language.
 Do not expose internal IDs, temporary IDs, Patch operations, schema details, or validation rules.
@@ -758,6 +766,29 @@ const PLANNER_SCHEMA = {
       type: 'string',
       maxLength: 300
     },
+    blocks: {
+      type: 'array',
+      maxItems: 6,
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          type: {
+            type: 'string',
+            enum: ['markup', 'code', 'live-html']
+          },
+          language: {
+            type: 'string',
+            maxLength: 24
+          },
+          value: {
+            type: 'string',
+            maxLength: 12000
+          }
+        },
+        required: ['type', 'language', 'value']
+      }
+    },
     question: {
       type: 'string',
       maxLength: 500
@@ -773,7 +804,7 @@ const PLANNER_SCHEMA = {
       required: ['flow', 'recent', 'detail']
     }
   },
-  required: ['mode', 'ops', 'message', 'question', 'memory']
+  required: ['mode', 'ops', 'message', 'blocks', 'question', 'memory']
 };
 
 /* =========================================================
@@ -2247,7 +2278,46 @@ async function requestPlanner(messages) {
   }
   if (!Array.isArray(parsed.ops)) throw new Error('Planner ops가 배열이 아닙니다.');
   if (typeof parsed.message !== 'string' || !parsed.message.trim()) throw new Error('Planner message가 비어 있습니다.');
+  if (!Array.isArray(parsed.blocks)) throw new Error('Planner blocks가 배열이 아닙니다.');
   if (typeof parsed.question !== 'string') throw new Error('Planner question이 문자열이 아닙니다.');
+
+  parsed.blocks = parsed.blocks
+    .map((block, index) => {
+      if (
+        !block ||
+        typeof block !== 'object' ||
+        Array.isArray(block)
+      ) {
+        throw new Error(`blocks[${index}] 형식이 잘못되었습니다.`);
+      }
+
+      const type =
+        String(block.type || '');
+
+      if (
+        !['markup', 'code', 'live-html']
+          .includes(type)
+      ) {
+        throw new Error(`blocks[${index}].type이 올바르지 않습니다.`);
+      }
+
+      return {
+        type,
+        language:
+          String(block.language || '')
+            .toLowerCase()
+            .replace(/[^a-z0-9_-]/g, '')
+            .slice(0, 24),
+        value:
+          String(block.value ?? '')
+            .slice(0, 12000)
+      };
+    })
+    .filter(block =>
+      block.value.trim()
+    )
+    .slice(0, 6);
+
   parsed.ops = normalizePlannerOps(parsed.ops);
   parsed.message = parsed.message.trim();
   parsed.question = parsed.question.trim() || '';
@@ -2719,6 +2789,8 @@ if (!text) {
           result.workflow,
         message:
           result.planner.message,
+        blocks:
+          result.planner.blocks,
         question:
           result.planner.question,
         memory:
