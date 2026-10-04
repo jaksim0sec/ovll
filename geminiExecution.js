@@ -32,9 +32,9 @@ const NODE_INSTRUCTIONS = {
   research:
     "Follow params.request as the primary natural-language research instruction. If request is empty, fall back to legacy topic/filter. Use supplied material and general model knowledge only unless actual search evidence is supplied. Never fabricate browsing or citations. Put the useful result on outputs.result.",
   organize:
-    "Follow params.request as the primary natural-language organization instruction. If request is empty, fall back to legacy criteria/format. Preserve facts and structure the available input for the requested use. Put the result on outputs.result.",
+    "Follow params.request as the primary natural-language organization instruction. If request is empty, fall back to legacy criteria/format. Preserve facts and structure the available input for the requested use. Produce readable structure with real paragraph breaks; use concise Markdown headings, lists, and tables when they improve a document or file result. Never collapse multi-paragraph material into one line. Put the result on outputs.result.",
   write:
-    "Follow params.request as the primary natural-language writing instruction. If request is empty, fall back to legacy title/style/length/about. Produce directly usable content from upstream material and context. Put the result on outputs.result.",
+    "Follow params.request as the primary natural-language writing instruction. If request is empty, fall back to legacy title/style/length/about. Produce directly usable content from upstream material and context. Preserve deliberate paragraph breaks. For reports, documents, and file-bound writing, use lightweight Markdown structure such as headings, lists, quotes, or tables when useful so renderers can create a real document instead of a text wall. Never return the whole document as one continuous line. Put the result on outputs.result.",
   convert:
     "Follow params.request or legacy params.instruction to transform the available material while preserving meaning unless transformation is explicitly requested. Put the result on outputs.result.",
   judge:
@@ -58,6 +58,7 @@ const SYSTEM_INSTRUCTION = [
   "Follow each node type and params precisely.",
   "Return only the schema-conforming result.",
   "Keep outputs useful for the next node instead of explaining your process.",
+  "Preserve semantic line breaks in generated prose. A document-like result should have paragraphs and, when useful, headings/lists/tables rather than one flattened text block.",
   "For every node, report must be a short user-facing summary of what the node actually produced. Write it naturally, in the dominant language of the supplied params/inputs, with concrete facts rather than JSON or process narration.",
   "Keep report concise: normally one or two sentences. Preserve uncertainty and limitations. Never claim live browsing, tool use, citations, or external verification unless such evidence is explicitly supplied in the node input.",
   "Do not include chain-of-thought, hidden reasoning, markdown fences, or commentary.",
