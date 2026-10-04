@@ -30,6 +30,15 @@ async function executableFile(value) {
 }
 
 async function resolveChromeExecutable() {
+  if(
+    String(
+      process.env.OVLL_DISABLE_CHROME||
+      ""
+    )==="1"
+  ){
+    return null;
+  }
+
   if (cachedChromeExecutable !== undefined) {
     return cachedChromeExecutable;
   }
