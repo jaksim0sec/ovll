@@ -1536,6 +1536,19 @@
 
 
 @media (hover: none) and (pointer: coarse) {
+  .vc-port-hit {
+    width: 2.5rem;
+    min-height: 2.5rem;
+  }
+
+  .vc-port-hit.vc-input {
+    left: -1.25rem;
+  }
+
+  .vc-port-hit.vc-output {
+    right: -1.25rem;
+  }
+
   .vc-node-action {
     width: 2.5rem;
     height: 2.5rem;
