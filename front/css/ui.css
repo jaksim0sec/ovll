@@ -39,29 +39,35 @@
     calc(
       var(--safe-top) +
       var(--topbar-height) +
-      2.25rem
+      5.5rem
     );
   background:
     linear-gradient(
       to bottom,
       color-mix(
         in srgb,
-        var(--bg) 82%,
+        var(--bg) 86%,
         transparent
       ) 0%,
       color-mix(
         in srgb,
-        var(--bg) 58%,
+        var(--bg) 63%,
         transparent
-      ) 42%,
+      ) 34%,
       color-mix(
         in srgb,
-        var(--bg) 24%,
+        var(--bg) 30%,
         transparent
-      ) 72%,
+      ) 58%,
+      color-mix(
+        in srgb,
+        var(--bg) 8%,
+        transparent
+      ) 76%,
+      transparent 88%,
       transparent 100%
     );
-  filter: blur(.16rem);
+  filter: blur(.22rem);
   pointer-events: none;
 }
 
