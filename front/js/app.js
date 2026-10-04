@@ -1920,6 +1920,11 @@
       return false;
     }
 
+    const returnFocus =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+
     document
       .querySelector(
         ".astra-artifact-preview-root"
@@ -2157,7 +2162,22 @@
         );
 
         setTimeout(
-          () => root.remove(),
+          () => {
+            root.remove();
+
+            if(
+              returnFocus?.isConnected &&
+              typeof returnFocus.focus === "function"
+            ){
+              try{
+                returnFocus.focus({
+                  preventScroll:true
+                });
+              }catch{
+                returnFocus.focus();
+              }
+            }
+          },
           180
         );
       };
