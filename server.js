@@ -87,7 +87,7 @@ const geminiExecution =
  * The frontend compares this server value with its locally stored version
  * before loading application assets.
  */
-const APP_VERSION = '2026.10.04.48';
+const APP_VERSION = '2026.10.04.49';
 
 /* =========================================================
    CANONICAL NODE DEFINITION
@@ -400,7 +400,7 @@ const defaultNodeDef = {
   createFile: {
     name: '생성하기',
     desc: '원하는 파일 결과를 자연스럽게 요청합니다.',
-    llmdesc: '입력 결과를 request에 적힌 파일명/형식으로 내보내는 최종 출력 노드임. request가 없을 때만 legacy format/filename을 사용함.',
+    llmdesc: '입력 결과를 request에 적힌 파일명/형식으로 내보내는 최종 출력 노드임. request가 없을 때만 legacy format/filename을 사용함. PDF/DOCX/RTF/HTML/MD 같은 문서 파일은 입력 단계에서 문단 줄바꿈과 제목·목록·표 등 필요한 구조가 보존된 완성형 콘텐츠를 준비해야 하며 한 줄 텍스트 덩어리로 만들지 않음.',
     tag: 'OUTPUT',
     color: '#0EA5A4',
     icon: `
