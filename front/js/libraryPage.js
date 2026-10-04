@@ -4,8 +4,8 @@
 const FileStore=
   global.OvllFileStore;
 
-const Sandbox=
-  global.OvllPreviewSandbox;
+const PreviewEngine=
+  global.OvllPreviewEngine;
 
 const ArtifactVisuals=
   global.OvllArtifactVisuals;
@@ -47,7 +47,7 @@ const back=
 
 if(
   !FileStore||
-  !Sandbox||
+  !PreviewEngine||
   !ArtifactVisuals||
   !page||
   !grid||
@@ -219,76 +219,7 @@ function visibleFiles(){
 }
 
 function cardFor(file){
-  const visual=
-    ArtifactVisuals
-      .visual(file);
-
-  const card=
-    document.createElement(
-      "button"
-    );
-
-  card.type="button";
-  card.className=
-    "astra-artifact-card ovll-library-artifact-card";
-
-  card.dataset.libraryId=
-    file.id;
-
-  card.style.setProperty(
-    "--artifact-accent",
-    visual.color
-  );
-
-  if(
-    file.id===
-    state.selectedId
-  ){
-    card.classList.add(
-      "is-selected"
-    );
-  }
-
-  const icon=
-    document.createElement(
-      "span"
-    );
-
-  icon.className=
-    "astra-artifact-icon";
-
-  icon.innerHTML=
-    visual.icon;
-
-  const info=
-    document.createElement(
-      "span"
-    );
-
-  info.className=
-    "astra-artifact-info";
-
-  const name=
-    document.createElement(
-      "strong"
-    );
-
-  name.className=
-    "astra-artifact-name";
-
-  name.textContent=
-    file.name||
-    "파일";
-
-  const meta=
-    document.createElement(
-      "span"
-    );
-
-  meta.className=
-    "astra-artifact-meta";
-
-  meta.textContent=
+  const metaText=
     [
       formatOf(file),
       ArtifactVisuals
@@ -303,27 +234,33 @@ function cardFor(file){
       .filter(Boolean)
       .join(" · ");
 
-  info.append(
-    name,
-    meta
-  );
+  const {
+    element:card
+  }=
+    ArtifactVisuals
+      .createCard(
+        file,
+        {
+          tagName:"button",
+          className:
+            "ovll-library-artifact-card",
+          metaText,
+          action:"format",
+          inlinePreview:false
+        }
+      );
 
-  const format=
-    document.createElement(
-      "span"
+  card.dataset.libraryId=
+    file.id;
+
+  if(
+    file.id===
+    state.selectedId
+  ){
+    card.classList.add(
+      "is-selected"
     );
-
-  format.className=
-    "ovll-library-card-format";
-
-  format.textContent=
-    formatOf(file);
-
-  card.append(
-    icon,
-    info,
-    format
-  );
+  }
 
   return card;
 }
@@ -434,130 +371,31 @@ async function renderPreview(
   root,
   file
 ){
-  if(isHtml(file)){
-    const blob=
-      await FileStore.getBlob(
-        file.id
-      );
-
-    if(!blob){
-      return false;
-    }
-
-    root.appendChild(
-      await Sandbox
-        .createFrameFromBlob(
-          blob,
-          {
-            title:
-              file.name||
-              "HTML 미리보기"
-          }
-        )
-    );
-
-    return true;
-  }
-
   const hydrated=
     await FileStore.hydrate(
+      file.localFileId||
       file.id
-    );
+    )||
+    file;
 
-  if(!hydrated){
-    return false;
-  }
-
-  if(
-    isImage(hydrated)&&
-    hydrated.previewUrl
-  ){
-    const image=
-      document.createElement(
-        "img"
-      );
-
-    image.src=
-      hydrated.previewUrl;
-
-    image.alt=
-      hydrated.name||
-      "이미지";
-
-    root.appendChild(
-      image
-    );
-
-    return true;
-  }
-
-  if(
-    isPdf(hydrated)&&
-    hydrated.previewUrl
-  ){
-    const frame=
-      document.createElement(
-        "iframe"
-      );
-
-    frame.src=
-      hydrated.previewUrl;
-
-    frame.title=
-      hydrated.name||
-      "PDF 미리보기";
-
-    frame.setAttribute(
-      "loading",
-      "lazy"
-    );
-
-    root.appendChild(
-      frame
-    );
-
-    return true;
-  }
-
-  if(isText(hydrated)){
-    let text=
-      String(
-        hydrated.previewText||
-        ""
-      );
-
-    if(!text){
-      const blob=
-        await FileStore.getBlob(
-          hydrated.id
-        );
-
-      if(blob){
-        text=
-          await blob.text();
+  return PreviewEngine
+    .render(
+      root,
+      {
+        ...file,
+        ...hydrated,
+        localFileId:
+          hydrated.localFileId||
+          file.localFileId||
+          file.id
+      },
+      {
+        fileStore:
+          FileStore,
+        textClassName:
+          "ovll-library-preview-text"
       }
-    }
-
-    const pre=
-      document.createElement(
-        "pre"
-      );
-
-    pre.className=
-      "ovll-library-preview-text";
-
-    pre.textContent=
-      text||
-      "미리볼 내용이 없어";
-
-    root.appendChild(
-      pre
     );
-
-    return true;
-  }
-
-  return false;
 }
 
 async function selectFile(fileId){
