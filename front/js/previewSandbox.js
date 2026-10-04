@@ -16,31 +16,72 @@ const CSP=[
 ].join("; ");
 
 function injectPolicy(source){
-  const html=
-    String(source||"");
+  const parser=
+    new DOMParser();
 
-  const guard=
-    `<meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${CSP.replace(/"/g,"&quot;")}"><meta name="referrer" content="no-referrer">`;
-
-  if(/<head[\s>]/i.test(html)){
-    return html.replace(
-      /<head([^>]*)>/i,
-      match=>match+guard
+  const doc=
+    parser.parseFromString(
+      String(source||""),
+      "text/html"
     );
-  }
 
-  if(/<html[\s>]/i.test(html)){
-    return html.replace(
-      /<html([^>]*)>/i,
-      match=>match+"<head>"+guard+"</head>"
+  const charset=
+    doc.createElement(
+      "meta"
     );
-  }
 
-  return "<!doctype html><html><head>"+
-    guard+
-    "</head><body>"+
-    html+
-    "</body></html>";
+  charset.setAttribute(
+    "charset",
+    "utf-8"
+  );
+
+  const policy=
+    doc.createElement(
+      "meta"
+    );
+
+  policy.setAttribute(
+    "http-equiv",
+    "Content-Security-Policy"
+  );
+
+  policy.setAttribute(
+    "content",
+    CSP
+  );
+
+  const referrer=
+    doc.createElement(
+      "meta"
+    );
+
+  referrer.setAttribute(
+    "name",
+    "referrer"
+  );
+
+  referrer.setAttribute(
+    "content",
+    "no-referrer"
+  );
+
+  doc.head.prepend(
+    referrer
+  );
+
+  doc.head.prepend(
+    policy
+  );
+
+  doc.head.prepend(
+    charset
+  );
+
+  return (
+    "<!doctype html>"+
+    doc.documentElement
+      .outerHTML
+  );
 }
 
 function createFrame(
