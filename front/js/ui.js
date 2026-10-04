@@ -1,6 +1,9 @@
 (function (global) {
   "use strict";
 
+  const THEME_KEY =
+    "ovll:theme";
+
   const workspace =
     document.querySelector(
       "#workspace"
@@ -693,12 +696,47 @@
   function setDarkMode(
     enabled = true
   ) {
-    document.documentElement
-      .classList
-      .toggle(
-        "dark",
-        !!enabled
+    const root =
+      document.documentElement;
+
+    const dark =
+      !!enabled;
+
+    root.classList.toggle(
+      "dark",
+      dark
+    );
+
+    root.dataset.theme =
+      dark
+        ? "dark"
+        : "light";
+
+    root.style.colorScheme =
+      dark
+        ? "dark"
+        : "light";
+
+    const meta =
+      document.querySelector(
+        'meta[name="theme-color"]'
       );
+
+    if (meta) {
+      meta.content =
+        dark
+          ? "#101010"
+          : "#f3f3f2";
+    }
+
+    try {
+      localStorage.setItem(
+        THEME_KEY,
+        dark
+          ? "dark"
+          : "light"
+      );
+    } catch {}
 
     return api;
   }
@@ -1763,12 +1801,6 @@
   global.AstraUI =
     Object.freeze(
       api
-    );
-
-  document.documentElement
-    .classList
-    .add(
-      "dark"
     );
 
   setUrlMode(
