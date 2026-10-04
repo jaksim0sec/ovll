@@ -1,11 +1,51 @@
 /* =========================================================
-   ovll library page
+   standalone library
    ========================================================= */
 
 #library-page{
-  left:200%;
+  position:absolute;
+  z-index:80;
+  inset:0;
+  overflow:hidden;
   background:var(--bg);
-  touch-action:pan-y;
+  opacity:0;
+  visibility:hidden;
+  pointer-events:none;
+  transform:translateY(.4rem);
+  transition:
+    opacity .18s ease,
+    visibility .18s ease,
+    transform .22s var(--ease);
+}
+
+#library-page[hidden]{
+  display:block;
+}
+
+#library-page.is-open{
+  opacity:1;
+  visibility:visible;
+  pointer-events:auto;
+  transform:none;
+}
+
+:root[data-app-page="library"]
+#workspace,
+:root[data-app-page="library"]
+#topbar,
+:root[data-app-page="library"]
+#composer{
+  opacity:0;
+  visibility:hidden;
+  pointer-events:none;
+}
+
+#workspace,
+#topbar,
+#composer{
+  transition:
+    opacity .18s ease,
+    visibility .18s ease;
 }
 
 .ovll-library-shell{
@@ -14,21 +54,57 @@
   min-height:0;
   margin:0 auto;
   padding:
-    calc(var(--safe-top) + var(--topbar-height) + .8rem)
+    calc(var(--safe-top) + 1rem)
     max(1rem,var(--safe-right))
     calc(var(--safe-bottom) + 1rem)
     max(1rem,var(--safe-left));
   display:grid;
   grid-template-rows:auto minmax(0,1fr);
-  gap:.9rem;
+  gap:1rem;
 }
 
 .ovll-library-header{
   min-width:0;
+  min-height:3.1rem;
   display:flex;
-  align-items:flex-end;
+  align-items:center;
   justify-content:space-between;
   gap:1rem;
+  padding-left:3.55rem;
+}
+
+.ovll-library-title-row{
+  min-width:0;
+  display:flex;
+  align-items:center;
+  gap:.75rem;
+}
+
+.ovll-library-back{
+  min-height:2.1rem;
+  padding:0 .72rem;
+  border:.0625rem solid var(--line);
+  border-radius:999px;
+  color:var(--sub);
+  background:var(--ui-control-surface);
+  font:inherit;
+  font-size:.65rem;
+  font-weight:650;
+  cursor:pointer;
+  transition:
+    color .14s ease,
+    border-color .14s ease,
+    background-color .14s ease,
+    transform .14s ease;
+}
+
+.ovll-library-back:hover{
+  color:var(--text);
+  border-color:var(--line-strong);
+}
+
+.ovll-library-back:active{
+  transform:scale(.96);
 }
 
 .ovll-library-heading{
@@ -45,16 +121,16 @@
 }
 
 .ovll-library-heading p{
-  margin:.28rem 0 0;
+  margin:.18rem 0 0;
   color:var(--muted);
-  font-size:.68rem;
+  font-size:.62rem;
   font-weight:500;
-  line-height:1.4;
+  line-height:1.35;
 }
 
 .ovll-library-search{
   width:min(18rem,42vw);
-  min-height:2.55rem;
+  min-height:2.45rem;
   display:grid;
   grid-template-columns:1.1rem minmax(0,1fr);
   align-items:center;
@@ -63,12 +139,7 @@
   border:.0625rem solid var(--line);
   border-radius:999px;
   color:var(--muted);
-  background:
-    color-mix(
-      in srgb,
-      var(--panel) 88%,
-      transparent
-    );
+  background:var(--ui-control-surface);
   box-shadow:var(--ui-control-shadow);
 }
 
@@ -127,139 +198,55 @@
   grid-template-columns:
     repeat(
       auto-fill,
-      minmax(12.5rem,1fr)
+      minmax(15rem,1fr)
     );
-  gap:.7rem;
+  align-content:start;
+  gap:.65rem;
 }
 
-.ovll-library-card{
+.ovll-library-artifact-card{
+  width:100%;
+  max-width:none;
   min-width:0;
-  min-height:8.25rem;
-  padding:.9rem;
-  display:grid;
-  grid-template-rows:auto minmax(0,1fr) auto;
-  gap:.72rem;
-  border:.0625rem solid var(--line);
-  border-radius:1.25rem;
-  color:var(--text);
-  background:
-    color-mix(
-      in srgb,
-      var(--panel) 78%,
-      var(--bg)
-    );
-  text-align:left;
   cursor:pointer;
-  transition:
-    transform .16s var(--ease),
-    border-color .16s ease,
-    background-color .16s ease;
+  text-align:left;
 }
 
-.ovll-library-card:hover{
-  transform:translateY(-.06rem);
-  border-color:var(--line-strong);
-  background:
-    color-mix(
-      in srgb,
-      var(--panel-strong) 88%,
-      var(--bg)
-    );
-}
-
-.ovll-library-card:active{
-  transform:scale(.988);
-}
-
-.ovll-library-card.is-selected{
+.ovll-library-artifact-card.is-selected{
   border-color:
     color-mix(
       in srgb,
-      var(--text) 18%,
+      var(--artifact-accent) 34%,
       var(--line)
     );
   background:
     color-mix(
       in srgb,
-      var(--text) 5.5%,
+      var(--artifact-accent) 5%,
       var(--panel)
     );
 }
 
-.ovll-library-card-head{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:.6rem;
-}
-
-.ovll-library-file-icon{
-  width:2.55rem;
-  height:2.55rem;
-  display:grid;
-  place-items:center;
-  border-radius:.9rem;
-  color:var(--sub);
-  background:
-    color-mix(
-      in srgb,
-      var(--text) 5%,
-      transparent
-    );
-}
-
-.ovll-library-file-icon svg{
-  width:1.25rem;
-  height:1.25rem;
-  stroke:currentColor;
-  stroke-width:1.45;
-  stroke-linecap:round;
-  stroke-linejoin:round;
-  fill:none;
-}
-
-.ovll-library-format{
-  padding:.3rem .48rem;
+.ovll-library-card-format{
+  grid-area:action;
+  justify-self:end;
+  padding:.28rem .44rem;
   border-radius:999px;
-  color:var(--muted);
+  color:
+    color-mix(
+      in srgb,
+      var(--artifact-accent) 76%,
+      var(--sub)
+    );
   background:
     color-mix(
       in srgb,
-      var(--text) 4.5%,
+      var(--artifact-accent) 7%,
       transparent
     );
-  font-size:.52rem;
+  font-size:.5rem;
   font-weight:720;
-}
-
-.ovll-library-card-copy{
-  min-width:0;
-  align-self:end;
-}
-
-.ovll-library-card-copy strong{
-  display:block;
-  min-width:0;
-  overflow:hidden;
-  color:var(--text);
-  font-size:.78rem;
-  font-weight:670;
-  line-height:1.38;
-  text-overflow:ellipsis;
-  white-space:nowrap;
-}
-
-.ovll-library-card-copy span{
-  display:block;
-  min-width:0;
-  margin-top:.18rem;
-  overflow:hidden;
-  color:var(--muted);
-  font-size:.57rem;
-  font-weight:480;
-  line-height:1.35;
-  text-overflow:ellipsis;
-  white-space:nowrap;
+  line-height:1;
 }
 
 .ovll-library-empty{
@@ -295,12 +282,20 @@
 .ovll-library-detail-header{
   min-width:0;
   min-height:4rem;
-  padding:.72rem .8rem .72rem .92rem;
+  padding:.72rem .8rem .72rem .78rem;
   display:grid;
   grid-template-columns:minmax(0,1fr) auto;
   align-items:center;
   gap:.8rem;
   border-bottom:.0625rem solid var(--line);
+}
+
+.ovll-library-detail-identity{
+  min-width:0;
+  display:grid;
+  grid-template-columns:2.7rem minmax(0,1fr);
+  align-items:center;
+  gap:.62rem;
 }
 
 .ovll-library-detail-copy{
@@ -335,6 +330,7 @@
   height:2rem;
   display:grid;
   place-items:center;
+  border:0;
   border-radius:50%;
   color:var(--muted);
   background:
@@ -433,14 +429,31 @@
 }
 
 @media(max-width:52rem){
+  .ovll-library-shell{
+    padding:
+      calc(var(--safe-top) + .75rem)
+      max(.8rem,var(--safe-right))
+      calc(var(--safe-bottom) + .8rem)
+      max(.8rem,var(--safe-left));
+  }
+
   .ovll-library-header{
     align-items:stretch;
     flex-direction:column;
     gap:.65rem;
+    padding-left:3.45rem;
+  }
+
+  .ovll-library-title-row{
+    min-height:2.4rem;
   }
 
   .ovll-library-search{
     width:100%;
+  }
+
+  .ovll-library-grid{
+    grid-template-columns:1fr;
   }
 
   .ovll-library-content.has-selection{
@@ -454,5 +467,11 @@
 
   .ovll-library-detail{
     border-radius:1.15rem;
+  }
+}
+
+@media(prefers-reduced-motion:reduce){
+  #library-page{
+    transition:none;
   }
 }
