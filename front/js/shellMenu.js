@@ -177,12 +177,6 @@ function icon(name){
         <path d="M6 6.1h8M8 6.1V4.8h4v1.3M7.2 8.2l.5 6h4.6l.5-6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
     `,
-    library:`
-      <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
-        <rect x="4" y="3.7" width="12" height="12.6" rx="3.2" stroke="currentColor" stroke-width="1.5"/>
-        <path d="M7 7.2h6M7 10h6M7 12.8h3.8" stroke="currentColor" stroke-width="1.45" stroke-linecap="round"/>
-      </svg>
-    `
   };
 
   return icons[name]||"";
