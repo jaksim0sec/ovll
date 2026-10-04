@@ -73,7 +73,11 @@
     messages: [],
     restoringConversation: false,
     workspaceSaveTimer: null,
-    nodeBuilder: { root: null, open: false },
+    nodeBuilder: {
+      root: null,
+      open: false,
+      resetTimer: null
+    },
     messageCount: 0
   };
 
@@ -4755,15 +4759,24 @@
           <span>노드</span>
         </button>
         <button id="canvas-node-builder-layout" type="button" aria-label="노드 정리하기" title="노드 정리하기">
-          <span class="canvas-node-builder-layout-icon" aria-hidden="true">
+          <span class="canvas-node-builder-action-icon" aria-hidden="true">
             <svg viewBox="0 0 20 20" fill="none" preserveAspectRatio="xMidYMid meet">
-              <rect x="3.25" y="3.25" width="4.75" height="4.75" rx="1.9"></rect>
-              <rect x="12" y="3.25" width="4.75" height="4.75" rx="1.9"></rect>
-              <rect x="7.625" y="12" width="4.75" height="4.75" rx="1.9"></rect>
-              <path d="M8 5.625h4M5.625 8v2.125M14.375 8v2.125M8.625 12h2.75"></path>
+              <rect x="7.5" y="2.5" width="5" height="4" rx="1.5"></rect>
+              <rect x="2.75" y="13.5" width="5" height="4" rx="1.5"></rect>
+              <rect x="12.25" y="13.5" width="5" height="4" rx="1.5"></rect>
+              <path d="M10 6.5v3.25M5.25 13.5V9.75h9.5v3.75"></path>
             </svg>
           </span>
           <span>정리하기</span>
+        </button>
+        <button id="canvas-node-builder-reset" type="button" aria-label="캔버스 초기화" title="캔버스 초기화">
+          <span class="canvas-node-builder-action-icon" aria-hidden="true">
+            <svg viewBox="0 0 20 20" fill="none" preserveAspectRatio="xMidYMid meet">
+              <path d="M5.1 6.35A6 6 0 1 1 4.35 12"></path>
+              <path d="M5.1 3.65v2.7h2.7"></path>
+            </svg>
+          </span>
+          <span class="canvas-node-builder-reset-label">초기화</span>
         </button>
       </div>
     `;
@@ -4784,6 +4797,87 @@
           state.canvas.layout();
         }
 
+        return;
+      }
+
+      const reset = event.target.closest("#canvas-node-builder-reset");
+
+      if (reset) {
+        event.preventDefault();
+
+        if (
+          !state.canvas ||
+          typeof state.canvas.setState !== "function"
+        ) {
+          return;
+        }
+
+        const workflow =
+          state.canvas.getWorkflow?.() || {
+            nodes: [],
+            connections: []
+          };
+
+        const hasContent =
+          (workflow.nodes?.length || 0) > 0 ||
+          (workflow.connections?.length || 0) > 0;
+
+        if (
+          hasContent &&
+          !reset.classList.contains("is-confirming")
+        ) {
+          reset.classList.add("is-confirming");
+          reset.querySelector(
+            ".canvas-node-builder-reset-label"
+          ).textContent = "한번 더";
+
+          clearTimeout(
+            state.nodeBuilder.resetTimer
+          );
+
+          state.nodeBuilder.resetTimer =
+            setTimeout(() => {
+              reset.classList.remove("is-confirming");
+              reset.querySelector(
+                ".canvas-node-builder-reset-label"
+              ).textContent = "초기화";
+              state.nodeBuilder.resetTimer = null;
+            }, 1800);
+
+          return;
+        }
+
+        clearTimeout(
+          state.nodeBuilder.resetTimer
+        );
+        state.nodeBuilder.resetTimer = null;
+        reset.classList.remove("is-confirming");
+        reset.querySelector(
+          ".canvas-node-builder-reset-label"
+        ).textContent = "초기화";
+
+        clearRuntimeConnections();
+        state.canvas.clearRuntimeNodeStates?.();
+        finishRuntimeActivity({
+          removeImmediately: true
+        });
+        Presence.hideCanvasSpeech?.();
+
+        state.canvas.setState({
+          workflow: {
+            nodes: [],
+            connections: []
+          },
+          viewport: {
+            scale: 1,
+            offset: {
+              x: 0,
+              y: 0
+            }
+          }
+        });
+
+        setNodeBuilderOpen(false);
         return;
       }
 
@@ -5038,6 +5132,12 @@ listen(composerInput, "keydown", handleComposerKeydown);
         state.workspaceSaveTimer
       );
       state.workspaceSaveTimer =
+        null;
+
+      clearTimeout(
+        state.nodeBuilder.resetTimer
+      );
+      state.nodeBuilder.resetTimer =
         null;
 
       listeners.splice(0).forEach(cleanup => {
