@@ -339,13 +339,30 @@
           )
         : liveCanvasState;
 
+    const currentMode =
+      UI.getMode?.() ||
+      "chat";
+
+    const conversationMode =
+      currentMode ===
+        "library"
+        ? (
+            WorkspaceStore
+              .getConversation?.(
+                id
+              )
+              ?.state
+              ?.mode ||
+            "chat"
+          )
+        : currentMode;
+
     return WorkspaceStore
       .updateConversationState(
         id,
         {
           mode:
-            UI.getMode?.() ||
-            "chat",
+            conversationMode,
           messages:
             storageSafe(
               state.messages
