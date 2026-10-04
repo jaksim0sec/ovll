@@ -15,6 +15,7 @@
   const FileStore = global.OvllFileStore;
   const ArtifactVisuals = global.OvllArtifactVisuals;
   const PreviewSandbox = global.OvllPreviewSandbox;
+  const PreviewEngine = global.OvllPreviewEngine;
   const Execution = global.OvllExecutionEngine;
   const mountCanvasNode = global.mountCanvasNode;
 
@@ -44,6 +45,7 @@
     !FileStore ||
     !ArtifactVisuals ||
     !PreviewSandbox ||
+    !PreviewEngine ||
     !Execution ||
     typeof Execution.RuntimeEngine !== "function" ||
     typeof mountCanvasNode !== "function"
@@ -1848,54 +1850,10 @@
   function artifactCanPreview(
     artifact
   ) {
-    const format =
-      artifactFormat(
+    return PreviewEngine
+      .canPreview(
         artifact
       );
-
-    const mime =
-      String(
-        artifact?.mime ||
-        ""
-      ).toLowerCase();
-
-    const previewText =
-      String(
-        artifact?.previewText ||
-        ""
-      ).trim();
-
-    return !!(
-      previewText ||
-      (
-        artifact?.localFileId &&
-        (
-          format === "HTML" ||
-          format === "HTM" ||
-          mime.includes(
-            "text/html"
-          )
-        )
-      ) ||
-      (
-        artifact?.previewUrl &&
-        (
-          format === "PDF" ||
-          mime.startsWith(
-            "image/"
-          ) ||
-          mime.startsWith(
-            "text/"
-          ) ||
-          [
-            "JSON",
-            "MD",
-            "CSV",
-            "HTML"
-          ].includes(format)
-        )
-      )
-    );
   }
 
   async function openArtifactPreview(
@@ -2141,224 +2099,34 @@
     body.className =
       "astra-artifact-preview-body";
 
-    const mime =
-      String(
-        artifact?.mime ||
-        ""
-      ).toLowerCase();
+    const shown =
+      await PreviewEngine
+        .render(
+          body,
+          artifact,
+          {
+            fileStore:
+              FileStore,
+            textClassName:
+              "astra-artifact-preview-text",
+            renderDocument:
+              (
+                preview,
+                text
+              ) => {
+                preview.className =
+                  "astra-artifact-preview-document";
 
-    const format =
-      artifactFormat(
-        artifact
-      );
-
-    const previewUrl =
-      String(
-        artifact?.previewUrl ||
-        ""
-      );
-
-    const previewText =
-      String(
-        artifact?.previewText ||
-        ""
-      ).trim();
-
-    if (
-      format === "HTML" ||
-      format === "HTM" ||
-      mime.includes(
-        "text/html"
-      )
-    ) {
-      let htmlSource =
-        previewText;
-
-      if (
-        artifact?.localFileId
-      ) {
-        try {
-          const blob =
-            await FileStore.getBlob(
-              artifact.localFileId
-            );
-
-          if (blob) {
-            htmlSource =
-              await blob.text();
-          }
-        } catch {}
-      }
-
-      if (
-        !htmlSource &&
-        previewUrl
-      ) {
-        try {
-          const response =
-            await fetch(
-              previewUrl,
-              {
-                cache:
-                  "no-store",
-                credentials:
-                  "omit",
-                referrerPolicy:
-                  "no-referrer"
+                renderChatMarkup(
+                  preview,
+                  text
+                );
               }
-            );
-
-          if (response.ok) {
-            htmlSource =
-              await response.text();
           }
-        } catch {}
-      }
-
-      if (htmlSource) {
-        body.classList.add(
-          "is-html"
         );
 
-        body.appendChild(
-          PreviewSandbox.createFrame(
-            htmlSource,
-            {
-              title:
-                String(
-                  artifact?.name ||
-                  "HTML 미리보기"
-                )
-            }
-          )
-        );
-      }
-    } else if (
-      mime.startsWith(
-        "image/"
-      ) &&
-      previewUrl
-    ) {
-      const image =
-        document.createElement(
-          "img"
-        );
-
-      image.src =
-        previewUrl;
-
-      image.alt =
-        String(
-          artifact?.name ||
-          "이미지 결과물"
-        );
-
-      body.classList.add(
-        "is-image"
-      );
-
-      body.appendChild(
-        image
-      );
-    } else if (
-      previewUrl &&
-      format === "PDF"
-    ) {
-      const frame =
-        document.createElement(
-          "iframe"
-        );
-
-      frame.src =
-        previewUrl;
-
-      frame.title =
-        String(
-          artifact?.name ||
-          "PDF 미리보기"
-        );
-
-      body.appendChild(
-        frame
-      );
-    } else if (
-      previewText &&
-      [
-        "MD",
-        "DOC",
-        "DOCX",
-        "RTF"
-      ].includes(format)
-    ) {
-      const preview =
-        document.createElement(
-          "div"
-        );
-
-      preview.className =
-        "astra-artifact-preview-document astra-message-markup";
-
-      renderChatMarkup(
-        preview,
-        previewText
-      );
-
-      body.classList.add(
-        "is-document"
-      );
-
-      body.appendChild(
-        preview
-      );
-    } else if (
-      previewUrl &&
-      (
-        mime.startsWith(
-          "text/"
-        ) ||
-        [
-          "JSON",
-          "CSV",
-          "HTML"
-        ].includes(format)
-      )
-    ) {
-      const frame =
-        document.createElement(
-          "iframe"
-        );
-
-      frame.src =
-        previewUrl;
-
-      frame.title =
-        String(
-          artifact?.name ||
-          "결과물 미리보기"
-        );
-
-      body.appendChild(
-        frame
-      );
-    } else if (previewText) {
-      const preview =
-        document.createElement(
-          "pre"
-        );
-
-      preview.className =
-        "astra-artifact-preview-text";
-
-      preview.textContent =
-        previewText;
-
-      body.classList.add(
-        "is-text"
-      );
-
-      body.appendChild(
-        preview
-      );
+    if (!shown) {
+      return false;
     }
 
     panel.append(
@@ -2466,35 +2234,18 @@
     for (
       const artifact of list
     ) {
-      const visual =
-        artifactVisual(
-          artifact
-        );
-
-      const link =
-        document.createElement(
-          "a"
-        );
-
-      link.className =
-        `astra-artifact-card astra-artifact-${visual.kind}`;
-
-      link.style.setProperty(
-        "--artifact-accent",
-        visual.color
-      );
-
-      link.href =
-        String(
-          artifact.downloadUrl ||
-          "#"
-        );
-
-      link.download =
-        String(
-          artifact.name ||
-          "result"
-        );
+      const {
+        element:link
+      } =
+        ArtifactVisuals
+          .createCard(
+            artifact,
+            {
+              tagName:"a",
+              action:"download",
+              inlinePreview:true
+            }
+          );
 
       const canPreview =
         artifactCanPreview(
@@ -2504,8 +2255,8 @@
       link.setAttribute(
         "aria-label",
         canPreview
-          ? `${artifact.name || "결과물"} 미리보기. 오른쪽 아이콘으로 다운로드`
-          : `${artifact.name || "결과물"} 다운로드`
+          ? (artifact.name || "결과물") + " 미리보기. 오른쪽 아이콘으로 다운로드"
+          : (artifact.name || "결과물") + " 다운로드"
       );
 
       if (canPreview) {
@@ -2526,144 +2277,10 @@
 
             event.preventDefault();
 
-            openArtifactPreview(
+            void openArtifactPreview(
               artifact
             );
           }
-        );
-      }
-
-      const icon =
-        document.createElement(
-          "span"
-        );
-
-      icon.className =
-        "astra-artifact-icon";
-      icon.innerHTML =
-        visual.icon;
-
-      const info =
-        document.createElement(
-          "span"
-        );
-
-      info.className =
-        "astra-artifact-info";
-
-      const name =
-        document.createElement(
-          "span"
-        );
-
-      name.className =
-        "astra-artifact-name";
-      name.textContent =
-        String(
-          artifact.name ||
-          "결과물"
-        );
-
-      const meta =
-        document.createElement(
-          "span"
-        );
-
-      meta.className =
-        "astra-artifact-meta";
-      meta.textContent =
-        `${artifactFormat(artifact)} · ${formatArtifactSize(artifact.size)}`;
-
-      info.append(
-        name,
-        meta
-      );
-
-      const action =
-        document.createElement(
-          "span"
-        );
-
-      action.className =
-        "astra-artifact-download";
-      action.innerHTML = `
-        <svg viewBox="0 0 18 18" fill="none" aria-hidden="true">
-          <path d="M9 3.1v7m0 0 2.45-2.45M9 10.1 6.55 7.65M4.2 13.55h9.6" stroke="currentColor" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      `;
-
-      const inlinePreview =
-        document.createElement(
-          "span"
-        );
-
-      inlinePreview.className =
-        "astra-artifact-inline-preview";
-
-      const inlineText =
-        String(
-          artifact.previewText ||
-          ""
-        )
-          .trim()
-          .slice(
-            0,
-            520
-          );
-
-      if (
-        visual.kind ===
-          "image" &&
-        artifact.previewUrl
-      ) {
-        const image =
-          document.createElement(
-            "img"
-          );
-
-        image.src =
-          String(
-            artifact.previewUrl
-          );
-
-        image.alt = "";
-
-        inlinePreview.classList.add(
-          "is-image"
-        );
-
-        inlinePreview.appendChild(
-          image
-        );
-      } else if (inlineText) {
-        inlinePreview.classList.add(
-          "is-text"
-        );
-
-        inlinePreview.textContent =
-          inlineText;
-      }
-
-      if (
-        inlinePreview.childNodes
-          .length ||
-        inlinePreview.textContent
-      ) {
-        link.classList.add(
-          "has-inline-preview"
-        );
-
-        link.append(
-          icon,
-          info,
-          action,
-          inlinePreview
-        );
-      } else {
-        link.append(
-          icon,
-          info,
-          action
         );
       }
 
