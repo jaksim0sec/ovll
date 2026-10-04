@@ -4,7 +4,7 @@
 
 #library-page{
   position:absolute;
-  z-index:220;
+  z-index:var(--layer-page);
   inset:0;
   overflow:hidden;
   background:var(--bg);
@@ -30,31 +30,16 @@
 }
 
 :root[data-app-page="library"]
-#workspace,
-:root[data-app-page="library"]
-#topbar,
-:root[data-app-page="library"]
-#composer,
-:root[data-app-page="library"]
-#ovll-shell-menu{
+#workspace-shell{
   opacity:0;
   visibility:hidden;
   pointer-events:none;
 }
 
-#workspace,
-#topbar,
-#composer,
-#ovll-shell-menu{
-  transition:
-    opacity .18s ease,
-    visibility .18s ease;
-}
-
 .ovll-library-shell{
   position:relative;
   z-index:1;
-  width:min(72rem,100%);
+  width:min(var(--wide-rail),100%);
   height:100%;
   min-height:0;
   margin:0 auto;
@@ -289,17 +274,6 @@
     );
 }
 
-.ovll-library-content.has-selection
-.ovll-library-browser{
-  display:none;
-}
-
-.ovll-library-content.has-selection
-.ovll-library-detail{
-  display:grid;
-  grid-template-rows:auto minmax(0,1fr);
-}
-
 .ovll-library-detail-header{
   position:relative;
   z-index:2;
@@ -510,7 +484,39 @@
   text-align:center;
 }
 
+@media(min-width:46.01rem){
+  .ovll-library-content.has-selection{
+    grid-template-columns:
+      minmax(18rem,24rem)
+      minmax(0,1fr);
+    gap:.75rem;
+  }
+
+  .ovll-library-content.has-selection
+  .ovll-library-browser{
+    display:block;
+    padding-right:.15rem;
+  }
+
+  .ovll-library-content.has-selection
+  .ovll-library-detail{
+    display:grid;
+    grid-template-rows:auto minmax(0,1fr);
+  }
+}
+
 @media(max-width:46rem){
+  .ovll-library-content.has-selection
+  .ovll-library-browser{
+    display:none;
+  }
+
+  .ovll-library-content.has-selection
+  .ovll-library-detail{
+    display:grid;
+    grid-template-rows:auto minmax(0,1fr);
+  }
+
   .ovll-library-shell{
     padding:
       calc(var(--safe-top) + .7rem)
