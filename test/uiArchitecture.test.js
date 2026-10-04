@@ -74,7 +74,7 @@ test("sidebar primary navigation is a single-column peer list", () => {
 
   assert.match(
     css,
-    /\.ovll-sidebar-primary\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/
+    /\.ovll-sidebar-primary\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s*;/
   );
   assert.doesNotMatch(
     css,
