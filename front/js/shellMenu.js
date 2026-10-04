@@ -346,33 +346,6 @@ const searchInput=
     "input"
   );
 
-function formatTime(timestamp){
-  const value =
-    Number(timestamp) || 0;
-
-  if(!value) return "";
-
-  const diff =
-    Date.now() - value;
-
-  if(diff < 60000){
-    return "방금";
-  }
-
-  if(diff < 3600000){
-    return `${Math.max(1,Math.floor(diff/60000))}분`;
-  }
-
-  if(diff < 86400000){
-    return `${Math.max(1,Math.floor(diff/3600000))}시간`;
-  }
-
-  const date =
-    new Date(value);
-
-  return `${date.getMonth()+1}/${date.getDate()}`;
-}
-
 function activeConversation(){
   return Store
     .getActiveConversation?.();
