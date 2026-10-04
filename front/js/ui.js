@@ -1118,10 +1118,9 @@
 
     if (restore) {
       state.progress =
-        state.mode ===
-          "canvas"
-          ? 1
-          : 0;
+        modeIndex(
+          state.mode
+        );
 
       render();
     }
@@ -1429,7 +1428,7 @@
       clamp(
         state.progress,
         0,
-        1
+        2
       );
     pillGesture.lastX =
       event.clientX;
@@ -1493,12 +1492,19 @@
           .width
       );
 
+    const tabWidth =
+      width / 3;
+
     const next =
       clamp(
         pillGesture.startProgress +
-        dx / width,
+        dx /
+          Math.max(
+            1,
+            tabWidth
+          ),
         -.12,
-        1.12
+        2.12
       );
 
     const now =
@@ -1555,7 +1561,7 @@
       clamp(
         state.progress,
         0,
-        1
+        2
       );
 
     try {
@@ -1569,10 +1575,9 @@
 
     if (!moved) {
       state.progress =
-        state.mode ===
-          "canvas"
-          ? 1
-          : 0;
+        modeIndex(
+          state.mode
+        );
 
       render();
       return;
@@ -1583,27 +1588,44 @@
 
     event.preventDefault();
 
+    const startIndex =
+      modeIndex(
+        state.mode
+      );
+
     let target;
 
     if (
       velocity > .34
     ) {
-      target = 1;
+      target =
+        Math.min(
+          2,
+          startIndex + 1
+        );
     } else if (
       velocity < -.34
     ) {
-      target = 0;
+      target =
+        Math.max(
+          0,
+          startIndex - 1
+        );
     } else {
       target =
-        progress >= .5
-          ? 1
-          : 0;
+        clamp(
+          Math.round(
+            progress
+          ),
+          0,
+          2
+        );
     }
 
     setMode(
-      target === 1
-        ? "canvas"
-        : "chat"
+      modeFromIndex(
+        target
+      )
     );
 
     setTimeout(
@@ -1633,10 +1655,9 @@
     resetPillGesture();
 
     state.progress =
-      state.mode ===
-        "canvas"
-        ? 1
-        : 0;
+      modeIndex(
+        state.mode
+      );
 
     render();
   }
@@ -1671,8 +1692,9 @@
       button.dataset.mode;
 
     if (
-      mode === "chat" ||
-      mode === "canvas"
+      MODES.includes(
+        mode
+      )
     ) {
       setMode(
         mode
