@@ -1524,6 +1524,8 @@
                 );
 
               try {
+                throwIfCancelled();
+
                 await Promise.all(
                   parentEdges.map(
                     connection =>
@@ -1532,6 +1534,8 @@
                       )
                   )
                 );
+
+                throwIfCancelled();
 
                 const failedDependencies =
                   parentEdges
@@ -1634,8 +1638,40 @@
                   return null;
                 }
 
+                throwIfCancelled();
+
                 const inputs =
                   collectInputs(nodeId);
+
+                const cachedResult =
+                  cachedResultFor(
+                    nodeId,
+                    inputs
+                  );
+
+                if (cachedResult) {
+                  setState(
+                    nodeId,
+                    "SUCCESS",
+                    {
+                      inputs:
+                        clone(inputs),
+                      result:
+                        clone(
+                          cachedResult
+                        ),
+                      cached: true,
+                      finishedAt:
+                        Date.now(),
+                      report:
+                        cachedResult
+                          ?.report ||
+                        null
+                    }
+                  );
+
+                  return cachedResult;
+                }
 
                 setState(
                   nodeId,
@@ -1647,6 +1683,8 @@
                 );
 
                 try {
+                  throwIfCancelled();
+
                   const result =
                     await this.executor.run(
                       clone(node),
@@ -1655,9 +1693,18 @@
                         runId,
                         nodeId,
                         pivot,
-                        mode
+                        mode,
+                        signal
                       }
                     );
+
+                  throwIfCancelled();
+
+                  rememberResult(
+                    nodeId,
+                    inputs,
+                    result
+                  );
 
                   setState(
                     nodeId,
@@ -1675,6 +1722,19 @@
 
                   return result;
                 } catch (error) {
+                  if (
+                    isRuntimeAbort(
+                      error
+                    ) ||
+                    signal.aborted
+                  ) {
+                    throw runtimeAbortError();
+                  }
+
+                  this.resultCache.delete(
+                    nodeId
+                  );
+
                   const failure =
                     runtimeErrorState(
                       error
