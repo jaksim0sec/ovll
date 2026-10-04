@@ -20,6 +20,7 @@
      ======================================================= */
   const workspace = document.querySelector("#workspace");
   const chatPage = document.querySelector("#chat-page");
+  const canvasPage = document.querySelector("#canvas-page");
   const chatContent = document.querySelector("#chat-content");
   const chatMessages = document.querySelector("#chat-messages");
   const composerForm = document.querySelector("#composer-form");
@@ -28,7 +29,7 @@
   let composerFileInput = document.querySelector("#composer-file-input");
   const composerSubmit = document.querySelector("#composer-submit");
 
-  if (!workspace || !chatPage || !chatContent || !chatMessages || !composerForm || !composerInput || !composerSubmit) {
+  if (!workspace || !chatPage || !canvasPage || !chatContent || !chatMessages || !composerForm || !composerInput || !composerSubmit) {
     throw new Error("ovll Application DOM 구조가 올바르지 않습니다.");
   }
 
@@ -1220,22 +1221,31 @@
         ""
       ).toLowerCase();
 
+    const previewText =
+      String(
+        artifact?.previewText ||
+        ""
+      ).trim();
+
     return !!(
-      artifact?.previewUrl &&
+      previewText ||
       (
-        format === "PDF" ||
-        mime.startsWith(
-          "image/"
-        ) ||
-        mime.startsWith(
-          "text/"
-        ) ||
-        [
-          "JSON",
-          "MD",
-          "CSV",
-          "HTML"
-        ].includes(format)
+        artifact?.previewUrl &&
+        (
+          format === "PDF" ||
+          mime.startsWith(
+            "image/"
+          ) ||
+          mime.startsWith(
+            "text/"
+          ) ||
+          [
+            "JSON",
+            "MD",
+            "CSV",
+            "HTML"
+          ].includes(format)
+        )
       )
     );
   }
@@ -1435,10 +1445,28 @@
         ""
       ).toLowerCase();
 
+    const format =
+      artifactFormat(
+        artifact
+      );
+
+    const previewUrl =
+      String(
+        artifact?.previewUrl ||
+        ""
+      );
+
+    const previewText =
+      String(
+        artifact?.previewText ||
+        ""
+      ).trim();
+
     if (
       mime.startsWith(
         "image/"
-      )
+      ) &&
+      previewUrl
     ) {
       const image =
         document.createElement(
@@ -1446,9 +1474,7 @@
         );
 
       image.src =
-        String(
-          artifact.previewUrl
-        );
+        previewUrl;
 
       image.alt =
         String(
@@ -1463,16 +1489,28 @@
       body.appendChild(
         image
       );
-    } else {
+    } else if (
+      previewUrl &&
+      (
+        format === "PDF" ||
+        mime.startsWith(
+          "text/"
+        ) ||
+        [
+          "JSON",
+          "MD",
+          "CSV",
+          "HTML"
+        ].includes(format)
+      )
+    ) {
       const frame =
         document.createElement(
           "iframe"
         );
 
       frame.src =
-        String(
-          artifact.previewUrl
-        );
+        previewUrl;
 
       frame.title =
         String(
@@ -1482,6 +1520,25 @@
 
       body.appendChild(
         frame
+      );
+    } else if (previewText) {
+      const preview =
+        document.createElement(
+          "pre"
+        );
+
+      preview.className =
+        "astra-artifact-preview-text";
+
+      preview.textContent =
+        previewText;
+
+      body.classList.add(
+        "is-text"
+      );
+
+      body.appendChild(
+        preview
       );
     }
 
@@ -1732,8 +1789,7 @@
     );
   }
 
-  function appendWorkflowProposalControls(
-    message,
+  function showWorkflowProposalDock(
     proposalId
   ) {
     const id =
@@ -1745,64 +1801,63 @@
       return;
     }
 
-    const row =
+    canvasPage
+      .querySelector(
+        ".astra-canvas-workflow-proposal"
+      )
+      ?.remove();
+
+    const dock =
       document.createElement(
         "div"
       );
 
-    chatMessages
-      .querySelectorAll(
-        ".astra-workflow-proposal"
-      )
-      .forEach(
-        existing => {
-          if (
-            existing.dataset
-              .workflowProposalId ===
-              id
-          ) {
-            existing.remove();
-          }
-        }
-      );
+    dock.className =
+      "astra-canvas-workflow-proposal";
 
-    row.className =
-      "astra-workflow-proposal";
-
-    row.dataset
+    dock.dataset
       .workflowProposalId =
       id;
 
+    const copy =
+      document.createElement(
+        "div"
+      );
+
+    copy.className =
+      "astra-canvas-workflow-proposal-copy";
+
     const label =
       document.createElement(
-        "span"
+        "strong"
       );
 
     label.className =
-      "astra-workflow-proposal-label";
+      "astra-canvas-workflow-proposal-label";
 
     label.textContent =
       "노드 변경 미리보기";
 
-    const accept =
+    const hint =
       document.createElement(
-        "button"
+        "span"
       );
 
-    accept.type =
-      "button";
+    hint.textContent =
+      "바뀐 구성을 확인하고 결정해";
 
-    accept.className =
-      "astra-workflow-proposal-action is-accept";
+    copy.append(
+      label,
+      hint
+    );
 
-    accept.dataset
-      .workflowProposalAction =
-      "accept";
+    const actions =
+      document.createElement(
+        "div"
+      );
 
-    accept.textContent =
-      "적용";
-    accept.disabled =
-      state.busy;
+    actions.className =
+      "astra-canvas-workflow-proposal-actions";
 
     const revert =
       document.createElement(
@@ -1811,27 +1866,81 @@
 
     revert.type =
       "button";
-
     revert.className =
       "astra-workflow-proposal-action";
-
     revert.dataset
       .workflowProposalAction =
       "revert";
-
     revert.textContent =
       "되돌리기";
     revert.disabled =
       state.busy;
 
-    row.append(
-      label,
-      accept,
-      revert
+    const accept =
+      document.createElement(
+        "button"
+      );
+
+    accept.type =
+      "button";
+    accept.className =
+      "astra-workflow-proposal-action is-accept";
+    accept.dataset
+      .workflowProposalAction =
+      "accept";
+    accept.textContent =
+      "적용";
+    accept.disabled =
+      state.busy;
+
+    actions.append(
+      revert,
+      accept
     );
 
-    message.appendChild(
-      row
+    dock.append(
+      copy,
+      actions
+    );
+
+    dock.addEventListener(
+      "click",
+      event => {
+        const button =
+          event.target.closest(
+            "[data-workflow-proposal-action]"
+          );
+
+        if (!button) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        if (
+          button.dataset
+            .workflowProposalAction ===
+            "accept"
+        ) {
+          acceptWorkflowProposal(
+            id
+          );
+        } else {
+          rejectWorkflowProposal(
+            id
+          );
+        }
+      }
+    );
+
+    canvasPage.appendChild(
+      dock
+    );
+
+    requestAnimationFrame(
+      () =>
+        dock.classList.add(
+          "is-visible"
+        )
     );
   }
 
@@ -1849,9 +1958,9 @@
       return;
     }
 
-    chatMessages
+    canvasPage
       .querySelectorAll(
-        ".astra-workflow-proposal"
+        ".astra-canvas-workflow-proposal"
       )
       .forEach(
         row => {
@@ -1874,7 +1983,7 @@
 
           const label =
             row.querySelector(
-              ".astra-workflow-proposal-label"
+              ".astra-canvas-workflow-proposal-label"
             );
 
           if (label) {
@@ -2070,8 +2179,7 @@
       role === "assistant" &&
       options.workflowProposalId
     ) {
-      appendWorkflowProposalControls(
-        message,
+      showWorkflowProposalDock(
         options.workflowProposalId
       );
     }
@@ -2333,9 +2441,6 @@
         class="astra-runtime-activity-summary"
         aria-expanded="true"
       >
-        <span class="astra-runtime-activity-spark" aria-hidden="true">
-          <span></span>
-        </span>
         <span class="astra-runtime-activity-meta">준비 중</span>
         <svg class="astra-runtime-activity-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
           <path d="M6.5 8 10 11.5 13.5 8" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round"/>
@@ -3438,14 +3543,9 @@
 
     if (!value) return;
 
-    const proposalRow =
-      message.querySelector(
-        ".astra-workflow-proposal"
-      );
-
     const proposalId =
-      proposalRow?.dataset
-        ?.workflowProposalId ||
+      state.workflowProposal
+        ?.id ||
       "";
 
     if (
@@ -3484,46 +3584,6 @@
   function handleMessageClick(
     event
   ) {
-    const proposalAction =
-      event.target.closest(
-        "[data-workflow-proposal-action]"
-      );
-
-    if (proposalAction) {
-      const row =
-        proposalAction.closest(
-          ".astra-workflow-proposal"
-        );
-
-      const proposalId =
-        row?.dataset
-          ?.workflowProposalId ||
-        "";
-
-      event.preventDefault();
-      event.stopPropagation();
-
-      if (
-        proposalAction.dataset
-          .workflowProposalAction ===
-          "accept"
-      ) {
-        acceptWorkflowProposal(
-          proposalId
-        );
-      } else if (
-        proposalAction.dataset
-          .workflowProposalAction ===
-          "revert"
-      ) {
-        rejectWorkflowProposal(
-          proposalId
-        );
-      }
-
-      return;
-    }
-
     const action =
       event.target.closest(
         ".astra-message-action"
@@ -3633,7 +3693,7 @@
       state.busy ? "true" : "false"
     );
 
-    chatMessages
+    document
       .querySelectorAll(
         ".astra-workflow-proposal-action"
       )
