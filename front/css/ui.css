@@ -71,49 +71,8 @@
   pointer-events: none;
 }
 
-#topbar-left,
-#topbar-right,
 #mode-switch {
   z-index: 1;
-}
-
-#topbar-left,
-#topbar-right {
-  position: absolute;
-  top: calc(var(--safe-top) + var(--top-control-top));
-  bottom: auto;
-  width: var(--control-size);
-  height: var(--control-size);
-  display: flex;
-  align-items: center;
-  pointer-events: none;
-}
-
-#topbar-left > button,
-#topbar-right > button {
-  width: var(--top-control-height);
-  height: var(--top-control-height);
-  display: grid;
-  place-items: center;
-  border: .0625rem solid var(--line);
-  border-radius: 50%;
-  clip-path: circle(50%);
-  background: var(--ui-control-surface);
-  color: var(--text);
-  backdrop-filter: var(--ui-backdrop);
-  -webkit-backdrop-filter: var(--ui-backdrop);
-  box-shadow: var(--ui-control-shadow);
-  pointer-events: auto;
-  touch-action: manipulation;
-}
-
-#topbar-left {
-  left: max(.8125rem, var(--safe-left));
-}
-
-#topbar-right {
-  right: max(.8125rem, var(--safe-right));
-  justify-content: flex-end;
 }
 
 /* =========================================================
@@ -127,7 +86,7 @@
   left: 50%;
   transform: translateX(-50%);
   width: 9.375rem;
-  height: var(--top-control-height);
+  height: var(--control-size);
   padding: .25rem;
   display: grid;
   grid-template-columns: 1fr 1fr;
