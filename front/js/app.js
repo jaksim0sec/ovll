@@ -2190,6 +2190,75 @@
       ).trim();
 
     if (
+      format === "HTML" ||
+      format === "HTM" ||
+      mime.includes(
+        "text/html"
+      )
+    ) {
+      let htmlSource =
+        previewText;
+
+      if (
+        artifact?.localFileId
+      ) {
+        try {
+          const blob =
+            await FileStore.getBlob(
+              artifact.localFileId
+            );
+
+          if (blob) {
+            htmlSource =
+              await blob.text();
+          }
+        } catch {}
+      }
+
+      if (
+        !htmlSource &&
+        previewUrl
+      ) {
+        try {
+          const response =
+            await fetch(
+              previewUrl,
+              {
+                cache:
+                  "no-store",
+                credentials:
+                  "omit",
+                referrerPolicy:
+                  "no-referrer"
+              }
+            );
+
+          if (response.ok) {
+            htmlSource =
+              await response.text();
+          }
+        } catch {}
+      }
+
+      if (htmlSource) {
+        body.classList.add(
+          "is-html"
+        );
+
+        body.appendChild(
+          PreviewSandbox.createFrame(
+            htmlSource,
+            {
+              title:
+                String(
+                  artifact?.name ||
+                  "HTML 미리보기"
+                )
+            }
+          )
+        );
+      }
+    } else if (
       mime.startsWith(
         "image/"
       ) &&
