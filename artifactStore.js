@@ -1001,7 +1001,7 @@ export async function createStoredArtifact(input = {}) {
   const buffer =
     built.buffer;
   const id = randomUUID();
-  const item = {id, name, format, mime: info.mime, size: buffer.length, createdAt: Date.now(), buffer, renderer: built.renderer, previewText: sourceText(sources).slice(0, 240)};
+  const item = {id, name, format, mime: info.mime, size: buffer.length, createdAt: Date.now(), buffer, renderer: built.renderer, previewText: sourceText(sources).slice(0, 6000)};
   STORE.set(id, item);
   const baseUrl =
     '/api/artifacts/' +
