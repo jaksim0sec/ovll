@@ -1,7 +1,7 @@
 {
-  "name": "astra",
+  "name": "ovll",
   "version": "1.0.0",
-  "description": "",
+  "description": "Chat and visual workflow workspace",
   "main": "index.js",
   "scripts": {
     "test": "node --test test/*.test.js",
@@ -9,16 +9,16 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/jaksim0sec/astra.git"
+    "url": "git+https://github.com/jaksim0sec/ovll.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "module",
   "bugs": {
-    "url": "https://github.com/jaksim0sec/astra/issues"
+    "url": "https://github.com/jaksim0sec/ovll/issues"
   },
-  "homepage": "https://github.com/jaksim0sec/astra#readme",
+  "homepage": "https://github.com/jaksim0sec/ovll#readme",
   "dependencies": {
     "compression": "^1.8.2",
     "dotenv": "^17.4.2",
