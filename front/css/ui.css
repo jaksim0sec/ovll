@@ -890,17 +890,6 @@
   color: #d65f5f;
 }
 
-.canvas-node-builder-plus {
-  display: inline-flex;
-  width: 1.14rem;
-  height: 1.14rem;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.18rem;
-  font-weight: 500;
-  line-height: 1;
-}
-
 #canvas-node-builder-panel {
   position: absolute;
   left: 0;
