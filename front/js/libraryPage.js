@@ -1,14 +1,14 @@
 (function(global){
 "use strict";
 
-const UI=
-  global.AstraUI;
-
 const FileStore=
   global.OvllFileStore;
 
 const Sandbox=
   global.OvllPreviewSandbox;
+
+const ArtifactVisuals=
+  global.OvllArtifactVisuals;
 
 const page=
   document.querySelector(
@@ -20,7 +20,7 @@ const grid=
     "[data-library-grid]"
   );
 
-const content=
+const contentRoot=
   page?.querySelector(
     "[data-library-content]"
   );
@@ -40,13 +40,18 @@ const count=
     "[data-library-count]"
   );
 
+const back=
+  page?.querySelector(
+    "[data-library-back]"
+  );
+
 if(
-  !UI||
   !FileStore||
   !Sandbox||
+  !ArtifactVisuals||
   !page||
   !grid||
-  !content||
+  !contentRoot||
   !detail
 ){
   return;
@@ -60,6 +65,8 @@ const state={
   selectedId:"",
   loading:false,
   detailToken:0,
+  open:false,
+  closeTimer:null,
   destroyed:false
 };
 
@@ -69,6 +76,10 @@ function listen(
   handler,
   options
 ){
+  if(!node){
+    return;
+  }
+
   node.addEventListener(
     type,
     handler,
@@ -82,25 +93,6 @@ function listen(
       options
     )
   );
-}
-
-function formatSize(value){
-  const size=
-    Number(value||0);
-
-  if(size<1024){
-    return size+" B";
-  }
-
-  if(size<1048576){
-    return (
-      size/1024
-    ).toFixed(1)+" KB";
-  }
-
-  return (
-    size/1048576
-  ).toFixed(1)+" MB";
 }
 
 function formatDate(value){
@@ -129,35 +121,8 @@ function formatDate(value){
 }
 
 function formatOf(file){
-  const name=
-    String(
-      file?.name||""
-    );
-
-  const dot=
-    name.lastIndexOf(".");
-
-  if(dot>0){
-    return name
-      .slice(dot+1)
-      .toUpperCase()
-      .slice(0,8);
-  }
-
-  const mime=
-    String(
-      file?.mime||""
-    );
-
-  if(mime.includes("/")){
-    return mime
-      .split("/")
-      .pop()
-      .toUpperCase()
-      .slice(0,8);
-  }
-
-  return "FILE";
+  return ArtifactVisuals
+    .format(file);
 }
 
 function isHtml(file){
@@ -222,16 +187,6 @@ function isText(file){
   );
 }
 
-function fileIcon(){
-  return `
-    <svg viewBox="0 0 20 20" aria-hidden="true">
-      <path d="M5.2 3.2h6l3.6 3.6v10H5.2z"></path>
-      <path d="M11.2 3.2v3.7h3.6"></path>
-      <path d="M7.4 10h5.2M7.4 12.6h4.1"></path>
-    </svg>
-  `;
-}
-
 function visibleFiles(){
   const query=
     state.query
@@ -264,33 +219,35 @@ function visibleFiles(){
 }
 
 function cardFor(file){
-  const button=
+  const visual=
+    ArtifactVisuals
+      .visual(file);
+
+  const card=
     document.createElement(
       "button"
     );
 
-  button.type="button";
-  button.className=
-    "ovll-library-card";
-  button.dataset.libraryId=
+  card.type="button";
+  card.className=
+    "astra-artifact-card ovll-library-artifact-card";
+
+  card.dataset.libraryId=
     file.id;
+
+  card.style.setProperty(
+    "--artifact-accent",
+    visual.color
+  );
 
   if(
     file.id===
     state.selectedId
   ){
-    button.classList.add(
+    card.classList.add(
       "is-selected"
     );
   }
-
-  const head=
-    document.createElement(
-      "span"
-    );
-
-  head.className=
-    "ovll-library-card-head";
 
   const icon=
     document.createElement(
@@ -298,54 +255,46 @@ function cardFor(file){
     );
 
   icon.className=
-    "ovll-library-file-icon";
+    "astra-artifact-icon";
+
   icon.innerHTML=
-    fileIcon();
+    visual.icon;
 
-  const format=
+  const info=
     document.createElement(
       "span"
     );
 
-  format.className=
-    "ovll-library-format";
-  format.textContent=
-    formatOf(file);
-
-  head.append(
-    icon,
-    format
-  );
-
-  const spacer=
-    document.createElement(
-      "span"
-    );
-
-  const copy=
-    document.createElement(
-      "span"
-    );
-
-  copy.className=
-    "ovll-library-card-copy";
+  info.className=
+    "astra-artifact-info";
 
   const name=
     document.createElement(
       "strong"
     );
 
+  name.className=
+    "astra-artifact-name";
+
   name.textContent=
-    file.name||"파일";
+    file.name||
+    "파일";
 
   const meta=
     document.createElement(
       "span"
     );
 
+  meta.className=
+    "astra-artifact-meta";
+
   meta.textContent=
     [
-      formatSize(file.size),
+      formatOf(file),
+      ArtifactVisuals
+        .formatSize(
+          file.size
+        ),
       formatDate(
         file.updatedAt||
         file.createdAt
@@ -354,18 +303,29 @@ function cardFor(file){
       .filter(Boolean)
       .join(" · ");
 
-  copy.append(
+  info.append(
     name,
     meta
   );
 
-  button.append(
-    head,
-    spacer,
-    copy
+  const format=
+    document.createElement(
+      "span"
+    );
+
+  format.className=
+    "ovll-library-card-format";
+
+  format.textContent=
+    formatOf(file);
+
+  card.append(
+    icon,
+    info,
+    format
   );
 
-  return button;
+  return card;
 }
 
 function renderGrid(){
@@ -389,6 +349,7 @@ function renderGrid(){
 
     empty.className=
       "ovll-library-empty";
+
     empty.textContent=
       "파일 불러오는 중";
 
@@ -407,6 +368,7 @@ function renderGrid(){
 
     empty.className=
       "ovll-library-empty";
+
     empty.textContent=
       state.query
         ?"검색 결과가 없어"
@@ -430,9 +392,10 @@ function closeDetail(){
   state.selectedId="";
   state.detailToken++;
 
-  content.classList.remove(
-    "has-selection"
-  );
+  contentRoot.classList
+    .remove(
+      "has-selection"
+    );
 
   detail.replaceChildren();
 
@@ -452,13 +415,17 @@ function actionButton(
   button.type="button";
   button.className=
     "ovll-library-detail-action";
+
   button.dataset.libraryAction=
     action;
+
   button.setAttribute(
     "aria-label",
     label
   );
-  button.innerHTML=svg;
+
+  button.innerHTML=
+    svg;
 
   return button;
 }
@@ -477,7 +444,7 @@ async function renderPreview(
       return false;
     }
 
-    const frame=
+    root.appendChild(
       await Sandbox
         .createFrameFromBlob(
           blob,
@@ -486,10 +453,7 @@ async function renderPreview(
               file.name||
               "HTML 미리보기"
           }
-        );
-
-    root.appendChild(
-      frame
+        )
     );
 
     return true;
@@ -515,6 +479,7 @@ async function renderPreview(
 
     image.src=
       hydrated.previewUrl;
+
     image.alt=
       hydrated.name||
       "이미지";
@@ -537,9 +502,11 @@ async function renderPreview(
 
     frame.src=
       hydrated.previewUrl;
+
     frame.title=
       hydrated.name||
       "PDF 미리보기";
+
     frame.setAttribute(
       "loading",
       "lazy"
@@ -578,6 +545,7 @@ async function renderPreview(
 
     pre.className=
       "ovll-library-preview-text";
+
     pre.textContent=
       text||
       "미리볼 내용이 없어";
@@ -592,9 +560,7 @@ async function renderPreview(
   return false;
 }
 
-async function selectFile(
-  fileId
-){
+async function selectFile(fileId){
   const id=
     String(fileId||"");
 
@@ -607,9 +573,8 @@ async function selectFile(
     state.files.find(
       item=>item.id===id
     )||
-    await FileStore.getMetadata(
-      id
-    );
+    await FileStore
+      .getMetadata(id);
 
   if(!file){
     closeDetail();
@@ -619,14 +584,19 @@ async function selectFile(
   state.selectedId=id;
   renderGrid();
 
-  content.classList.add(
-    "has-selection"
-  );
+  contentRoot.classList
+    .add(
+      "has-selection"
+    );
 
   const token=
     ++state.detailToken;
 
   detail.replaceChildren();
+
+  const visual=
+    ArtifactVisuals
+      .visual(file);
 
   const header=
     document.createElement(
@@ -635,6 +605,30 @@ async function selectFile(
 
   header.className=
     "ovll-library-detail-header";
+
+  const identity=
+    document.createElement(
+      "div"
+    );
+
+  identity.className=
+    "ovll-library-detail-identity";
+
+  const icon=
+    document.createElement(
+      "span"
+    );
+
+  icon.className=
+    "astra-artifact-icon";
+
+  icon.style.setProperty(
+    "--artifact-accent",
+    visual.color
+  );
+
+  icon.innerHTML=
+    visual.icon;
 
   const copy=
     document.createElement(
@@ -650,7 +644,8 @@ async function selectFile(
     );
 
   name.textContent=
-    file.name||"파일";
+    file.name||
+    "파일";
 
   const meta=
     document.createElement(
@@ -660,7 +655,10 @@ async function selectFile(
   meta.textContent=
     [
       formatOf(file),
-      formatSize(file.size),
+      ArtifactVisuals
+        .formatSize(
+          file.size
+        ),
       formatDate(
         file.updatedAt||
         file.createdAt
@@ -674,6 +672,11 @@ async function selectFile(
     meta
   );
 
+  identity.append(
+    icon,
+    copy
+  );
+
   const actions=
     document.createElement(
       "div"
@@ -683,9 +686,7 @@ async function selectFile(
     "ovll-library-detail-actions";
 
   const hydrated=
-    await FileStore.hydrate(
-      id
-    );
+    await FileStore.hydrate(id);
 
   if(
     state.destroyed||
@@ -702,15 +703,19 @@ async function selectFile(
 
     download.className=
       "ovll-library-detail-action";
+
     download.href=
       hydrated.downloadUrl;
+
     download.download=
       hydrated.name||
       "file";
+
     download.setAttribute(
       "aria-label",
       "다운로드"
     );
+
     download.innerHTML=`
       <svg viewBox="0 0 20 20" aria-hidden="true">
         <path d="M10 3.8v8m0 0 2.7-2.7M10 11.8 7.3 9.1"></path>
@@ -723,7 +728,7 @@ async function selectFile(
     );
   }
 
-  const remove=
+  actions.append(
     actionButton(
       "삭제",
       `
@@ -733,9 +738,7 @@ async function selectFile(
         </svg>
       `,
       "delete"
-    );
-
-  const close=
+    ),
     actionButton(
       "닫기",
       `
@@ -744,15 +747,11 @@ async function selectFile(
         </svg>
       `,
       "close"
-    );
-
-  actions.append(
-    remove,
-    close
+    )
   );
 
   header.append(
-    copy,
+    identity,
     actions
   );
 
@@ -764,18 +763,19 @@ async function selectFile(
   preview.className=
     "ovll-library-preview";
 
-  const placeholder=
+  const loading=
     document.createElement(
       "div"
     );
 
-  placeholder.className=
+  loading.className=
     "ovll-library-preview-placeholder";
-  placeholder.textContent=
+
+  loading.textContent=
     "미리보기 불러오는 중";
 
   preview.appendChild(
-    placeholder
+    loading
   );
 
   detail.append(
@@ -807,6 +807,7 @@ async function selectFile(
 
       empty.className=
         "ovll-library-preview-placeholder";
+
       empty.textContent=
         "이 형식은 아직 미리보기를 지원하지 않아";
 
@@ -829,6 +830,7 @@ async function selectFile(
 
     empty.className=
       "ovll-library-preview-placeholder";
+
     empty.textContent=
       "미리보기를 불러오지 못했어";
 
@@ -871,9 +873,81 @@ async function refresh(){
     )
   ){
     closeDetail();
-  }else{
-    renderGrid();
+    return;
   }
+
+  renderGrid();
+}
+
+function show(){
+  if(state.destroyed){
+    return false;
+  }
+
+  clearTimeout(
+    state.closeTimer
+  );
+
+  state.open=true;
+  page.hidden=false;
+
+  document.documentElement
+    .dataset.appPage=
+    "library";
+
+  requestAnimationFrame(
+    ()=>{
+      page.classList.add(
+        "is-open"
+      );
+    }
+  );
+
+  void refresh();
+
+  return true;
+}
+
+function hide(){
+  if(
+    state.destroyed||
+    !state.open
+  ){
+    return false;
+  }
+
+  state.open=false;
+
+  page.classList.remove(
+    "is-open"
+  );
+
+  if(
+    document.documentElement
+      .dataset.appPage===
+      "library"
+  ){
+    delete document
+      .documentElement
+      .dataset
+      .appPage;
+  }
+
+  clearTimeout(
+    state.closeTimer
+  );
+
+  state.closeTimer=
+    setTimeout(
+      ()=>{
+        if(!state.open){
+          page.hidden=true;
+        }
+      },
+      190
+    );
+
+  return true;
 }
 
 listen(
@@ -931,13 +1005,20 @@ listen(
   }
 );
 
+listen(
+  back,
+  "click",
+  hide
+);
+
 if(search){
   listen(
     search,
     "input",
     ()=>{
       state.query=
-        search.value||"";
+        search.value||
+        "";
 
       renderGrid();
     }
@@ -947,37 +1028,25 @@ if(search){
 listen(
   global,
   "ovll:files-changed",
-  ()=>void refresh()
+  ()=>{
+    if(state.open){
+      void refresh();
+    }
+  }
 );
 
-const offModeChange=
-  UI.on(
-    "modechange",
-    ({mode})=>{
-      if(mode==="library"){
-        void refresh();
-      }
-    }
-  );
-
-if(
-  typeof offModeChange===
-    "function"
-){
-  listeners.push(
-    offModeChange
-  );
-}
-
 const api={
-  async open(fileId){
-    UI.setMode(
-      "library"
-    );
+  show,
+  hide,
 
-    if(
-      !state.files.length
-    ){
+  isOpen(){
+    return state.open;
+  },
+
+  async open(fileId){
+    show();
+
+    if(!state.files.length){
       await refresh();
     }
 
@@ -987,7 +1056,6 @@ const api={
   },
 
   refresh,
-
   closeDetail,
 
   destroy(){
@@ -996,7 +1064,17 @@ const api={
     }
 
     state.destroyed=true;
+    state.open=false;
     state.detailToken++;
+
+    clearTimeout(
+      state.closeTimer
+    );
+
+    delete document
+      .documentElement
+      .dataset
+      .appPage;
 
     listeners
       .splice(0)
@@ -1012,12 +1090,5 @@ const api={
 
 global.OvllLibraryPage=
   Object.freeze(api);
-
-if(
-  UI.getMode?.()===
-    "library"
-){
-  void refresh();
-}
 
 })(window);
