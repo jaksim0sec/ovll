@@ -66,6 +66,10 @@
     runtime: null,
     runtimeConnections: new Set(),
     runtimeActivity: null,
+    runGate: {
+      locked: false,
+      releaseTimer: null
+    },
     errorNotice: null,
     errorRetry: null,
     lastUserRequest: "",
@@ -3939,6 +3943,46 @@
     }
   }
 
+  function setRunGate(
+    locked,
+    delay = 0
+  ) {
+    clearTimeout(
+      state.runGate.releaseTimer
+    );
+    state.runGate.releaseTimer =
+      null;
+
+    const apply = () => {
+      state.runGate.locked =
+        !!locked;
+
+      state.canvas
+        ?.setRunLocked?.(
+          !!locked
+        );
+    };
+
+    if (
+      !locked &&
+      delay > 0
+    ) {
+      state.runGate.releaseTimer =
+        setTimeout(
+          () => {
+            state.runGate.releaseTimer =
+              null;
+            apply();
+          },
+          delay
+        );
+
+      return;
+    }
+
+    apply();
+  }
+
   async function runCanvasNode(
     nodeId,
     mode = "spread"
@@ -3946,24 +3990,115 @@
     if (
       !state.canvas ||
       !state.runtime ||
+      state.runGate.locked ||
       state.runtime.isRunning()
     ) {
       return null;
     }
 
-    const workflow =
-      state.canvas.getWorkflow();
+    setRunGate(true);
+
+    let started = false;
 
     try {
+      const workflow =
+        state.canvas.getWorkflow();
+
+      const runMode =
+        mode === "target"
+          ? "target"
+          : "spread";
+
+      const readiness =
+        typeof Execution
+          .validateExecutionReadiness ===
+          "function"
+          ? Execution
+              .validateExecutionReadiness(
+                workflow,
+                nodeId,
+                {
+                  mode:
+                    runMode
+                }
+              )
+          : {
+              ok: true,
+              emptyNodes: []
+            };
+
+      if (!readiness.ok) {
+        const invalid =
+          readiness.emptyNodes?.[0];
+
+        const invalidNode =
+          workflow.nodes.find(
+            node =>
+              node.id ===
+              invalid?.id
+          );
+
+        const invalidName =
+          state.nodeDefinitions
+            ?.[invalidNode?.type]
+            ?.name ||
+          "이 노드";
+
+        if (invalidNode) {
+          state.canvas
+            ?.selectNode?.(
+              invalidNode.id
+            );
+
+          if (
+            !invalidNode.expanded
+          ) {
+            state.canvas
+              ?.toggleNodeExpanded?.(
+                invalidNode.id
+              );
+          }
+        }
+
+        const error =
+          new Error(
+            `${invalidName}에 실행할 내용이 없어.`
+          );
+
+        error.code =
+          "NODE_INPUT_EMPTY";
+
+        Presence.canvasStatus?.(
+          "요청사항을 먼저 입력해줘",
+          {
+            hold: 2200
+          }
+        );
+
+        showErrorNotice(
+          error,
+          {
+            scope:
+              "실행할 내용이 없음",
+            fallback:
+              "노드에 요청사항을 먼저 입력해줘."
+          }
+        );
+
+        return null;
+      }
+
+      dismissErrorNotice();
+
+      started = true;
+
       const result =
         await state.runtime.run(
           workflow,
           nodeId,
           {
             mode:
-              mode === "target"
-                ? "target"
-                : "spread"
+              runMode
           }
         );
 
@@ -4017,6 +4152,13 @@
       );
 
       return null;
+    } finally {
+      setRunGate(
+        false,
+        started
+          ? 650
+          : 0
+      );
     }
   }
 
@@ -5139,6 +5281,14 @@ listen(composerInput, "keydown", handleComposerKeydown);
       );
       state.nodeBuilder.resetTimer =
         null;
+
+      clearTimeout(
+        state.runGate.releaseTimer
+      );
+      state.runGate.releaseTimer =
+        null;
+      state.runGate.locked =
+        false;
 
       listeners.splice(0).forEach(cleanup => {
         try {
