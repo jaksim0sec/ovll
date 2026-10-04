@@ -156,14 +156,18 @@ test("chat user action states are independent selectors", () => {
   );
 });
 
-test("library title row reserves the global sidebar trigger rail", () => {
+test("library page header is visually below global app navigation", () => {
   const css = compact(read("front/css/library.css"));
 
   assert.match(
     css,
-    /#library-page\s*\{[^}]*--library-nav-reserve:\s*3\.25rem/
+    /#library-page\s*\{[^}]*--library-chrome-height:\s*calc\(var\(--top-control-top\) \+ 2\.3rem \+ \.9rem\)/
   );
   assert.match(
+    css,
+    /\.ovll-library-shell\s*\{[^}]*padding:[^}]*calc\(var\(--safe-top\) \+ var\(--library-chrome-height\)/
+  );
+  assert.doesNotMatch(
     css,
     /\.ovll-library-title-row\s*\{[^}]*padding-left:\s*var\(--library-nav-reserve\)/
   );
