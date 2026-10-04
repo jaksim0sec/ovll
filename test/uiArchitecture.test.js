@@ -59,7 +59,7 @@ test("global stylesheet defines semantic layout and layer tokens", () => {
   const ui = compact(read("front/css/ui.css"));
   assert.match(
     ui,
-    /#topbar-left\s*,\s*#topbar-right\s*\{[^}]*width:\s*var\(--control-size\)[^}]*height:\s*var\(--control-size\)/
+    /#mode-switch\s*\{[^}]*height:\s*var\(--control-size\)/
   );
 });
 
