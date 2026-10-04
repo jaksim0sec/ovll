@@ -406,7 +406,7 @@
       clamp(
         state.progress,
         0,
-        1
+        2
       );
 
     document.documentElement
@@ -418,6 +418,10 @@
         )
       );
 
+    document.documentElement
+      .dataset.workspaceMode =
+      state.mode;
+
     workspace.dataset.mode =
       state.mode;
 
@@ -425,11 +429,43 @@
       -progress *
       state.viewportWidth;
 
-    chatPage.style.transform =
-      `translate3d(${offset}px,0,0)`;
+    const pages = [
+      [chatPage, 0],
+      [canvasPage, 1],
+      [libraryPage, 2]
+    ];
 
-    canvasPage.style.transform =
-      `translate3d(${offset}px,0,0)`;
+    for (
+      const [
+        page,
+        index
+      ]
+      of pages
+    ) {
+      page.style.transform =
+        `translate3d(${offset}px,0,0)`;
+
+      const distance =
+        Math.min(
+          1,
+          Math.abs(
+            progress -
+            index
+          )
+        );
+
+      page.style.opacity =
+        String(
+          1 -
+          distance *
+          .14
+        );
+
+      page.style.filter =
+        distance < .001
+          ? "none"
+          : `blur(${distance * .125}rem)`;
+    }
 
     modeChat.setAttribute(
       "aria-selected",
@@ -444,6 +480,14 @@
       String(
         state.mode ===
           "canvas"
+      )
+    );
+
+    modeLibrary.setAttribute(
+      "aria-selected",
+      String(
+        state.mode ===
+          "library"
       )
     );
   }
