@@ -837,16 +837,16 @@
 .ovll-sidebar-account {
   width: 100%;
   min-width: 0;
-  min-height: 3.55rem;
+  min-height: 4.15rem;
   display: grid;
   grid-template-columns:
-    2.3rem
+    2.55rem
     minmax(0,1fr);
   align-items: center;
   gap: .62rem;
   padding:
-    .52rem
-    .62rem;
+    .66rem
+    .72rem;
   border:
     .0625rem solid
     transparent;
@@ -876,8 +876,8 @@
 }
 
 .ovll-sidebar-account-avatar {
-  width: 2.3rem;
-  height: 2.3rem;
+  width: 2.55rem;
+  height: 2.55rem;
   display: grid;
   place-items: center;
   border-radius: .95rem;
@@ -891,8 +891,8 @@
 }
 
 .ovll-sidebar-account-avatar svg {
-  width: 1.24rem;
-  height: 1.24rem;
+  width: 1.34rem;
+  height: 1.34rem;
   max-width: none;
 }
 
@@ -904,8 +904,8 @@
 
 .ovll-sidebar-account-copy strong {
   overflow: hidden;
-  font-size: .76rem;
-  font-weight: 660;
+  font-size: .86rem;
+  font-weight: 690;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
