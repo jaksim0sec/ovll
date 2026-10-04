@@ -3252,12 +3252,35 @@
         text: value,
         blocks:
           role === "assistant"
-            ? storageSafe(
-                normalizeGeneratedBlocks(
-                  value,
-                  options.blocks
-                )
-              ) || []
+            ? (
+                () => {
+                  const blocks =
+                    normalizeGeneratedBlocks(
+                      value,
+                      options.blocks
+                    );
+
+                  const structured =
+                    Array.isArray(
+                      options.blocks
+                    ) &&
+                    options.blocks.length;
+
+                  const needsBlocks =
+                    structured ||
+                    blocks.some(
+                      block =>
+                        block.type !==
+                        "markup"
+                    );
+
+                  return needsBlocks
+                    ? storageSafe(
+                        blocks
+                      ) || []
+                    : [];
+                }
+              )()
             : [],
         question,
         showCanvasView:
