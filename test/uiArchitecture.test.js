@@ -133,6 +133,28 @@ test("library title row reserves the global sidebar trigger rail", () => {
   );
 });
 
+test("library keyboard focus remains visibly discoverable", () => {
+  const libraryCss = compact(read("front/css/library.css"));
+  const chatCss = compact(read("front/css/chat.css"));
+
+  assert.match(
+    libraryCss,
+    /\.ovll-library-search:focus-within\s*\{/
+  );
+  assert.match(
+    libraryCss,
+    /\.ovll-library-back:focus-visible\s*\{/
+  );
+  assert.match(
+    libraryCss,
+    /\.ovll-library-detail-action:focus-visible\s*\{/
+  );
+  assert.match(
+    chatCss,
+    /\.astra-artifact-card:focus-visible\s*\{/
+  );
+});
+
 test("library page owns Escape and focus lifecycle", () => {
   const js = read("front/js/libraryPage.js");
 
