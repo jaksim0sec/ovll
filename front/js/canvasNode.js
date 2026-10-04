@@ -3576,26 +3576,65 @@
       return null;
     }
     function finishConnection(event) {
-      const drag = state.connectionDrag;
-      if (!drag) return false;
-      const point = screenToWorld(
-        event.clientX,
-        event.clientY
-      );
-      let targetPort = null;
+      const drag =
+        state.connectionDrag;
+
+      if (!drag) {
+        return false;
+      }
+
+      const point =
+        screenToWorld(
+          event.clientX,
+          event.clientY
+        );
+
+      let targetPort =
+        null;
+
+      let connectedCount =
+        0;
+
       if (
-        drag.direction === 'output'
+        drag.direction ===
+          'output'
       ) {
         targetPort =
           getPortAtWorldPoint(
             point,
             'input'
           );
+
         if (targetPort) {
-          connect(
-            drag.anchor,
-            targetPort
-          );
+          const anchors =
+            Array.isArray(
+              drag.anchors
+            ) &&
+            drag.anchors.length
+              ? drag.anchors
+              : [
+                  drag.anchor
+                ];
+
+          for (
+            const anchor
+            of anchors
+          ) {
+            const created =
+              connect(
+                anchor,
+                targetPort,
+                {
+                  toggleDuplicate:
+                    anchors.length <=
+                    1
+                }
+              );
+
+            if (created) {
+              connectedCount++;
+            }
+          }
         }
       } else {
         targetPort =
@@ -3603,28 +3642,48 @@
             point,
             'output'
           );
+
         if (targetPort) {
-          connect(
-            targetPort,
-            drag.anchor
-          );
+          const created =
+            connect(
+              targetPort,
+              drag.anchor
+            );
+
+          if (created) {
+            connectedCount = 1;
+          }
         }
       }
-      emit('connectionDragEnd', {
-        connected: !!targetPort,
-        target: targetPort ? clone(targetPort) : null,
-        x: event.clientX,
-        y: event.clientY
-      });
-      emit('connectionDragEnd', {
-        connected: !!targetPort,
-        cancelled: false,
-        target: targetPort ? clone(targetPort) : null,
-        x: event.clientX,
-        y: event.clientY
-      });
-      cancelConnectionDrag(false);
-      return !!targetPort;
+
+      const connected =
+        connectedCount > 0;
+
+      emit(
+        'connectionDragEnd',
+        {
+          connected,
+          cancelled: false,
+          target:
+            targetPort
+              ? clone(
+                  targetPort
+                )
+              : null,
+          count:
+            connectedCount,
+          x:
+            event.clientX,
+          y:
+            event.clientY
+        }
+      );
+
+      cancelConnectionDrag(
+        false
+      );
+
+      return connected;
     }
     listen(
       nodesLayer,
@@ -4101,15 +4160,62 @@
           event.pointerId
         ) {
           event.preventDefault();
-          state.connectionDrag.x =
+
+          const drag =
+            state.connectionDrag;
+
+          drag.x =
             event.clientX;
-          state.connectionDrag.y =
+          drag.y =
             event.clientY;
-          emit('connectionDragMove', {
-            ...clone(state.connectionDrag),
-            x: event.clientX,
-            y: event.clientY
-          });
+
+          if (
+            !drag.moved &&
+            Math.hypot(
+              event.clientX -
+                drag.startX,
+              event.clientY -
+                drag.startY
+            ) > 7
+          ) {
+            drag.moved =
+              true;
+
+            state.portTap.key =
+              "";
+            state.portTap.at =
+              0;
+          }
+
+          if (
+            drag.direction ===
+              'output'
+          ) {
+            const point =
+              screenToWorld(
+                event.clientX,
+                event.clientY
+              );
+
+            scheduleConnectionPickup(
+              getPortAtWorldPoint(
+                point,
+                'output'
+              )
+            );
+          }
+
+          emit(
+            'connectionDragMove',
+            {
+              ...clone(drag),
+              x:
+                event.clientX,
+              y:
+                event.clientY
+            }
+          );
+
           scheduleConnectionRender();
           return;
         }
@@ -4319,13 +4425,39 @@
         state.connectionDrag?.pointerId ===
         event.pointerId
       ) {
+        const drag =
+          state.connectionDrag;
+
         if (
           event.type ===
           'pointercancel'
         ) {
           cancelConnectionDrag();
         } else {
-          finishConnection(event);
+          const tapCandidate =
+            !drag.moved &&
+            performance.now() -
+              drag.startedAt <
+              320;
+
+          const connected =
+            finishConnection(
+              event
+            );
+
+          if (connected) {
+            state.portTap.key =
+              "";
+            state.portTap.at =
+              0;
+          } else if (
+            tapCandidate
+          ) {
+            registerPortTap(
+              drag.anchor,
+              drag.direction
+            );
+          }
         }
       }
       if (
