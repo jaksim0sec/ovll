@@ -733,7 +733,7 @@
   color:
     color-mix(
       in srgb,
-      var(--text) 62%,
+      var(--text) 68%,
       transparent
     );
   font-size: .75rem;
@@ -806,7 +806,7 @@
 }
 
 .astra-runtime-step.is-visible {
-  opacity: .96;
+  opacity: .985;
   transform: translateY(0);
 }
 
@@ -817,9 +817,10 @@
   place-items: center;
   margin-top: .03rem;
   color:
-    var(
-      --runtime-node-color,
-      var(--sub)
+    color-mix(
+      in srgb,
+      var(--text) 76%,
+      transparent
     );
 }
 
@@ -844,7 +845,7 @@
 }
 
 .astra-runtime-step[data-status="done"] {
-  opacity: .84;
+  opacity: .9;
 }
 
 .astra-runtime-step[data-status="done"]
@@ -855,7 +856,7 @@
 }
 
 .astra-runtime-step[data-status="skipped"] {
-  opacity: .68;
+  opacity: .74;
 }
 
 .astra-runtime-step[data-status="failed"] {
