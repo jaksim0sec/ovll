@@ -2,7 +2,7 @@
 "use strict";
 
 const STORAGE_KEY = "ovll:workspace:v1";
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
 const events = new Map();
 
 function clone(value){
@@ -44,6 +44,91 @@ function emptyCanvas(){
       }
     }
   };
+}
+
+function normalizeCanvas(value){
+  const source =
+    value &&
+    typeof value === "object" &&
+    !Array.isArray(value)
+      ? clone(value)
+      : emptyCanvas();
+
+  const workflow =
+    source.workflow &&
+    typeof source.workflow === "object"
+      ? source.workflow
+      : source;
+
+  if(
+    Array.isArray(
+      workflow?.nodes
+    )
+  ){
+    workflow.nodes =
+      workflow.nodes.map(
+        node => {
+          if(
+            !node ||
+            typeof node !== "object"
+          ){
+            return node;
+          }
+
+          const next =
+            clone(node);
+
+          if(
+            next.type === "file" &&
+            next.data &&
+            typeof next.data === "object"
+          ){
+            const localFileId =
+              String(
+                next.data.localFileId ||
+                ""
+              );
+
+            next.data.localFileId =
+              localFileId;
+
+            if(
+              typeof next.data.textPreview ===
+                "string"
+            ){
+              next.data.textPreview =
+                next.data.textPreview.slice(
+                  0,
+                  12000
+                );
+            }
+
+            if(
+              typeof next.data.previewText ===
+                "string"
+            ){
+              next.data.previewText =
+                next.data.previewText.slice(
+                  0,
+                  6000
+                );
+            }
+
+            if(localFileId){
+              next.data.downloadUrl =
+                "";
+              next.data.previewUrl =
+                "";
+              delete next.data.imagePreview;
+            }
+          }
+
+          return next;
+        }
+      );
+  }
+
+  return source;
 }
 
 function emptyConversationState(){
@@ -130,16 +215,35 @@ function normalizeMessage(value){
               item &&
               typeof item === "object"
             )
-            .map(item => ({
-              id:String(item.id || ""),
-              name:String(item.name || "결과물"),
-              format:String(item.format || ""),
-              mime:String(item.mime || ""),
-              size:Number(item.size || 0),
-              downloadUrl:String(item.downloadUrl || ""),
-              previewUrl:String(item.previewUrl || ""),
-              previewText:String(item.previewText || "").slice(0,500)
-            }))
+            .map(item => {
+              const localFileId =
+                String(
+                  item.localFileId ||
+                  ""
+                );
+
+              return {
+                id:String(item.id || ""),
+                localFileId,
+                name:String(item.name || "결과물"),
+                format:String(item.format || ""),
+                mime:String(item.mime || ""),
+                size:Number(item.size || 0),
+                downloadUrl:
+                  localFileId
+                    ? ""
+                    : String(item.downloadUrl || ""),
+                previewUrl:
+                  localFileId
+                    ? ""
+                    : String(item.previewUrl || ""),
+                previewText:
+                  String(
+                    item.previewText ||
+                    ""
+                  ).slice(0,6000)
+              };
+            })
         : [],
     createdAt:
       Number(value.createdAt) ||
@@ -156,10 +260,9 @@ function normalizeConversationState(value){
       : {};
 
   const canvas =
-    source.canvas &&
-    typeof source.canvas === "object"
-      ? clone(source.canvas)
-      : emptyCanvas();
+    normalizeCanvas(
+      source.canvas
+    );
 
   return {
     mode:
