@@ -75,6 +75,7 @@ const APP_SCRIPTS=[
   "./js/functions.js",
   "./js/fileStore.js",
   "./js/artifactVisuals.js",
+  "./js/svgLibrary.js",
   "./js/previewSandbox.js",
   "./js/api.js",
   "./js/canvasNode.js",
