@@ -1013,6 +1013,11 @@ const api={
 global.OvllLibraryPage=
   Object.freeze(api);
 
-void refresh();
+if(
+  UI.getMode?.()===
+    "library"
+){
+  void refresh();
+}
 
 })(window);
