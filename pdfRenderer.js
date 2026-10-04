@@ -139,13 +139,69 @@ function isTableDivider(line) {
   return cells.length > 0 && cells.every(cell => /^:?-{3,}:?$/.test(cell.replace(/\s+/g, '')));
 }
 
+function normalizeDocumentText(
+  value
+){
+  let text=
+    String(value??"")
+      .replace(/\r\n?/g,"\n")
+      .replace(
+        /([^\n])\s+(#{1,4}\s+)/g,
+        "$1\n$2"
+      );
+
+  const lineBreaks=
+    (text.match(/\n/g)||[])
+      .length;
+
+  if(
+    text.length>180&&
+    lineBreaks<2
+  ){
+    text=text.replace(
+      /([.!?。])\s+(?=[^\s])/g,
+      "$1\n"
+    );
+  }
+
+  return text;
+}
+
 function documentHtml(text, title) {
-  const lines = String(text || '').replace(/\r\n?/g, '\n').split('\n');
+  const lines = normalizeDocumentText(text).split('\n');
   const out = [];
   let paragraph = [];
   let listType = null;
   let listItems = [];
   let firstHeading = '';
+
+  const firstContentIndex=
+    lines.findIndex(
+      line=>line.trim()
+    );
+
+  if(firstContentIndex>=0){
+    const first=
+      lines[firstContentIndex]
+        .trim();
+
+    const next=
+      lines
+        .slice(firstContentIndex+1)
+        .find(line=>line.trim())
+        ?.trim()||
+      "";
+
+    if(
+      first.length<=72&&
+      !/^#{1,4}\s+/.test(first)&&
+      /^#{1,4}\s+/.test(next)&&
+      !/[.!?。]$/.test(first)
+    ){
+      lines[firstContentIndex]=
+        "# "+first;
+    }
+  }
 
   const flushParagraph = () => {
     const value = paragraph.join(' ').trim();
