@@ -320,6 +320,104 @@
     };
   }
 
+  function stableCacheValue(value) {
+    if (
+      value === null ||
+      typeof value === "string" ||
+      typeof value === "number" ||
+      typeof value === "boolean"
+    ) {
+      return value;
+    }
+
+    if (Array.isArray(value)) {
+      return value.map(
+        item =>
+          stableCacheValue(item)
+      );
+    }
+
+    if (
+      value &&
+      typeof value === "object"
+    ) {
+      return Object.fromEntries(
+        Object.keys(value)
+          .sort()
+          .filter(
+            key =>
+              value[key] !==
+              undefined
+          )
+          .map(
+            key => [
+              key,
+              stableCacheValue(
+                value[key]
+              )
+            ]
+          )
+      );
+    }
+
+    return String(value ?? "");
+  }
+
+  function executionFingerprint(
+    node,
+    inputs,
+    cacheContext
+  ) {
+    const type =
+      String(node?.type || "");
+
+    const nodeData =
+      type === "file"
+        ? clone(node?.data || {})
+        : {
+            params:
+              nodeParams(node)
+          };
+
+    return JSON.stringify(
+      stableCacheValue({
+        type,
+        nodeData,
+        inputs:
+          inputs || {},
+        context:
+          cacheContext || null
+      })
+    );
+  }
+
+  function isRuntimeAbort(error) {
+    return !!(
+      error?.code ===
+        "REQUEST_ABORTED" ||
+      error?.code ===
+        "RUN_CANCELLED" ||
+      error?.name ===
+        "AbortError"
+    );
+  }
+
+  function runtimeAbortError() {
+    const error =
+      new Error(
+        "실행이 중단되었습니다."
+      );
+
+    error.code =
+      "RUN_CANCELLED";
+    error.status =
+      499;
+    error.retryable =
+      false;
+
+    return error;
+  }
+
   function planExecutionGroups(
     workflow,
     pivotId,
@@ -859,6 +957,14 @@
       this.running = false;
       this.runCounter = 0;
       this.lastRun = null;
+      this.resultCache =
+        new Map();
+      this.abortController =
+        null;
+      this.activeRunId =
+        null;
+      this.cancelRequested =
+        false;
 
       this.maxGroupNodes =
         Math.max(
@@ -881,6 +987,47 @@
 
     isRunning() {
       return this.running;
+    }
+
+    cancel() {
+      if (!this.running) {
+        return false;
+      }
+
+      this.cancelRequested =
+        true;
+
+      try {
+        this.abortController
+          ?.abort();
+      } catch {}
+
+      this.emit(
+        "run:cancel-requested",
+        {
+          runId:
+            this.activeRunId
+        }
+      );
+
+      return true;
+    }
+
+    clearResultCache(
+      nodeId = null
+    ) {
+      if (
+        nodeId === null ||
+        nodeId === undefined ||
+        nodeId === ""
+      ) {
+        this.resultCache.clear();
+        return;
+      }
+
+      this.resultCache.delete(
+        String(nodeId)
+      );
     }
 
     emit(type, payload = {}) {
