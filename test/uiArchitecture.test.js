@@ -177,6 +177,7 @@ test("library page header is visually below global app navigation", () => {
 });
 
 test("library and shared preview keep keyboard focus discoverable", () => {
+  const libraryCss = compact(read("front/css/library.css"));
   const chatCss = compact(read("front/css/chat.css"));
   const app = read("front/js/app.js");
 
@@ -194,7 +195,9 @@ test("library and shared preview keep keyboard focus discoverable", () => {
   );
   assert.match(app, /returnFocus/);
   assert.match(app, /returnFocus\.focus/);
-});test("mobile library remains a compact list under the global chrome", () => {
+});
+
+test("mobile library remains a compact list under the global chrome", () => {
   const css = compact(read("front/css/library.css"));
   const js = read("front/js/libraryPage.js");
 
