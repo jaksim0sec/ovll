@@ -1098,17 +1098,35 @@
       return artifact;
     }
 
-    const localFileId =
+    let localFileId =
       String(
         artifact.localFileId ||
         ""
       );
 
-    if (!localFileId) {
-      return artifact;
-    }
-
     try {
+      if (
+        !localFileId &&
+        artifact.id
+      ) {
+        const matched =
+          await FileStore
+            .findByOriginId?.(
+              artifact.id
+            );
+
+        localFileId =
+          String(
+            matched?.id ||
+            matched?.localFileId ||
+            ""
+          );
+      }
+
+      if (!localFileId) {
+        return artifact;
+      }
+
       const local =
         await FileStore.hydrate(
           localFileId
@@ -1135,11 +1153,9 @@
           ),
         downloadUrl:
           local.downloadUrl ||
-          artifact.downloadUrl ||
           "",
         previewUrl:
           local.previewUrl ||
-          artifact.previewUrl ||
           "",
         previewText:
           artifact.previewText ||
@@ -1281,18 +1297,43 @@
             return;
           }
 
-          const localFileId =
+          let localFileId =
             String(
               node.data
                 .localFileId ||
               ""
             );
 
-          if (!localFileId) {
-            return;
-          }
-
           try {
+            if (
+              !localFileId &&
+              node.data.artifactId
+            ) {
+              const matched =
+                await FileStore
+                  .findByOriginId?.(
+                    node.data
+                      .artifactId
+                  );
+
+              localFileId =
+                String(
+                  matched?.id ||
+                  matched
+                    ?.localFileId ||
+                  ""
+                );
+
+              if (localFileId) {
+                node.data.localFileId =
+                  localFileId;
+              }
+            }
+
+            if (!localFileId) {
+              return;
+            }
+
             const local =
               await FileStore.hydrate(
                 localFileId
@@ -1544,9 +1585,60 @@
     );
   }
 
-  function openArtifactPreview(
+  async function openArtifactPreview(
     artifact
   ) {
+    artifact =
+      await hydrateArtifactReference(
+        artifact
+      );
+
+    const remotePreviewUrl =
+      String(
+        artifact?.previewUrl ||
+        ""
+      );
+
+    if (
+      !artifact?.localFileId &&
+      remotePreviewUrl &&
+      /\/api\/artifacts\//i
+        .test(
+          remotePreviewUrl
+        )
+    ) {
+      try {
+        const response =
+          await fetch(
+            remotePreviewUrl,
+            {
+              method:
+                "HEAD",
+              cache:
+                "no-store"
+            }
+          );
+
+        if (!response.ok) {
+          artifact = {
+            ...artifact,
+            previewUrl:
+              "",
+            downloadUrl:
+              ""
+          };
+        }
+      } catch {
+        artifact = {
+          ...artifact,
+          previewUrl:
+            "",
+          downloadUrl:
+            ""
+        };
+      }
+    }
+
     if (
       !artifactCanPreview(
         artifact
@@ -1674,6 +1766,9 @@
         artifact?.downloadUrl ||
         "#"
       );
+
+    download.hidden =
+      !artifact?.downloadUrl;
 
     download.download =
       String(
@@ -6318,6 +6413,25 @@ listen(composerInput, "keydown", handleComposerKeydown);
     saveActiveConversation,
 
     openConversation,
+
+    async openLocalFile(
+      fileId
+    ) {
+      const artifact =
+        await FileStore.hydrate(
+          String(
+            fileId || ""
+          )
+        );
+
+      if (!artifact) {
+        return false;
+      }
+
+      return await openArtifactPreview(
+        artifact
+      );
+    },
 
     refreshConversationContext,
 
