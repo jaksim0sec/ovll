@@ -925,12 +925,27 @@
       if (index < 0) return null;
       const portElement = getPortElement(nodeId, portId, direction);
       if (!portElement) return null;
-      const nodeRect = element.getBoundingClientRect();
-      const portRect = portElement.getBoundingClientRect();
-      return screenToWorld(
-        direction === 'input' ? nodeRect.left : nodeRect.right,
-        portRect.top + portRect.height / 2
-      );
+
+      /*
+       * Connections live inside the same transformed world as the nodes.
+       * Keep their endpoints in world/layout coordinates too. Reading
+       * getBoundingClientRect() here mixes transient visual-viewport/page
+       * transforms into the connection geometry while the mobile keyboard
+       * is opening or closing, which can leave only the SVG shifted.
+       */
+      return {
+        x:
+          element.offsetLeft +
+          (
+            direction === 'input'
+              ? 0
+              : element.offsetWidth
+          ),
+        y:
+          element.offsetTop +
+          portElement.offsetTop +
+          portElement.offsetHeight / 2
+      };
     }
     function markConnectedPorts() {
       nodesLayer
