@@ -4,9 +4,6 @@
 const FileStore=
   global.OvllFileStore;
 
-const PreviewEngine=
-  global.OvllPreviewEngine;
-
 const ArtifactVisuals=
   global.OvllArtifactVisuals;
 
@@ -20,39 +17,16 @@ const grid=
     "[data-library-grid]"
   );
 
-const contentRoot=
-  page?.querySelector(
-    "[data-library-content]"
-  );
-
-const detail=
-  page?.querySelector(
-    "[data-library-detail]"
-  );
-
 const search=
   page?.querySelector(
     "[data-library-search-input]"
   );
 
-const count=
-  page?.querySelector(
-    "[data-library-count]"
-  );
-
-const back=
-  page?.querySelector(
-    "[data-library-back]"
-  );
-
 if(
   !FileStore||
-  !PreviewEngine||
   !ArtifactVisuals||
   !page||
-  !grid||
-  !contentRoot||
-  !detail
+  !grid
 ){
   return;
 }
@@ -62,9 +36,7 @@ const listeners=[];
 const state={
   files:[],
   query:"",
-  selectedId:"",
   loading:false,
-  detailToken:0,
   open:false,
   closeTimer:null,
   returnFocus:null,
@@ -99,7 +71,6 @@ function listen(
 function focusLibraryEntry(){
   const target=
     search||
-    back||
     page;
 
   if(
@@ -164,13 +135,18 @@ function restorePageFocus(){
 }
 
 function handlePageKeydown(event){
-  const isEscape=
-    event.key==="Escape";
-
   if(
-    !isEscape||
+    event.key!=="Escape"||
     !state.open||
     event.defaultPrevented
+  ){
+    return;
+  }
+
+  if(
+    document.querySelector(
+      ".astra-artifact-preview-root.is-open"
+    )
   ){
     return;
   }
@@ -183,14 +159,6 @@ function handlePageKeydown(event){
   }
 
   event.preventDefault();
-  event.stopPropagation();
-
-  if(state.selectedId){
-    closeDetail();
-    focusLibraryEntry();
-    return;
-  }
-
   hide();
 }
 
@@ -287,17 +255,15 @@ function cardFor(file){
         }
       );
 
+  card.type="button";
   card.dataset.libraryId=
     file.id;
 
-  if(
-    file.id===
-    state.selectedId
-  ){
-    card.classList.add(
-      "is-selected"
-    );
-  }
+  card.setAttribute(
+    "aria-label",
+    (file.name||"파일")+
+    " 미리보기"
+  );
 
   return card;
 }
@@ -307,13 +273,6 @@ function renderGrid(){
     visibleFiles();
 
   grid.replaceChildren();
-
-  if(count){
-    count.textContent=
-      state.loading
-        ?""
-        :`${files.length}개`;
-  }
 
   if(state.loading){
     const empty=
@@ -362,443 +321,41 @@ function renderGrid(){
   }
 }
 
-function closeDetail(){
-  state.selectedId="";
-  state.detailToken++;
-
-  contentRoot.classList
-    .remove(
-      "has-selection"
-    );
-
-  page.classList
-    .remove(
-      "has-selection"
-    );
-
-  detail.replaceChildren();
-
-  renderGrid();
-}
-
-function actionButton(
-  label,
-  svg,
-  action
+async function previewFile(
+  fileId
 ){
-  const button=
-    document.createElement(
-      "button"
-    );
-
-  button.type="button";
-  button.className=
-    "ovll-library-detail-action";
-
-  button.dataset.libraryAction=
-    action;
-
-  button.setAttribute(
-    "aria-label",
-    label
-  );
-
-  button.innerHTML=
-    svg;
-
-  return button;
-}
-
-async function renderPreview(
-  root,
-  file
-){
-  return PreviewEngine
-    .render(
-      root,
-      {
-        ...file,
-        localFileId:
-          file.localFileId||
-          file.id
-      },
-      {
-        fileStore:
-          FileStore,
-        textClassName:
-          "ovll-library-preview-text"
-      }
-    );
-}
-
-function isCompactLibrary(){
-  return global.matchMedia?.(
-    "(max-width: 46rem)"
-  )?.matches===true;
-}
-
-function renderCompactPdfPreview(
-  root,
-  file,
-  hydrated
-){
-  root.classList.add(
-    "is-compact-pdf"
-  );
-
-  const fallback=
-    document.createElement(
-      "div"
-    );
-
-  fallback.className=
-    "ovll-library-preview-fallback";
-
-  const copy=
-    document.createElement(
-      "span"
-    );
-
-  copy.textContent=
-    "PDF는 새 화면에서 열어볼 수 있어";
-
-  fallback.appendChild(
-    copy
-  );
-
-  const url=
-    String(
-      hydrated?.previewUrl||
-      hydrated?.downloadUrl||
-      ""
-    );
-
-  if(url){
-    const open=
-      document.createElement(
-        "a"
-      );
-
-    open.className=
-      "ovll-library-preview-open";
-
-    open.href=url;
-    open.target="_blank";
-    open.rel="noopener";
-    open.textContent=
-      "PDF 열기";
-
-    fallback.appendChild(
-      open
-    );
-  }
-
-  root.appendChild(
-    fallback
-  );
-
-  return true;
-}
-
-async function selectFile(fileId){
   const id=
     String(fileId||"");
 
   if(!id){
-    closeDetail();
     return false;
   }
 
-  const file=
-    state.files.find(
-      item=>item.id===id
-    )||
+  const artifact=
     await FileStore
-      .getMetadata(id);
+      .hydrate(id);
 
-  if(!file){
-    closeDetail();
+  if(!artifact){
     return false;
   }
-
-  state.selectedId=id;
-  renderGrid();
-
-  contentRoot.classList
-    .add(
-      "has-selection"
-    );
-
-  page.classList
-    .add(
-      "has-selection"
-    );
-
-  const token=
-    ++state.detailToken;
-
-  detail.replaceChildren();
-
-  const visual=
-    ArtifactVisuals
-      .visual(file);
-
-  const header=
-    document.createElement(
-      "header"
-    );
-
-  header.className=
-    "ovll-library-detail-header";
-
-  const identity=
-    document.createElement(
-      "div"
-    );
-
-  identity.className=
-    "ovll-library-detail-identity";
-
-  const icon=
-    document.createElement(
-      "span"
-    );
-
-  icon.className=
-    "astra-artifact-icon";
-
-  icon.style.setProperty(
-    "--artifact-accent",
-    visual.color
-  );
-
-  icon.innerHTML=
-    visual.icon;
-
-  const copy=
-    document.createElement(
-      "div"
-    );
-
-  copy.className=
-    "ovll-library-detail-copy";
-
-  const name=
-    document.createElement(
-      "strong"
-    );
-
-  name.textContent=
-    file.name||
-    "파일";
-
-  const meta=
-    document.createElement(
-      "small"
-    );
-
-  meta.textContent=
-    [
-      formatOf(file),
-      ArtifactVisuals
-        .formatSize(
-          file.size
-        ),
-      formatDate(
-        file.updatedAt||
-        file.createdAt
-      )
-    ]
-      .filter(Boolean)
-      .join(" · ");
-
-  copy.append(
-    name,
-    meta
-  );
-
-  identity.append(
-    icon,
-    copy
-  );
-
-  const actions=
-    document.createElement(
-      "div"
-    );
-
-  actions.className=
-    "ovll-library-detail-actions";
-
-  const hydrated=
-    await FileStore.hydrate(id);
-
-  if(
-    state.destroyed||
-    token!==state.detailToken
-  ){
-    return false;
-  }
-
-  if(hydrated?.downloadUrl){
-    const download=
-      document.createElement(
-        "a"
-      );
-
-    download.className=
-      "ovll-library-detail-action";
-
-    download.href=
-      hydrated.downloadUrl;
-
-    download.download=
-      hydrated.name||
-      "file";
-
-    download.setAttribute(
-      "aria-label",
-      "다운로드"
-    );
-
-    download.innerHTML=`
-      <svg viewBox="0 0 20 20" aria-hidden="true">
-        <path d="M10 3.8v8m0 0 2.7-2.7M10 11.8 7.3 9.1"></path>
-        <path d="M4.8 15h10.4"></path>
-      </svg>
-    `;
-
-    actions.appendChild(
-      download
-    );
-  }
-
-  actions.append(
-    actionButton(
-      "삭제",
-      `
-        <svg viewBox="0 0 20 20" aria-hidden="true">
-          <path d="M6 6.2h8M8 6.2V4.7h4v1.5"></path>
-          <path d="m7.2 8 .5 7h4.6l.5-7"></path>
-        </svg>
-      `,
-      "delete"
-    ),
-    actionButton(
-      "닫기",
-      `
-        <svg viewBox="0 0 20 20" aria-hidden="true">
-          <path d="m6.2 6.2 7.6 7.6M13.8 6.2l-7.6 7.6"></path>
-        </svg>
-      `,
-      "close"
-    )
-  );
-
-  header.append(
-    identity,
-    actions
-  );
 
   const preview=
-    document.createElement(
-      "div"
-    );
+    global.AstraApp
+      ?.previewArtifact;
 
-  preview.className=
-    "ovll-library-preview";
-
-  const loading=
-    document.createElement(
-      "div"
-    );
-
-  loading.className=
-    "ovll-library-preview-placeholder";
-
-  loading.textContent=
-    "미리보기 불러오는 중";
-
-  preview.appendChild(
-    loading
-  );
-
-  detail.append(
-    header,
-    preview
-  );
-
-  try{
-    preview.replaceChildren();
-
-    const compactPdf=
-      isCompactLibrary()&&
-      formatOf(file)==="PDF";
-
-    if(compactPdf){
-      renderCompactPdfPreview(
-        preview,
-        file,
-        hydrated
-      );
-
-      return true;
-    }
-
-    const shown=
-      await renderPreview(
-        preview,
-        file
-      );
-
-    if(
-      state.destroyed||
-      token!==state.detailToken
-    ){
-      return false;
-    }
-
-    if(!shown){
-      const empty=
-        document.createElement(
-          "div"
-        );
-
-      empty.className=
-        "ovll-library-preview-placeholder";
-
-      empty.textContent=
-        "이 형식은 아직 미리보기를 지원하지 않아";
-
-      preview.appendChild(
-        empty
-      );
-    }
-  }catch(error){
+  if(
+    typeof preview!=="function"
+  ){
     console.warn(
-      "ovll library preview failed:",
-      error
+      "ovll shared artifact preview is unavailable"
     );
 
-    preview.replaceChildren();
-
-    const empty=
-      document.createElement(
-        "div"
-      );
-
-    empty.className=
-      "ovll-library-preview-placeholder";
-
-    empty.textContent=
-      "미리보기를 불러오지 못했어";
-
-    preview.appendChild(
-      empty
-    );
+    return false;
   }
 
-  return true;
+  return await preview(
+    artifact
+  );
 }
 
 async function refresh(){
@@ -821,18 +378,6 @@ async function refresh(){
     state.files=[];
   }finally{
     state.loading=false;
-  }
-
-  if(
-    state.selectedId&&
-    !state.files.some(
-      file=>
-        file.id===
-        state.selectedId
-    )
-  ){
-    closeDetail();
-    return;
   }
 
   renderGrid();
@@ -889,10 +434,6 @@ function hide(){
     return false;
   }
 
-  if(state.selectedId){
-    closeDetail();
-  }
-
   state.open=false;
 
   page.classList.remove(
@@ -941,53 +482,10 @@ listen(
       return;
     }
 
-    void selectFile(
+    void previewFile(
       card.dataset.libraryId
     );
   }
-);
-
-listen(
-  detail,
-  "click",
-  event=>{
-    const action=
-      event.target.closest(
-        "[data-library-action]"
-      )
-        ?.dataset
-        ?.libraryAction;
-
-    if(!action){
-      return;
-    }
-
-    if(action==="close"){
-      closeDetail();
-      focusLibraryEntry();
-      return;
-    }
-
-    if(
-      action==="delete"&&
-      state.selectedId
-    ){
-      const id=
-        state.selectedId;
-
-      closeDetail();
-
-      void FileStore
-        .remove(id)
-        .then(refresh);
-    }
-  }
-);
-
-listen(
-  back,
-  "click",
-  hide
 );
 
 if(search){
@@ -1007,10 +505,7 @@ if(search){
 listen(
   global,
   "keydown",
-  handlePageKeydown,
-  {
-    capture:true
-  }
+  handlePageKeydown
 );
 
 listen(
@@ -1038,13 +533,17 @@ const api={
       await refresh();
     }
 
-    return selectFile(
-      fileId
-    );
+    if(fileId){
+      return await previewFile(
+        fileId
+      );
+    }
+
+    return true;
   },
 
   refresh,
-  closeDetail,
+  previewFile,
 
   destroy(){
     if(state.destroyed){
@@ -1053,7 +552,6 @@ const api={
 
     state.destroyed=true;
     state.open=false;
-    state.detailToken++;
     state.returnFocus=null;
 
     clearTimeout(
