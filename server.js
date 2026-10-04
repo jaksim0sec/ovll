@@ -87,7 +87,7 @@ const geminiExecution =
  * The frontend compares this server value with its locally stored version
  * before loading application assets.
  */
-const APP_VERSION = '2026.10.04.37';
+const APP_VERSION = '2026.10.04.38';
 
 /* =========================================================
    CANONICAL NODE DEFINITION
@@ -126,7 +126,7 @@ const defaultNodeDef = {
     tag: 'RESEARCH',
     color: '#4F8EF7',
     icon: `
-      <svg viewBox="0 0 20 20" fill="none">
+      <svg viewBox="0.2 0.2 19.6 19.6" fill="none">
         <circle cx="10" cy="10" r="6.7" stroke="currentColor" stroke-width="1.55"/>
         <path d="M3.3 10h13.4M10 3.3c-1.75 1.9-2.65 4.1-2.65 6.7s.9 4.8 2.65 6.7M10 3.3c1.75 1.9 2.65 4.1 2.65 6.7s-.9 4.8-2.65 6.7" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
@@ -241,7 +241,7 @@ const defaultNodeDef = {
     tag: 'JUDGE',
     color: '#8B6BE8',
     icon: `
-      <svg viewBox="0 0 20 20" fill="none">
+      <svg viewBox="0.2 0.2 19.6 19.6" fill="none">
         <circle cx="10" cy="10" r="6.15" stroke="currentColor" stroke-width="1.6"/>
         <path d="M7 10.1 9 12.05 13.1 7.95" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
@@ -380,7 +380,7 @@ const defaultNodeDef = {
     tag: 'INPUT',
     color: '#718096',
     icon: `
-      <svg viewBox="0 0 20 20" fill="none" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+      <svg viewBox="0.2 0.2 19.6 19.6" fill="none" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
         <path d="M7.35 10.45 11.7 6.1a2.25 2.25 0 0 1 3.18 3.18l-5.45 5.45a3.2 3.2 0 0 1-4.53-4.53l5.2-5.2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
     `,
