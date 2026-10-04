@@ -837,6 +837,29 @@
   white-space: nowrap;
 }
 
+.vc-file-preview {
+  max-height: 7.2rem;
+  margin-top: .48rem;
+  padding: .52rem .58rem;
+  overflow: hidden;
+  border: .0625rem solid
+    color-mix(in srgb, var(--line) 72%, transparent);
+  border-radius: .72rem;
+  color:
+    color-mix(in srgb, var(--text) 76%, transparent);
+  background:
+    color-mix(in srgb, var(--text) 2.8%, transparent);
+  font-size: .53rem;
+  font-weight: 470;
+  line-height: 1.52;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  mask-image:
+    linear-gradient(to bottom, #000 78%, transparent 100%);
+  -webkit-mask-image:
+    linear-gradient(to bottom, #000 78%, transparent 100%);
+}
+
 .vc-file-download {
   width: fit-content;
   min-height: 1.9rem;
