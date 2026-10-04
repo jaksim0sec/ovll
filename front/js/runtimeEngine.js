@@ -1067,6 +1067,10 @@
           ? "target"
           : "spread";
 
+      const cacheContext =
+        options.cacheContext ||
+        null;
+
       const nodes =
         new Map(
           workflow.nodes.map(
@@ -1165,6 +1169,31 @@
 
       const runId =
         `demo-run-${Date.now().toString(36)}-${++this.runCounter}`;
+
+      this.cancelRequested =
+        false;
+      this.abortController =
+        new AbortController();
+      this.activeRunId =
+        runId;
+
+      const signal =
+        this.abortController
+          .signal;
+
+      const throwIfCancelled =
+        () => {
+          if (
+            signal.aborted ||
+            this.cancelRequested
+          ) {
+            throw runtimeAbortError();
+          }
+        };
+
+      this.resultCache.delete(
+        pivot
+      );
 
       const states =
         new Map(
@@ -1369,6 +1398,85 @@
           }
 
           return inputs;
+        };
+
+      const cachedResultFor =
+        (
+          nodeId,
+          inputs
+        ) => {
+          if (
+            nodeId === pivot
+          ) {
+            return null;
+          }
+
+          const node =
+            nodes.get(nodeId);
+
+          const cached =
+            this.resultCache.get(
+              nodeId
+            );
+
+          if (
+            !node ||
+            !cached
+          ) {
+            return null;
+          }
+
+          const fingerprint =
+            executionFingerprint(
+              node,
+              inputs,
+              cacheContext
+            );
+
+          if (
+            cached.fingerprint !==
+              fingerprint
+          ) {
+            this.resultCache.delete(
+              nodeId
+            );
+            return null;
+          }
+
+          return clone(
+            cached.result
+          );
+        };
+
+      const rememberResult =
+        (
+          nodeId,
+          inputs,
+          result
+        ) => {
+          const node =
+            nodes.get(nodeId);
+
+          if (
+            !node ||
+            !result
+          ) {
+            return;
+          }
+
+          this.resultCache.set(
+            nodeId,
+            {
+              fingerprint:
+                executionFingerprint(
+                  node,
+                  inputs,
+                  cacheContext
+                ),
+              result:
+                clone(result)
+            }
+          );
         };
 
       const resolveNode =
