@@ -121,6 +121,7 @@ test("library keeps desktop browser context and uses replacement detail on mobil
 
 test("global overlays use the semantic layer scale", () => {
   const chatCss = compact(read("front/css/chat.css"));
+  const uiCss = compact(read("front/css/ui.css"));
 
   assert.match(
     chatCss,
@@ -206,12 +207,24 @@ test("coarse pointers get usable action targets", () => {
     /@media\s*\(hover:\s*none\)\s*and\s*\(pointer:\s*coarse\)[^{]*\{[\s\S]*?\.vc-node-action\s*\{[^}]*width:\s*2\.5rem[^}]*height:\s*2\.5rem/
   );
   assert.match(
+    nodeCss,
+    /@media\s*\(hover:\s*none\)\s*and\s*\(pointer:\s*coarse\)[^{]*\{[\s\S]*?\.vc-port-hit\s*\{[^}]*width:\s*2\.5rem[^}]*min-height:\s*2\.5rem/
+  );
+  assert.match(
     libraryCss,
     /@media\s*\(hover:\s*none\)\s*and\s*\(pointer:\s*coarse\)[^{]*\{[\s\S]*?\.ovll-library-detail-action\s*\{[^}]*width:\s*2\.5rem[^}]*height:\s*2\.5rem/
   );
   assert.match(
     chatCss,
     /@media\s*\(hover:\s*none\)\s*and\s*\(pointer:\s*coarse\)[^{]*\{[\s\S]*?\.astra-message-action\s*\{[^}]*width:\s*2\.5rem[^}]*height:\s*2\.5rem/
+  );
+  assert.match(
+    uiCss,
+    /@media\s*\(hover:\s*none\)\s*and\s*\(pointer:\s*coarse\)[^{]*\{[\s\S]*?#composer-attach\s*\{[^}]*width:\s*2\.5rem[^}]*height:\s*2\.5rem/
+  );
+  assert.match(
+    uiCss,
+    /@media\s*\(hover:\s*none\)\s*and\s*\(pointer:\s*coarse\)[^{]*\{[\s\S]*?#composer-submit\s*\{[^}]*width:\s*2\.5rem[^}]*height:\s*2\.5rem/
   );
 });
 
