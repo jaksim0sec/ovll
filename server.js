@@ -87,7 +87,7 @@ const geminiExecution =
  * The frontend compares this server value with its locally stored version
  * before loading application assets.
  */
-const APP_VERSION = '2026.10.04.38';
+const APP_VERSION = '2026.10.04.39';
 
 /* =========================================================
    CANONICAL NODE DEFINITION
