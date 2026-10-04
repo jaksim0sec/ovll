@@ -228,6 +228,40 @@ test("coarse pointers get usable action targets", () => {
   );
 });
 
+test("repository no longer exposes the obsolete root Astra frontend", () => {
+  for (const name of [
+    "index.html",
+    "style.css",
+    "functions.js",
+    "pageUI.js",
+    "canvas.js",
+    "workflow.js",
+    "scheduler.js",
+    "executor.js",
+    "manifest.json"
+  ]) {
+    assert.equal(
+      fs.existsSync(path.join(ROOT, name)),
+      false,
+      name + " is obsolete root frontend source"
+    );
+  }
+});
+
+test("project metadata names ovll and ignores ad-hoc backups", () => {
+  const pkg = JSON.parse(read("package.json"));
+  const lock = JSON.parse(read("package-lock.json"));
+  const readme = read("README.md");
+  const gitignore = read(".gitignore");
+
+  assert.equal(pkg.name, "ovll");
+  assert.equal(lock.name, "ovll");
+  assert.equal(lock.packages[""].name, "ovll");
+  assert.match(readme, /^# ovll\b/m);
+  assert.match(gitignore, /^\*\.bak$/m);
+  assert.match(gitignore, /^\*\.astra-bak$/m);
+});
+
 test("adjacent source backups are not tracked beside live files", () => {
   for (const relativeDir of ["front/css", "front/js"]) {
     const names = fs.readdirSync(path.join(ROOT, relativeDir));
