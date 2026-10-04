@@ -703,7 +703,8 @@ RESPONSE:
 message is a concise plain-text fallback/summary for this turn and must always be a string.
 blocks is the optional generative UI body.
 - Use blocks=[] for ordinary short text responses.
-- Use blocks only when structure materially helps, especially code or runnable HTML.
+- Use blocks only when structure materially helps, especially code, runnable HTML, or an answer too long for message.
+- If the visible answer needs more than message's short summary, put the complete answer in one or a few markup blocks.
 - block.type="markup" for user-facing prose/Markdown-like text.
 - block.type="code" for source code that should be shown as code.
 - block.type="live-html" only for complete or independently runnable HTML that should render as an interactive preview.
