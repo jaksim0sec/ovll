@@ -1798,6 +1798,8 @@
 
     accept.textContent =
       "적용";
+    accept.disabled =
+      state.busy;
 
     const revert =
       document.createElement(
@@ -1816,6 +1818,8 @@
 
     revert.textContent =
       "되돌리기";
+    revert.disabled =
+      state.busy;
 
     row.append(
       label,
@@ -3625,6 +3629,17 @@
       "aria-busy",
       state.busy ? "true" : "false"
     );
+
+    chatMessages
+      .querySelectorAll(
+        ".astra-workflow-proposal-action"
+      )
+      .forEach(
+        button => {
+          button.disabled =
+            state.busy;
+        }
+      );
   }
 
   /* =======================================================
