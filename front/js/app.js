@@ -1123,11 +1123,7 @@
         kind: "pdf",
         color: "#e36f63",
         icon: `
-          <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
-            <path d="M5.15 2.75h5.95l3.75 3.75v10.75h-9.7V2.75Z" stroke="currentColor" stroke-width="1.45" stroke-linejoin="round"/>
-            <path d="M11.05 2.9V6.6h3.65" stroke="currentColor" stroke-width="1.35" stroke-linejoin="round"/>
-            <path d="M7.2 11.1h5.6M7.2 13.2h4.4M7.2 15.3h3.1" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/>
-          </svg>
+          <span class="astra-artifact-pdf-label" aria-hidden="true">PDF</span>
         `
       };
     }
@@ -1847,12 +1843,9 @@
       );
       canvasButton.innerHTML = `
         <svg viewBox="0 0 20 20" fill="none" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-          <rect x="3.25" y="3.25" width="13.5" height="13.5" rx="3.25"></rect>
-          <circle cx="7" cy="7" r="1"></circle>
-          <circle cx="13" cy="7" r="1"></circle>
-          <circle cx="7" cy="13" r="1"></circle>
-          <circle cx="13" cy="13" r="1"></circle>
-          <path d="M7 7h6M7 13h6M7 7v6M13 7v6"></path>
+          <rect x="3.75" y="4.25" width="5" height="5" rx="1.5"></rect>
+          <rect x="11.25" y="10.75" width="5" height="5" rx="1.5"></rect>
+          <path d="M8.75 6.75h1.4a3.1 3.1 0 0 1 3.1 3.1v.9"></path>
         </svg>
         <span>캔버스에서 보기</span>
       `;
@@ -4900,6 +4893,15 @@
           <span class="canvas-node-builder-plus" aria-hidden="true">+</span>
           <span>노드</span>
         </button>
+        <button id="canvas-node-builder-reset" type="button" aria-label="캔버스 초기화" title="캔버스 초기화">
+          <span class="canvas-node-builder-action-icon" aria-hidden="true">
+            <svg viewBox="0 0 20 20" fill="none" preserveAspectRatio="xMidYMid meet">
+              <path d="M5.1 6.35A6 6 0 1 1 4.35 12"></path>
+              <path d="M5.1 3.65v2.7h2.7"></path>
+            </svg>
+          </span>
+          <span class="canvas-node-builder-reset-label">초기화</span>
+        </button>
         <button id="canvas-node-builder-layout" type="button" aria-label="노드 정리하기" title="노드 정리하기">
           <span class="canvas-node-builder-action-icon" aria-hidden="true">
             <svg viewBox="0 0 20 20" fill="none" preserveAspectRatio="xMidYMid meet">
@@ -4910,15 +4912,6 @@
             </svg>
           </span>
           <span>정리하기</span>
-        </button>
-        <button id="canvas-node-builder-reset" type="button" aria-label="캔버스 초기화" title="캔버스 초기화">
-          <span class="canvas-node-builder-action-icon" aria-hidden="true">
-            <svg viewBox="0 0 20 20" fill="none" preserveAspectRatio="xMidYMid meet">
-              <path d="M5.1 6.35A6 6 0 1 1 4.35 12"></path>
-              <path d="M5.1 3.65v2.7h2.7"></path>
-            </svg>
-          </span>
-          <span class="canvas-node-builder-reset-label">초기화</span>
         </button>
       </div>
     `;
