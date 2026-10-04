@@ -370,6 +370,37 @@
   transform: scale(.96);
 }
 
+.vc-node-run.is-disabled,
+.vc-node-run:disabled:not(.is-cancel) {
+  color:
+    color-mix(
+      in srgb,
+      var(--muted) 76%,
+      transparent
+    );
+  border-color:
+    color-mix(
+      in srgb,
+      var(--line) 86%,
+      transparent
+    );
+  background:
+    color-mix(
+      in srgb,
+      var(--text) 1.5%,
+      transparent
+    );
+  opacity: .48;
+  cursor: default;
+  pointer-events: none;
+  transform: none;
+}
+
+.vc-node-run.is-disabled svg,
+.vc-node-run:disabled:not(.is-cancel) svg {
+  opacity: .72;
+}
+
 .vc-node-run.is-running {
   pointer-events: none;
   opacity: .72;
