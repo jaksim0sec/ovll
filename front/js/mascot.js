@@ -1653,8 +1653,12 @@ function mount(world,canvas,options={}){
       "surprised",
       "annoyed",
       "success",
+      "happy",
       "working",
-      "bumped"
+      "bumped",
+      "sleepy",
+      "confused",
+      "suspicious"
     ]);
 
   function setMood(name,duration=0){
@@ -1691,6 +1695,10 @@ function mount(world,canvas,options={}){
         orb.dataset.mood=
           "idle";
       }
+
+      setSatellite(
+        "hidden"
+      );
 
       restoreGaze();
       return false;
@@ -1744,6 +1752,11 @@ function mount(world,canvas,options={}){
         nodeCenter.y,
         .19
       );
+
+      pointSatelliteAt(
+        nodeCenter.x,
+        nodeCenter.y
+      );
     }
 
     if(
@@ -1791,6 +1804,10 @@ function mount(world,canvas,options={}){
     if(active){
       orb.dataset.mood="thinking";
 
+      setSatellite(
+        "orbit"
+      );
+
       const target=
         (focusId&&nodeEl(focusId))||
         interestingNode();
@@ -1827,6 +1844,11 @@ function mount(world,canvas,options={}){
       "--eye-tilt",
       "0deg"
     );
+
+    setSatellite(
+      "hidden"
+    );
+
     restoreGaze();
   }
 
@@ -1877,6 +1899,9 @@ function mount(world,canvas,options={}){
     ){
       orb.classList.remove("thinking");
       setMood("idle");
+      setSatellite(
+        "hidden"
+      );
       restoreGaze();
     }
 
@@ -1926,7 +1951,7 @@ function mount(world,canvas,options={}){
     gazePriority=9;
     gazeUntil=performance.now()+260;
 
-    setMood("curious");
+    setMood("focus");
 
     lookAt(
       data.x,
@@ -1934,6 +1959,11 @@ function mount(world,canvas,options={}){
       distance<62
         ?.22
         :.19
+    );
+
+    pointSatelliteAt(
+      data.x,
+      data.y
     );
 
     connectionClose=
@@ -1970,12 +2000,21 @@ function mount(world,canvas,options={}){
     );
 
     if(boop){
+      setSatellite(
+        "celebrate",
+        {hold:560}
+      );
+
       pulse(
         "boop",
         360
       );
 
       blink();
+    }else{
+      setSatellite(
+        "hidden"
+      );
     }
 
     restoreGaze();
