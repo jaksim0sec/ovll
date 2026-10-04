@@ -4181,6 +4181,143 @@
     };
   }
 
+  async function readUploadImagePreview(
+    file
+  ) {
+    const mime =
+      String(
+        file?.type ||
+        ""
+      ).toLowerCase();
+
+    if (
+      !mime.startsWith(
+        "image/"
+      ) ||
+      Number(
+        file?.size ||
+        0
+      ) > 16 * 1024 * 1024
+    ) {
+      return null;
+    }
+
+    const objectUrl =
+      URL.createObjectURL(
+        file
+      );
+
+    try {
+      const image =
+        document.createElement(
+          "img"
+        );
+
+      image.decoding =
+        "async";
+
+      await new Promise(
+        (resolve, reject) => {
+          image.onload =
+            resolve;
+          image.onerror =
+            reject;
+          image.src =
+            objectUrl;
+        }
+      );
+
+      const sourceWidth =
+        Number(
+          image.naturalWidth ||
+          0
+        );
+
+      const sourceHeight =
+        Number(
+          image.naturalHeight ||
+          0
+        );
+
+      if (
+        !sourceWidth ||
+        !sourceHeight
+      ) {
+        return null;
+      }
+
+      const maxSide =
+        420;
+
+      const scale =
+        Math.min(
+          1,
+          maxSide /
+            Math.max(
+              sourceWidth,
+              sourceHeight
+            )
+        );
+
+      const canvas =
+        document.createElement(
+          "canvas"
+        );
+
+      canvas.width =
+        Math.max(
+          1,
+          Math.round(
+            sourceWidth *
+            scale
+          )
+        );
+
+      canvas.height =
+        Math.max(
+          1,
+          Math.round(
+            sourceHeight *
+            scale
+          )
+        );
+
+      const context =
+        canvas.getContext(
+          "2d",
+          {
+            alpha: true
+          }
+        );
+
+      if (!context) {
+        return null;
+      }
+
+      context.drawImage(
+        image,
+        0,
+        0,
+        canvas.width,
+        canvas.height
+      );
+
+      return {
+        imagePreview:
+          canvas.toDataURL(
+            "image/webp",
+            .76
+          )
+      };
+    } catch {
+      return null;
+    } finally {
+      URL.revokeObjectURL(
+        objectUrl
+      );
+    }
+  }
+
   async function handleComposerFileChange(
     event
   ) {
@@ -4199,10 +4336,18 @@
     }
 
     try {
-      const preview =
-        await readUploadTextPreview(
-          file
-        );
+      const [
+        preview,
+        imagePreview
+      ] =
+        await Promise.all([
+          readUploadTextPreview(
+            file
+          ),
+          readUploadImagePreview(
+            file
+          )
+        ]);
 
       state.canvas.addNode(
         "file",
@@ -4220,7 +4365,8 @@
               file.size || 0,
             lastModified:
               file.lastModified || 0,
-            ...(preview || {})
+            ...(preview || {}),
+            ...(imagePreview || {})
           }
         }
       );
