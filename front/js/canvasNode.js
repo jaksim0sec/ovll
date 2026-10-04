@@ -3362,7 +3362,7 @@
             );
           if (!node) return;
           selectNode(node.id);
-             state.nodeDrag = {
+          state.nodeDrag = {
             pointerId: event.pointerId,
             node,
             startX: event.clientX,
@@ -3370,7 +3370,12 @@
             nodeX: node.x,
             nodeY: node.y,
             moved: false,
-            wasExpanded: !!node.expanded
+            wasExpanded: !!node.expanded,
+            collapseOnDrag:
+              !!event.target.closest(
+                '.vc-node-head'
+              ),
+            collapsedForDrag: false
           };
           try {
             viewport.setPointerCapture(
@@ -3541,13 +3546,16 @@
                 y: event.clientY
               });
               if (
-                drag.wasExpanded
+                drag.wasExpanded &&
+                drag.collapseOnDrag
               ) {
                 setNodeExpanded(
                   drag.node,
                   false,
                   true
                 );
+                drag.collapsedForDrag =
+                  true;
               }
             }
           }
@@ -3682,7 +3690,10 @@
         element.classList.remove(
           'vc-dragging'
         );
-        if (drag.wasExpanded) {
+        if (
+          drag.wasExpanded &&
+          drag.collapsedForDrag
+        ) {
           setNodeExpanded(
             drag.node,
             true
