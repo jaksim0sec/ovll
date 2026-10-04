@@ -67,6 +67,7 @@ const state={
   detailToken:0,
   open:false,
   closeTimer:null,
+  returnFocus:null,
   destroyed:false
 };
 
@@ -93,6 +94,101 @@ function listen(
       options
     )
   );
+}
+
+function focusLibraryEntry(){
+  const target=
+    search||
+    back||
+    page;
+
+  if(
+    !target||
+    typeof target.focus!=="function"
+  ){
+    return;
+  }
+
+  try{
+    target.focus({
+      preventScroll:true
+    });
+  }catch{
+    target.focus();
+  }
+}
+
+function restorePageFocus(){
+  let target=
+    state.returnFocus;
+
+  state.returnFocus=null;
+
+  const sidebarPanel=
+    target
+      ?.closest?.(
+        "#ovll-shell-menu-panel"
+      );
+
+  if(
+    sidebarPanel
+      ?.getAttribute(
+        "aria-hidden"
+      )==="true"
+  ){
+    target=
+      document.querySelector(
+        "#ovll-shell-menu-trigger"
+      );
+  }
+
+  if(
+    !target||
+    !target.isConnected||
+    typeof target.focus!=="function"
+  ){
+    return;
+  }
+
+  requestAnimationFrame(
+    ()=>{
+      try{
+        target.focus({
+          preventScroll:true
+        });
+      }catch{
+        target.focus();
+      }
+    }
+  );
+}
+
+function handlePageKeydown(event){
+  if(
+    event.key!=="Escape"||
+    !state.open||
+    event.defaultPrevented
+  ){
+    return;
+  }
+
+  if(
+    global.OvllShellMenu
+      ?.isOpen?.()
+  ){
+    return;
+  }
+
+  event.preventDefault();
+  event.stopPropagation();
+
+  if(state.selectedId){
+    closeDetail();
+    focusLibraryEntry();
+    return;
+  }
+
+  hide();
 }
 
 function formatDate(value){
@@ -651,6 +747,16 @@ function show(){
     return false;
   }
 
+  const wasOpen=
+    state.open;
+
+  if(!wasOpen){
+    state.returnFocus=
+      document.activeElement instanceof HTMLElement
+        ?document.activeElement
+        :null;
+  }
+
   clearTimeout(
     state.closeTimer
   );
@@ -667,6 +773,10 @@ function show(){
       page.classList.add(
         "is-open"
       );
+
+      if(!wasOpen){
+        focusLibraryEntry();
+      }
     }
   );
 
@@ -709,6 +819,7 @@ function hide(){
       ()=>{
         if(!state.open){
           page.hidden=true;
+          restorePageFocus();
         }
       },
       190
@@ -753,6 +864,7 @@ listen(
 
     if(action==="close"){
       closeDetail();
+      focusLibraryEntry();
       return;
     }
 
@@ -791,6 +903,15 @@ if(search){
     }
   );
 }
+
+listen(
+  global,
+  "keydown",
+  handlePageKeydown,
+  {
+    capture:true
+  }
+);
 
 listen(
   global,
@@ -833,6 +954,7 @@ const api={
     state.destroyed=true;
     state.open=false;
     state.detailToken++;
+    state.returnFocus=null;
 
     clearTimeout(
       state.closeTimer
