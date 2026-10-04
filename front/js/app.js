@@ -68,6 +68,7 @@
     runtimeActivity: null,
     runGate: {
       locked: false,
+      pivot: null,
       releaseTimer: null
     },
     errorNotice: null,
@@ -3914,6 +3915,32 @@
           event.pivot
         );
 
+      if (
+        event.status ===
+          "CANCELLED"
+      ) {
+        if (
+          state.runtimeActivity
+            ?.meta
+        ) {
+          state.runtimeActivity
+            .meta
+            .textContent =
+            "중단됨";
+        }
+
+        finishRuntimeActivity();
+
+        Presence.canvasStatus?.(
+          "실행 중단됨",
+          {
+            hold: 1800
+          }
+        );
+
+        return;
+      }
+
       const text =
         event.status === "FAILED"
           ? "실행 결과 확인 중"
@@ -3938,7 +3965,8 @@
 
   function setRunGate(
     locked,
-    delay = 0
+    delay = 0,
+    pivotId = null
   ) {
     clearTimeout(
       state.runGate.releaseTimer
@@ -3946,13 +3974,25 @@
     state.runGate.releaseTimer =
       null;
 
+    const nextPivot =
+      locked
+        ? String(
+            pivotId ||
+            state.runGate.pivot ||
+            ""
+          )
+        : null;
+
     const apply = () => {
       state.runGate.locked =
         !!locked;
+      state.runGate.pivot =
+        nextPivot;
 
       state.canvas
         ?.setRunLocked?.(
-          !!locked
+          !!locked,
+          nextPivot
         );
     };
 
@@ -3989,7 +4029,11 @@
       return null;
     }
 
-    setRunGate(true);
+    setRunGate(
+      true,
+      0,
+      nodeId
+    );
 
     let started = false;
 
@@ -4091,9 +4135,23 @@
           nodeId,
           {
             mode:
-              runMode
+              runMode,
+            cacheContext: {
+              conversationId:
+                currentConversationId(),
+              userRequest:
+                state.lastUserRequest
+            }
           }
         );
+
+      if (
+        result?.status ===
+          "CANCELLED"
+      ) {
+        Presence.settle();
+        return result;
+      }
 
       await finalizeRuntimeRun(
         result
@@ -4169,6 +4227,35 @@
       nodeId,
       "spread"
     );
+  }
+
+  function handleCanvasNodeRunCancel(
+    payload
+  ) {
+    const nodeId =
+      String(
+        payload?.id || ""
+      );
+
+    if (
+      !nodeId ||
+      !state.runtime
+        ?.isRunning?.()
+    ) {
+      return;
+    }
+
+    const cancelled =
+      state.runtime.cancel?.();
+
+    if (cancelled) {
+      Presence.canvasStatus?.(
+        "실행 중단 중",
+        {
+          hold: 0
+        }
+      );
+    }
   }
 
   function openConversation(
@@ -4714,18 +4801,24 @@
 
             const response =
               await API
-                .createArtifact({
-                  format:
-                    artifactRequest
-                      .format,
-                  filename:
-                    artifactRequest
-                      .filename,
-                  sources:
-                    runtimeInputValues(
-                      inputs
-                    )
-                });
+                .createArtifact(
+                  {
+                    format:
+                      artifactRequest
+                        .format,
+                    filename:
+                      artifactRequest
+                        .filename,
+                    sources:
+                      runtimeInputValues(
+                        inputs
+                      )
+                  },
+                  {
+                    signal:
+                      context?.signal
+                  }
+                );
 
             const artifact =
               response?.artifact;
@@ -4758,7 +4851,8 @@
       },
 
       async runGroup(
-        group
+        group,
+        context = {}
       ) {
         const stopMascot =
           beginMascotWorkSequence(
@@ -4776,6 +4870,10 @@
                   state.lastUserRequest,
                 memory:
                   state.conversationMemory
+              },
+              {
+                signal:
+                  context?.signal
               }
             );
 
@@ -4803,6 +4901,10 @@
     canvas.on("change", handleCanvasChange);
     canvas.on("workflowApplied", handleCanvasWorkflowApplied);
     canvas.on("nodeRun", handleCanvasNodeRun);
+    canvas.on(
+      "nodeRunCancel",
+      handleCanvasNodeRunCancel
+    );
 
     syncWorkflow();
 
