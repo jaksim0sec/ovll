@@ -5175,6 +5175,22 @@ listen(composerInput, "keydown", handleComposerKeydown);
       "ovll Initialization Error:",
       error
     );
+
+    global.dispatchEvent(
+      new CustomEvent(
+        "ovll:app-error",
+        {
+          detail: {
+            message:
+              userFacingError(
+                error,
+                "오블을 초기화하지 못했어. 새로고침해서 다시 시도해줘."
+              )
+          }
+        }
+      )
+    );
+
     addSystemMessage(
       userFacingError(
         error,
