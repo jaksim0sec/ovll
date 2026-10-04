@@ -131,7 +131,13 @@
       runtimeConnections: new Set(),
       runtimeNodes: new Map(),
       runLocked: false,
-      runPivot: null
+      runPivot: null,
+      portTap: {
+        key: "",
+        at: 0
+      },
+      connectionRemovalTimers:
+        new Set()
     };
     const registry = new Map(
       Object.entries(definitions).map(([type, def]) => [
@@ -1394,7 +1400,15 @@
           )
       );
       if (duplicate) {
-        disconnect(duplicate.id);
+        if (
+          options.toggleDuplicate !==
+          false
+        ) {
+          disconnect(
+            duplicate.id
+          );
+        }
+
         return null;
       }
       const result = canConnect(specification);
@@ -1427,6 +1441,130 @@
       emit('disconnect', id);
       emit('change', getWorkflow());
       return true;
+    }
+
+    function softDisconnectPort(
+      endpointValue,
+      direction
+    ) {
+      const ids =
+        state.connections
+          .filter(
+            connection =>
+              direction === 'input'
+                ? (
+                    connection.to.node ===
+                      endpointValue.node &&
+                    connection.to.port ===
+                      endpointValue.port
+                  )
+                : (
+                    connection.from.node ===
+                      endpointValue.node &&
+                    connection.from.port ===
+                      endpointValue.port
+                  )
+          )
+          .map(
+            connection =>
+              connection.id
+          );
+
+      if (!ids.length) {
+        return false;
+      }
+
+      const idSet =
+        new Set(ids);
+
+      for (const id of ids) {
+        connectionElements
+          .get(id)
+          ?.classList
+          .add(
+            'vc-removing'
+          );
+      }
+
+      const timer =
+        setTimeout(
+          () => {
+            state.connectionRemovalTimers
+              .delete(timer);
+
+            state.connections =
+              state.connections
+                .filter(
+                  connection =>
+                    !idSet.has(
+                      connection.id
+                    )
+                );
+
+            for (const id of ids) {
+              removeConnectionElement(
+                id
+              );
+
+              emit(
+                'disconnect',
+                id
+              );
+            }
+
+            markConnectedPorts();
+            renderConnections();
+
+            emit(
+              'change',
+              getWorkflow()
+            );
+          },
+          140
+        );
+
+      state.connectionRemovalTimers
+        .add(timer);
+
+      return true;
+    }
+
+    function registerPortTap(
+      endpointValue,
+      direction
+    ) {
+      const now =
+        performance.now();
+
+      const key =
+        [
+          direction,
+          endpointValue.node,
+          endpointValue.port
+        ].join(':');
+
+      const repeated =
+        state.portTap.key ===
+          key &&
+        now - state.portTap.at <=
+          340;
+
+      if (repeated) {
+        state.portTap.key = "";
+        state.portTap.at = 0;
+
+        return softDisconnectPort(
+          endpointValue,
+          direction
+        );
+      }
+
+      state.portTap.key =
+        key;
+      state.portTap.at =
+        now;
+
+      return false;
     }
     function validate() {
       const errors = [];
