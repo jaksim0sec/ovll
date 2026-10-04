@@ -172,7 +172,7 @@
       transparent
     );
   font: inherit;
-  font-size: .56rem;
+  font-size: var(--font-micro);
   font-weight: 670;
   cursor: pointer;
   transition:
@@ -1695,7 +1695,7 @@
       var(--text) 4.5%,
       transparent
     );
-  font-size: .58rem;
+  font-size: var(--font-micro);
   font-weight: 650;
   line-height: 1;
   cursor: pointer;
@@ -2015,7 +2015,7 @@
 
 .astra-artifact-preview-copy small {
   color: var(--muted);
-  font-size: .59rem;
+  font-size: var(--font-micro);
   font-weight: 500;
 }
 
@@ -2194,4 +2194,18 @@
   overflow-wrap: anywhere;
   box-shadow:
     0 .35rem 1.2rem rgba(0,0,0,.045);
+}
+
+
+@media (hover: none) and (pointer: coarse) {
+  .astra-message-action {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+
+  .astra-artifact-preview-close,
+  .astra-artifact-preview-download {
+    min-width: 2.5rem;
+    min-height: 2.5rem;
+  }
 }
