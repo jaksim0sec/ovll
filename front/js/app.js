@@ -3415,6 +3415,30 @@
 
     if (!value) return;
 
+    const proposalRow =
+      message.querySelector(
+        ".astra-workflow-proposal"
+      );
+
+    const proposalId =
+      proposalRow?.dataset
+        ?.workflowProposalId ||
+      "";
+
+    if (
+      proposalId &&
+      state.workflowProposal
+        ?.id ===
+        proposalId
+    ) {
+      rejectWorkflowProposal(
+        proposalId,
+        {
+          silent: true
+        }
+      );
+    }
+
     message.classList.add(
       "is-retrying"
     );
