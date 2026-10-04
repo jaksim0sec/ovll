@@ -82,8 +82,8 @@
   position: absolute;
   top: calc(var(--safe-top) + var(--top-control-top));
   bottom: auto;
-  width: var(--top-control-height);
-  height: var(--top-control-height);
+  width: var(--control-size);
+  height: var(--control-size);
   display: flex;
   align-items: center;
   pointer-events: none;
