@@ -245,7 +245,7 @@
       var(--artifact-accent) 7%,
       transparent
     );
-  font-size:.49rem;
+  font-size:var(--font-micro);
   font-weight:720;
   line-height:1;
 }
@@ -329,7 +329,7 @@
   margin-top:.16rem;
   overflow:hidden;
   color:var(--muted);
-  font-size:.56rem;
+  font-size:var(--font-micro);
   text-overflow:ellipsis;
   white-space:nowrap;
 }
@@ -475,7 +475,7 @@
   border-radius:999px;
   color:var(--muted);
   background:var(--ui-control-surface);
-  font-size:.55rem;
+  font-size:var(--font-micro);
   line-height:1;
 }
 
@@ -562,5 +562,17 @@
 @media(prefers-reduced-motion:reduce){
   #library-page{
     transition:none;
+  }
+}
+
+
+@media(hover:none) and (pointer:coarse){
+  .ovll-library-detail-action{
+    width:2.5rem;
+    height:2.5rem;
+  }
+
+  .ovll-library-back{
+    min-height:2.5rem;
   }
 }
