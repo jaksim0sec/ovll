@@ -4748,6 +4748,19 @@
               } catch {}
             }
           );
+        clearConnectionPickupVisuals(
+          state.connectionDrag
+        );
+
+        state.connectionRemovalTimers
+          .forEach(
+            timer =>
+              clearTimeout(timer)
+          );
+
+        state.connectionRemovalTimers
+          .clear();
+
         state.pointers.clear();
         state.nodeDrag = null;
         state.canvasPan = null;
