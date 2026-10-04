@@ -1116,8 +1116,9 @@
         color: "#e36f63",
         icon: `
           <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
-            <rect x="4.1" y="2.7" width="11.8" height="14.6" rx="3.15" stroke="currentColor" stroke-width="1.45"/>
-            <path d="M7.1 12.55c1.2-2.45 1.95-4.7 2.35-6.85M6.7 11.35c2.25-.38 4.3-.14 6.5.78M9.1 8.7c.95.9 1.95 1.4 3.05 1.52" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"/>
+            <path d="M5.15 2.75h5.95l3.75 3.75v10.75h-9.7V2.75Z" stroke="currentColor" stroke-width="1.45" stroke-linejoin="round"/>
+            <path d="M11.05 2.9V6.6h3.65" stroke="currentColor" stroke-width="1.35" stroke-linejoin="round"/>
+            <path d="M7.2 11.1h5.6M7.2 13.2h4.4M7.2 15.3h3.1" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/>
           </svg>
         `
       };
