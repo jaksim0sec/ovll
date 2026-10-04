@@ -714,18 +714,6 @@
   display: none;
 }
 
-.astra-runtime-activity-title {
-  color:
-    color-mix(
-      in srgb,
-      var(--text) 88%,
-      transparent
-    );
-  font-size: .86rem;
-  font-weight: 650;
-  letter-spacing: -.014em;
-}
-
 .astra-runtime-activity-meta {
   color:
     color-mix(
