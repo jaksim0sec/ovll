@@ -4553,12 +4553,6 @@
               invalid?.id
           );
 
-        const invalidName =
-          state.nodeDefinitions
-            ?.[invalidNode?.type]
-            ?.name ||
-          "이 노드";
-
         if (invalidNode) {
           state.canvas
             ?.selectNode?.(
@@ -4574,31 +4568,6 @@
               );
           }
         }
-
-        const error =
-          new Error(
-            `${invalidName}에 실행할 내용이 없어.`
-          );
-
-        error.code =
-          "NODE_INPUT_EMPTY";
-
-        Presence.canvasStatus?.(
-          "요청사항을 먼저 입력해줘",
-          {
-            hold: 2200
-          }
-        );
-
-        showErrorNotice(
-          error,
-          {
-            scope:
-              "실행할 내용이 없음",
-            fallback:
-              "노드에 요청사항을 먼저 입력해줘."
-          }
-        );
 
         return null;
       }
