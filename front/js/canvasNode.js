@@ -541,6 +541,12 @@
           )
             .trim()
             .slice(0, 900);
+        const imagePreview =
+          String(
+            node.data
+              ?.imagePreview ||
+            ""
+          );
 
         out.push(`
           <div class="vc-slot-custom">
@@ -549,13 +555,22 @@
               <span>${escapeHtml(text)}</span>
             </div>
             ${
-              previewText
+              imagePreview
                 ? `
-                  <div class="vc-file-preview">
-                    ${escapeHtml(previewText)}
+                  <div class="vc-file-image-preview">
+                    <img
+                      src="${escapeHtml(imagePreview)}"
+                      alt=""
+                    >
                   </div>
                 `
-                : ''
+                : previewText
+                  ? `
+                    <div class="vc-file-preview">
+                      ${escapeHtml(previewText)}
+                    </div>
+                  `
+                  : ''
             }
             ${
               downloadUrl
