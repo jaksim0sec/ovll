@@ -209,6 +209,7 @@
   <link rel="stylesheet" href="./css/ui.css">
   <link rel="stylesheet" href="./css/node.css">
   <link rel="stylesheet" href="./css/chat.css">
+  <link rel="stylesheet" href="./css/library.css">
   <link rel="stylesheet" href="./css/shellMenu.css">
 </head>
 
@@ -261,6 +262,16 @@
         >
           캔버스
         </button>
+
+        <button
+          id="mode-library"
+          type="button"
+          role="tab"
+          aria-selected="false"
+          data-mode="library"
+        >
+          라이브러리
+        </button>
       </div>
 
       <div id="topbar-right"></div>
@@ -298,6 +309,57 @@
             ></svg>
 
             <div id="canvas-nodes"></div>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- Library page -->
+      <section
+        id="library-page"
+        class="page"
+        data-page="library"
+        aria-label="라이브러리"
+      >
+        <div class="ovll-library-shell">
+          <header class="ovll-library-header">
+            <div class="ovll-library-heading">
+              <h1>라이브러리</h1>
+              <p data-library-count></p>
+            </div>
+
+            <label class="ovll-library-search">
+              <svg viewBox="0 0 20 20" aria-hidden="true">
+                <circle cx="8.7" cy="8.7" r="4.7"></circle>
+                <path d="m12.3 12.3 3.3 3.3"></path>
+              </svg>
+              <input
+                type="search"
+                data-library-search-input
+                placeholder="파일 검색"
+                autocomplete="off"
+                spellcheck="false"
+                aria-label="라이브러리 검색"
+              >
+            </label>
+          </header>
+
+          <div
+            class="ovll-library-content"
+            data-library-content
+          >
+            <div class="ovll-library-browser">
+              <div
+                class="ovll-library-grid"
+                data-library-grid
+              ></div>
+            </div>
+
+            <section
+              class="ovll-library-detail"
+              data-library-detail
+              aria-label="파일 미리보기"
+            ></section>
           </div>
         </div>
       </section>
