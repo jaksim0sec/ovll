@@ -1050,43 +1050,171 @@
       dragLayer.textContent = '';
       const drag = state.connectionDrag;
       if (!drag) return;
-      let from;
-      let to;
+
       if (drag.direction === 'output') {
-        from = portPoint(
-          drag.anchor.node,
-          drag.anchor.port,
-          'output'
+        const to =
+          screenToWorld(
+            drag.x,
+            drag.y
+          );
+
+        const anchors =
+          Array.isArray(
+            drag.anchors
+          ) &&
+          drag.anchors.length
+            ? drag.anchors
+            : [
+                drag.anchor
+              ];
+
+        for (
+          const anchor
+          of anchors
+        ) {
+          const from =
+            portPoint(
+              anchor.node,
+              anchor.port,
+              'output'
+            );
+
+          if (!from || !to) {
+            continue;
+          }
+
+          const sourceNode =
+            getNode(
+              anchor.node
+            );
+
+          const definition =
+            getDefinition(
+              sourceNode?.type
+            );
+
+          const path =
+            svgEl(
+              'path',
+              {
+                d:
+                  pathFor(
+                    from,
+                    to
+                  )
+              }
+            );
+
+          path.classList.add(
+            'vc-drag-connection'
+          );
+
+          path.style.pointerEvents =
+            'none';
+
+          if (
+            definition?.color
+          ) {
+            path.style.stroke =
+              definition.color;
+          }
+
+          dragLayer.appendChild(
+            path
+          );
+
+          const dot =
+            svgEl(
+              'circle',
+              {
+                cx: from.x,
+                cy: from.y,
+                r: 4
+              }
+            );
+
+          dot.classList.add(
+            'vc-drag-source-dot'
+          );
+
+          if (
+            definition?.color
+          ) {
+            dot.style.fill =
+              definition.color;
+          }
+
+          dot.style.pointerEvents =
+            'none';
+
+          dragLayer.appendChild(
+            dot
+          );
+        }
+
+        return;
+      }
+
+      const from =
+        screenToWorld(
+          drag.x,
+          drag.y
         );
-        to = screenToWorld(drag.x, drag.y);
-      } else {
-        from = screenToWorld(drag.x, drag.y);
-        to = portPoint(
+
+      const to =
+        portPoint(
           drag.anchor.node,
           drag.anchor.port,
           'input'
         );
+
+      if (!from || !to) {
+        return;
       }
-      if (!from || !to) return;
-      const sourceNode = drag.direction === 'output'
-        ? getNode(drag.anchor.node)
-        : getNode(drag.target?.node);
-      const definition = getDefinition(sourceNode?.type);
-      const path = svgEl('path', { d: pathFor(from, to) });
-      path.classList.add('vc-drag-connection');
-      path.style.pointerEvents = 'none';
-      if (definition?.color) path.style.stroke = definition.color;
-      dragLayer.appendChild(path);
-      const dotPoint = drag.direction === 'output' ? from : to;
-      const dot = svgEl('circle', {
-        cx: dotPoint.x,
-        cy: dotPoint.y,
-        r: 4
-      });
-      dot.classList.add('vc-drag-source-dot');
-      if (definition?.color) dot.style.fill = definition.color;
-      dot.style.pointerEvents = 'none';
-      dragLayer.appendChild(dot);
+
+      const path =
+        svgEl(
+          'path',
+          {
+            d:
+              pathFor(
+                from,
+                to
+              )
+          }
+        );
+
+      path.classList.add(
+        'vc-drag-connection'
+      );
+
+      path.style.pointerEvents =
+        'none';
+
+      dragLayer.appendChild(
+        path
+      );
+
+      const dot =
+        svgEl(
+          'circle',
+          {
+            cx: to.x,
+            cy: to.y,
+            r: 4
+          }
+        );
+
+      dot.classList.add(
+        'vc-drag-source-dot'
+      );
+
+      dot.style.pointerEvents =
+        'none';
+
+      dragLayer.appendChild(
+        dot
+      );
     }
     function screenToWorld(clientX, clientY) {
       const rect = viewport.getBoundingClientRect();
