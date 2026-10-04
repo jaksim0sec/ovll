@@ -110,6 +110,30 @@
         fetchOptions
       );
     } catch (error) {
+      if (
+        signal?.aborted ||
+        error?.name ===
+          "AbortError"
+      ) {
+        const abortedError =
+          new Error(
+            "요청이 중단되었습니다."
+          );
+
+        abortedError.name =
+          "OvllApiError";
+        abortedError.code =
+          "REQUEST_ABORTED";
+        abortedError.status =
+          499;
+        abortedError.retryable =
+          false;
+        abortedError.cause =
+          error;
+
+        throw abortedError;
+      }
+
       const networkError =
         new Error(
           "서버에 연결할 수 없습니다."
