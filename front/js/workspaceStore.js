@@ -2,7 +2,7 @@
 "use strict";
 
 const STORAGE_KEY = "ovll:workspace:v1";
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 const events = new Map();
 
 function clone(value){
@@ -198,6 +198,58 @@ function normalizeMessage(value){
       ? String(value.role)
       : "assistant";
 
+  const blocks =
+    Array.isArray(value.blocks)
+      ? value.blocks
+          .map(block => {
+            if(
+              !block ||
+              typeof block !== "object"
+            ){
+              return null;
+            }
+
+            const type =
+              String(
+                block.type || ""
+              );
+
+            if(
+              ![
+                "markup",
+                "code",
+                "live-html"
+              ].includes(type)
+            ){
+              return null;
+            }
+
+            return {
+              type,
+              language:
+                String(
+                  block.language || ""
+                )
+                  .toLowerCase()
+                  .replace(
+                    /[^a-z0-9_-]/g,
+                    ""
+                  )
+                  .slice(0,24),
+              value:
+                String(
+                  block.value ?? ""
+                )
+                  .slice(
+                    0,
+                    180000
+                  )
+            };
+          })
+          .filter(Boolean)
+          .slice(0,64)
+      : [];
+
   return {
     id:String(
       value.id ||
@@ -205,6 +257,7 @@ function normalizeMessage(value){
     ),
     role,
     text:String(value.text || ""),
+    blocks,
     question:String(value.question || ""),
     showCanvasView:
       value.showCanvasView === true,
