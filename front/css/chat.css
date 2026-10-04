@@ -344,21 +344,6 @@
   max-width: none;
 }
 
-.astra-artifact-pdf-label {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 1.7rem;
-  height: 1.05rem;
-  padding: 0 .18rem;
-  border-radius: .42rem;
-  color: currentColor;
-  font-size: .58rem;
-  font-weight: 820;
-  line-height: 1;
-  letter-spacing: -.045em;
-}
-
 .astra-artifact-info {
   min-width: 0;
   display: grid;
@@ -1727,13 +1712,6 @@
   width: 1.35rem;
   height: 1.35rem;
   max-width: none;
-}
-
-.astra-artifact-preview-icon
-.astra-artifact-pdf-label {
-  min-width: 1.6rem;
-  height: 1rem;
-  font-size: .55rem;
 }
 
 .astra-artifact-preview-copy {
