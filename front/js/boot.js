@@ -15,6 +15,65 @@ const API_ORIGIN=
     ?RUNTIME.apiOrigin.trim().replace(/\/+$/,"")
     :"";
 
+function finishBoot(){
+  const root=
+    document.documentElement;
+
+  const screen=
+    document.querySelector(
+      "#boot-screen"
+    );
+
+  root.classList.remove(
+    "ovll-booting"
+  );
+
+  if(!screen){
+    return;
+  }
+
+  screen.classList.add(
+    "is-ready"
+  );
+
+  global.setTimeout(
+    ()=>screen.remove(),
+    220
+  );
+}
+
+function failBoot(){
+  const root=
+    document.documentElement;
+
+  const screen=
+    document.querySelector(
+      "#boot-screen"
+    );
+
+  root.classList.remove(
+    "ovll-booting"
+  );
+
+  if(screen){
+    screen.classList.add(
+      "is-error"
+    );
+  }
+}
+
+global.addEventListener(
+  "ovll:app-ready",
+  finishBoot,
+  {once:true}
+);
+
+global.addEventListener(
+  "ovll:app-error",
+  failBoot,
+  {once:true}
+);
+
 function apiUrl(path){
   return `${API_ORIGIN}/api/${path}`;
 }
@@ -292,6 +351,8 @@ start().catch(error=>{
     "ovll bootstrap failed:",
     error
   );
+
+  failBoot();
 });
 
 })(window);
