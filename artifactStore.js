@@ -522,6 +522,28 @@ function utf16Hex(value) {
   return buffer.toString('hex').toUpperCase();
 }
 
+function utf16PdfTextHex(value) {
+  const buffer =
+    Buffer.from(
+      String(value??""),
+      "utf16le"
+    );
+
+  for(
+    let i=0;
+    i+1<buffer.length;
+    i+=2
+  ){
+    const a=buffer[i];
+    buffer[i]=buffer[i+1];
+    buffer[i+1]=a;
+  }
+
+  return buffer
+    .toString("hex")
+    .toUpperCase();
+}
+
 function pdfNumber(value) {
   return Number(value).toFixed(2).replace(/\.00$/, '').replace(/(\.\d)0$/, '$1');
 }
@@ -562,7 +584,7 @@ function pdfPositionedTextCommand(
 
       commands.push(
         "<"+
-        utf16Hex(char)+
+        utf16PdfTextHex(char)+
         "> Tj"
       );
     }
