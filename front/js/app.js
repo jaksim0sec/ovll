@@ -6537,6 +6537,9 @@ listen(composerInput, "keydown", handleComposerKeydown);
 
     openConversation,
 
+    previewArtifact:
+      openArtifactPreview,
+
     async openLocalFile(
       fileId
     ) {
@@ -6547,15 +6550,6 @@ listen(composerInput, "keydown", handleComposerKeydown);
 
       if (!id) {
         return false;
-      }
-
-      if (
-        global.OvllLibraryPage
-          ?.open
-      ) {
-        return await global
-          .OvllLibraryPage
-          .open(id);
       }
 
       const artifact =
