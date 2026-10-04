@@ -1849,12 +1849,16 @@
                     )
                   ];
 
+                throwIfCancelled();
+
                 await Promise.all(
                   externalParents.map(
                     parentId =>
                       resolveNode(parentId)
                   )
                 );
+
+                throwIfCancelled();
 
                 const failedDependencies =
                   externalParentEdges
@@ -2070,16 +2074,23 @@
                           null
                       };
 
+                      const inputs =
+                        collectInputs(
+                          nodeId
+                        );
+
+                      rememberResult(
+                        nodeId,
+                        inputs,
+                        result
+                      );
+
                       setState(
                         nodeId,
                         "SUCCESS",
                         {
                           inputs:
-                            clone(
-                              collectInputs(
-                                nodeId
-                              )
-                            ),
+                            clone(inputs),
                           result,
                           finishedAt:
                             Date.now(),
@@ -2092,6 +2103,8 @@
 
                 const executeIds =
                   async ids => {
+                    throwIfCancelled();
+
                     for (
                       const nodeId
                         of ids
@@ -2124,9 +2137,12 @@
                             pivot,
                             mode,
                             groupId:
-                              group.id
+                              group.id,
+                            signal
                           }
                         );
+
+                    throwIfCancelled();
 
                     const results =
                       normalizeResults(
@@ -2139,6 +2155,122 @@
                       results
                     );
                   };
+
+                const hasCachedIntermediate =
+                  nodeIds.some(
+                    nodeId =>
+                      nodeId !== pivot &&
+                      this.resultCache.has(
+                        nodeId
+                      )
+                  );
+
+                if (hasCachedIntermediate) {
+                  for (
+                    let index = 0;
+                    index < nodeIds.length;
+                    index++
+                  ) {
+                    throwIfCancelled();
+
+                    const nodeId =
+                      nodeIds[index];
+
+                    const inputs =
+                      collectInputs(
+                        nodeId
+                      );
+
+                    const cachedResult =
+                      cachedResultFor(
+                        nodeId,
+                        inputs
+                      );
+
+                    if (cachedResult) {
+                      setState(
+                        nodeId,
+                        "SUCCESS",
+                        {
+                          inputs:
+                            clone(inputs),
+                          result:
+                            clone(
+                              cachedResult
+                            ),
+                          cached: true,
+                          finishedAt:
+                            Date.now(),
+                          report:
+                            cachedResult
+                              ?.report ||
+                            null
+                        }
+                      );
+
+                      continue;
+                    }
+
+                    try {
+                      await executeIds([
+                        nodeId
+                      ]);
+                    } catch (error) {
+                      if (
+                        isRuntimeAbort(
+                          error
+                        ) ||
+                        signal.aborted
+                      ) {
+                        throw runtimeAbortError();
+                      }
+
+                      this.resultCache.delete(
+                        nodeId
+                      );
+
+                      const failure =
+                        runtimeErrorState(
+                          error
+                        );
+
+                      setState(
+                        nodeId,
+                        "FAILED",
+                        {
+                          error: failure,
+                          finishedAt:
+                            Date.now()
+                        }
+                      );
+
+                      for (
+                        const laterId
+                          of nodeIds.slice(
+                            index + 1
+                          )
+                      ) {
+                        setState(
+                          laterId,
+                          "SKIPPED",
+                          {
+                            skipReason:
+                              "dependency_failed",
+                            blockedBy: [
+                              nodeId
+                            ],
+                            finishedAt:
+                              Date.now()
+                          }
+                        );
+                      }
+
+                      return null;
+                    }
+                  }
+
+                  return true;
+                }
 
                 const fullRequest =
                   buildRequest(nodeIds);
@@ -2167,6 +2299,19 @@
                         nodeId
                       ]);
                     } catch (error) {
+                      if (
+                        isRuntimeAbort(
+                          error
+                        ) ||
+                        signal.aborted
+                      ) {
+                        throw runtimeAbortError();
+                      }
+
+                      this.resultCache.delete(
+                        nodeId
+                      );
+
                       const failure =
                         runtimeErrorState(
                           error
@@ -2217,8 +2362,26 @@
 
                   return true;
                 } catch (error) {
+                  if (
+                    isRuntimeAbort(
+                      error
+                    ) ||
+                    signal.aborted
+                  ) {
+                    throw runtimeAbortError();
+                  }
+
                   const failedId =
                     nodeIds[0];
+
+                  for (
+                    const nodeId
+                      of nodeIds
+                  ) {
+                    this.resultCache.delete(
+                      nodeId
+                    );
+                  }
 
                   const failure =
                     runtimeErrorState(
