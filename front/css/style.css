@@ -54,6 +54,9 @@
   --app-resize-duration: .14s;
   --app-resize-ease: cubic-bezier(.2,.82,.2,1);
 
+  --font-micro: .625rem;
+  --font-meta: .6875rem;
+
   --content-rail: 45rem;
   --wide-rail: 72rem;
   --control-size: var(--top-control-height);
