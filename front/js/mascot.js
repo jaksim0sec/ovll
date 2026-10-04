@@ -2217,21 +2217,32 @@ function mount(world,canvas,options={}){
               priority:6
             }
           );
+
+          setSatellite(
+            "celebrate",
+            {hold:620}
+          );
         }
       )
   );
 
   bind(
     "nodeEdit",
-    event=>
+    event=>{
       focusNode(
         event.id,
         {
-          mood:"focus",
+          mood:"curious",
           duration:1250,
           priority:5
         }
-      )
+      );
+
+      setSatellite(
+        "thought",
+        {hold:620}
+      );
+    }
   );
 
   bind(
@@ -2341,6 +2352,11 @@ function mount(world,canvas,options={}){
         -.07
       );
 
+      setSatellite(
+        "drop",
+        {hold:660}
+      );
+
       pulse(
         "bump",
         240
@@ -2381,6 +2397,20 @@ function mount(world,canvas,options={}){
       }
 
       connectionClose=false;
+
+      if(
+        Number.isFinite(
+          event.x
+        )&&
+        Number.isFinite(
+          event.y
+        )
+      ){
+        pointSatelliteAt(
+          event.x,
+          event.y
+        );
+      }
     }
   );
 
@@ -2404,16 +2434,22 @@ function mount(world,canvas,options={}){
 
   bind(
     "connect",
-    connection=>
+    connection=>{
       focusNode(
         connection.to.node,
         {
           pop:true,
-          mood:"surprised",
+          mood:"success",
           duration:950,
           priority:9
         }
-      )
+      );
+
+      setSatellite(
+        "celebrate",
+        {hold:620}
+      );
+    }
   );
 
   bind(
@@ -2505,35 +2541,46 @@ function mount(world,canvas,options={}){
   scheduleBlink();
   scheduleThinking();
 
-  let wasBusy=false;
+  let wasBusy=
+    !!global.AstraApp?.isBusy?.();
 
-  function watchBusy(){
-    const busy=
-      !!global.AstraApp?.isBusy?.();
+  function syncBusy(
+    busy
+  ){
+    const next=
+      !!busy;
 
-    if(busy!==wasBusy){
-      wasBusy=busy;
-      lastActivity=
-        performance.now();
-
-      clearTimeout(
-        thinkingTimer
-      );
-
-      setThinking(busy);
-
-      if(!busy){
-        scheduleThinking();
-      }
+    if(next===wasBusy){
+      return;
     }
 
-    busyFrame=
-      requestAnimationFrame(
-        watchBusy
-      );
+    wasBusy=next;
+    lastActivity=
+      performance.now();
+
+    clearTimeout(
+      thinkingTimer
+    );
+
+    setThinking(next);
+
+    if(!next){
+      scheduleThinking();
+    }
   }
 
-  watchBusy();
+  listen(
+    global,
+    "ovll:busychange",
+    event=>
+      syncBusy(
+        event.detail?.busy
+      )
+  );
+
+  if(wasBusy){
+    setThinking(true);
+  }
 
   const view=
     viewport.getBoundingClientRect();
@@ -2595,10 +2642,6 @@ function mount(world,canvas,options={}){
         motionFrame
       );
 
-      cancelAnimationFrame(
-        busyFrame
-      );
-
       clearTimeout(
         blinkTimer
       );
@@ -2619,6 +2662,10 @@ function mount(world,canvas,options={}){
         thinkingTimer
       );
 
+      clearTimeout(
+        satelliteTimer
+      );
+
       cleanup
         .splice(0)
         .forEach(fn=>{
@@ -2628,6 +2675,7 @@ function mount(world,canvas,options={}){
         });
 
       orb.remove();
+      satellite.remove();
     }
   };
 }
