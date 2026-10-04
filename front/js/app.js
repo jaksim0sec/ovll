@@ -13,6 +13,7 @@
   const Presence = global.OvllPresence;
   const WorkspaceStore = global.OvllWorkspaceStore;
   const FileStore = global.OvllFileStore;
+  const PreviewSandbox = global.OvllPreviewSandbox;
   const Execution = global.OvllExecutionEngine;
   const mountCanvasNode = global.mountCanvasNode;
 
@@ -40,6 +41,7 @@
     !Presence ||
     !WorkspaceStore ||
     !FileStore ||
+    !PreviewSandbox ||
     !Execution ||
     typeof Execution.RuntimeEngine !== "function" ||
     typeof mountCanvasNode !== "function"
@@ -1064,6 +1066,342 @@
       chatMarkupHtml(
         value
       );
+  }
+
+  function generatedChatBlocks(
+    value
+  ) {
+    const source =
+      String(value ?? "")
+        .replace(/\r\n?/g, "\n");
+
+    const blocks = [];
+    const pattern =
+      /\`\`\`([^\n\`]*)\n([\s\S]*?)\`\`\`/g;
+
+    let cursor = 0;
+    let match;
+
+    while (
+      (
+        match =
+          pattern.exec(source)
+      )
+    ) {
+      const before =
+        source
+          .slice(
+            cursor,
+            match.index
+          )
+          .trim();
+
+      if (before) {
+        blocks.push({
+          type: "markup",
+          value: before
+        });
+      }
+
+      const language =
+        String(
+          match[1] || ""
+        )
+          .trim()
+          .toLowerCase()
+          .replace(
+            /[^a-z0-9_-]/g,
+            ""
+          )
+          .slice(0, 24);
+
+      const code =
+        String(
+          match[2] || ""
+        )
+          .replace(
+            /\n$/,
+            ""
+          );
+
+      blocks.push({
+        type:
+          language === "html" ||
+          language === "htm"
+            ? "live-html"
+            : "code",
+        language,
+        value: code
+      });
+
+      cursor =
+        pattern.lastIndex;
+    }
+
+    const tail =
+      source
+        .slice(cursor)
+        .trim();
+
+    if (tail) {
+      blocks.push({
+        type: "markup",
+        value: tail
+      });
+    }
+
+    if (!blocks.length && source.trim()) {
+      blocks.push({
+        type: "markup",
+        value: source.trim()
+      });
+    }
+
+    return blocks;
+  }
+
+  function renderCodeBlock(
+    block
+  ) {
+    const root =
+      document.createElement(
+        "section"
+      );
+
+    root.className =
+      "astra-chat-block astra-chat-code-block";
+
+    const header =
+      document.createElement(
+        "header"
+      );
+
+    header.className =
+      "astra-chat-block-header";
+
+    const label =
+      document.createElement(
+        "span"
+      );
+
+    label.textContent =
+      block.language ||
+      "code";
+
+    header.appendChild(
+      label
+    );
+
+    const pre =
+      document.createElement(
+        "pre"
+      );
+
+    const code =
+      document.createElement(
+        "code"
+      );
+
+    if (block.language) {
+      code.className =
+        `language-${block.language}`;
+    }
+
+    code.textContent =
+      block.value;
+
+    pre.appendChild(
+      code
+    );
+
+    root.append(
+      header,
+      pre
+    );
+
+    return root;
+  }
+
+  function renderLiveHtmlBlock(
+    block
+  ) {
+    const root =
+      document.createElement(
+        "section"
+      );
+
+    root.className =
+      "astra-chat-block astra-chat-live-html";
+
+    const header =
+      document.createElement(
+        "header"
+      );
+
+    header.className =
+      "astra-chat-block-header";
+
+    const label =
+      document.createElement(
+        "span"
+      );
+
+    label.textContent =
+      "HTML 미리보기";
+
+    const toggle =
+      document.createElement(
+        "button"
+      );
+
+    toggle.type =
+      "button";
+
+    toggle.className =
+      "astra-chat-block-toggle";
+
+    toggle.textContent =
+      "코드";
+
+    header.append(
+      label,
+      toggle
+    );
+
+    const preview =
+      document.createElement(
+        "div"
+      );
+
+    preview.className =
+      "astra-chat-live-preview";
+
+    const frame =
+      PreviewSandbox.createFrame(
+        block.value,
+        {
+          title:
+            "HTML 실행 미리보기"
+        }
+      );
+
+    preview.appendChild(
+      frame
+    );
+
+    const source =
+      renderCodeBlock({
+        ...block,
+        type: "code"
+      });
+
+    source.classList.add(
+      "astra-chat-live-source"
+    );
+
+    source.hidden =
+      true;
+
+    toggle.addEventListener(
+      "click",
+      () => {
+        const showingCode =
+          source.hidden;
+
+        source.hidden =
+          !showingCode;
+
+        preview.hidden =
+          showingCode;
+
+        toggle.textContent =
+          showingCode
+            ? "미리보기"
+            : "코드";
+      }
+    );
+
+    root.append(
+      header,
+      preview,
+      source
+    );
+
+    return root;
+  }
+
+  function renderGeneratedChat(
+    element,
+    value,
+    artifacts=[]
+  ) {
+    if (!element) {
+      return;
+    }
+
+    element.replaceChildren();
+
+    element.classList.add(
+      "astra-message-blocks"
+    );
+
+    const blocks =
+      generatedChatBlocks(
+        value
+      );
+
+    for (
+      const block
+      of blocks
+    ) {
+      if (
+        block.type ===
+          "live-html"
+      ) {
+        element.appendChild(
+          renderLiveHtmlBlock(
+            block
+          )
+        );
+
+        continue;
+      }
+
+      if (
+        block.type ===
+          "code"
+      ) {
+        element.appendChild(
+          renderCodeBlock(
+            block
+          )
+        );
+
+        continue;
+      }
+
+      const markup =
+        document.createElement(
+          "div"
+        );
+
+      markup.className =
+        "astra-chat-block astra-chat-markup-block";
+
+      renderChatMarkup(
+        markup,
+        block.value
+      );
+
+      element.appendChild(
+        markup
+      );
+    }
+
+    appendArtifactCards(
+      element,
+      artifacts
+    );
   }
 
   /* =======================================================
@@ -2568,9 +2906,10 @@
     if (
       role === "assistant"
     ) {
-      renderChatMarkup(
+      renderGeneratedChat(
         body,
-        value
+        value,
+        artifactList
       );
     } else {
       body.textContent =
@@ -2622,15 +2961,6 @@
 
       message.appendChild(
         questionBox
-      );
-    }
-
-    if (
-      role === "assistant"
-    ) {
-      appendArtifactCards(
-        message,
-        artifactList
       );
     }
 
