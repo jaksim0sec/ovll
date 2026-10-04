@@ -260,6 +260,80 @@ async function getRecord(
   );
 }
 
+function emitChanged(
+  action,
+  file=null
+){
+  try{
+    global.dispatchEvent(
+      new CustomEvent(
+        "ovll:files-changed",
+        {
+          detail:{
+            action,
+            file
+          }
+        }
+      )
+    );
+  }catch{}
+}
+
+async function findRecordByOriginId(
+  originId
+){
+  const value =
+    String(originId || "");
+
+  if(!value){
+    return null;
+  }
+
+  const db =
+    await openDatabase();
+
+  const transaction =
+    db.transaction(
+      STORE_NAME,
+      "readonly"
+    );
+
+  const store =
+    transaction.objectStore(
+      STORE_NAME
+    );
+
+  if(
+    !store.indexNames.contains(
+      "originId"
+    )
+  ){
+    return null;
+  }
+
+  const records =
+    await requestResult(
+      store
+        .index("originId")
+        .getAll(value)
+    );
+
+  if(
+    !Array.isArray(records) ||
+    !records.length
+  ){
+    return null;
+  }
+
+  return records
+    .slice()
+    .sort(
+      (a,b) =>
+        Number(b.updatedAt || 0) -
+        Number(a.updatedAt || 0)
+    )[0] || null;
+}
+
 async function putBlob(
   blob,
   metadata={}
@@ -349,6 +423,15 @@ async function putBlob(
 
   releaseUrl(id);
 
+  emitChanged(
+    existing
+      ? "update"
+      : "add",
+    metadataFromRecord(
+      record
+    )
+  );
+
   try{
     await global.navigator
       ?.storage
@@ -435,6 +518,27 @@ async function putRemote(
         0
     }
   );
+}
+
+async function findByOriginId(
+  originId
+){
+  const record =
+    await findRecordByOriginId(
+      originId
+    );
+
+  if(!record){
+    return null;
+  }
+
+  return {
+    ...metadataFromRecord(
+      record
+    ),
+    localFileId:
+      record.id
+  };
 }
 
 async function getMetadata(
@@ -584,6 +688,13 @@ async function remove(
 
   releaseUrl(id);
 
+  emitChanged(
+    "remove",
+    {
+      id
+    }
+  );
+
   return true;
 }
 
@@ -596,6 +707,11 @@ async function clear(){
   );
 
   releaseAllUrls();
+
+  emitChanged(
+    "clear"
+  );
+
   return true;
 }
 
@@ -638,6 +754,7 @@ global.OvllFileStore = {
   putBlob,
   putFile,
   putRemote,
+  findByOriginId,
   getMetadata,
   getBlob,
   getUrl,
