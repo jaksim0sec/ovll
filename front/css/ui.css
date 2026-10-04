@@ -126,11 +126,12 @@
   top: calc(var(--safe-top) + var(--top-control-top));
   left: 50%;
   transform: translateX(-50%);
-  width: 9.375rem;
+  width: 14.25rem;
+  max-width: calc(100vw - 7.5rem);
   height: var(--top-control-height);
   padding: .25rem;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   border: .0625rem solid var(--line);
   border-radius: 62.4375rem;
   background: var(--ui-control-surface);
@@ -157,7 +158,7 @@
   z-index: 1;
   top: .25rem;
   left: .25rem;
-  width: calc(50% - .25rem);
+  width: calc((100% - .5rem) / 3);
   height: var(--top-control-inner-height);
   border: .0625rem solid var(--line);
   border-radius: 62.4375rem;
@@ -234,14 +235,17 @@
 
 #chat-page {
   left: 0;
-  transform: translate3d(calc(var(--page-progress) * -100%), 0, 0);
   touch-action: pan-y;
 }
 
 #canvas-page {
   left: 100%;
-  transform: translate3d(calc(var(--page-progress) * -100%), 0, 0);
   touch-action: none;
+}
+
+#library-page {
+  left: 200%;
+  touch-action: pan-y;
 }
 
 #workspace.is-dragging > .page {
@@ -249,31 +253,19 @@
 }
 
 /* =========================================================
-   PAGE DEPTH
+   PAGE DEPTH / INTERACTION
+   Depth is calculated in ui.js so all three pages share
+   the same transition without two-page-only CSS math.
    ========================================================= */
 
-#chat-page {
-  opacity: calc(1 - (var(--page-progress) * .14));
-  filter: blur(calc(var(--page-progress) * .125rem));
-}
-
-#canvas-page {
-  opacity: calc(.86 + (var(--page-progress) * .14));
-  filter: blur(calc((1 - var(--page-progress)) * .125rem));
+#workspace > .page {
+  pointer-events: none;
 }
 
 #workspace[data-mode="chat"] #chat-page,
-#workspace[data-mode="canvas"] #canvas-page {
-  opacity: 1;
-  filter: none;
-}
-
-#workspace[data-mode="chat"] #canvas-page {
-  pointer-events: none;
-}
-
-#workspace[data-mode="canvas"] #chat-page {
-  pointer-events: none;
+#workspace[data-mode="canvas"] #canvas-page,
+#workspace[data-mode="library"] #library-page {
+  pointer-events: auto;
 }
 
 /* =========================================================
@@ -469,6 +461,19 @@
 /* =========================================================
    COMPOSER
    ========================================================= */
+
+
+#workspace[data-mode="library"]
+~ #composer {
+  opacity: 0;
+  transform: translateY(.85rem);
+  visibility: hidden;
+}
+
+#workspace[data-mode="library"]
+~ #composer #composer-form {
+  pointer-events: none;
+}
 
 #composer {
   position: absolute;
