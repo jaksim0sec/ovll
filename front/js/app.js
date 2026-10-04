@@ -1984,6 +1984,16 @@
     return !!(
       previewText ||
       (
+        artifact?.localFileId &&
+        (
+          format === "HTML" ||
+          format === "HTM" ||
+          mime.includes(
+            "text/html"
+          )
+        )
+      ) ||
+      (
         artifact?.previewUrl &&
         (
           format === "PDF" ||
@@ -7065,6 +7075,8 @@ listen(composerInput, "keydown", handleComposerKeydown);
 
       state.canvas?.destroy?.();
       state.nodeBuilder.root?.remove();
+      global.OvllLibraryPage
+        ?.destroy?.();
 
       dismissErrorNotice();
       Presence.destroy?.();
