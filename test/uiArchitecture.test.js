@@ -118,21 +118,24 @@ test("sidebar primary navigation is a single-column peer list", () => {
   );
 });
 
-test("library keeps desktop browser context and uses replacement detail on mobile", () => {
+test("library is a file index that opens the shared artifact preview", () => {
+  const html = read("front/index.html");
   const css = compact(read("front/css/library.css"));
+  const js = read("front/js/libraryPage.js");
+  const app = read("front/js/app.js");
 
+  assert.doesNotMatch(html, /data-library-count/);
+  assert.doesNotMatch(html, /data-library-detail/);
+  assert.doesNotMatch(html, /data-library-back/);
+  assert.doesNotMatch(css, /\.ovll-library-detail/);
   assert.match(
     css,
-    /@media\s*\(min-width:\s*46\.01rem\)[^{]*\{[\s\S]*?\.ovll-library-content\.has-selection\s*\{[^}]*grid-template-columns:\s*minmax\(18rem,\s*24rem\)\s+minmax\(0,\s*1fr\)/
+    /\.ovll-library-heading h1\s*\{[^}]*font-size:\s*clamp\(1\.45rem,2\.6vw,1\.72rem\)/
   );
-
-  assert.match(
-    css,
-    /@media\s*\(max-width:\s*46rem\)[^{]*\{[\s\S]*?\.ovll-library-content\.has-selection\s+\.ovll-library-browser\s*\{[^}]*display:\s*none/
-  );
-});
-
-test("global overlays use the semantic layer scale", () => {
+  assert.match(js, /action:null/);
+  assert.match(js, /global\.AstraApp\s*\?\.previewArtifact/);
+  assert.match(app, /previewArtifact:\s*openArtifactPreview/);
+});test("global overlays use the semantic layer scale", () => {
   const chatCss = compact(read("front/css/chat.css"));
   const uiCss = compact(read("front/css/ui.css"));
 
@@ -173,9 +176,9 @@ test("library page header is visually below global app navigation", () => {
   );
 });
 
-test("library keyboard focus remains visibly discoverable", () => {
-  const libraryCss = compact(read("front/css/library.css"));
+test("library and shared preview keep keyboard focus discoverable", () => {
   const chatCss = compact(read("front/css/chat.css"));
+  const app = read("front/js/app.js");
 
   assert.match(
     libraryCss,
@@ -183,45 +186,30 @@ test("library keyboard focus remains visibly discoverable", () => {
   );
   assert.match(
     libraryCss,
-    /\.ovll-library-back:focus-visible\s*\{/
-  );
-  assert.match(
-    libraryCss,
-    /\.ovll-library-detail-action:focus-visible\s*\{/
+    /\.ovll-library-artifact-card:focus-visible\s*\{/
   );
   assert.match(
     chatCss,
-    /\.astra-artifact-card:focus-visible\s*\{/
+    /\.astra-artifact-preview-close\s*,|\.astra-artifact-preview-close:hover/
   );
-});
-
-test("mobile library is compact and does not stretch detail to viewport height", () => {
+  assert.match(app, /returnFocus/);
+  assert.match(app, /returnFocus\.focus/);
+});test("mobile library remains a compact list under the global chrome", () => {
   const css = compact(read("front/css/library.css"));
   const js = read("front/js/libraryPage.js");
 
   assert.match(
     css,
-    /@media\s*\(max-width:\s*46rem\)[^{]*\{[\s\S]*?\.ovll-library-back\s*\{[^}]*display:\s*none/
+    /@media\s*\(max-width:\s*46rem\)[^{]*\{[\s\S]*?\.ovll-library-grid\s*\{[^}]*grid-template-columns:\s*1fr/
   );
   assert.match(
     css,
-    /@media\s*\(max-width:\s*46rem\)[^{]*\{[\s\S]*?\.ovll-library-content\.has-selection\s+\.ovll-library-detail\s*\{[^}]*display:\s*block/
+    /@media\s*\(max-width:\s*46rem\)[^{]*\{[\s\S]*?\.ovll-library-heading h1\s*\{[^}]*font-size:\s*1\.5rem/
   );
-  assert.match(
-    css,
-    /\.ovll-library-artifact-card\s*\{[^}]*grid-template-columns:[^}]*2\.7rem[^}]*minmax\(0,1fr\)/
-  );
-  assert.doesNotMatch(
-    css,
-    /\.ovll-library-card-format\s*\{/
-  );
-  assert.match(js, /action:null/);
-  assert.match(js, /renderCompactPdfPreview/);
-  assert.match(js, /isCompactLibrary/);
-  assert.match(js, /page\.classList\s*\.add\(\s*"has-selection"/);
-});
-
-test("composer keeps submit button in the flex rail", () => {
+  assert.doesNotMatch(css, /has-selection/);
+  assert.doesNotMatch(js, /selectedId/);
+  assert.match(js, /previewFile/);
+});test("composer keeps submit button in the flex rail", () => {
   const css = compact(read("front/css/ui.css"));
 
   assert.match(
@@ -254,10 +242,8 @@ test("microcopy uses a shared readable token", () => {
 
   assert.match(globalCss, /--font-micro:\s*\.625rem/);
   assert.match(nodeCss, /\.vc-start-badge\s*\{[^}]*font-size:\s*var\(--font-micro\)/);
-  assert.match(libraryCss, /\.ovll-library-detail-copy small\s*\{[^}]*font-size:\s*var\(--font-micro\)/);
-});
-
-test("coarse pointers get usable action targets", () => {
+  assert.match(libraryCss, /\.ovll-library-artifact-card \.astra-artifact-meta\s*\{[^}]*font-size:\s*var\(--font-micro\)/);
+});test("coarse pointers get usable action targets", () => {
   const nodeCss = compact(read("front/css/node.css"));
   const libraryCss = compact(read("front/css/library.css"));
   const chatCss = compact(read("front/css/chat.css"));
@@ -270,10 +256,6 @@ test("coarse pointers get usable action targets", () => {
   assert.match(
     nodeCss,
     /@media\s*\(hover:\s*none\)\s*and\s*\(pointer:\s*coarse\)[^{]*\{[\s\S]*?\.vc-port-hit\s*\{[^}]*width:\s*2\.5rem[^}]*min-height:\s*2\.5rem/
-  );
-  assert.match(
-    libraryCss,
-    /@media\s*\(hover:\s*none\)\s*and\s*\(pointer:\s*coarse\)[^{]*\{[\s\S]*?\.ovll-library-detail-action\s*\{[^}]*width:\s*2\.5rem[^}]*height:\s*2\.5rem/
   );
   assert.match(
     chatCss,
