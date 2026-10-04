@@ -2806,6 +2806,7 @@ function mount(world,canvas,options={}){
 
   return{
     element:orb,
+    satellite,
     react,
     setThinking,
     setSituation,
@@ -2921,6 +2922,7 @@ function init(){
       requestAnimationFrame(()=>{
         mascot.centerInViewport?.();
         mascot.element.hidden=false;
+        mascot.satellite.hidden=false;
       });
     };
 
@@ -2930,6 +2932,7 @@ function init(){
 
       if(!isCanvas){
         mascot.element.hidden=true;
+        mascot.satellite.hidden=true;
         return;
       }
 
@@ -2938,6 +2941,7 @@ function init(){
 
       if(!shownOnCanvas&&!settled){
         mascot.element.hidden=true;
+        mascot.satellite.hidden=true;
         return;
       }
 
@@ -2947,6 +2951,7 @@ function init(){
       }
 
       mascot.element.hidden=false;
+      mascot.satellite.hidden=false;
     };
 
     global.AstraUI?.on?.(
