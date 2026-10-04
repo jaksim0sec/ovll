@@ -1,4 +1,4 @@
-const CACHE = 'ovll-shell-v35';
+const CACHE = 'ovll-shell-v36';
 
 const SHELL = [
   '/home',
