@@ -1368,6 +1368,114 @@
   white-space: nowrap;
 }
 
+.astra-workflow-proposal {
+  min-height: 2rem;
+  width: fit-content;
+  max-width: 94%;
+  margin-top: .48rem;
+  padding:
+    .22rem
+    .28rem
+    .22rem
+    .58rem;
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  border:
+    .0625rem solid
+    color-mix(
+      in srgb,
+      var(--line) 92%,
+      transparent
+    );
+  border-radius: 999px;
+  background:
+    color-mix(
+      in srgb,
+      var(--text) 3.5%,
+      transparent
+    );
+  color: var(--sub);
+  transition:
+    opacity .18s ease,
+    transform .18s ease,
+    background-color .16s ease,
+    border-color .16s ease;
+}
+
+.astra-workflow-proposal-label {
+  min-width: 0;
+  padding-right: .12rem;
+  font-size: .62rem;
+  font-weight: 590;
+  line-height: 1.25;
+  letter-spacing: -.012em;
+  white-space: nowrap;
+}
+
+.astra-workflow-proposal-action {
+  min-height: 1.45rem;
+  padding:
+    0
+    .48rem;
+  border: 0;
+  border-radius: 999px;
+  color: var(--muted);
+  background:
+    color-mix(
+      in srgb,
+      var(--text) 4.5%,
+      transparent
+    );
+  font-size: .58rem;
+  font-weight: 650;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    color .14s ease,
+    background-color .14s ease,
+    transform .14s ease;
+}
+
+.astra-workflow-proposal-action.is-accept {
+  color: var(--text);
+  background:
+    color-mix(
+      in srgb,
+      var(--text) 8%,
+      transparent
+    );
+}
+
+.astra-workflow-proposal-action:hover {
+  color: var(--text);
+  background:
+    color-mix(
+      in srgb,
+      var(--text) 9%,
+      transparent
+    );
+}
+
+.astra-workflow-proposal-action:active {
+  transform: scale(.96);
+}
+
+.astra-workflow-proposal.is-settled {
+  color: var(--muted);
+  background:
+    color-mix(
+      in srgb,
+      var(--text) 2.5%,
+      transparent
+    );
+}
+
+.astra-workflow-proposal.is-leaving {
+  opacity: 0;
+  transform: translateY(-.08rem);
+}
+
 .astra-message-question{
   width:min(43.75rem,94%);
   margin-top:.9rem;
