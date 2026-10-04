@@ -12,6 +12,7 @@
   const API = global.AstraAPI;
   const Presence = global.OvllPresence;
   const WorkspaceStore = global.OvllWorkspaceStore;
+  const FileStore = global.OvllFileStore;
   const Execution = global.OvllExecutionEngine;
   const mountCanvasNode = global.mountCanvasNode;
 
@@ -38,6 +39,7 @@
     !API ||
     !Presence ||
     !WorkspaceStore ||
+    !FileStore ||
     !Execution ||
     typeof Execution.RuntimeEngine !== "function" ||
     typeof mountCanvasNode !== "function"
@@ -1085,6 +1087,298 @@
     return `${(size / 1048576).toFixed(1)} MB`;
   }
 
+  async function hydrateArtifactReference(
+    artifact
+  ) {
+    if (
+      !artifact ||
+      typeof artifact !==
+        "object"
+    ) {
+      return artifact;
+    }
+
+    const localFileId =
+      String(
+        artifact.localFileId ||
+        ""
+      );
+
+    if (!localFileId) {
+      return artifact;
+    }
+
+    try {
+      const local =
+        await FileStore.hydrate(
+          localFileId
+        );
+
+      if (!local) {
+        return artifact;
+      }
+
+      return {
+        ...artifact,
+        localFileId,
+        name:
+          artifact.name ||
+          local.name,
+        mime:
+          artifact.mime ||
+          local.mime,
+        size:
+          Number(
+            artifact.size ||
+            local.size ||
+            0
+          ),
+        downloadUrl:
+          local.downloadUrl ||
+          artifact.downloadUrl ||
+          "",
+        previewUrl:
+          local.previewUrl ||
+          artifact.previewUrl ||
+          "",
+        previewText:
+          artifact.previewText ||
+          local.previewText ||
+          ""
+      };
+    } catch (error) {
+      console.warn(
+        "ovll local file hydrate failed:",
+        error
+      );
+
+      return artifact;
+    }
+  }
+
+  async function persistArtifactLocally(
+    artifact,
+    source = "generated"
+  ) {
+    if (
+      !artifact ||
+      typeof artifact !==
+        "object"
+    ) {
+      return artifact;
+    }
+
+    if (artifact.localFileId) {
+      const hydrated =
+        await hydrateArtifactReference(
+          artifact
+        );
+
+      Object.assign(
+        artifact,
+        hydrated
+      );
+
+      return artifact;
+    }
+
+    const downloadUrl =
+      String(
+        artifact.downloadUrl ||
+        ""
+      );
+
+    if (!downloadUrl) {
+      return artifact;
+    }
+
+    try {
+      const stored =
+        await FileStore.putRemote(
+          downloadUrl,
+          {
+            name:
+              artifact.name ||
+              "결과물",
+            mime:
+              artifact.mime ||
+              "application/octet-stream",
+            size:
+              Number(
+                artifact.size ||
+                0
+              ),
+            source,
+            originId:
+              artifact.id ||
+              "",
+            conversationId:
+              currentConversationId(),
+            previewText:
+              artifact.previewText ||
+              ""
+          }
+        );
+
+      const local =
+        await FileStore.hydrate(
+          stored.id
+        );
+
+      artifact.localFileId =
+        stored.id;
+
+      if (local) {
+        artifact.downloadUrl =
+          local.downloadUrl;
+        artifact.previewUrl =
+          local.previewUrl;
+
+        if (
+          !artifact.previewText &&
+          local.previewText
+        ) {
+          artifact.previewText =
+            local.previewText;
+        }
+      }
+    } catch (error) {
+      console.warn(
+        "ovll generated file local save failed:",
+        error
+      );
+    }
+
+    return artifact;
+  }
+
+  async function hydrateCanvasFiles(
+    canvasState
+  ) {
+    const next =
+      canvasState
+        ? clone(
+            canvasState
+          )
+        : canvasState;
+
+    const nodes =
+      next?.workflow?.nodes ||
+      next?.nodes;
+
+    if (!Array.isArray(nodes)) {
+      return next;
+    }
+
+    await Promise.all(
+      nodes.map(
+        async node => {
+          if (
+            node?.type !==
+              "file" ||
+            !node.data
+          ) {
+            return;
+          }
+
+          const localFileId =
+            String(
+              node.data
+                .localFileId ||
+              ""
+            );
+
+          if (!localFileId) {
+            return;
+          }
+
+          try {
+            const local =
+              await FileStore.hydrate(
+                localFileId
+              );
+
+            if (!local) {
+              return;
+            }
+
+            node.data.downloadUrl =
+              local.downloadUrl;
+            node.data.previewUrl =
+              local.previewUrl;
+
+            if (
+              local.imagePreview
+            ) {
+              node.data.imagePreview =
+                local.imagePreview;
+            }
+
+            if (
+              !node.data.textPreview &&
+              local.previewText
+            ) {
+              node.data.textPreview =
+                local.previewText;
+            }
+
+            node.data.name =
+              node.data.name ||
+              local.name;
+            node.data.mime =
+              node.data.mime ||
+              local.mime;
+            node.data.size =
+              Number(
+                node.data.size ||
+                local.size ||
+                0
+              );
+          } catch (error) {
+            console.warn(
+              "ovll canvas file hydrate failed:",
+              error
+            );
+          }
+        }
+      )
+    );
+
+    return next;
+  }
+
+  async function hydrateStoredMessages(
+    messages
+  ) {
+    const list =
+      Array.isArray(messages)
+        ? clone(messages)
+        : [];
+
+    await Promise.all(
+      list.map(
+        async message => {
+          if (
+            !Array.isArray(
+              message?.artifacts
+            )
+          ) {
+            return;
+          }
+
+          message.artifacts =
+            await Promise.all(
+              message.artifacts.map(
+                hydrateArtifactReference
+              )
+            );
+        }
+      )
+    );
+
+    return list;
+  }
+
   function artifactFormat(
     artifact
   ) {
@@ -1491,14 +1785,62 @@
       );
     } else if (
       previewUrl &&
+      format === "PDF"
+    ) {
+      const frame =
+        document.createElement(
+          "iframe"
+        );
+
+      frame.src =
+        previewUrl;
+
+      frame.title =
+        String(
+          artifact?.name ||
+          "PDF 미리보기"
+        );
+
+      body.appendChild(
+        frame
+      );
+    } else if (
+      previewText &&
+      [
+        "MD",
+        "DOC",
+        "DOCX",
+        "RTF"
+      ].includes(format)
+    ) {
+      const preview =
+        document.createElement(
+          "div"
+        );
+
+      preview.className =
+        "astra-artifact-preview-document astra-message-markup";
+
+      renderChatMarkup(
+        preview,
+        previewText
+      );
+
+      body.classList.add(
+        "is-document"
+      );
+
+      body.appendChild(
+        preview
+      );
+    } else if (
+      previewUrl &&
       (
-        format === "PDF" ||
         mime.startsWith(
           "text/"
         ) ||
         [
           "JSON",
-          "MD",
           "CSV",
           "HTML"
         ].includes(format)
@@ -1773,11 +2115,80 @@
         </svg>
       `;
 
-      link.append(
-        icon,
-        info,
-        action
-      );
+      const inlinePreview =
+        document.createElement(
+          "span"
+        );
+
+      inlinePreview.className =
+        "astra-artifact-inline-preview";
+
+      const inlineText =
+        String(
+          artifact.previewText ||
+          ""
+        )
+          .trim()
+          .slice(
+            0,
+            520
+          );
+
+      if (
+        visual.kind ===
+          "image" &&
+        artifact.previewUrl
+      ) {
+        const image =
+          document.createElement(
+            "img"
+          );
+
+        image.src =
+          String(
+            artifact.previewUrl
+          );
+
+        image.alt = "";
+
+        inlinePreview.classList.add(
+          "is-image"
+        );
+
+        inlinePreview.appendChild(
+          image
+        );
+      } else if (inlineText) {
+        inlinePreview.classList.add(
+          "is-text"
+        );
+
+        inlinePreview.textContent =
+          inlineText;
+      }
+
+      if (
+        inlinePreview.childNodes
+          .length ||
+        inlinePreview.textContent
+      ) {
+        link.classList.add(
+          "has-inline-preview"
+        );
+
+        link.append(
+          icon,
+          info,
+          action,
+          inlinePreview
+        );
+      } else {
+        link.append(
+          icon,
+          info,
+          action
+        );
+      }
 
       group.appendChild(
         link
@@ -3296,6 +3707,9 @@
         data: {
           generated: true,
           artifactId,
+          localFileId:
+            artifact.localFileId ||
+            "",
           name:
             artifact.name ||
             "결과물",
@@ -4181,143 +4595,6 @@
     };
   }
 
-  async function readUploadImagePreview(
-    file
-  ) {
-    const mime =
-      String(
-        file?.type ||
-        ""
-      ).toLowerCase();
-
-    if (
-      !mime.startsWith(
-        "image/"
-      ) ||
-      Number(
-        file?.size ||
-        0
-      ) > 16 * 1024 * 1024
-    ) {
-      return null;
-    }
-
-    const objectUrl =
-      URL.createObjectURL(
-        file
-      );
-
-    try {
-      const image =
-        document.createElement(
-          "img"
-        );
-
-      image.decoding =
-        "async";
-
-      await new Promise(
-        (resolve, reject) => {
-          image.onload =
-            resolve;
-          image.onerror =
-            reject;
-          image.src =
-            objectUrl;
-        }
-      );
-
-      const sourceWidth =
-        Number(
-          image.naturalWidth ||
-          0
-        );
-
-      const sourceHeight =
-        Number(
-          image.naturalHeight ||
-          0
-        );
-
-      if (
-        !sourceWidth ||
-        !sourceHeight
-      ) {
-        return null;
-      }
-
-      const maxSide =
-        420;
-
-      const scale =
-        Math.min(
-          1,
-          maxSide /
-            Math.max(
-              sourceWidth,
-              sourceHeight
-            )
-        );
-
-      const canvas =
-        document.createElement(
-          "canvas"
-        );
-
-      canvas.width =
-        Math.max(
-          1,
-          Math.round(
-            sourceWidth *
-            scale
-          )
-        );
-
-      canvas.height =
-        Math.max(
-          1,
-          Math.round(
-            sourceHeight *
-            scale
-          )
-        );
-
-      const context =
-        canvas.getContext(
-          "2d",
-          {
-            alpha: true
-          }
-        );
-
-      if (!context) {
-        return null;
-      }
-
-      context.drawImage(
-        image,
-        0,
-        0,
-        canvas.width,
-        canvas.height
-      );
-
-      return {
-        imagePreview:
-          canvas.toDataURL(
-            "image/webp",
-            .76
-          )
-      };
-    } catch {
-      return null;
-    } finally {
-      URL.revokeObjectURL(
-        objectUrl
-      );
-    }
-  }
-
   async function handleComposerFileChange(
     event
   ) {
@@ -4336,18 +4613,56 @@
     }
 
     try {
-      const [
-        preview,
-        imagePreview
-      ] =
-        await Promise.all([
-          readUploadTextPreview(
-            file
-          ),
-          readUploadImagePreview(
-            file
-          )
-        ]);
+      const preview =
+        await readUploadTextPreview(
+          file
+        );
+
+      let localFileId =
+        "";
+      let localUrl =
+        "";
+
+      try {
+        const stored =
+          await FileStore.putFile(
+            file,
+            {
+              name:
+                file.name,
+              mime:
+                file.type ||
+                "application/octet-stream",
+              size:
+                file.size || 0,
+              source:
+                "upload",
+              conversationId:
+                currentConversationId(),
+              previewText:
+                preview
+                  ?.textPreview ||
+                ""
+            }
+          );
+
+        localFileId =
+          stored.id;
+
+        localUrl =
+          await FileStore.getUrl(
+            stored.id
+          );
+      } catch (error) {
+        console.warn(
+          "ovll upload local save failed:",
+          error
+        );
+      }
+
+      const mime =
+        file.type ||
+        "application/octet-stream";
 
       state.canvas.addNode(
         "file",
@@ -4356,17 +4671,25 @@
           data: {
             source:
               "upload",
+            localFileId,
             name:
               file.name,
-            mime:
-              file.type ||
-              "application/octet-stream",
+            mime,
             size:
               file.size || 0,
             lastModified:
               file.lastModified || 0,
-            ...(preview || {}),
-            ...(imagePreview || {})
+            downloadUrl:
+              localUrl,
+            previewUrl:
+              localUrl,
+            imagePreview:
+              mime.startsWith(
+                "image/"
+              )
+                ? localUrl
+                : "",
+            ...(preview || {})
           }
         }
       );
@@ -5034,9 +5357,11 @@
             );
 
           const canvasState =
-            conversation
-              .state
-              ?.canvas;
+            await hydrateCanvasFiles(
+              conversation
+                .state
+                ?.canvas
+            );
 
           if (
             canvasState &&
@@ -5066,15 +5391,11 @@
           }
 
           const messages =
-            Array.isArray(
+            await hydrateStoredMessages(
               conversation
                 .state
                 ?.messages
-            )
-              ? conversation
-                  .state
-                  .messages
-              : [];
+            );
 
           for (
             const item
@@ -5484,6 +5805,11 @@
                 "파일 생성 결과가 없습니다."
               );
             }
+
+            await persistArtifactLocally(
+              artifact,
+              "generated"
+            );
 
             return {
               outputs: {},
