@@ -950,14 +950,24 @@ listen(
   ()=>void refresh()
 );
 
-UI.on(
-  "modechange",
-  ({mode})=>{
-    if(mode==="library"){
-      void refresh();
+const offModeChange=
+  UI.on(
+    "modechange",
+    ({mode})=>{
+      if(mode==="library"){
+        void refresh();
+      }
     }
-  }
-);
+  );
+
+if(
+  typeof offModeChange===
+    "function"
+){
+  listeners.push(
+    offModeChange
+  );
+}
 
 const api={
   async open(fileId){
