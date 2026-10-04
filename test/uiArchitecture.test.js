@@ -242,6 +242,11 @@ test("coarse pointers get usable action targets", () => {
   );
 });
 
+test("sidebar source has no definition-only formatTime helper", () => {
+  const js = read("front/js/shellMenu.js");
+  assert.doesNotMatch(js, /function\s+formatTime\s*\(/);
+});
+
 test("repository no longer exposes the obsolete root Astra frontend", () => {
   for (const name of [
     "index.html",
