@@ -10,7 +10,7 @@
 
 #ovll-shell-menu {
   position: absolute;
-  z-index: 150;
+  z-index: var(--layer-sidebar);
   inset: 0;
   pointer-events: none;
   --sidebar-drag-x: 0px;
@@ -304,7 +304,6 @@
 .ovll-sidebar-primary {
   display: grid;
   grid-template-columns:
-    minmax(0,1fr)
     minmax(0,1fr);
   gap: .48rem;
   padding:
@@ -318,8 +317,8 @@
   min-height: 2.65rem;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: .48rem;
+  justify-content: flex-start;
+  gap: .58rem;
   padding:
     .44rem
     .72rem;
@@ -338,7 +337,7 @@
       var(--text) 3.5%,
       transparent
     );
-  text-align: center;
+  text-align: left;
   cursor: pointer;
   font-size: .77rem;
   font-weight: 660;
@@ -350,21 +349,6 @@
     transform .14s var(--ease);
 }
 
-.ovll-sidebar-primary-action:first-child {
-  color: var(--text);
-  background:
-    color-mix(
-      in srgb,
-      var(--text) 8%,
-      var(--panel)
-    );
-  border-color:
-    color-mix(
-      in srgb,
-      var(--text) 10%,
-      var(--line)
-    );
-}
 
 .ovll-sidebar-primary-action:hover {
   color: var(--text);
