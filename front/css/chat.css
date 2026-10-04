@@ -663,7 +663,7 @@
       var(--text) 84%,
       transparent
     );
-  opacity: .99;
+  opacity: .78;
 }
 
 .astra-runtime-activity-body {
@@ -678,7 +678,7 @@
   min-height: 2.05rem;
   display: flex;
   align-items: center;
-  gap: .46rem;
+  gap: .28rem;
   padding: .08rem 0;
   border: 0;
   outline: 0;
@@ -1883,4 +1883,33 @@
   .astra-artifact-preview-panel {
     transition: none;
   }
+}
+
+
+.astra-artifact-preview-body.is-text {
+  overflow: auto;
+  padding: 1rem;
+  background:
+    color-mix(in srgb, var(--panel) 84%, var(--bg));
+}
+
+.astra-artifact-preview-text {
+  width: min(46rem, 100%);
+  min-height: 100%;
+  margin: 0 auto;
+  padding: 1.35rem 1.45rem;
+  border: .0625rem solid
+    color-mix(in srgb, var(--line) 76%, transparent);
+  border-radius: 1rem;
+  color: var(--text);
+  background:
+    color-mix(in srgb, var(--bg) 84%, var(--panel));
+  font-family: inherit;
+  font-size: .78rem;
+  font-weight: 470;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  box-shadow:
+    0 .35rem 1.2rem rgba(0,0,0,.045);
 }
