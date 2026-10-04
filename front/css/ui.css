@@ -1252,6 +1252,15 @@
   #composer-input {
     font-size: 16px;
   }
+
+  #composer-attach,
+  #composer-submit {
+    width: 2.5rem;
+    height: 2.5rem;
+    min-width: 2.5rem;
+    min-height: 2.5rem;
+    flex-basis: 2.5rem;
+  }
 }
 
 
