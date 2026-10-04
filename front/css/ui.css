@@ -765,6 +765,7 @@
 }
 
 #canvas-node-builder-layout,
+#canvas-node-builder-reset,
 #canvas-node-builder-toggle {
   min-width: 0;
   height: 2.625rem;
@@ -789,17 +790,19 @@
 }
 
 #canvas-node-builder-layout:hover,
+#canvas-node-builder-reset:hover,
 #canvas-node-builder-toggle:hover {
   border-color: var(--line-strong);
   background: var(--panel-strong);
 }
 
 #canvas-node-builder-layout:active,
+#canvas-node-builder-reset:active,
 #canvas-node-builder-toggle:active {
   transform: scale(.95);
 }
 
-.canvas-node-builder-layout-icon {
+.canvas-node-builder-action-icon {
   width: 1.14rem;
   height: 1.14rem;
   flex: 0 0 1.14rem;
@@ -808,21 +811,27 @@
   justify-content: center;
 }
 
-.canvas-node-builder-layout-icon svg {
+.canvas-node-builder-action-icon svg {
   width: 1.14rem;
   height: 1.14rem;
 }
 
-.canvas-node-builder-layout-icon rect {
+.canvas-node-builder-action-icon rect,
+.canvas-node-builder-action-icon path {
   stroke: currentColor;
   stroke-width: 1.45;
-}
-
-.canvas-node-builder-layout-icon path {
-  stroke: currentColor;
-  stroke-width: 1.35;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+#canvas-node-builder-reset.is-confirming {
+  border-color:
+    color-mix(
+      in srgb,
+      #d65f5f 55%,
+      var(--line)
+    );
+  color: #d65f5f;
 }
 
 .canvas-node-builder-plus {
@@ -1250,6 +1259,7 @@
 #mode-switch,
 #composer-form,
 #canvas-node-builder-layout,
+#canvas-node-builder-reset,
 #canvas-node-builder-toggle {
   border: var(--ui-line-width) solid var(--ui-line);
   background: var(--ui-glass);
@@ -1261,6 +1271,7 @@
 #mode-switch,
 #mode-switch::before,
 #canvas-node-builder-layout,
+#canvas-node-builder-reset,
 #canvas-node-builder-toggle {
   border-radius: var(--ui-radius-pill);
 }
@@ -1281,6 +1292,7 @@
 #mode-switch:hover,
 #composer-form:focus-within,
 #canvas-node-builder-layout:hover,
+#canvas-node-builder-reset:hover,
 #canvas-node-builder-toggle:hover {
   border-color: var(--ui-line-strong);
 }
@@ -1331,6 +1343,7 @@
 #mode-switch,
 #composer-form,
 #canvas-node-builder-layout,
+#canvas-node-builder-reset,
 #canvas-node-builder-toggle {
   background: var(--ui-glass);
   box-shadow: var(--ui-control-shadow);
@@ -1347,6 +1360,7 @@
 
 #composer-form:focus-within,
 #canvas-node-builder-layout:hover,
+#canvas-node-builder-reset:hover,
 #canvas-node-builder-toggle:hover {
   background: var(--ui-glass-strong);
 }
