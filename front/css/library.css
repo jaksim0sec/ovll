@@ -11,11 +11,11 @@
   opacity:0;
   visibility:hidden;
   pointer-events:none;
-  transform:translateY(.4rem);
+  transform:translateY(.3rem);
   transition:
     opacity .18s ease,
     visibility .18s ease,
-    transform .22s var(--ease);
+    transform .2s var(--ease);
 }
 
 #library-page[hidden]{
@@ -49,47 +49,53 @@
 }
 
 .ovll-library-shell{
-  width:min(76rem,100%);
+  width:min(72rem,100%);
   height:100%;
   min-height:0;
   margin:0 auto;
   padding:
-    calc(var(--safe-top) + 1rem)
+    calc(var(--safe-top) + .9rem)
     max(1rem,var(--safe-right))
-    calc(var(--safe-bottom) + 1rem)
+    calc(var(--safe-bottom) + .9rem)
     max(1rem,var(--safe-left));
   display:grid;
   grid-template-rows:auto minmax(0,1fr);
-  gap:1rem;
+  gap:.85rem;
 }
 
 .ovll-library-header{
   min-width:0;
-  min-height:3.1rem;
-  display:flex;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(13rem,18rem);
   align-items:center;
-  justify-content:space-between;
-  gap:1rem;
-  padding-left:3.55rem;
+  gap:.85rem;
 }
 
 .ovll-library-title-row{
   min-width:0;
-  display:flex;
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr);
   align-items:center;
-  gap:.75rem;
+  gap:.72rem;
 }
 
 .ovll-library-back{
-  min-height:2.1rem;
-  padding:0 .72rem;
+  min-height:2.2rem;
+  padding:0 .78rem;
   border:.0625rem solid var(--line);
   border-radius:999px;
   color:var(--sub);
-  background:var(--ui-control-surface);
+  background:
+    color-mix(
+      in srgb,
+      var(--panel) 88%,
+      var(--bg)
+    );
+  box-shadow:var(--ui-control-shadow);
   font:inherit;
-  font-size:.65rem;
+  font-size:.64rem;
   font-weight:650;
+  white-space:nowrap;
   cursor:pointer;
   transition:
     color .14s ease,
@@ -109,43 +115,51 @@
 
 .ovll-library-heading{
   min-width:0;
+  display:flex;
+  align-items:baseline;
+  gap:.45rem;
 }
 
 .ovll-library-heading h1{
   margin:0;
   color:var(--text);
-  font-size:1.18rem;
+  font-size:1.08rem;
   font-weight:760;
   line-height:1.2;
   letter-spacing:-.035em;
 }
 
 .ovll-library-heading p{
-  margin:.18rem 0 0;
+  margin:0;
   color:var(--muted);
-  font-size:.62rem;
-  font-weight:500;
-  line-height:1.35;
+  font-size:.61rem;
+  font-weight:520;
+  white-space:nowrap;
 }
 
 .ovll-library-search{
-  width:min(18rem,42vw);
-  min-height:2.45rem;
+  min-width:0;
+  min-height:2.35rem;
   display:grid;
-  grid-template-columns:1.1rem minmax(0,1fr);
+  grid-template-columns:1rem minmax(0,1fr);
   align-items:center;
-  gap:.5rem;
-  padding:0 .78rem;
+  gap:.48rem;
+  padding:0 .75rem;
   border:.0625rem solid var(--line);
   border-radius:999px;
   color:var(--muted);
-  background:var(--ui-control-surface);
+  background:
+    color-mix(
+      in srgb,
+      var(--panel) 88%,
+      var(--bg)
+    );
   box-shadow:var(--ui-control-shadow);
 }
 
 .ovll-library-search svg{
-  width:1rem;
-  height:1rem;
+  width:.95rem;
+  height:.95rem;
   stroke:currentColor;
   stroke-width:1.6;
   stroke-linecap:round;
@@ -160,7 +174,7 @@
   background:transparent;
   color:var(--text);
   font:inherit;
-  font-size:.72rem;
+  font-size:.7rem;
   font-weight:520;
 }
 
@@ -169,23 +183,17 @@
 }
 
 .ovll-library-content{
+  min-width:0;
   min-height:0;
   display:grid;
   grid-template-columns:minmax(0,1fr);
-}
-
-.ovll-library-content.has-selection{
-  grid-template-columns:
-    minmax(17rem,.72fr)
-    minmax(24rem,1.28fr);
-  gap:.9rem;
 }
 
 .ovll-library-browser{
   min-width:0;
   min-height:0;
   overflow:auto;
-  padding:.1rem .1rem 1rem;
+  padding:.1rem .05rem .9rem;
   scrollbar-width:none;
 }
 
@@ -201,7 +209,7 @@
       minmax(15rem,1fr)
     );
   align-content:start;
-  gap:.65rem;
+  gap:.62rem;
 }
 
 .ovll-library-artifact-card{
@@ -219,18 +227,12 @@
       var(--artifact-accent) 34%,
       var(--line)
     );
-  background:
-    color-mix(
-      in srgb,
-      var(--artifact-accent) 5%,
-      var(--panel)
-    );
 }
 
 .ovll-library-card-format{
   grid-area:action;
   justify-self:end;
-  padding:.28rem .44rem;
+  padding:.27rem .43rem;
   border-radius:999px;
   color:
     color-mix(
@@ -244,17 +246,17 @@
       var(--artifact-accent) 7%,
       transparent
     );
-  font-size:.5rem;
+  font-size:.49rem;
   font-weight:720;
   line-height:1;
 }
 
 .ovll-library-empty{
-  min-height:16rem;
+  min-height:15rem;
   display:grid;
   place-items:center;
   color:var(--muted);
-  font-size:.72rem;
+  font-size:.7rem;
   text-align:center;
 }
 
@@ -264,13 +266,18 @@
   display:none;
   overflow:hidden;
   border:.0625rem solid var(--line);
-  border-radius:1.35rem;
+  border-radius:1.2rem;
   background:
     color-mix(
       in srgb,
-      var(--panel) 84%,
+      var(--panel) 90%,
       var(--bg)
     );
+}
+
+.ovll-library-content.has-selection
+.ovll-library-browser{
+  display:none;
 }
 
 .ovll-library-content.has-selection
@@ -281,21 +288,34 @@
 
 .ovll-library-detail-header{
   min-width:0;
-  min-height:4rem;
-  padding:.72rem .8rem .72rem .78rem;
+  min-height:3.75rem;
+  padding:.64rem .72rem;
   display:grid;
   grid-template-columns:minmax(0,1fr) auto;
   align-items:center;
-  gap:.8rem;
+  gap:.72rem;
   border-bottom:.0625rem solid var(--line);
 }
 
 .ovll-library-detail-identity{
   min-width:0;
   display:grid;
-  grid-template-columns:2.7rem minmax(0,1fr);
+  grid-template-columns:2.45rem minmax(0,1fr);
   align-items:center;
-  gap:.62rem;
+  gap:.6rem;
+}
+
+.ovll-library-detail-identity
+.astra-artifact-icon{
+  width:2.45rem;
+  height:2.45rem;
+  border-radius:.8rem;
+}
+
+.ovll-library-detail-identity
+.astra-artifact-icon svg{
+  width:1.3rem;
+  height:1.3rem;
 }
 
 .ovll-library-detail-copy{
@@ -306,7 +326,7 @@
   display:block;
   overflow:hidden;
   color:var(--text);
-  font-size:.78rem;
+  font-size:.76rem;
   font-weight:690;
   text-overflow:ellipsis;
   white-space:nowrap;
@@ -314,20 +334,23 @@
 
 .ovll-library-detail-copy small{
   display:block;
-  margin-top:.2rem;
+  margin-top:.16rem;
+  overflow:hidden;
   color:var(--muted);
-  font-size:.57rem;
+  font-size:.56rem;
+  text-overflow:ellipsis;
+  white-space:nowrap;
 }
 
 .ovll-library-detail-actions{
   display:flex;
   align-items:center;
-  gap:.32rem;
+  gap:.28rem;
 }
 
 .ovll-library-detail-action{
-  width:2rem;
-  height:2rem;
+  width:1.95rem;
+  height:1.95rem;
   display:grid;
   place-items:center;
   border:0;
@@ -361,8 +384,8 @@
 }
 
 .ovll-library-detail-action svg{
-  width:1rem;
-  height:1rem;
+  width:.95rem;
+  height:.95rem;
   stroke:currentColor;
   stroke-width:1.5;
   stroke-linecap:round;
@@ -380,10 +403,15 @@
   background:
     color-mix(
       in srgb,
-      var(--bg) 70%,
+      var(--bg) 72%,
       var(--panel)
     );
   scrollbar-width:thin;
+}
+
+.ovll-library-preview.is-text,
+.ovll-library-preview.is-document{
+  place-items:start center;
 }
 
 .ovll-library-preview img{
@@ -394,19 +422,19 @@
 }
 
 .ovll-library-preview iframe,
-.ovll-sandbox-frame{
+.ovll-library-preview .ovll-sandbox-frame{
   width:100%;
   height:100%;
-  min-height:20rem;
+  min-height:0;
   border:0;
   background:#fff;
 }
 
 .ovll-library-preview-text{
-  width:min(46rem,100%);
+  width:min(48rem,100%);
   min-height:100%;
   margin:0;
-  padding:1rem;
+  padding:1.1rem 1.15rem 2rem;
   color:var(--text);
   background:transparent;
   font-family:
@@ -428,24 +456,27 @@
   text-align:center;
 }
 
-@media(max-width:52rem){
+@media(max-width:46rem){
   .ovll-library-shell{
     padding:
-      calc(var(--safe-top) + .75rem)
-      max(.8rem,var(--safe-right))
-      calc(var(--safe-bottom) + .8rem)
-      max(.8rem,var(--safe-left));
+      calc(var(--safe-top) + .7rem)
+      max(.72rem,var(--safe-right))
+      calc(var(--safe-bottom) + .72rem)
+      max(.72rem,var(--safe-left));
+    gap:.7rem;
   }
 
   .ovll-library-header{
-    align-items:stretch;
-    flex-direction:column;
-    gap:.65rem;
-    padding-left:3.45rem;
+    grid-template-columns:minmax(0,1fr);
+    gap:.58rem;
   }
 
   .ovll-library-title-row{
-    min-height:2.4rem;
+    grid-template-columns:auto minmax(0,1fr);
+  }
+
+  .ovll-library-heading{
+    gap:.38rem;
   }
 
   .ovll-library-search{
@@ -456,17 +487,13 @@
     grid-template-columns:1fr;
   }
 
-  .ovll-library-content.has-selection{
-    grid-template-columns:1fr;
-  }
-
-  .ovll-library-content.has-selection
-  .ovll-library-browser{
-    display:none;
-  }
-
   .ovll-library-detail{
-    border-radius:1.15rem;
+    border-radius:1rem;
+  }
+
+  .ovll-library-detail-header{
+    min-height:3.55rem;
+    padding:.58rem .62rem;
   }
 }
 
