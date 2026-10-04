@@ -96,6 +96,19 @@ test("library keeps desktop browser context and uses replacement detail on mobil
   );
 });
 
+test("library title row reserves the global sidebar trigger rail", () => {
+  const css = compact(read("front/css/library.css"));
+
+  assert.match(
+    css,
+    /#library-page\s*\{[^}]*--library-nav-reserve:\s*3\.25rem/
+  );
+  assert.match(
+    css,
+    /\.ovll-library-title-row\s*\{[^}]*padding-left:\s*var\(--library-nav-reserve\)/
+  );
+});
+
 test("library page owns Escape and focus lifecycle", () => {
   const js = read("front/js/libraryPage.js");
 
