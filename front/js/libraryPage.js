@@ -371,6 +371,11 @@ function closeDetail(){
       "has-selection"
     );
 
+  page.classList
+    .remove(
+      "has-selection"
+    );
+
   detail.replaceChildren();
 
   renderGrid();
@@ -426,6 +431,75 @@ async function renderPreview(
     );
 }
 
+function isCompactLibrary(){
+  return global.matchMedia?.(
+    "(max-width: 46rem)"
+  )?.matches===true;
+}
+
+function renderCompactPdfPreview(
+  root,
+  file,
+  hydrated
+){
+  root.classList.add(
+    "is-compact-pdf"
+  );
+
+  const fallback=
+    document.createElement(
+      "div"
+    );
+
+  fallback.className=
+    "ovll-library-preview-fallback";
+
+  const copy=
+    document.createElement(
+      "span"
+    );
+
+  copy.textContent=
+    "PDF는 새 화면에서 열어볼 수 있어";
+
+  fallback.appendChild(
+    copy
+  );
+
+  const url=
+    String(
+      hydrated?.previewUrl||
+      hydrated?.downloadUrl||
+      ""
+    );
+
+  if(url){
+    const open=
+      document.createElement(
+        "a"
+      );
+
+    open.className=
+      "ovll-library-preview-open";
+
+    open.href=url;
+    open.target="_blank";
+    open.rel="noopener";
+    open.textContent=
+      "PDF 열기";
+
+    fallback.appendChild(
+      open
+    );
+  }
+
+  root.appendChild(
+    fallback
+  );
+
+  return true;
+}
+
 async function selectFile(fileId){
   const id=
     String(fileId||"");
@@ -451,6 +525,11 @@ async function selectFile(fileId){
   renderGrid();
 
   contentRoot.classList
+    .add(
+      "has-selection"
+    );
+
+  page.classList
     .add(
       "has-selection"
     );
@@ -652,6 +731,20 @@ async function selectFile(fileId){
   try{
     preview.replaceChildren();
 
+    const compactPdf=
+      isCompactLibrary()&&
+      formatOf(file)==="PDF";
+
+    if(compactPdf){
+      renderCompactPdfPreview(
+        preview,
+        file,
+        hydrated
+      );
+
+      return true;
+    }
+
     const shown=
       await renderPreview(
         preview,
@@ -794,6 +887,10 @@ function hide(){
     !state.open
   ){
     return false;
+  }
+
+  if(state.selectedId){
+    closeDetail();
   }
 
   state.open=false;
