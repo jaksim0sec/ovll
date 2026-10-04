@@ -487,7 +487,7 @@
   tab-size:2;
 }
 
-.ovll-library-preview-code-note{
+.ovll-library-preview .ovll-preview-code-note{
   position:sticky;
   z-index:2;
   left:0;
