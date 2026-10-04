@@ -329,26 +329,38 @@ export async function renderPdfWithChrome(input = {}) {
       'utf8'
     );
 
-    await execFileAsync(
-      executable,
-      [
-        '--headless',
-        '--disable-gpu',
-        '--disable-dev-shm-usage',
-        '--no-sandbox',
-        '--allow-file-access-from-files',
-        '--no-pdf-header-footer',
-        '--run-all-compositor-stages-before-draw',
-        '--virtual-time-budget=800',
-        '--print-to-pdf=' + pdfPath,
-        pathToFileURL(htmlPath).href
-      ],
-      {
-        timeout: 20000,
-        windowsHide: true,
-        maxBuffer: 1024 * 1024
-      }
-    );
+    try {
+      await execFileAsync(
+        executable,
+        [
+          '--headless',
+          '--disable-gpu',
+          '--disable-dev-shm-usage',
+          '--disable-background-networking',
+          '--disable-extensions',
+          '--disable-sync',
+          '--metrics-recording-only',
+          '--mute-audio',
+          '--no-first-run',
+          '--no-sandbox',
+          '--allow-file-access-from-files',
+          '--no-pdf-header-footer',
+          '--run-all-compositor-stages-before-draw',
+          '--user-data-dir=' + path.join(tempDir, 'profile'),
+          '--virtual-time-budget=600',
+          '--print-to-pdf=' + pdfPath,
+          pathToFileURL(htmlPath).href
+        ],
+        {
+          timeout: 8000,
+          windowsHide: true,
+          maxBuffer: 1024 * 1024
+        }
+      );
+    } catch (error) {
+      cachedChromeExecutable = null;
+      throw error;
+    }
 
     const buffer = await readFile(pdfPath);
     if (buffer.length < 8 || buffer.subarray(0, 5).toString('ascii') !== '%PDF-') {
