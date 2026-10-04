@@ -531,6 +531,16 @@
               ?.downloadUrl ||
             ""
           );
+        const previewText =
+          String(
+            node.data
+              ?.textPreview ||
+            node.data
+              ?.previewText ||
+            ""
+          )
+            .trim()
+            .slice(0, 900);
 
         out.push(`
           <div class="vc-slot-custom">
@@ -538,6 +548,15 @@
               <span>${escapeHtml(mime)}</span>
               <span>${escapeHtml(text)}</span>
             </div>
+            ${
+              previewText
+                ? `
+                  <div class="vc-file-preview">
+                    ${escapeHtml(previewText)}
+                  </div>
+                `
+                : ''
+            }
             ${
               downloadUrl
                 ? `
