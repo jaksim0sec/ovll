@@ -143,11 +143,243 @@ function visual(
   };
 }
 
+
+const DOWNLOAD_ICON =
+  '<svg viewBox="0 0 18 18" fill="none" aria-hidden="true">' +
+  '<path d="M9 3.1v7m0 0 2.45-2.45M9 10.1 6.55 7.65M4.2 13.55h9.6" stroke="currentColor" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round"/>' +
+  '</svg>';
+
+function createCard(
+  artifact,
+  {
+    tagName="a",
+    className="",
+    metaText="",
+    action="download",
+    inlinePreview=true
+  }={}
+){
+  const visualValue=
+    visual(artifact);
+
+  const isButton=
+    String(tagName)
+      .toLowerCase()===
+      "button";
+
+  const card=
+    document.createElement(
+      isButton
+        ?"button"
+        :"a"
+    );
+
+  if(isButton){
+    card.type="button";
+  }else{
+    card.href=
+      String(
+        artifact?.downloadUrl||
+        "#"
+      );
+
+    card.download=
+      String(
+        artifact?.name||
+        "result"
+      );
+  }
+
+  card.className=
+    [
+      "astra-artifact-card",
+      "astra-artifact-"+visualValue.kind,
+      String(className||"")
+    ]
+      .filter(Boolean)
+      .join(" ");
+
+  card.style.setProperty(
+    "--artifact-accent",
+    visualValue.color
+  );
+
+  const icon=
+    document.createElement(
+      "span"
+    );
+
+  icon.className=
+    "astra-artifact-icon";
+
+  icon.innerHTML=
+    visualValue.icon;
+
+  const info=
+    document.createElement(
+      "span"
+    );
+
+  info.className=
+    "astra-artifact-info";
+
+  const name=
+    document.createElement(
+      "span"
+    );
+
+  name.className=
+    "astra-artifact-name";
+
+  name.textContent=
+    String(
+      artifact?.name||
+      "결과물"
+    );
+
+  const meta=
+    document.createElement(
+      "span"
+    );
+
+  meta.className=
+    "astra-artifact-meta";
+
+  meta.textContent=
+    String(
+      metaText||
+      [
+        format(artifact),
+        formatSize(
+          artifact?.size
+        )
+      ]
+        .filter(Boolean)
+        .join(" · ")
+    );
+
+  info.append(
+    name,
+    meta
+  );
+
+  let actionNode=null;
+
+  if(action==="download"){
+    actionNode=
+      document.createElement(
+        "span"
+      );
+
+    actionNode.className=
+      "astra-artifact-download";
+
+    actionNode.innerHTML=
+      DOWNLOAD_ICON;
+  }else if(action==="format"){
+    actionNode=
+      document.createElement(
+        "span"
+      );
+
+    actionNode.className=
+      "ovll-library-card-format";
+
+    actionNode.textContent=
+      format(artifact);
+  }
+
+  const inline=
+    document.createElement(
+      "span"
+    );
+
+  inline.className=
+    "astra-artifact-inline-preview";
+
+  if(inlinePreview){
+    const inlineText=
+      String(
+        artifact?.previewText||
+        ""
+      )
+        .trim()
+        .slice(
+          0,
+          520
+        );
+
+    if(
+      visualValue.kind===
+        "image"&&
+      artifact?.previewUrl
+    ){
+      const image=
+        document.createElement(
+          "img"
+        );
+
+      image.src=
+        String(
+          artifact.previewUrl
+        );
+
+      image.alt="";
+
+      inline.classList.add(
+        "is-image"
+      );
+
+      inline.appendChild(
+        image
+      );
+    }else if(inlineText){
+      inline.classList.add(
+        "is-text"
+      );
+
+      inline.textContent=
+        inlineText;
+    }
+  }
+
+  card.append(
+    icon,
+    info
+  );
+
+  if(actionNode){
+    card.appendChild(
+      actionNode
+    );
+  }
+
+  if(
+    inline.childNodes.length||
+    inline.textContent
+  ){
+    card.classList.add(
+      "has-inline-preview"
+    );
+
+    card.appendChild(
+      inline
+    );
+  }
+
+  return{
+    element:card,
+    action:actionNode,
+    visual:visualValue
+  };
+}
+
 global.OvllArtifactVisuals=
   Object.freeze({
     format,
     formatSize,
-    visual
+    visual,
+    createCard
   });
 
 })(window);
