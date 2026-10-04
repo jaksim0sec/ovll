@@ -16,7 +16,7 @@
 
 #topbar {
   position: absolute;
-  z-index: 100;
+  z-index: var(--layer-topbar);
   top: 0;
   left: 0;
   right: 0;
@@ -331,7 +331,7 @@
 
 #ovll-canvas-speech {
   position: absolute;
-  z-index: 1001;
+  z-index: var(--layer-overlay);
   left: var(--ovll-world-x, 0px);
   top: var(--ovll-world-y, 0px);
 
@@ -472,7 +472,7 @@
 
 #composer {
   position: absolute;
-  z-index: 110;
+  z-index: var(--layer-composer);
   right: 0;
   bottom: 0;
   left: 0;
@@ -514,15 +514,15 @@
 #composer-form {
   position: relative;
   z-index: 1;
-  width: min(45rem, 100%);
+  width: min(var(--content-rail), calc(100% - 1rem));
   min-height: 3.375rem;
   margin: 0 auto;
-  padding: .4375rem .4375rem .4375rem 1.0625rem;
+  padding: .4375rem .4375rem .4375rem .5rem;
   display: flex;
   align-items: center;
-  gap: .5625rem;
+  gap: .25rem;
   border: .0625rem solid var(--line);
-  border-radius: 1.5rem;
+  border-radius: 1.25rem;
   background: var(--ui-control-surface);
   backdrop-filter: var(--ui-backdrop);
   -webkit-backdrop-filter: var(--ui-backdrop);
@@ -802,8 +802,8 @@
 
 #canvas-node-builder {
   position: absolute;
-  z-index: 40;
-  left: max(max(.625rem, var(--safe-left)), calc((100% - 45rem) / 2));
+  z-index: calc(var(--layer-composer) + 1);
+  left: max(max(.625rem, var(--safe-left)), calc((100% - var(--content-rail)) / 2));
   bottom: calc(
     var(--safe-bottom) +
     var(--bottom-dock-lift) +
@@ -1038,213 +1038,6 @@
   }
 }
 
-/* =========================================================
-   COMPOSER STABILITY
-   ========================================================= */
-
-#composer {
-  inset-inline: 0;
-  bottom: 0.5em;
-  width: 100%;
-  max-width: 100%;
-  box-sizing: border-box;
-  overflow: visible;
-}
-
-#composer-form {
-  box-sizing: border-box;
-  width: min(45rem, calc(100% - 1rem));
-  max-width: 100%;
-  margin-inline: auto;
-}
-
-#composer-input {
-  box-sizing: border-box;
-  min-width: 0;
-}
-
-#composer-submit {
-  width: 2.375rem;
-  height: 2.375rem;
-  flex-basis: 2.375rem;
-  box-sizing: border-box;
-  font-size: 1rem;
-}
-
-@media (max-width: 43.75rem) {
-  #composer-form {
-    width: calc(100% - 1rem);
-  }
-
-  #composer-submit {
-    width: 2.25rem;
-    height: 2.25rem;
-    flex-basis: 2.25rem;
-  }
-}
-
-@media (max-width: 26.25rem) {
-  #composer-form {
-    width: calc(100% - .75rem);
-  }
-
-  #composer-submit {
-    width: 2.1875rem;
-    height: 2.1875rem;
-    flex-basis: 2.1875rem;
-  }
-}
-
-@media (hover: none) and (pointer: coarse) {
-  #composer-input {
-    font-size: 16px;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  #ovll-canvas-speech {
-    transition: none;
-  }
-
-  .ovll-speech-dot {
-    animation: none;
-  }
-}
-
-
-/* =========================================================
-   COMPOSER ATTACH FIX
-   ========================================================= */
-
-#composer-attach {
-  display: grid !important;
-  place-items: center;
-  width: 2.25rem;
-  height: 2.25rem;
-  flex: 0 0 2.25rem;
-  min-width: 2.25rem;
-  min-height: 2.25rem;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: transparent;
-  color: var(--muted);
-  opacity: 1;
-  visibility: visible;
-  overflow: visible;
-  cursor: pointer;
-  appearance: none;
-  -webkit-appearance: none;
-  transition:
-    color .15s ease,
-    background-color .15s ease,
-    transform .12s ease;
-}
-
-#composer-attach:hover {
-  color: var(--text);
-  background:
-    color-mix(
-      in srgb,
-      var(--text) 4%,
-      transparent
-    );
-}
-
-#composer-attach:active {
-  transform: scale(.97);
-}
-
-#composer-attach svg {
-  display: block;
-  width: 1.31rem;
-  height: 1.31rem;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.7;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-#composer-file-input {
-  display: none !important;
-}
-
-@media (max-width: 43.75rem) {
-  #composer-attach {
-    width: 2.125rem;
-    height: 2.125rem;
-    flex-basis: 2.125rem;
-    min-width: 2.125rem;
-    min-height: 2.125rem;
-  }
-}
-
-@media (max-width: 26.25rem) {
-  #composer-attach {
-    width: 2rem;
-    height: 2rem;
-    flex-basis: 2rem;
-    min-width: 2rem;
-    min-height: 2rem;
-  }
-}
-
-
-/* =========================================================
-   COMPOSER ATTACH DETAIL
-   ========================================================= */
-
-#composer-form {
-  gap: .25rem;
-  padding-left: .5rem;
-}
-
-#composer-attach {
-  width: 2.0625rem;
-  height: 2.0625rem;
-  flex-basis: 2.0625rem;
-  min-width: 2.0625rem;
-  min-height: 2.0625rem;
-}
-
-#composer-input {
-  padding-left: .125rem;
-  padding-right: .125rem;
-}
-
-@media (max-width: 43.75rem) {
-  #composer-form {
-    gap: .2rem;
-    padding-left: .4375rem;
-  }
-
-  #composer-attach {
-    width: 2rem;
-    height: 2rem;
-    flex-basis: 2rem;
-    min-width: 2rem;
-    min-height: 2rem;
-  }
-}
-
-@media (max-width: 26.25rem) {
-  #composer-form {
-    gap: .15rem;
-    padding-left: .375rem;
-  }
-
-  #composer-attach {
-    width: 1.9375rem;
-    height: 1.9375rem;
-    flex-basis: 1.9375rem;
-    min-width: 1.9375rem;
-    min-height: 1.9375rem;
-  }
-}
-
-
 .canvas-ai-thinking {
   display: inline-flex;
   align-items: center;
@@ -1283,80 +1076,6 @@
 
 
 /* =========================================================
-   COMPOSER ICON DETAIL
-   ========================================================= */
-
-#composer-submit svg {
-  width: 1.3rem;
-  height: 1.3rem;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.72;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-
-/* =========================================================
-   OVLL UI COHESION
-   ========================================================= */
-
-#mode-switch,
-#composer-form,
-#canvas-node-builder-layout,
-#canvas-node-builder-reset,
-#canvas-node-builder-toggle {
-  border: var(--ui-line-width) solid var(--ui-line);
-  background: var(--ui-glass);
-  backdrop-filter: var(--ui-backdrop);
-  -webkit-backdrop-filter: var(--ui-backdrop);
-  box-shadow: var(--ui-control-shadow);
-}
-
-#mode-switch,
-#mode-switch::before,
-#canvas-node-builder-layout,
-#canvas-node-builder-reset,
-#canvas-node-builder-toggle {
-  border-radius: var(--ui-radius-pill);
-}
-
-#composer-form {
-  border-radius: 1.25rem;
-}
-
-#mode-switch::before {
-  border: var(--ui-line-width) solid var(--ui-line);
-  background: var(--ui-glass-strong);
-}
-
-#composer-form.is-expanded {
-  border-radius: 1.25rem;
-}
-
-#mode-switch:hover,
-#composer-form:focus-within,
-#canvas-node-builder-layout:hover,
-#canvas-node-builder-reset:hover,
-#canvas-node-builder-toggle:hover {
-  border-color: var(--ui-line-strong);
-}
-
-#canvas-node-builder-panel {
-  border: var(--ui-line-width) solid var(--ui-line);
-  border-radius: var(--ui-radius-panel);
-  background: var(--ui-glass);
-  backdrop-filter: var(--ui-backdrop);
-  -webkit-backdrop-filter: var(--ui-backdrop);
-}
-
-.canvas-node-builder-option {
-  border: var(--ui-line-width) solid var(--ui-line);
-  border-radius: var(--ui-radius-item);
-}
-
-
-/* =========================================================
    CANVAS NODE BUILDER ALIGNMENT
    Keep the builder on the same visual rails as the composer.
    ========================================================= */
@@ -1380,27 +1099,54 @@
 }
 
 /* =========================================================
-   OVLL SIMPLE CONTROL SURFACES
+   WORKSPACE CONTROL SYSTEM
    ========================================================= */
 
-#topbar-left > button,
-#topbar-right > button,
 #mode-switch,
 #composer-form,
 #canvas-node-builder-layout,
 #canvas-node-builder-reset,
 #canvas-node-builder-toggle {
+  border: var(--ui-line-width) solid var(--ui-line);
   background: var(--ui-glass);
+  backdrop-filter: var(--ui-backdrop);
+  -webkit-backdrop-filter: var(--ui-backdrop);
   box-shadow: var(--ui-control-shadow);
 }
 
+#mode-switch,
+#mode-switch::before,
+#canvas-node-builder-layout,
+#canvas-node-builder-reset,
+#canvas-node-builder-toggle {
+  border-radius: var(--ui-radius-pill);
+}
+
 #mode-switch::before {
+  border: var(--ui-line-width) solid var(--ui-line);
   background: var(--ui-glass-strong);
   box-shadow: 0 .0625rem .25rem rgba(0, 0, 0, .055);
 }
 
 :root.dark #mode-switch::before {
   box-shadow: 0 .0625rem .3125rem rgba(0, 0, 0, .14);
+}
+
+#composer-form {
+  max-width: 100%;
+  border-radius: 1.25rem;
+}
+
+#composer-form.is-expanded {
+  border-radius: 1.25rem;
+}
+
+#mode-switch:hover,
+#composer-form:focus-within,
+#canvas-node-builder-layout:hover,
+#canvas-node-builder-reset:hover,
+#canvas-node-builder-toggle:hover {
+  border-color: var(--ui-line-strong);
 }
 
 #composer-form:focus-within,
@@ -1411,11 +1157,17 @@
 }
 
 #canvas-node-builder-panel {
+  border: var(--ui-line-width) solid var(--ui-line);
+  border-radius: var(--ui-radius-panel);
   background: var(--ui-glass);
+  backdrop-filter: var(--ui-backdrop);
+  -webkit-backdrop-filter: var(--ui-backdrop);
   box-shadow: var(--shadow-soft);
 }
 
 .canvas-node-builder-option {
+  border: var(--ui-line-width) solid var(--ui-line);
+  border-radius: var(--ui-radius-item);
   background: color-mix(in srgb, var(--panel) 88%, transparent);
   box-shadow: none;
 }
@@ -1424,24 +1176,93 @@
   background: var(--panel-strong);
 }
 
-#composer-attach,
-#composer-attach:hover {
-  border: 0;
-  box-shadow: none;
-}
-
 #composer-attach {
+  display: grid;
+  place-items: center;
+  width: 2.0625rem;
+  height: 2.0625rem;
+  flex: 0 0 2.0625rem;
+  min-width: 2.0625rem;
+  min-height: 2.0625rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
   background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  transition:
+    color .15s ease,
+    background-color .15s ease,
+    transform .12s ease;
 }
 
 #composer-attach:hover {
-  background: color-mix(in srgb, var(--text) 4%, transparent);
+  color: var(--text);
+  background: var(--surface-hover);
+}
+
+#composer-attach:active {
+  transform: scale(.96);
+}
+
+#composer-attach svg {
+  width: 1.3rem;
+  height: 1.3rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+#composer-file-input {
+  display: none !important;
 }
 
 #composer-submit {
   box-shadow: 0 .0625rem .25rem color-mix(in srgb, #000 8%, transparent);
 }
 
+@media (max-width: 43.75rem) {
+  #composer-form {
+    width: calc(100% - 1rem);
+    gap: .2rem;
+    padding-left: .4375rem;
+  }
+
+  #composer-attach {
+    width: 2rem;
+    height: 2rem;
+    flex-basis: 2rem;
+    min-width: 2rem;
+    min-height: 2rem;
+  }
+}
+
+@media (max-width: 26.25rem) {
+  #composer-form {
+    width: calc(100% - .75rem);
+    gap: .15rem;
+    padding-left: .375rem;
+  }
+
+  #composer-attach {
+    width: 1.9375rem;
+    height: 1.9375rem;
+    flex-basis: 1.9375rem;
+    min-width: 1.9375rem;
+    min-height: 1.9375rem;
+  }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  #composer-input {
+    font-size: 16px;
+  }
+}
 
 
 /* =========================================================
@@ -1450,7 +1271,7 @@
 
 .ovll-error-notice {
   position: absolute;
-  z-index: 1200;
+  z-index: var(--layer-notice);
   left: 50%;
   bottom:
     calc(
@@ -1674,7 +1495,7 @@
 
 .astra-canvas-workflow-proposal {
   position: absolute;
-  z-index: 108;
+  z-index: var(--layer-overlay);
   left: 50%;
   bottom:
     calc(
