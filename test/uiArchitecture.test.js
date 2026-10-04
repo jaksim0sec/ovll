@@ -201,6 +201,7 @@ test("coarse pointers get usable action targets", () => {
   const nodeCss = compact(read("front/css/node.css"));
   const libraryCss = compact(read("front/css/library.css"));
   const chatCss = compact(read("front/css/chat.css"));
+  const uiCss = compact(read("front/css/ui.css"));
 
   assert.match(
     nodeCss,
