@@ -282,7 +282,7 @@ function cardFor(file){
           className:
             "ovll-library-artifact-card",
           metaText,
-          action:"format",
+          action:null,
           inlinePreview:false
         }
       );
