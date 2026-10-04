@@ -7,11 +7,35 @@ await import("../front/js/runtimeEngine.js");
 const {
   RuntimeEngine,
   LocalNodeExecutor,
-  normalizeWorkflow
+  normalizeWorkflow,
+  validateExecutionReadiness
 } = globalThis.OvllExecutionEngine;
 
+const CONTENT_REQUIRED_TYPES =
+  new Set([
+    "research",
+    "organize",
+    "judge",
+    "write",
+    "convert",
+    "createFile"
+  ]);
+
 function node(id, type = "step") {
-  return { id, type, data: {} };
+  return {
+    id,
+    type,
+    data:
+      CONTENT_REQUIRED_TYPES
+        .has(type)
+        ? {
+            params: {
+              request:
+                `test request for ${id}`
+            }
+          }
+        : {}
+  };
 }
 
 function edge(id, from, to, options = {}) {
@@ -69,6 +93,79 @@ function executor(log, decisions = {}, failures = new Set()) {
     }
   };
 }
+
+test("empty configured nodes are rejected before executor or API work", async () => {
+  const calls = [];
+  const graph = workflow(
+    [
+      {
+        id: "empty",
+        type: "research",
+        data: {
+          params: {
+            request: "   "
+          }
+        }
+      }
+    ],
+    []
+  );
+
+  const readiness =
+    validateExecutionReadiness(
+      graph,
+      "empty",
+      { mode: "spread" }
+    );
+
+  assert.equal(
+    readiness.ok,
+    false
+  );
+  assert.deepEqual(
+    readiness.emptyNodes,
+    [
+      {
+        id: "empty",
+        type: "research"
+      }
+    ]
+  );
+
+  const engine =
+    new RuntimeEngine({
+      executor: {
+        async run() {
+          calls.push("run");
+          return {
+            outputs: {}
+          };
+        },
+        async runGroup() {
+          calls.push("group");
+          return {
+            results: []
+          };
+        }
+      }
+    });
+
+  await assert.rejects(
+    engine.run(
+      graph,
+      "empty",
+      { mode: "spread" }
+    ),
+    error =>
+      error?.code ===
+        "NODE_INPUT_EMPTY"
+  );
+
+  assert.deepEqual(
+    calls,
+    []
+  );
+});
 
 test("target executes only the pivot and every required ancestor", async () => {
   const log = [];
