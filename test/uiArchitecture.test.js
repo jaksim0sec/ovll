@@ -96,6 +96,19 @@ test("library keeps desktop browser context and uses replacement detail on mobil
   );
 });
 
+test("chat user action states are independent selectors", () => {
+  const css = compact(read("front/css/chat.css"));
+
+  assert.doesNotMatch(
+    css,
+    /\.astra-message-user:hover \.astra-message-user:focus-within/
+  );
+  assert.match(
+    css,
+    /\.astra-message-user:hover\s*,\s*\.astra-message-user:focus-within\s*,\s*\.astra-message-user\.is-actions-visible\s*\{/
+  );
+});
+
 test("library title row reserves the global sidebar trigger rail", () => {
   const css = compact(read("front/css/library.css"));
 
