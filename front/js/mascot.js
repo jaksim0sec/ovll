@@ -1244,13 +1244,18 @@ function mount(world,canvas,options={}){
     node 중심이 아니라 node 바깥의 가장 가까운 쪽을 향한다.
     그래서 node 위로 파고드는 이상한 이동 방지.
   */
-  function nodeTarget(node){
+  function nodeTarget(
+    node,
+    gapScale=.9
+  ){
     const nodeRect=node.getBoundingClientRect();
     const orbRect=orb.getBoundingClientRect();
 
     const current=center(orbRect);
     const nodeCenter=center(nodeRect);
-    const gap=orbRect.width*.9;
+    const gap=
+      orbRect.width*
+      gapScale;
 
     /*
       높이는 항상 node 중앙축.
@@ -1678,6 +1683,100 @@ function mount(world,canvas,options={}){
     }
   }
 
+  function setSituation(
+    name,
+    detail={}
+  ){
+    const nodeId=
+      detail?.nodeId;
+
+    if(name==="success"){
+      if(nodeId&&nodeEl(nodeId)){
+        focusNode(
+          nodeId,
+          {
+            mood:"success",
+            duration:760,
+            priority:12
+          }
+        );
+      }else{
+        setMood(
+          "success",
+          760
+        );
+      }
+
+      setSatellite(
+        "celebrate",
+        {hold:680}
+      );
+
+      pulse(
+        "pop",
+        320
+      );
+
+      return;
+    }
+
+    if(name==="error"){
+      setMood(
+        "annoyed",
+        820
+      );
+
+      setSatellite(
+        "drop",
+        {hold:680}
+      );
+
+      pulse(
+        "bump",
+        240
+      );
+
+      return;
+    }
+
+    if(name==="cancelled"){
+      setMood(
+        "bumped",
+        480
+      );
+
+      setSatellite(
+        "hidden"
+      );
+
+      return;
+    }
+
+    if(name==="notice"){
+      setMood(
+        "curious",
+        720
+      );
+
+      setSatellite(
+        "thought",
+        {hold:620}
+      );
+
+      return;
+    }
+
+    if(name==="idle"){
+      setMood(
+        "idle"
+      );
+
+      setSatellite(
+        "hidden"
+      );
+    }
+  }
+
   function workAtNode(
     id,
     active=true
@@ -1727,7 +1826,10 @@ function mount(world,canvas,options={}){
     );
 
     const target=
-      nodeTarget(node);
+      nodeTarget(
+        node,
+        .72
+      );
 
     const orbRect=
       orb.getBoundingClientRect();
@@ -2632,6 +2734,7 @@ function mount(world,canvas,options={}){
     element:orb,
     react,
     setThinking,
+    setSituation,
     workAtNode,
     centerInViewport,
 
