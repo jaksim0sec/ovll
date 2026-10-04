@@ -1,5 +1,6 @@
 import {deflateRawSync} from 'node:zlib';
 import {randomUUID} from 'node:crypto';
+import {renderPdfWithChrome} from './pdfRenderer.js';
 
 const STORE = new Map();
 const TTL_MS = 2 * 60 * 60 * 1000;
@@ -910,26 +911,97 @@ function htmlBuffer(sources) {
   return Buffer.from('<!doctype html><html><head><meta charset="utf-8"><title>ovll result</title></head><body>' + body + '</body></html>', 'utf8');
 }
 
-function buildBuffer(format, sources, metadata = {}) {
-  if (format === 'PDF') return pdfBuffer(sources, metadata);
-  if (format === 'DOCX') return docxBuffer(sources);
-  if (format === 'XLSX') return xlsxBuffer(sources);
-  if (format === 'CSV') return csvBuffer(sources);
-  if (format === 'JSON') return Buffer.from(JSON.stringify(Array.isArray(sources) && sources.length === 1 ? sources[0] : sources, null, 2), 'utf8');
-  if (format === 'HTML') return htmlBuffer(sources);
-  if (format === 'RTF') return rtfBuffer(sources);
-  return Buffer.from(sourceText(sources), 'utf8');
+async function buildBuffer(format, sources, metadata = {}) {
+  if (format === 'PDF') {
+    try {
+      const browserBuffer =
+        await renderPdfWithChrome({
+          text:
+            sourceText(sources),
+          title:
+            metadata.title || ''
+        });
+
+      if (browserBuffer) {
+        return {
+          buffer:
+            browserBuffer,
+          renderer:
+            'html-chromium'
+        };
+      }
+    } catch (error) {
+      console.warn(
+        '[artifact pdf] Chromium render failed; using fallback renderer.',
+        error?.message || error
+      );
+    }
+
+    return {
+      buffer:
+        pdfBuffer(
+          sources,
+          metadata
+        ),
+      renderer:
+        'builtin-fallback'
+    };
+  }
+
+  if (format === 'DOCX') return {buffer: docxBuffer(sources), renderer: 'native'};
+  if (format === 'XLSX') return {buffer: xlsxBuffer(sources), renderer: 'native'};
+  if (format === 'CSV') return {buffer: csvBuffer(sources), renderer: 'native'};
+  if (format === 'JSON') {
+    return {
+      buffer:
+        Buffer.from(
+          JSON.stringify(
+            Array.isArray(sources) &&
+            sources.length === 1
+              ? sources[0]
+              : sources,
+            null,
+            2
+          ),
+          'utf8'
+        ),
+      renderer:
+        'native'
+    };
+  }
+  if (format === 'HTML') return {buffer: htmlBuffer(sources), renderer: 'native'};
+  if (format === 'RTF') return {buffer: rtfBuffer(sources), renderer: 'native'};
+
+  return {
+    buffer:
+      Buffer.from(
+        sourceText(sources),
+        'utf8'
+      ),
+    renderer:
+      'native'
+  };
 }
 
-export function createStoredArtifact(input = {}) {
+export async function createStoredArtifact(input = {}) {
   prune();
   const format = formatName(input.format);
   const info = FORMAT_INFO[format];
   const sources = Array.isArray(input.sources) ? input.sources : [input.sources].filter(value => value !== undefined);
   const name = withExtension(input.filename || 'result', info.ext);
-  const buffer = buildBuffer(format, sources, {title: name.replace(/\.[^.]+$/, '')});
+  const built =
+    await buildBuffer(
+      format,
+      sources,
+      {
+        title:
+          name.replace(/\.[^.]+$/, '')
+      }
+    );
+  const buffer =
+    built.buffer;
   const id = randomUUID();
-  const item = {id, name, format, mime: info.mime, size: buffer.length, createdAt: Date.now(), buffer, previewText: sourceText(sources).slice(0, 240)};
+  const item = {id, name, format, mime: info.mime, size: buffer.length, createdAt: Date.now(), buffer, renderer: built.renderer, previewText: sourceText(sources).slice(0, 240)};
   STORE.set(id, item);
   const baseUrl =
     '/api/artifacts/' +
@@ -943,6 +1015,8 @@ export function createStoredArtifact(input = {}) {
     format: item.format,
     mime: item.mime,
     size: item.size,
+    renderer:
+      item.renderer,
     previewText:
       item.previewText,
     previewUrl:
