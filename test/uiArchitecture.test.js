@@ -80,6 +80,19 @@ test("workspace controls have one consolidated ownership section", () => {
   assert.match(css, /WORKSPACE CONTROL SYSTEM/);
 });
 
+test("topbar has no empty left or right placeholder rails", () => {
+  const html = read("front/index.html");
+  const ui = compact(read("front/css/ui.css"));
+
+  assert.doesNotMatch(html, /id="topbar-left"/);
+  assert.doesNotMatch(html, /id="topbar-right"/);
+  assert.doesNotMatch(ui, /#topbar-left|#topbar-right/);
+  assert.match(
+    ui,
+    /#mode-switch\s*\{[^}]*height:\s*var\(--control-size\)/
+  );
+});
+
 test("workspace control system does not re-patch responsive composer layout", () => {
   const css = read("front/css/ui.css");
   const start = css.indexOf("WORKSPACE CONTROL SYSTEM");
