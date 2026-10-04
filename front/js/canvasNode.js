@@ -3161,54 +3161,359 @@
     function beginConnectionDrag(event, port, node) {
       const direction =
         port.dataset.portDir;
+
       if (
         direction !== 'output' &&
         direction !== 'input'
       ) {
         return;
       }
-      state.connectionDrag = {
-        pointerId: event.pointerId,
-        direction,
-        anchor: {
-          node: node.id,
-          port: port.dataset.portId
-        },
-        x: event.clientX,
-        y: event.clientY
+
+      const anchor = {
+        node: node.id,
+        port: port.dataset.portId
       };
+
+      state.connectionDrag = {
+        pointerId:
+          event.pointerId,
+        direction,
+        anchor,
+        anchors:
+          direction === 'output'
+            ? [
+                clone(anchor)
+              ]
+            : null,
+        startX:
+          event.clientX,
+        startY:
+          event.clientY,
+        startedAt:
+          performance.now(),
+        moved: false,
+        x: event.clientX,
+        y: event.clientY,
+        pickupCandidate:
+          null,
+        pickupTimer:
+          null
+      };
+
       try {
         viewport.setPointerCapture(
           event.pointerId
         );
       } catch {}
-      emit('connectionDragStart', clone(state.connectionDrag));
+
+      emit(
+        'connectionDragStart',
+        clone(
+          state.connectionDrag
+        )
+      );
+
       renderDragConnection();
     }
+    function clearConnectionPickupVisuals(
+      drag =
+        state.connectionDrag
+    ) {
+      if (
+        drag?.pickupTimer
+      ) {
+        clearTimeout(
+          drag.pickupTimer
+        );
+        drag.pickupTimer =
+          null;
+      }
+
+      nodesLayer
+        .querySelectorAll(
+          '.vc-port-pickup-hover, .vc-port-picked'
+        )
+        .forEach(
+          element => {
+            element.classList.remove(
+              'vc-port-pickup-hover',
+              'vc-port-picked'
+            );
+          }
+        );
+
+      if (drag) {
+        drag.pickupCandidate =
+          null;
+      }
+    }
+
     function cancelConnectionDrag(notify = true) {
       const drag = state.connectionDrag;
+
       if (!drag) {
         dragLayer.textContent = '';
         return false;
       }
+
+      clearConnectionPickupVisuals(
+        drag
+      );
+
       if (notify) {
-        emit('connectionDragEnd', {
-          connected: false,
-          cancelled: true,
-          x: drag.x,
-          y: drag.y
-        });
+        emit(
+          'connectionDragEnd',
+          {
+            connected: false,
+            cancelled: true,
+            x: drag.x,
+            y: drag.y
+          }
+        );
       }
+
       try {
         viewport.releasePointerCapture(
           drag.pointerId
         );
       } catch {}
-      state.connectionDrag = null;
-      dragLayer.textContent = '';
+
+      state.connectionDrag =
+        null;
+
+      dragLayer.textContent =
+        '';
+
       renderConnections();
+
       return true;
     }
+    function findPortHitElement(
+      endpointValue,
+      direction
+    ) {
+      return [
+        ...nodesLayer
+          .querySelectorAll(
+            '.vc-port-hit'
+          )
+      ].find(
+        element =>
+          element.dataset
+            .portDir ===
+            direction &&
+          element.dataset
+            .nodeId ===
+            endpointValue.node &&
+          element.dataset
+            .portId ===
+            endpointValue.port
+      ) || null;
+    }
+
+    function sameEndpoint(
+      a,
+      b
+    ) {
+      return !!(
+        a &&
+        b &&
+        a.node === b.node &&
+        a.port === b.port
+      );
+    }
+
+    function scheduleConnectionPickup(
+      candidate
+    ) {
+      const drag =
+        state.connectionDrag;
+
+      if (
+        !drag ||
+        drag.direction !==
+          'output'
+      ) {
+        return;
+      }
+
+      const anchors =
+        Array.isArray(
+          drag.anchors
+        )
+          ? drag.anchors
+          : [];
+
+      if (
+        !candidate ||
+        anchors.some(
+          anchor =>
+            sameEndpoint(
+              anchor,
+              candidate
+            )
+        )
+      ) {
+        if (
+          drag.pickupTimer
+        ) {
+          clearTimeout(
+            drag.pickupTimer
+          );
+          drag.pickupTimer =
+            null;
+        }
+
+        const previous =
+          drag.pickupCandidate;
+
+        if (previous) {
+          findPortHitElement(
+            previous,
+            'output'
+          )
+            ?.classList
+            .remove(
+              'vc-port-pickup-hover'
+            );
+        }
+
+        drag.pickupCandidate =
+          null;
+
+        return;
+      }
+
+      if (
+        sameEndpoint(
+          drag.pickupCandidate,
+          candidate
+        )
+      ) {
+        return;
+      }
+
+      if (
+        drag.pickupTimer
+      ) {
+        clearTimeout(
+          drag.pickupTimer
+        );
+        drag.pickupTimer =
+          null;
+      }
+
+      if (
+        drag.pickupCandidate
+      ) {
+        findPortHitElement(
+          drag.pickupCandidate,
+          'output'
+        )
+          ?.classList
+          .remove(
+            'vc-port-pickup-hover'
+          );
+      }
+
+      drag.pickupCandidate =
+        clone(candidate);
+
+      findPortHitElement(
+        candidate,
+        'output'
+      )
+        ?.classList
+        .add(
+          'vc-port-pickup-hover'
+        );
+
+      drag.pickupTimer =
+        setTimeout(
+          () => {
+            const current =
+              state.connectionDrag;
+
+            if (
+              !current ||
+              current !== drag ||
+              current.direction !==
+                'output'
+            ) {
+              return;
+            }
+
+            const point =
+              screenToWorld(
+                current.x,
+                current.y
+              );
+
+            const hovered =
+              getPortAtWorldPoint(
+                point,
+                'output'
+              );
+
+            if (
+              !sameEndpoint(
+                hovered,
+                candidate
+              )
+            ) {
+              scheduleConnectionPickup(
+                hovered
+              );
+              return;
+            }
+
+            current.anchors.push(
+              clone(candidate)
+            );
+
+            const element =
+              findPortHitElement(
+                candidate,
+                'output'
+              );
+
+            element
+              ?.classList
+              .remove(
+                'vc-port-pickup-hover'
+              );
+
+            element
+              ?.classList
+              .add(
+                'vc-port-picked'
+              );
+
+            current.pickupCandidate =
+              null;
+            current.pickupTimer =
+              null;
+
+            emit(
+              'connectionDragPickup',
+              {
+                anchor:
+                  clone(
+                    candidate
+                  ),
+                anchors:
+                  clone(
+                    current.anchors
+                  )
+              }
+            );
+
+            renderDragConnection();
+          },
+          500
+        );
+    }
+
     function getPortAtWorldPoint(
       worldPoint,
       direction
