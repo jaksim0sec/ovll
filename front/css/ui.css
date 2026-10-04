@@ -701,9 +701,10 @@
   }
 
   #composer-form {
+    width: calc(100% - 1rem);
     min-height: 3.25rem;
-    padding: .375rem .375rem .375rem 1rem;
-    gap: .5rem;
+    padding: .375rem .375rem .375rem .4375rem;
+    gap: .2rem;
   }
 
   #composer-input {
@@ -743,9 +744,10 @@
   }
 
   #composer-form {
+    width: calc(100% - .75rem);
     min-height: 3.1875rem;
-    padding: .375rem .375rem .375rem .9375rem;
-    gap: .4375rem;
+    padding: .375rem .375rem .375rem .375rem;
+    gap: .15rem;
   }
 
   #composer-input {
@@ -1227,12 +1229,6 @@
 }
 
 @media (max-width: 43.75rem) {
-  #composer-form {
-    width: calc(100% - 1rem);
-    gap: .2rem;
-    padding-left: .4375rem;
-  }
-
   #composer-attach {
     width: 2rem;
     height: 2rem;
@@ -1243,12 +1239,6 @@
 }
 
 @media (max-width: 26.25rem) {
-  #composer-form {
-    width: calc(100% - .75rem);
-    gap: .15rem;
-    padding-left: .375rem;
-  }
-
   #composer-attach {
     width: 1.9375rem;
     height: 1.9375rem;
