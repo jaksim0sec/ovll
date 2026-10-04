@@ -737,6 +737,154 @@
       scheduleConnectionRender();
     });
     observers.push(() => nodeResizeObserver.disconnect());
+    function nodeReadyForExecution(node) {
+      const runtimeCheck =
+        global.OvllExecutionEngine
+          ?.isNodeReadyForExecution;
+
+      if (
+        typeof runtimeCheck ===
+          'function'
+      ) {
+        return !!runtimeCheck(node);
+      }
+
+      if (!node) {
+        return false;
+      }
+
+      if (node.type === 'start') {
+        return true;
+      }
+
+      if (node.type === 'file') {
+        return !!(
+          node.data?.generated ||
+          node.data?.source === 'upload' ||
+          node.data?.fileId ||
+          (
+            typeof node.data?.name ===
+              'string' &&
+            node.data.name.trim()
+          )
+        );
+      }
+
+      return Object.values(
+        node.data?.params || {}
+      ).some(value =>
+        String(value ?? '').trim()
+      );
+    }
+
+    function runScopeReady(nodeId) {
+      const startId =
+        String(nodeId || '');
+
+      if (!startId) {
+        return false;
+      }
+
+      const scope = new Set();
+      const queue = [startId];
+
+      while (queue.length) {
+        const current =
+          queue.shift();
+
+        if (
+          !current ||
+          scope.has(current)
+        ) {
+          continue;
+        }
+
+        scope.add(current);
+
+        for (
+          const connection
+          of state.connections
+        ) {
+          if (
+            connection.from.node ===
+              current
+          ) {
+            queue.push(
+              connection.to.node
+            );
+          }
+
+          if (
+            connection.to.node ===
+              current
+          ) {
+            queue.push(
+              connection.from.node
+            );
+          }
+        }
+      }
+
+      for (const id of scope) {
+        if (
+          !nodeReadyForExecution(
+            getNode(id)
+          )
+        ) {
+          return false;
+        }
+      }
+
+      return true;
+    }
+
+    function syncRunButtonStates() {
+      for (
+        const element
+        of nodesLayer.querySelectorAll(
+          '.vc-node'
+        )
+      ) {
+        const node =
+          getNode(
+            element.dataset.nodeId
+          );
+
+        const button =
+          element.querySelector(
+            '.vc-node-run'
+          );
+
+        if (!node || !button) {
+          continue;
+        }
+
+        const cancelling =
+          state.runLocked &&
+          state.runPivot === node.id;
+
+        const disabled =
+          !cancelling &&
+          (
+            state.runLocked ||
+            !runScopeReady(node.id)
+          );
+
+        button.disabled =
+          disabled;
+
+        button.setAttribute(
+          'aria-disabled',
+          String(disabled)
+        );
+
+        button.classList.toggle(
+          'is-disabled',
+          disabled
+        );
+      }
+    }
+
     function renderNodes() {
       nodesLayer.textContent = '';
       for (const node of state.nodes) {
@@ -836,11 +984,11 @@
                 : `
                   <button
                     type="button"
-                    class="vc-node-run${state.runLocked && state.runPivot === node.id ? ' is-cancel' : state.runLocked || runtimeState?.status === 'RUNNING' ? ' is-running' : ''}"
+                    class="vc-node-run${state.runLocked && state.runPivot === node.id ? ' is-cancel' : state.runLocked || runtimeState?.status === 'RUNNING' ? ' is-running' : ''}${!state.runLocked && !runScopeReady(node.id) ? ' is-disabled' : ''}"
                     data-action="${state.runLocked && state.runPivot === node.id ? 'cancel-run' : 'run'}"
-                    aria-label="${state.runLocked && state.runPivot === node.id ? '실행 중단' : '이 노드부터 실행'}"
-                    aria-disabled="${state.runLocked && state.runPivot !== node.id ? 'true' : 'false'}"
-                    ${state.runLocked && state.runPivot !== node.id ? 'disabled' : ''}
+                    aria-label="${state.runLocked && state.runPivot === node.id ? '실행 중단' : !runScopeReady(node.id) ? '실행할 내용 필요' : '이 노드부터 실행'}"
+                    aria-disabled="${state.runLocked && state.runPivot !== node.id || !state.runLocked && !runScopeReady(node.id) ? 'true' : 'false'}"
+                    ${state.runLocked && state.runPivot !== node.id || !state.runLocked && !runScopeReady(node.id) ? 'disabled' : ''}
                   >
                     ${state.runLocked && state.runPivot === node.id ? icons.stop : icons.run}
                     <span>${state.runLocked && state.runPivot === node.id ? '중단하기' : '실행하기'}</span>
@@ -3791,7 +3939,11 @@
           action.dataset.action ===
           'run'
         ) {
-          if (state.runLocked) {
+          if (
+            state.runLocked ||
+            action.disabled ||
+            !runScopeReady(node.id)
+          ) {
             return;
           }
 
@@ -3896,6 +4048,8 @@
         renderConnections();
       });
     }
+
+    syncRunButtonStates();
 
     emit('nodeEdit', {
       id: node.id,
