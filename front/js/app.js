@@ -2131,7 +2131,6 @@
         <span class="astra-runtime-activity-spark" aria-hidden="true">
           <span></span>
         </span>
-        <span class="astra-runtime-activity-title">실행 과정</span>
         <span class="astra-runtime-activity-meta">준비 중</span>
         <svg class="astra-runtime-activity-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
           <path d="M6.5 8 10 11.5 13.5 8" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round"/>
