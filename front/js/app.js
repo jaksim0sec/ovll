@@ -4774,6 +4774,9 @@
             );
         }
 
+        state.workflowProposal =
+          null;
+
         state.restoringConversation =
           true;
 
@@ -5853,6 +5856,7 @@ listen(composerInput, "keydown", handleComposerKeydown);
       state.nodeBuilder.root = null;
       state.nodeBuilder.open = false;
       state.workflow = null;
+      state.workflowProposal = null;
       state.nodeDefinitions = null;
       state.conversationMemory = null;
       state.ready = false;
