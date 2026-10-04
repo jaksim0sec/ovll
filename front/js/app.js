@@ -3749,7 +3749,26 @@
      Planner
      ======================================================= */
   async function plan(text) {
-    const workflow = syncWorkflow();
+    if (
+      state.workflowProposal
+    ) {
+      commitPendingWorkflowProposal({
+        silent: true
+      });
+    }
+
+    const workflow =
+      syncWorkflow();
+
+    const beforeState =
+      state.canvas
+        ?.getState?.() ||
+      null;
+
+    const beforeWorkflow =
+      state.canvas
+        ?.getWorkflowIR?.() ||
+      workflow;
 
     const result =
       await API.planWorkflow(
@@ -3764,18 +3783,82 @@
       );
     }
 
-    state.workflow =
-      clone(result.workflow);
-
     if (
       result.mode === "workflow" &&
       state.canvas &&
       typeof state.canvas.applyWorkflowIR === "function"
     ) {
-      state.canvas.applyWorkflowIR(
-        result.workflow,
-        { center: true }
-      );
+      const changed =
+        JSON.stringify(
+          beforeWorkflow
+        ) !==
+        JSON.stringify(
+          result.workflow
+        );
+
+      if (changed) {
+        const proposal = {
+          id:
+            `workflow-proposal-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+          beforeState:
+            beforeState
+              ? clone(
+                  beforeState
+                )
+              : null,
+          applying: true
+        };
+
+        state.workflowProposal =
+          proposal;
+
+        try {
+          state.canvas
+            .applyWorkflowIR(
+              result.workflow,
+              {
+                center: true
+              }
+            );
+
+          result.workflowProposalId =
+            proposal.id;
+        } catch (error) {
+          if (
+            proposal.beforeState &&
+            state.canvas?.setState
+          ) {
+            try {
+              state.canvas.setState(
+                clone(
+                  proposal.beforeState
+                )
+              );
+            } catch {}
+          }
+
+          state.workflowProposal =
+            null;
+
+          throw error;
+        } finally {
+          proposal.applying =
+            false;
+        }
+
+        state.workflow =
+          getCurrentWorkflow();
+      } else {
+        state.workflow =
+          clone(
+            result.workflow
+          );
+      }
+    } else {
+      state.workflow =
+        clone(
+          result.workflow
+        );
     }
 
     if (result.memory) {
@@ -3839,22 +3922,32 @@
 
       if (
         result.message ||
-        result.question
+        result.question ||
+        result.workflowProposalId
       ) {
+        const assistantText =
+          result.message ||
+          (
+            result.workflowProposalId
+              ? "노드 구성을 바꿔봤어."
+              : ""
+          );
+
         const message =
           addAssistantMessage(
-            result.message ||
-            "",
+            assistantText,
             {
               question:
                 result.question,
               showCanvasView:
                 result.mode ===
                 "workflow",
+              workflowProposalId:
+                result.workflowProposalId,
               presenceSpeech:
                 presenceSpeechText(
                   result.question ||
-                  result.message
+                  assistantText
                 )
             }
           );
@@ -3865,7 +3958,7 @@
               resolve,
               revealAssistantMessage(
                 message,
-                result.message || ""
+                assistantText
               )
             )
           );
