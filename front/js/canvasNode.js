@@ -3692,7 +3692,7 @@
 
             renderDragConnection();
           },
-          500
+          200
         );
     }
 
@@ -3777,6 +3777,9 @@
       let connectedCount =
         0;
 
+      let changedCount =
+        0;
+
       if (
         drag.direction ===
           'output'
@@ -3802,16 +3805,51 @@
             const anchor
             of anchors
           ) {
+            const specification = {
+              from: {
+                node:
+                  String(
+                    anchor.node
+                  ),
+                port:
+                  String(
+                    anchor.port
+                  )
+              },
+              to: {
+                node:
+                  String(
+                    targetPort.node
+                  ),
+                port:
+                  String(
+                    targetPort.port
+                  )
+              }
+            };
+
+            const duplicate =
+              state.connections
+                .some(
+                  connection =>
+                    sameConnection(
+                      connection,
+                      specification
+                    )
+                );
+
             const created =
               connect(
                 anchor,
-                targetPort,
-                {
-                  toggleDuplicate:
-                    anchors.length <=
-                    1
-                }
+                targetPort
               );
+
+            if (
+              created ||
+              duplicate
+            ) {
+              changedCount++;
+            }
 
             if (created) {
               connectedCount++;
@@ -3834,12 +3872,13 @@
 
           if (created) {
             connectedCount = 1;
+            changedCount = 1;
           }
         }
       }
 
       const connected =
-        connectedCount > 0;
+        changedCount > 0;
 
       emit(
         'connectionDragEnd',
@@ -3854,6 +3893,7 @@
               : null,
           count:
             connectedCount,
+          changedCount,
           x:
             event.clientX,
           y:
