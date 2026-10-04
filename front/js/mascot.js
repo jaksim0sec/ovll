@@ -28,6 +28,11 @@ function installStyle(){
   --gaze-sy:1;
   --eye-tilt:0deg;
 
+  --mood-ex:0rem;
+  --mood-ey:0rem;
+  --mood-eye-tilt:0deg;
+  --mood-lean:0deg;
+
   --blink:1;
   --lean:0deg;
   --sx:1;
@@ -62,7 +67,11 @@ function installStyle(){
       rgba(255,255,255,.055);
 
   transform:translate(-50%,-50%);
-  rotate:var(--lean);
+  rotate:
+    calc(
+      var(--lean) +
+      var(--mood-lean)
+    );
   scale:var(--sx) var(--sy);
 
   transition:
@@ -91,8 +100,22 @@ function installStyle(){
   background:var(--eye-color);
 
   transform:
-    translate(var(--ex),var(--ey))
-    rotate(var(--eye-tilt))
+    translate(
+      calc(
+        var(--ex) +
+        var(--mood-ex)
+      ),
+      calc(
+        var(--ey) +
+        var(--mood-ey)
+      )
+    )
+    rotate(
+      calc(
+        var(--eye-tilt) +
+        var(--mood-eye-tilt)
+      )
+    )
     scale(
       var(--gaze-sx),
       calc(var(--blink) * var(--gaze-sy))
@@ -118,6 +141,7 @@ function installStyle(){
   --eye-w:.51rem;
   --eye-h:.16rem;
   --eye-radius:.1rem;
+  --mood-ey:-.035rem;
 }
 
 .ovll-mascot[data-mood="focus"],
@@ -131,6 +155,7 @@ function installStyle(){
   --eye-w:.49rem;
   --eye-h:.5rem;
   --eye-radius:.2rem;
+  --mood-lean:5deg;
 }
 
 .ovll-mascot[data-mood="surprised"]{
@@ -143,6 +168,8 @@ function installStyle(){
   --eye-w:.53rem;
   --eye-h:.105rem;
   --eye-radius:.06rem;
+  --mood-eye-tilt:-1.5deg;
+  --mood-lean:-.75deg;
 }
 
 .ovll-mascot[data-mood="success"],
@@ -150,6 +177,7 @@ function installStyle(){
   --eye-w:.49rem;
   --eye-h:.22rem;
   --eye-radius:.07rem .07rem .24rem .24rem;
+  --mood-ey:.03rem;
 }
 
 .ovll-mascot[data-mood="working"]{
@@ -162,24 +190,32 @@ function installStyle(){
   --eye-w:.46rem;
   --eye-h:.135rem;
   --eye-radius:.08rem;
+  --mood-eye-tilt:4deg;
+  --mood-lean:-4deg;
 }
 
 .ovll-mascot[data-mood="sleepy"]{
   --eye-w:.5rem;
   --eye-h:.07rem;
   --eye-radius:999px;
+  --mood-ey:.05rem;
 }
 
 .ovll-mascot[data-mood="confused"]{
   --eye-w:.405rem;
   --eye-h:.405rem;
   --eye-radius:.15rem;
+  --mood-eye-tilt:9deg;
+  --mood-lean:-6deg;
 }
 
 .ovll-mascot[data-mood="suspicious"]{
   --eye-w:.53rem;
   --eye-h:.095rem;
   --eye-radius:.055rem;
+  --mood-ex:.07rem;
+  --mood-eye-tilt:1.5deg;
+  --mood-lean:1.5deg;
 }
 
 :root.dark .ovll-mascot{
@@ -759,7 +795,7 @@ function mount(world,canvas,options={}){
     const tiltFactor=
       orb.dataset.mood===
         "annoyed"
-        ?-2.5
+        ?-1.4
         :-7;
 
     orb.style.setProperty(
