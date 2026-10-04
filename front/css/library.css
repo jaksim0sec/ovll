@@ -3,7 +3,12 @@
    ========================================================= */
 
 #library-page{
-  --library-nav-reserve:3.25rem;
+  --library-chrome-height:
+    calc(
+      var(--top-control-top) +
+      2.3rem +
+      .9rem
+    );
   position:absolute;
   z-index:var(--layer-page);
   inset:0;
@@ -45,7 +50,11 @@
   min-height:0;
   margin:0 auto;
   padding:
-    calc(var(--safe-top) + .9rem)
+    calc(
+      var(--safe-top) +
+      var(--library-chrome-height) +
+      .45rem
+    )
     max(1rem,var(--safe-right))
     calc(var(--safe-bottom) + .9rem)
     max(1rem,var(--safe-left));
@@ -66,7 +75,6 @@
 
 .ovll-library-title-row{
   min-width:0;
-  padding-left:var(--library-nav-reserve);
   display:grid;
   grid-template-columns:auto minmax(0,1fr);
   align-items:center;
@@ -503,7 +511,11 @@
     min-height:100%;
     overflow:visible;
     padding:
-      calc(var(--safe-top) + .55rem)
+      calc(
+        var(--safe-top) +
+        var(--library-chrome-height) +
+        .35rem
+      )
       max(.72rem,var(--safe-right))
       calc(var(--safe-bottom) + 1rem)
       max(.72rem,var(--safe-left));
@@ -519,7 +531,6 @@
 
   .ovll-library-title-row{
     min-height:2.7rem;
-    padding-left:var(--library-nav-reserve);
     grid-template-columns:minmax(0,1fr);
     align-items:center;
     gap:0;
