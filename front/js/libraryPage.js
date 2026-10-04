@@ -125,68 +125,6 @@ function formatOf(file){
     .format(file);
 }
 
-function isHtml(file){
-  const format=
-    formatOf(file);
-
-  const mime=
-    String(
-      file?.mime||""
-    ).toLowerCase();
-
-  return (
-    format==="HTML"||
-    format==="HTM"||
-    mime.includes(
-      "text/html"
-    )
-  );
-}
-
-function isImage(file){
-  return String(
-    file?.mime||""
-  )
-    .toLowerCase()
-    .startsWith("image/");
-}
-
-function isPdf(file){
-  return (
-    formatOf(file)==="PDF"||
-    String(
-      file?.mime||""
-    )
-      .toLowerCase()
-      .includes(
-        "application/pdf"
-      )
-  );
-}
-
-function isText(file){
-  const format=
-    formatOf(file);
-
-  return (
-    String(
-      file?.mime||""
-    )
-      .toLowerCase()
-      .startsWith("text/")||
-    [
-      "TXT",
-      "MD",
-      "JSON",
-      "CSV",
-      "RTF",
-      "XML",
-      "JS",
-      "CSS"
-    ].includes(format)
-  );
-}
-
 function visibleFiles(){
   const query=
     state.query
@@ -371,21 +309,12 @@ async function renderPreview(
   root,
   file
 ){
-  const hydrated=
-    await FileStore.hydrate(
-      file.localFileId||
-      file.id
-    )||
-    file;
-
   return PreviewEngine
     .render(
       root,
       {
         ...file,
-        ...hydrated,
         localFileId:
-          hydrated.localFileId||
           file.localFileId||
           file.id
       },
