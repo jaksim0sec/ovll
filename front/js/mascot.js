@@ -187,11 +187,11 @@ function installStyle(){
 }
 
 .ovll-mascot[data-mood="bumped"]{
-  --eye-w:.46rem;
-  --eye-h:.135rem;
-  --eye-radius:.08rem;
-  --mood-eye-tilt:4deg;
-  --mood-lean:-4deg;
+  --eye-w:.5rem;
+  --eye-h:.075rem;
+  --eye-radius:999px;
+  --mood-eye-tilt:0deg;
+  --mood-lean:0deg;
 }
 
 .ovll-mascot[data-mood="sleepy"]{
@@ -690,10 +690,24 @@ function mount(world,canvas,options={}){
       satelliteTimer
     );
 
-    const next=
+    let next=
       SATELLITE_MODES.has(mode)
         ?mode
         :"hidden";
+
+    const executionPoint=
+      next==="point"&&
+      orb.classList.contains(
+        "working"
+      );
+
+    if(
+      next!=="hidden"&&
+      next!=="orbit"&&
+      !executionPoint
+    ){
+      next="hidden";
+    }
 
     if(
       next==="point"&&
@@ -1788,13 +1802,12 @@ function mount(world,canvas,options={}){
 
     if(name==="error"){
       setMood(
-        "annoyed",
-        820
+        "focus",
+        620
       );
 
       setSatellite(
-        "drop",
-        {hold:680}
+        "hidden"
       );
 
       pulse(
@@ -2356,6 +2369,76 @@ function mount(world,canvas,options={}){
     orb,
     "pointercancel",
     pointerUp
+  );
+
+  listen(
+    viewport,
+    "pointerdown",
+    event=>{
+      if(
+        event.button!==undefined&&
+        event.button!==0
+      ){
+        return;
+      }
+
+      if(
+        orb.contains(
+          event.target
+        )
+      ){
+        return;
+      }
+
+      const clientX=
+        event.clientX;
+
+      const clientY=
+        event.clientY;
+
+      noteActivity();
+
+      gazePriority=20;
+      gazeUntil=
+        performance.now()+720;
+
+      attentionUntil=
+        gazeUntil;
+
+      requestAnimationFrame(
+        ()=>{
+          if(
+            performance.now()<
+              gazeUntil
+          ){
+            lookAt(
+              clientX,
+              clientY,
+              .205
+            );
+          }
+        }
+      );
+
+      setTimeout(
+        ()=>{
+          if(
+            !drag&&
+            !motion&&
+            performance.now()>=
+              gazeUntil
+          ){
+            gazePriority=0;
+            restoreGaze();
+          }
+        },
+        760
+      );
+    },
+    {
+      capture:true,
+      passive:true
+    }
   );
 
 
