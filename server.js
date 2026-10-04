@@ -87,7 +87,7 @@ const geminiExecution =
  * The frontend compares this server value with its locally stored version
  * before loading application assets.
  */
-const APP_VERSION = '2026.10.04.35';
+const APP_VERSION = '2026.10.04.36';
 
 /* =========================================================
    CANONICAL NODE DEFINITION
@@ -381,7 +381,7 @@ const defaultNodeDef = {
     color: '#718096',
     icon: `
       <svg viewBox="0 0 20 20" fill="none">
-        <path d="M16.4 9.2 9.15 16.45a4.5 4.5 0 0 1-6.36-6.36l7.85-7.85a3.25 3.25 0 0 1 4.6 4.6l-7.85 7.85a2 2 0 0 1-2.83-2.83l7.15-7.15" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M7.25 10.65 11.9 6a2.6 2.6 0 0 1 3.68 3.68l-5.9 5.9a3.8 3.8 0 0 1-5.38-5.38l5.45-5.45" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
     `,
     inputs: [],
