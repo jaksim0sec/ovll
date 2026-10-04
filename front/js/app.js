@@ -6937,11 +6937,27 @@ listen(composerInput, "keydown", handleComposerKeydown);
     async openLocalFile(
       fileId
     ) {
+      const id =
+        String(
+          fileId || ""
+        );
+
+      if (!id) {
+        return false;
+      }
+
+      if (
+        global.OvllLibraryPage
+          ?.open
+      ) {
+        return await global
+          .OvllLibraryPage
+          .open(id);
+      }
+
       const artifact =
         await FileStore.hydrate(
-          String(
-            fileId || ""
-          )
+          id
         );
 
       if (!artifact) {
