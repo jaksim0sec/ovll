@@ -467,6 +467,17 @@ function workAtNode(
     );
 }
 
+function mascotState(
+  name,
+  detail={}
+){
+  return state.canvasMascot
+    ?.setSituation?.(
+      name,
+      detail
+    );
+}
+
 function attachCanvasMascot(mascot){
   state.canvasMascot=mascot||null;
 
@@ -518,6 +529,7 @@ const api={
   hideCanvasSpeech,
   resetConversation,
   workAtNode,
+  mascotState,
   attachCanvasMascot,
   react(){
     if(
