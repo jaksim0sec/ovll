@@ -2458,6 +2458,8 @@
           );
         }
 
+        throwIfCancelled();
+
         const snapshot =
           Object.fromEntries(
             [...states.entries()].map(
@@ -2510,6 +2512,81 @@
 
         return result;
       } catch (error) {
+        const cancelled =
+          isRuntimeAbort(
+            error
+          ) ||
+          signal.aborted ||
+          this.cancelRequested;
+
+        if (cancelled) {
+          for (
+            const nodeId
+              of executionPlan.scope
+          ) {
+            const nodeState =
+              states.get(nodeId);
+
+            if (
+              nodeState?.status ===
+                "RUNNING" ||
+              nodeState?.status ===
+                "WAITING"
+            ) {
+              setState(
+                nodeId,
+                "SKIPPED",
+                {
+                  skipReason:
+                    "cancelled",
+                  finishedAt:
+                    Date.now()
+                }
+              );
+            }
+          }
+
+          const result = {
+            runId,
+            pivot,
+            mode,
+            status:
+              "CANCELLED",
+            workflow:
+              clone(workflow),
+            nodes:
+              Object.fromEntries(
+                [...states.entries()].map(
+                  ([id, state]) => [
+                    id,
+                    clone(state)
+                  ]
+                )
+              ),
+            error:
+              runtimeErrorState(
+                runtimeAbortError()
+              )
+          };
+
+          this.lastRun =
+            clone(result);
+
+          this.emit(
+            "run:finish",
+            {
+              runId,
+              pivot,
+              mode,
+              status:
+                "CANCELLED",
+              result
+            }
+          );
+
+          return result;
+        }
+
         const result = {
           runId,
           pivot,
@@ -2564,6 +2641,12 @@
 
         edgeRefs.clear();
         this.running = false;
+        this.abortController =
+          null;
+        this.activeRunId =
+          null;
+        this.cancelRequested =
+          false;
       }
     }
 
