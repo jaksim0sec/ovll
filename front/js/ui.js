@@ -19,6 +19,11 @@
       "#canvas-page"
     );
 
+  const libraryPage =
+    document.querySelector(
+      "#library-page"
+    );
+
   const modeSwitch =
     document.querySelector(
       "#mode-switch"
@@ -34,13 +39,20 @@
       '#mode-switch [data-mode="canvas"]'
     );
 
+  const modeLibrary =
+    document.querySelector(
+      '#mode-switch [data-mode="library"]'
+    );
+
   if (
     !workspace ||
     !chatPage ||
     !canvasPage ||
+    !libraryPage ||
     !modeSwitch ||
     !modeChat ||
-    !modeCanvas
+    !modeCanvas ||
+    !modeLibrary
   ) {
     throw new Error(
       "Astra UI DOM 구조가 올바르지 않습니다."
@@ -59,6 +71,52 @@
         value
       )
     );
+
+  const MODE_INDEX =
+    Object.freeze({
+      chat: 0,
+      canvas: 1,
+      library: 2
+    });
+
+  const MODES =
+    Object.keys(
+      MODE_INDEX
+    );
+
+  function normalizeMode(
+    mode
+  ) {
+    return MODES.includes(
+      mode
+    )
+      ? mode
+      : "chat";
+  }
+
+  function modeIndex(
+    mode
+  ) {
+    return MODE_INDEX[
+      normalizeMode(mode)
+    ];
+  }
+
+  function modeFromIndex(
+    value
+  ) {
+    const index =
+      clamp(
+        Math.round(
+          Number(value) || 0
+        ),
+        0,
+        2
+      );
+
+    return MODES[index] ||
+      "chat";
+  }
 
   const events =
     new Map();
@@ -97,10 +155,9 @@
           "mode"
         );
 
-    return value ===
-      "canvas"
-      ? "canvas"
-      : "chat";
+    return normalizeMode(
+      value
+    );
   }
 
   function setUrlMode(
@@ -114,9 +171,9 @@
 
       url.searchParams.set(
         "mode",
-        mode === "canvas"
-          ? "canvas"
-          : "chat"
+        normalizeMode(
+          mode
+        )
       );
 
       global.history
@@ -235,9 +292,9 @@
     mode:
       initialMode,
     progress:
-      initialMode === "canvas"
-        ? 1
-        : 0,
+      modeIndex(
+        initialMode
+      ),
     viewportWidth:
       getViewportWidth(),
     viewportHeight:
