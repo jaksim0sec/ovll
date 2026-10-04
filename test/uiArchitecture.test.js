@@ -161,11 +161,11 @@ test("library page header is visually below global app navigation", () => {
 
   assert.match(
     css,
-    /#library-page\s*\{[^}]*--library-chrome-height:\s*calc\(var\(--top-control-top\) \+ 2\.3rem \+ \.9rem\)/
+    /#library-page\s*\{[^}]*--library-chrome-height:\s*calc\(\s*var\(--top-control-top\) \+ 2\.3rem \+ \.9rem\s*\)/
   );
   assert.match(
     css,
-    /\.ovll-library-shell\s*\{[^}]*padding:[^}]*calc\(var\(--safe-top\) \+ var\(--library-chrome-height\)/
+    /\.ovll-library-shell\s*\{[^}]*padding:[^}]*calc\(\s*var\(--safe-top\) \+ var\(--library-chrome-height\)/
   );
   assert.doesNotMatch(
     css,
