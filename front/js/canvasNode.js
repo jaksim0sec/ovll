@@ -1739,6 +1739,59 @@
       emit('change', getWorkflow());
       return connection;
     }
+    function toggleConnection(
+      from,
+      to
+    ) {
+      const specification = {
+        from: {
+          node: String(from.node),
+          port: String(from.port)
+        },
+        to: {
+          node: String(to.node),
+          port: String(to.port)
+        }
+      };
+
+      const duplicate =
+        state.connections.find(
+          connection =>
+            sameConnection(
+              connection,
+              specification
+            )
+        );
+
+      if (duplicate) {
+        return {
+          changed:
+            disconnect(
+              duplicate.id
+            ),
+          connected:
+            false
+        };
+      }
+
+      const created =
+        connect(
+          specification.from,
+          specification.to,
+          {
+            toggleDuplicate:
+              false
+          }
+        );
+
+      return {
+        changed:
+          !!created,
+        connected:
+          !!created
+      };
+    }
+
     function disconnect(id) {
       const index = state.connections.findIndex(
         connection => connection.id === id
@@ -3805,53 +3858,21 @@
             const anchor
             of anchors
           ) {
-            const specification = {
-              from: {
-                node:
-                  String(
-                    anchor.node
-                  ),
-                port:
-                  String(
-                    anchor.port
-                  )
-              },
-              to: {
-                node:
-                  String(
-                    targetPort.node
-                  ),
-                port:
-                  String(
-                    targetPort.port
-                  )
-              }
-            };
-
-            const duplicate =
-              state.connections
-                .some(
-                  connection =>
-                    sameConnection(
-                      connection,
-                      specification
-                    )
-                );
-
-            const created =
-              connect(
+            const result =
+              toggleConnection(
                 anchor,
                 targetPort
               );
 
             if (
-              created ||
-              duplicate
+              result.changed
             ) {
               changedCount++;
             }
 
-            if (created) {
+            if (
+              result.connected
+            ) {
               connectedCount++;
             }
           }
@@ -3864,15 +3885,22 @@
           );
 
         if (targetPort) {
-          const created =
-            connect(
+          const result =
+            toggleConnection(
               targetPort,
               drag.anchor
             );
 
-          if (created) {
-            connectedCount = 1;
+          if (
+            result.changed
+          ) {
             changedCount = 1;
+          }
+
+          if (
+            result.connected
+          ) {
+            connectedCount = 1;
           }
         }
       }
