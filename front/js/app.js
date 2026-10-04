@@ -1330,10 +1330,73 @@
     return root;
   }
 
+  function normalizeGeneratedBlocks(
+    value,
+    blocks
+  ) {
+    if (
+      Array.isArray(blocks) &&
+      blocks.length
+    ) {
+      const normalized =
+        blocks
+          .map(
+            block => {
+              if (
+                !block ||
+                typeof block !==
+                  "object"
+              ) {
+                return null;
+              }
+
+              const type =
+                String(
+                  block.type || ""
+                );
+
+              if (
+                ![
+                  "markup",
+                  "code",
+                  "live-html"
+                ].includes(type)
+              ) {
+                return null;
+              }
+
+              return {
+                type,
+                language:
+                  String(
+                    block.language || ""
+                  )
+                    .toLowerCase()
+                    .slice(0,24),
+                value:
+                  String(
+                    block.value ?? ""
+                  )
+              };
+            }
+          )
+          .filter(Boolean);
+
+      if (normalized.length) {
+        return normalized;
+      }
+    }
+
+    return generatedChatBlocks(
+      value
+    );
+  }
+
   function renderGeneratedChat(
     element,
     value,
-    artifacts=[]
+    artifacts=[],
+    structuredBlocks=[]
   ) {
     if (!element) {
       return;
@@ -1346,8 +1409,9 @@
     );
 
     const blocks =
-      generatedChatBlocks(
-        value
+      normalizeGeneratedBlocks(
+        value,
+        structuredBlocks
       );
 
     for (
@@ -2978,7 +3042,8 @@
       renderGeneratedChat(
         body,
         value,
-        artifactList
+        artifactList,
+        options.blocks
       );
     } else {
       body.textContent =
@@ -3185,6 +3250,15 @@
         id,
         role,
         text: value,
+        blocks:
+          role === "assistant"
+            ? storageSafe(
+                normalizeGeneratedBlocks(
+                  value,
+                  options.blocks
+                )
+              ) || []
+            : [],
         question,
         showCanvasView:
           options.showCanvasView === true,
@@ -3289,7 +3363,17 @@
     const value =
       String(text ?? "").trim();
 
-    if (!value) return null;
+    if (
+      !value &&
+      !(
+        Array.isArray(
+          options.blocks
+        ) &&
+        options.blocks.length
+      )
+    ) {
+      return null;
+    }
 
     const message =
       createMessage(
@@ -3311,11 +3395,6 @@
       );
 
     if (!body) return 0;
-
-    renderChatMarkup(
-      body,
-      text
-    );
 
     body.classList.remove(
       "is-revealing"
@@ -4961,6 +5040,8 @@
                 "workflow",
               workflowProposalId:
                 result.workflowProposalId,
+              blocks:
+                result.blocks,
               presenceSpeech:
                 presenceSpeechText(
                   result.question ||
@@ -5945,6 +6026,8 @@
                   item.showCanvasView,
                 artifacts:
                   item.artifacts,
+                blocks:
+                  item.blocks,
                 createdAt:
                   item.createdAt,
                 persist:
