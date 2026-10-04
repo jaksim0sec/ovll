@@ -1498,7 +1498,7 @@
       .formatSize(value);
   }
 
-  async function hydrateArtifactReference(  async function hydrateArtifactReference(
+  async function hydrateArtifactReference(
     artifact
   ) {
     if (
@@ -1845,7 +1845,7 @@
       .visual(artifact);
   }
 
-  function artifactCanPreview(  function artifactCanPreview(
+  function artifactCanPreview(
     artifact
   ) {
     const format =
