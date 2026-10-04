@@ -427,8 +427,7 @@
     );
 }
 
-.vc-node-run.is-running
-.vc-run-spark-main {
+.vc-node-run.is-running svg {
   transform-origin: center;
   animation:
     vc-node-run-pulse
@@ -437,32 +436,16 @@
     infinite;
 }
 
-.vc-node-run.is-running
-.vc-run-spark-small {
-  transform-origin: center;
-  animation:
-    vc-node-run-orbit
-    1.4s
-    linear
-    infinite;
-}
-
 @keyframes vc-node-run-pulse {
   0%,
   100% {
-    opacity: .45;
-    transform: scale(.82);
+    opacity: .52;
+    transform: scale(.92);
   }
 
   50% {
     opacity: 1;
     transform: scale(1);
-  }
-}
-
-@keyframes vc-node-run-orbit {
-  to {
-    transform: rotate(180deg);
   }
 }
 
