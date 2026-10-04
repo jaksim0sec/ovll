@@ -21,13 +21,13 @@
     `,
     delete: `
       <svg viewBox="0 0 20 20" fill="none" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-        <path d="M6 6.2h8M8 6.2V4.9h4v1.3M7.25 8.35l.5 6h4.5l.5-6" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M6.25 6.45h7.5M8.15 6.45V5.2h3.7v1.25M7.2 8.45v4.9c0 .8.65 1.45 1.45 1.45h2.7c.8 0 1.45-.65 1.45-1.45v-4.9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
     `,
     run: `
       <svg viewBox="0 0 20 20" fill="none" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-        <path class="vc-run-spark-main" d="M9.55 4c.32 3.15 1.67 4.5 4.82 4.82-3.15.32-4.5 1.67-4.82 4.82-.32-3.15-1.67-4.5-4.82-4.82C7.88 8.5 9.23 7.15 9.55 4Z" stroke="currentColor" stroke-width="1.45" stroke-linejoin="round"/>
-        <circle class="vc-run-spark-small" cx="15.1" cy="14.7" r="1.1" fill="currentColor"/>
+        <circle cx="10" cy="10" r="6.15" stroke="currentColor" stroke-width="1.5"/>
+        <path d="M8.45 7.35 12.7 10l-4.25 2.65v-5.3Z" fill="currentColor"/>
       </svg>
     `,
     stop: `
