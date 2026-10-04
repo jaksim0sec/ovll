@@ -61,6 +61,7 @@
     busy: false,
     canvas: null,
     workflow: null,
+    workflowProposal: null,
     nodeDefinitions: null,
     conversationMemory: null,
     runtime: null,
@@ -311,7 +312,7 @@
         null;
     }
 
-    const canvasState =
+    const liveCanvasState =
       state.canvas
         ?.getState?.() ||
       {
@@ -323,6 +324,15 @@
             connections: []
           }
       };
+
+    const canvasState =
+      state.workflowProposal
+        ?.beforeState
+        ? clone(
+            state.workflowProposal
+              .beforeState
+          )
+        : liveCanvasState;
 
     return WorkspaceStore
       .updateConversationState(
@@ -3377,16 +3387,153 @@
     return workflow;
   }
 
+  function acceptWorkflowProposal(
+    proposalId,
+    options = {}
+  ) {
+    const proposal =
+      state.workflowProposal;
+
+    if (
+      !proposal ||
+      proposal.id !==
+        String(
+          proposalId || ""
+        )
+    ) {
+      return false;
+    }
+
+    state.workflowProposal =
+      null;
+
+    state.workflow =
+      getCurrentWorkflow();
+
+    settleWorkflowProposalUi(
+      proposal.id,
+      "accepted",
+      options.silent === true
+    );
+
+    scheduleWorkspaceSave(
+      options.immediate === false
+        ? 180
+        : 0
+    );
+
+    return true;
+  }
+
+  function rejectWorkflowProposal(
+    proposalId,
+    options = {}
+  ) {
+    const proposal =
+      state.workflowProposal;
+
+    if (
+      !proposal ||
+      proposal.id !==
+        String(
+          proposalId || ""
+        )
+    ) {
+      return false;
+    }
+
+    proposal.applying =
+      true;
+
+    try {
+      if (
+        proposal.beforeState &&
+        state.canvas?.setState
+      ) {
+        state.canvas.setState(
+          clone(
+            proposal.beforeState
+          )
+        );
+      }
+    } finally {
+      proposal.applying =
+        false;
+    }
+
+    state.workflowProposal =
+      null;
+
+    state.workflow =
+      getCurrentWorkflow();
+
+    settleWorkflowProposalUi(
+      proposal.id,
+      "reverted",
+      options.silent === true
+    );
+
+    scheduleWorkspaceSave(0);
+
+    return true;
+  }
+
+  function commitPendingWorkflowProposal(
+    options = {}
+  ) {
+    const proposal =
+      state.workflowProposal;
+
+    if (
+      !proposal ||
+      proposal.applying
+    ) {
+      return false;
+    }
+
+    return acceptWorkflowProposal(
+      proposal.id,
+      {
+        silent:
+          options.silent !==
+          false,
+        immediate:
+          options.immediate
+      }
+    );
+  }
+
   function handleCanvasChange(workflow) {
     if (!workflow) return;
-    state.workflow = clone(workflow);
+
+    if (
+      state.workflowProposal &&
+      !state.workflowProposal
+        .applying
+    ) {
+      commitPendingWorkflowProposal({
+        silent: true
+      });
+    }
+
+    state.workflow =
+      clone(workflow);
+
     scheduleWorkspaceSave();
   }
 
   function handleCanvasWorkflowApplied(workflow) {
     if (!workflow) return;
-    state.workflow = clone(workflow);
-    scheduleWorkspaceSave();
+
+    state.workflow =
+      clone(workflow);
+
+    if (
+      !state.workflowProposal
+        ?.applying
+    ) {
+      scheduleWorkspaceSave();
+    }
   }
 
   /* =======================================================
