@@ -119,6 +119,16 @@ test("library keeps desktop browser context and uses replacement detail on mobil
   );
 });
 
+test("global overlays use the semantic layer scale", () => {
+  const chatCss = compact(read("front/css/chat.css"));
+
+  assert.match(
+    chatCss,
+    /\.astra-artifact-preview-root\s*\{[^}]*z-index:\s*var\(--layer-overlay\)/
+  );
+  assert.doesNotMatch(chatCss, /z-index:\s*1200/);
+});
+
 test("chat user action states are independent selectors", () => {
   const css = compact(read("front/css/chat.css"));
 
