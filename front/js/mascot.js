@@ -200,11 +200,11 @@ function installStyle(){
     var(--body-color);
 
   box-shadow:
-    0 .22rem .7rem rgba(0,0,0,.2),
-    0 0 .75rem
+    0 .1rem .38rem rgba(0,0,0,.2),
+    0 0 .62rem
       color-mix(
         in srgb,
-        var(--react-color) 25%,
+        var(--react-color) 22%,
         transparent
       );
 }
