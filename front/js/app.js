@@ -1134,7 +1134,10 @@
         kind: "pdf",
         color: "#e36f63",
         icon: `
-          <span class="astra-artifact-pdf-label" aria-hidden="true">PDF</span>
+          <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <rect x="3.15" y="3.15" width="13.7" height="13.7" rx="3.5" stroke="currentColor" stroke-width="1.45"/>
+            <text x="10" y="11.35" text-anchor="middle" fill="currentColor" font-size="4.15" font-weight="800" font-family="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif" letter-spacing="-.16">PDF</text>
+          </svg>
         `
       };
     }
@@ -1158,8 +1161,8 @@
         icon: `
           <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
             <rect x="3.15" y="3.15" width="13.7" height="13.7" rx="3.5" stroke="currentColor" stroke-width="1.45"/>
-            <circle cx="7.2" cy="7.4" r="1.35" fill="currentColor"/>
-            <path d="m5.2 14 3.15-3.25 2.2 2.05 1.55-1.55 2.7 2.75" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="7.15" cy="7.45" r="1.05" fill="currentColor"/>
+            <path d="m5.15 13.95 3.05-3.1 2.25 2.05 1.45-1.45 2.95 2.5" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         `
       };
@@ -1184,8 +1187,8 @@
         color: "#5d8fd8",
         icon: `
           <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
-            <rect x="4.1" y="2.7" width="11.8" height="14.6" rx="3.15" stroke="currentColor" stroke-width="1.45"/>
-            <path d="M7.2 7.35h5.6M7.2 10.1h5.6M7.2 12.85h3.7" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/>
+            <rect x="3.15" y="3.15" width="13.7" height="13.7" rx="3.5" stroke="currentColor" stroke-width="1.45"/>
+            <path d="M6.25 7.25h7.5M6.25 10h7.5M6.25 12.75h5.2" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/>
           </svg>
         `
       };
