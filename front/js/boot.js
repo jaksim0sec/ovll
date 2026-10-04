@@ -43,17 +43,10 @@ function finishBoot(){
 }
 
 function failBoot(){
-  const root=
-    document.documentElement;
-
   const screen=
     document.querySelector(
       "#boot-screen"
     );
-
-  root.classList.remove(
-    "ovll-booting"
-  );
 
   if(screen){
     screen.classList.add(
