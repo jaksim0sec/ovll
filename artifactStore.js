@@ -222,16 +222,45 @@ function inlineDocumentText(value) {
     .trim();
 }
 
+function normalizeInlineDocumentStructure(
+  value
+){
+  let text=
+    String(value??"")
+      .replace(/\r\n?/g,"\n")
+      .replace(
+        /([^\n])\s+(#{1,4}\s+)/g,
+        "$1\n$2"
+      );
+
+  const lineBreaks=
+    (text.match(/\n/g)||[])
+      .length;
+
+  if(
+    text.length>180&&
+    lineBreaks<2
+  ){
+    text=text.replace(
+      /([.!?。])\s+(?=[^\s])/g,
+      "$1\n"
+    );
+  }
+
+  return text;
+}
+
 function normalizeDocumentMarkup(value) {
-  return String(value ?? '')
+  return normalizeInlineDocumentStructure(
+    value
+  )
     .replace(/<\s*br\s*\/?\s*>/gi, '\n')
     .replace(/<\s*li\b[^>]*>/gi, '- ')
     .replace(/<\s*h1\b[^>]*>/gi, '# ')
     .replace(/<\s*h2\b[^>]*>/gi, '## ')
     .replace(/<\s*h3\b[^>]*>/gi, '### ')
     .replace(/<\s*blockquote\b[^>]*>/gi, '> ')
-    .replace(/<\s*\/\s*(?:p|div|li|h[1-6]|blockquote|pre|section|article)\s*>/gi, '\n')
-    .replace(/\r\n?/g, '\n');
+    .replace(/<\s*\/\s*(?:p|div|li|h[1-6]|blockquote|pre|section|article)\s*>/gi, '\n');
 }
 
 function markdownTableCells(line) {
@@ -257,6 +286,34 @@ function parsePdfBlocks(sources) {
   const lines = text.split('\n');
   const blocks = [];
   let paragraph = [];
+
+  const firstContentIndex=
+    lines.findIndex(
+      line=>line.trim()
+    );
+
+  if(firstContentIndex>=0){
+    const first=
+      lines[firstContentIndex]
+        .trim();
+
+    const next=
+      lines
+        .slice(firstContentIndex+1)
+        .find(line=>line.trim())
+        ?.trim()||
+      "";
+
+    if(
+      first.length<=72&&
+      !/^#{1,3}\s+/.test(first)&&
+      /^#{1,3}\s+/.test(next)&&
+      !/[.!?。]$/.test(first)
+    ){
+      lines[firstContentIndex]=
+        "# "+first;
+    }
+  }
 
   const flushParagraph = () => {
     const value = inlineDocumentText(paragraph.join(' '));
@@ -469,15 +526,71 @@ function pdfNumber(value) {
   return Number(value).toFixed(2).replace(/\.00$/, '').replace(/(\.\d)0$/, '$1');
 }
 
-function pdfTextCommand(text, x, y, size, font = 'F1', gray = .15) {
-  return [
-    'BT',
-    '/' + font + ' ' + pdfNumber(size) + ' Tf',
-    pdfNumber(gray) + ' g',
-    pdfNumber(x) + ' ' + pdfNumber(y) + ' Td',
-    '<' + utf16Hex(text) + '> Tj',
-    'ET'
-  ].join('\n');
+function pdfPositionedTextCommand(
+  text,
+  x,
+  y,
+  size,
+  font="F1",
+  gray=.15
+){
+  const commands=[
+    "BT",
+    "/"+font+" "+pdfNumber(size)+" Tf",
+    pdfNumber(gray)+" g"
+  ];
+
+  let cursor=
+    Number(x)||0;
+
+  for(
+    const char
+    of Array.from(
+      String(text??"")
+    )
+  ){
+    const advance=
+      pdfGlyphUnits(char)*
+      size;
+
+    if(!/\s/.test(char)){
+      commands.push(
+        "1 0 0 1 "+
+        pdfNumber(cursor)+" "+
+        pdfNumber(y)+" Tm"
+      );
+
+      commands.push(
+        "<"+
+        utf16Hex(char)+
+        "> Tj"
+      );
+    }
+
+    cursor+=advance;
+  }
+
+  commands.push("ET");
+
+  return commands.join("\n");
+}
+
+function pdfTextCommand(
+  text,
+  x,
+  y,
+  size,
+  font="F1",
+  gray=.15
+){
+  return pdfPositionedTextCommand(
+    text,
+    x,
+    y,
+    size,
+    font,
+    gray
+  );
 }
 
 function pdfBuffer(sources, metadata = {}) {
@@ -840,7 +953,7 @@ function pdfBuffer(sources, metadata = {}) {
   objects.set(
     fontBodyCidId,
     '<< /Type /Font /Subtype /CIDFontType0 /BaseFont /HYSMyeongJo-Medium ' +
-    '/CIDSystemInfo << /Registry (Adobe) /Ordering (Korea1) /Supplement 2 >> >>'
+    '/CIDSystemInfo << /Registry (Adobe) /Ordering (Korea1) /Supplement 2 >> /DW 1000 >>'
   );
   objects.set(
     fontHeadId,
@@ -850,7 +963,7 @@ function pdfBuffer(sources, metadata = {}) {
   objects.set(
     fontHeadCidId,
     '<< /Type /Font /Subtype /CIDFontType0 /BaseFont /HYGoThic-Medium ' +
-    '/CIDSystemInfo << /Registry (Adobe) /Ordering (Korea1) /Supplement 2 >> >>'
+    '/CIDSystemInfo << /Registry (Adobe) /Ordering (Korea1) /Supplement 2 >> /DW 1000 >>'
   );
   objects.set(
     infoId,
@@ -906,9 +1019,90 @@ function rtfBuffer(sources) {
   return Buffer.from('{\\rtf1\\ansi\\deff0 ' + body + '}', 'utf8');
 }
 
+function stripHtmlFence(
+  value
+){
+  const text=
+    String(value??"")
+      .trim();
+
+  const fenced=
+    text.match(
+      /^(?:\x60{3,}|~{3,})\s*(?:html?|xml)?\s*\n([\s\S]*?)\n(?:\x60{3,}|~{3,})\s*$/i
+    );
+
+  return fenced
+    ?fenced[1].trim()
+    :text;
+}
+
+function ensureHtmlDocument(
+  value
+){
+  const source=
+    stripHtmlFence(value);
+
+  if(!source){
+    return '<!doctype html><html><head><meta charset="utf-8"><title>ovll result</title></head><body></body></html>';
+  }
+
+  const looksLikeMarkup=
+    /<!doctype\s+html|<html\b|<body\b|<main\b|<section\b|<article\b|<div\b|<h[1-6]\b|<p\b|<style\b|<script\b/i
+      .test(source);
+
+  if(!looksLikeMarkup){
+    const body=
+      normalizeInlineDocumentStructure(
+        source
+      )
+        .split(/\n+/)
+        .map(
+          line=>
+            '<p>'+
+            xmlEscape(line||' ')+
+            '</p>'
+        )
+        .join('');
+
+    return '<!doctype html><html><head><meta charset="utf-8"><title>ovll result</title></head><body>'+
+      body+
+      '</body></html>';
+  }
+
+  if(/<html\b/i.test(source)){
+    let document=
+      /^\s*<!doctype\s+html/i
+        .test(source)
+        ?source
+        :'<!doctype html>'+source;
+
+    if(
+      !/<meta\s+[^>]*charset=/i
+        .test(document)
+    ){
+      document=document.replace(
+        /<head(\s[^>]*)?>/i,
+        match=>
+          match+
+          '<meta charset="utf-8">'
+      );
+    }
+
+    return document;
+  }
+
+  return '<!doctype html><html><head><meta charset="utf-8"><title>ovll result</title></head><body>'+
+    source+
+    '</body></html>';
+}
+
 function htmlBuffer(sources) {
-  const body = sourceText(sources).split(/\r?\n/).map(line => '<p>' + xmlEscape(line || ' ') + '</p>').join('');
-  return Buffer.from('<!doctype html><html><head><meta charset="utf-8"><title>ovll result</title></head><body>' + body + '</body></html>', 'utf8');
+  return Buffer.from(
+    ensureHtmlDocument(
+      sourceText(sources)
+    ),
+    'utf8'
+  );
 }
 
 async function buildBuffer(format, sources, metadata = {}) {
