@@ -751,3 +751,250 @@ test("local executor refuses Gemini-capable nodes", async () => {
     /server group/
   );
 });
+
+
+test("unchanged intermediate results are reused but param changes invalidate cache", async () => {
+  const calls = [];
+
+  const engine =
+    new RuntimeEngine({
+      executor: {
+        async run() {
+          throw new Error(
+            "unexpected local run"
+          );
+        },
+        async runGroup(
+          group
+        ) {
+          const ids =
+            group.nodes.map(
+              item => item.id
+            );
+
+          calls.push(ids);
+
+          return {
+            results:
+              group.nodes.map(
+                item => ({
+                  nodeId:
+                    item.id,
+                  outputs: {
+                    result:
+                      `${item.id}:${item.params.request}`
+                  },
+                  decision:
+                    null,
+                  report:
+                    item.id
+                })
+              )
+          };
+        }
+      }
+    });
+
+  const graph =
+    workflow(
+      [
+        {
+          id: "research",
+          type: "research",
+          data: {
+            params: {
+              request:
+                "first"
+            }
+          }
+        },
+        {
+          id: "write",
+          type: "write",
+          data: {
+            params: {
+              request:
+                "write"
+            }
+          }
+        }
+      ],
+      [
+        edge(
+          "rw",
+          "research",
+          "write"
+        )
+      ]
+    );
+
+  await engine.run(
+    graph,
+    "research",
+    {
+      mode: "spread",
+      cacheContext: {
+        conversationId: "one",
+        userRequest: "same"
+      }
+    }
+  );
+
+  await engine.run(
+    graph,
+    "write",
+    {
+      mode: "target",
+      cacheContext: {
+        conversationId: "one",
+        userRequest: "same"
+      }
+    }
+  );
+
+  assert.deepEqual(
+    calls,
+    [
+      ["research", "write"],
+      ["write"]
+    ]
+  );
+
+  graph.nodes[0]
+    .data.params.request =
+    "changed";
+
+  await engine.run(
+    graph,
+    "write",
+    {
+      mode: "target",
+      cacheContext: {
+        conversationId: "one",
+        userRequest: "same"
+      }
+    }
+  );
+
+  assert.deepEqual(
+    calls.slice(-2),
+    [
+      ["research"],
+      ["write"]
+    ]
+  );
+});
+
+test("cancel aborts an active group run cleanly", async () => {
+  let aborted = false;
+
+  const engine =
+    new RuntimeEngine({
+      executor: {
+        async run() {
+          return {
+            outputs: {}
+          };
+        },
+        async runGroup(
+          group,
+          context
+        ) {
+          await new Promise(
+            (resolve, reject) => {
+              const timer =
+                setTimeout(
+                  resolve,
+                  200
+                );
+
+              context.signal
+                .addEventListener(
+                  "abort",
+                  () => {
+                    clearTimeout(
+                      timer
+                    );
+
+                    aborted =
+                      true;
+
+                    const error =
+                      new Error(
+                        "aborted"
+                      );
+
+                    error.code =
+                      "REQUEST_ABORTED";
+
+                    reject(error);
+                  },
+                  {
+                    once: true
+                  }
+                );
+            }
+          );
+
+          return {
+            results:
+              group.nodes.map(
+                item => ({
+                  nodeId:
+                    item.id,
+                  outputs: {
+                    result:
+                      item.id
+                  },
+                  decision:
+                    null,
+                  report:
+                    item.id
+                })
+              )
+          };
+        }
+      }
+    });
+
+  const graph =
+    workflow(
+      [
+        node(
+          "research",
+          "research"
+        )
+      ],
+      []
+    );
+
+  const pending =
+    engine.run(
+      graph,
+      "research",
+      {
+        mode: "spread"
+      }
+    );
+
+  assert.equal(
+    engine.cancel(),
+    true
+  );
+
+  const result =
+    await pending;
+
+  assert.equal(
+    aborted,
+    true
+  );
+  assert.equal(
+    result.status,
+    "CANCELLED"
+  );
+  assert.equal(
+    engine.isRunning(),
+    false
+  );
+});
