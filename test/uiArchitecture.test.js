@@ -80,6 +80,18 @@ test("workspace controls have one consolidated ownership section", () => {
   assert.match(css, /WORKSPACE CONTROL SYSTEM/);
 });
 
+test("workspace control system does not re-patch responsive composer layout", () => {
+  const css = read("front/css/ui.css");
+  const start = css.indexOf("WORKSPACE CONTROL SYSTEM");
+  const end = css.indexOf("NON-BLOCKING ERROR NOTICE", start);
+  const section = css.slice(start, end);
+
+  assert.doesNotMatch(
+    section,
+    /@media\s*\(max-width:[\s\S]*?#composer-form\s*\{/
+  );
+});
+
 test("sidebar primary navigation is a single-column peer list", () => {
   const css = compact(read("front/css/shellMenu.css"));
 
