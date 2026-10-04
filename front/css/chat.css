@@ -1523,8 +1523,8 @@
 }
 
 
-.astra-message-user:hover
-.astra-message-user:focus-within
+.astra-message-user:hover,
+.astra-message-user:focus-within,
 .astra-message-user.is-actions-visible {
   --user-actions-opacity: .9;
 }
