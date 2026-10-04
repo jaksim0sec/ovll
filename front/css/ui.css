@@ -28,6 +28,49 @@
   pointer-events: none;
 }
 
+#topbar::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  top: 0;
+  right: 0;
+  left: 0;
+  height:
+    calc(
+      var(--safe-top) +
+      var(--topbar-height) +
+      2.25rem
+    );
+  background:
+    linear-gradient(
+      to bottom,
+      color-mix(
+        in srgb,
+        var(--bg) 82%,
+        transparent
+      ) 0%,
+      color-mix(
+        in srgb,
+        var(--bg) 58%,
+        transparent
+      ) 42%,
+      color-mix(
+        in srgb,
+        var(--bg) 24%,
+        transparent
+      ) 72%,
+      transparent 100%
+    );
+  filter: blur(.16rem);
+  pointer-events: none;
+}
+
+#topbar-left,
+#topbar-right,
+#mode-switch {
+  z-index: 1;
+}
+
 #topbar-left,
 #topbar-right {
   position: absolute;
