@@ -87,7 +87,14 @@
   background: var(--ui-control-surface);
   backdrop-filter: var(--ui-backdrop);
   -webkit-backdrop-filter: var(--ui-backdrop);
-  box-shadow: var(--ui-control-shadow);
+  box-shadow:
+    var(--ui-control-shadow),
+    0 .9rem 2.1rem
+    color-mix(
+      in srgb,
+      var(--bg) 46%,
+      transparent
+    );
   overflow: hidden;
   pointer-events: none;
   touch-action: none;
