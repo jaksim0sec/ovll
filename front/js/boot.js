@@ -74,11 +74,13 @@ function apiUrl(path){
 const APP_SCRIPTS=[
   "./js/functions.js",
   "./js/fileStore.js",
+  "./js/previewSandbox.js",
   "./js/api.js",
   "./js/canvasNode.js",
   "./js/runtimeEngine.js",
   "./js/ui.js",
   "./js/workspaceStore.js",
+  "./js/libraryPage.js",
   "./js/shellMenu.js",
   "./js/ovllPresence.js",
   "./js/app.js",
