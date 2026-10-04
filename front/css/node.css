@@ -375,6 +375,27 @@
   opacity: .72;
 }
 
+.vc-node-run.is-cancel {
+  color:
+    color-mix(
+      in srgb,
+      var(--text) 76%,
+      var(--sub)
+    );
+  border-color:
+    color-mix(
+      in srgb,
+      var(--text) 14%,
+      var(--line)
+    );
+  background:
+    color-mix(
+      in srgb,
+      var(--text) 5%,
+      transparent
+    );
+}
+
 .vc-node-run.is-running
 .vc-run-spark-main {
   transform-origin: center;
