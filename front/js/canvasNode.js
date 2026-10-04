@@ -124,7 +124,8 @@
       lastNodeDragEndAt: 0,
       enteringNodes: new Set(),
       runtimeConnections: new Set(),
-      runtimeNodes: new Map()
+      runtimeNodes: new Map(),
+      runLocked: false
     };
     const registry = new Map(
       Object.entries(definitions).map(([type, def]) => [
@@ -823,12 +824,14 @@
                 : `
                   <button
                     type="button"
-                    class="vc-node-run${runtimeState?.status === 'RUNNING' ? ' is-running' : ''}"
+                    class="vc-node-run${state.runLocked || runtimeState?.status === 'RUNNING' ? ' is-running' : ''}"
                     data-action="run"
                     aria-label="이 노드부터 실행"
+                    aria-disabled="${state.runLocked || runtimeState?.status === 'RUNNING' ? 'true' : 'false'}"
+                    ${state.runLocked || runtimeState?.status === 'RUNNING' ? 'disabled' : ''}
                   >
                     ${icons.run}
-                    <span>${runtimeState?.status === 'RUNNING' ? '실행 중' : '실행하기'}</span>
+                    <span>${state.runLocked || runtimeState?.status === 'RUNNING' ? '실행 중' : '실행하기'}</span>
                   </button>
                 `
             }
@@ -3138,6 +3141,10 @@
           action.dataset.action ===
           'run'
         ) {
+          if (state.runLocked) {
+            return;
+          }
+
           emit(
             'nodeRun',
             {
@@ -3885,6 +3892,24 @@
       selectNode,
       toggleNodeExpanded,
       setInteractionEnabled,
+      setRunLocked(locked) {
+        const next =
+          !!locked;
+
+        if (
+          state.runLocked ===
+            next
+        ) {
+          return api;
+        }
+
+        state.runLocked =
+          next;
+
+        renderNodes();
+
+        return api;
+      },
       setRuntimeConnections(ids = []) {
         state.runtimeConnections =
           new Set(
