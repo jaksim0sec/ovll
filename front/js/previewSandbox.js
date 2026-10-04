@@ -603,6 +603,20 @@ async function renderPreview(
     return true;
   }
 
+  const codeFormats=
+    new Set([
+      "JS",
+      "CSS",
+      "JSON",
+      "XML",
+      "CSV"
+    ]);
+
+  const isCode=
+    codeFormats.has(
+      format
+    );
+
   const pre=
     document.createElement(
       "pre"
@@ -614,15 +628,64 @@ async function renderPreview(
       "ovll-preview-text"
     );
 
-  pre.textContent=text;
+  let visibleText=text;
+  let truncated=false;
+
+  if(isCode){
+    const lines=
+      text.split("\n");
+
+    if(lines.length>500){
+      visibleText=
+        lines
+          .slice(0,500)
+          .join("\n");
+      truncated=true;
+    }
+
+    if(visibleText.length>40000){
+      visibleText=
+        visibleText.slice(
+          0,
+          40000
+        );
+      truncated=true;
+    }
+  }
+
+  pre.textContent=
+    visibleText;
 
   root.classList.add(
     "is-text"
   );
 
+  if(isCode){
+    root.classList.add(
+      "is-code"
+    );
+  }
+
   root.appendChild(
     pre
   );
+
+  if(truncated){
+    const note=
+      document.createElement(
+        "div"
+      );
+
+    note.className=
+      "ovll-library-preview-code-note";
+
+    note.textContent=
+      "미리보기는 일부만 표시 중";
+
+    root.appendChild(
+      note
+    );
+  }
 
   return true;
 }
