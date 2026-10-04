@@ -468,6 +468,8 @@ function mount(world,canvas,options={}){
 
   const viewport=canvas.root;
   const orb=document.createElement("button");
+  const satellite=
+    document.createElement("span");
 
   orb.type="button";
   orb.className="ovll-mascot";
@@ -476,7 +478,20 @@ function mount(world,canvas,options={}){
   orb.innerHTML=
     '<span class="ovll-mascot-eye"></span>';
 
-  world.appendChild(orb);
+  satellite.className=
+    "ovll-mascot-satellite";
+  satellite.dataset.mode=
+    "hidden";
+  satellite.setAttribute(
+    "aria-hidden",
+    "true"
+  );
+
+  world.append(
+    orb,
+    satellite
+  );
+
   orb.dataset.mood="idle";
 
   const agentColor=
@@ -515,6 +530,7 @@ function mount(world,canvas,options={}){
   let layoutAnchor=null;
   let moodTimer=null;
   let thinkingTimer=null;
+  let satelliteTimer=null;
   let connectionColor=false;
   let lastActivity=performance.now();
 
@@ -522,7 +538,6 @@ function mount(world,canvas,options={}){
   let viewportTimer=null;
   let gazeTimer=null;
   let motionFrame=null;
-  let busyFrame=null;
 
   const cleanup=[];
 
@@ -616,6 +631,87 @@ function mount(world,canvas,options={}){
     );
   }
 
+  const SATELLITE_MODES=
+    new Set([
+      "hidden",
+      "thought",
+      "orbit",
+      "point",
+      "celebrate",
+      "drop"
+    ]);
+
+  function setSatellite(
+    mode="hidden",
+    {
+      x:clientX=null,
+      y:clientY=null,
+      hold=0
+    }={}
+  ){
+    clearTimeout(
+      satelliteTimer
+    );
+
+    const next=
+      SATELLITE_MODES.has(mode)
+        ?mode
+        :"hidden";
+
+    if(
+      next==="point"&&
+      Number.isFinite(clientX)&&
+      Number.isFinite(clientY)
+    ){
+      const c=
+        center(
+          orb.getBoundingClientRect()
+        );
+
+      const angle=
+        Math.atan2(
+          clientY-c.y,
+          clientX-c.x
+        )*
+        180/
+        Math.PI;
+
+      satellite.style.setProperty(
+        "--sat-angle",
+        angle+"deg"
+      );
+    }
+
+    satellite.dataset.mode=
+      next;
+
+    if(hold>0){
+      satelliteTimer=
+        setTimeout(
+          ()=>{
+            satellite.dataset.mode=
+              "hidden";
+          },
+          hold
+        );
+    }
+  }
+
+  function pointSatelliteAt(
+    clientX,
+    clientY,
+    hold=0
+  ){
+    setSatellite(
+      "point",
+      {
+        x:clientX,
+        y:clientY,
+        hold
+      }
+    );
+  }
+
   function eyes(dx=0,dy=0){
     const max=.19;
 
@@ -659,9 +755,15 @@ function mount(world,canvas,options={}){
       )
     );
 
+    const tiltFactor=
+      orb.dataset.mood===
+        "annoyed"
+        ?-2.5
+        :-7;
+
     orb.style.setProperty(
       "--eye-tilt",
-      `${nx*ny*-9}deg`
+      `${nx*ny*tiltFactor}deg`
     );
   }
 
@@ -711,6 +813,10 @@ function mount(world,canvas,options={}){
   function react(){
     noteActivity();
     setMood("surprised",360);
+    setSatellite(
+      "celebrate",
+      {hold:460}
+    );
     pulse("boop",280);
     blink();
     eyes(.045,-.02);
