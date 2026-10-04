@@ -4193,6 +4193,9 @@
   }
 
   function setBusy(busy) {
+    const previous =
+      state.busy;
+
     state.busy = !!busy;
     composerInput.disabled = false;
     composerSubmit.disabled = state.busy;
@@ -4212,6 +4215,23 @@
             state.busy;
         }
       );
+
+    if (
+      previous !==
+      state.busy
+    ) {
+      global.dispatchEvent(
+        new CustomEvent(
+          "ovll:busychange",
+          {
+            detail: {
+              busy:
+                state.busy
+            }
+          }
+        )
+      );
+    }
   }
 
   /* =======================================================
