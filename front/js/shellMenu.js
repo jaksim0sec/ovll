@@ -4,6 +4,9 @@
 const Store =
   global.OvllWorkspaceStore;
 
+const FileStore =
+  global.OvllFileStore;
+
 const appStage =
   document.querySelector(
     "#app-stage"
@@ -11,7 +14,8 @@ const appStage =
 
 if(
   !appStage ||
-  !Store
+  !Store ||
+  !FileStore
 ){
   return;
 }
@@ -25,6 +29,8 @@ const state = {
   renderFrame:null,
   suppressClick:false,
   conversationMenu:null,
+  libraryFiles:[],
+  libraryLoading:true,
   longPress:{
     timer:null,
     pointerId:null,
@@ -165,6 +171,12 @@ function icon(name){
       <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
         <path d="M6 6.1h8M8 6.1V4.8h4v1.3M7.2 8.2l.5 6h4.6l.5-6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
+    `,
+    library:`
+      <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <rect x="4" y="3.7" width="12" height="12.6" rx="3.2" stroke="currentColor" stroke-width="1.5"/>
+        <path d="M7 7.2h6M7 10h6M7 12.8h3.8" stroke="currentColor" stroke-width="1.45" stroke-linecap="round"/>
+      </svg>
     `
   };
 
@@ -265,6 +277,12 @@ root.innerHTML=`
         class="ovll-sidebar-scroll"
         data-sidebar-scroll
       >
+        <section
+          class="ovll-sidebar-library"
+          data-sidebar-library
+          aria-label="라이브러리"
+        ></section>
+
         <div
           class="ovll-sidebar-sections"
           data-sidebar-sections
@@ -314,6 +332,11 @@ const sectionsRoot=
     "[data-sidebar-sections]"
   );
 
+const libraryRoot=
+  root.querySelector(
+    "[data-sidebar-library]"
+  );
+
 const searchBox=
   root.querySelector(
     "[data-sidebar-search]"
@@ -349,6 +372,233 @@ function formatTime(timestamp){
     new Date(value);
 
   return `${date.getMonth()+1}/${date.getDate()}`;
+}
+
+function formatFileSize(
+  value
+){
+  const size =
+    Number(value || 0);
+
+  if(size < 1024){
+    return size + " B";
+  }
+
+  if(size < 1048576){
+    return (
+      size / 1024
+    ).toFixed(1) + " KB";
+  }
+
+  return (
+    size / 1048576
+  ).toFixed(1) + " MB";
+}
+
+function libraryFileItem(
+  file
+){
+  const button =
+    document.createElement(
+      "button"
+    );
+
+  button.type="button";
+  button.className=
+    "ovll-sidebar-library-file";
+  button.dataset.libraryFile=
+    file.id;
+
+  const iconNode =
+    document.createElement(
+      "span"
+    );
+
+  iconNode.className=
+    "ovll-sidebar-library-icon";
+  iconNode.innerHTML=
+    icon("library");
+
+  const copy =
+    document.createElement(
+      "span"
+    );
+
+  copy.className=
+    "ovll-sidebar-library-copy";
+
+  const name =
+    document.createElement(
+      "strong"
+    );
+
+  name.textContent=
+    file.name ||
+    "파일";
+
+  const meta =
+    document.createElement(
+      "small"
+    );
+
+  const extension =
+    String(
+      file.name || ""
+    )
+      .split(".")
+      .pop()
+      ?.toUpperCase() ||
+    "FILE";
+
+  meta.textContent=
+    [
+      extension,
+      formatFileSize(
+        file.size
+      ),
+      formatTime(
+        file.createdAt
+      )
+    ]
+      .filter(Boolean)
+      .join(" · ");
+
+  copy.append(
+    name,
+    meta
+  );
+
+  button.append(
+    iconNode,
+    copy
+  );
+
+  return button;
+}
+
+function renderLibrary(){
+  if(!libraryRoot){
+    return;
+  }
+
+  libraryRoot
+    .replaceChildren();
+
+  const head =
+    document.createElement(
+      "div"
+    );
+
+  head.className=
+    "ovll-sidebar-library-head";
+
+  const title =
+    document.createElement(
+      "span"
+    );
+
+  title.textContent=
+    "라이브러리";
+
+  const count =
+    document.createElement(
+      "small"
+    );
+
+  count.textContent=
+    state.libraryLoading
+      ? ""
+      : String(
+          state.libraryFiles
+            .length
+        );
+
+  head.append(
+    title,
+    count
+  );
+
+  libraryRoot.appendChild(
+    head
+  );
+
+  if(state.libraryLoading){
+    const loading =
+      document.createElement(
+        "div"
+      );
+
+    loading.className=
+      "ovll-sidebar-library-empty";
+    loading.textContent=
+      "파일 불러오는 중";
+
+    libraryRoot.appendChild(
+      loading
+    );
+    return;
+  }
+
+  if(!state.libraryFiles.length){
+    const empty =
+      document.createElement(
+        "div"
+      );
+
+    empty.className=
+      "ovll-sidebar-library-empty";
+    empty.textContent=
+      "저장된 파일 없음";
+
+    libraryRoot.appendChild(
+      empty
+    );
+    return;
+  }
+
+  const list =
+    document.createElement(
+      "div"
+    );
+
+  list.className=
+    "ovll-sidebar-library-list";
+
+  for(
+    const file
+    of state.libraryFiles
+  ){
+    list.appendChild(
+      libraryFileItem(
+        file
+      )
+    );
+  }
+
+  libraryRoot.appendChild(
+    list
+  );
+}
+
+async function refreshLibrary(){
+  state.libraryLoading=
+    true;
+
+  try{
+    state.libraryFiles=
+      await FileStore.list();
+  }catch(error){
+    console.warn(
+      "ovll library load failed:",
+      error
+    );
+
+    state.libraryFiles=[];
+  }finally{
+    state.libraryLoading=
+      false;
+    scheduleRender();
+  }
 }
 
 function activeConversation(){
@@ -1185,10 +1435,22 @@ function render(){
     state.searchOpen &&
     state.query
   ){
+    if(libraryRoot){
+      libraryRoot.hidden=
+        true;
+    }
+
     renderSearchResults(
       snapshot
     );
   }else{
+    if(libraryRoot){
+      libraryRoot.hidden=
+        false;
+    }
+
+    renderLibrary();
+
     renderSections(
       snapshot
     );
@@ -1302,6 +1564,40 @@ function handleClick(event){
     event.preventDefault();
     event.stopPropagation();
     state.suppressClick=false;
+    return;
+  }
+
+  const libraryFile=
+    event.target.closest(
+      "[data-library-file]"
+    );
+
+  if(
+    libraryFile &&
+    root.contains(
+      libraryFile
+    )
+  ){
+    event.preventDefault();
+
+    const fileId =
+      libraryFile.dataset
+        .libraryFile;
+
+    void (
+      async()=>{
+        const opened =
+          await global.AstraApp
+            ?.openLocalFile?.(
+              fileId
+            );
+
+        if(opened !== false){
+          closeOnSmallScreen();
+        }
+      }
+    )();
+
     return;
   }
 
@@ -2089,6 +2385,14 @@ const offStore=
     scheduleRender
   );
 
+listen(
+  global,
+  "ovll:files-changed",
+  ()=>{
+    void refreshLibrary();
+  }
+);
+
 listeners.push(
   ()=>{
     try{
@@ -2097,6 +2401,7 @@ listeners.push(
   }
 );
 
+void refreshLibrary();
 scheduleRender();
 
 const api={
@@ -2108,6 +2413,7 @@ const api={
     return state.open;
   },
   refresh(){
+    void refreshLibrary();
     scheduleRender();
   },
   destroy(){
