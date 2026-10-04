@@ -191,6 +191,49 @@ test("library keyboard focus remains visibly discoverable", () => {
   );
 });
 
+test("mobile library is compact and does not stretch detail to viewport height", () => {
+  const css = compact(read("front/css/library.css"));
+  const js = read("front/js/libraryPage.js");
+
+  assert.match(
+    css,
+    /@media\s*\(max-width:\s*46rem\)[^{]*\{[\s\S]*?\.ovll-library-back\s*\{[^}]*display:\s*none/
+  );
+  assert.match(
+    css,
+    /@media\s*\(max-width:\s*46rem\)[^{]*\{[\s\S]*?\.ovll-library-content\.has-selection\s+\.ovll-library-detail\s*\{[^}]*display:\s*block/
+  );
+  assert.match(
+    css,
+    /\.ovll-library-artifact-card\s*\{[^}]*grid-template-columns:[^}]*2\.7rem[^}]*minmax\(0,1fr\)/
+  );
+  assert.doesNotMatch(
+    css,
+    /\.ovll-library-card-format\s*\{/
+  );
+  assert.match(js, /action:null/);
+  assert.match(js, /renderCompactPdfPreview/);
+  assert.match(js, /isCompactLibrary/);
+  assert.match(js, /page\.classList\s*\.add\(\s*"has-selection"/);
+});
+
+test("composer keeps submit button in the flex rail", () => {
+  const css = compact(read("front/css/ui.css"));
+
+  assert.match(
+    css,
+    /#composer-input\s*\{[^}]*flex:\s*1\s+1\s+0[^}]*width:\s*auto/
+  );
+  assert.match(
+    css,
+    /#composer-submit\s*\{[^}]*min-width:\s*2\.375rem[^}]*min-height:\s*2\.375rem[^}]*visibility:\s*visible/
+  );
+  assert.match(
+    css,
+    /#composer-form\s*\{[^}]*overflow:\s*visible/
+  );
+});
+
 test("library page owns Escape and focus lifecycle", () => {
   const js = read("front/js/libraryPage.js");
 
@@ -207,7 +250,7 @@ test("microcopy uses a shared readable token", () => {
 
   assert.match(globalCss, /--font-micro:\s*\.625rem/);
   assert.match(nodeCss, /\.vc-start-badge\s*\{[^}]*font-size:\s*var\(--font-micro\)/);
-  assert.match(libraryCss, /\.ovll-library-card-format\s*\{[^}]*font-size:\s*var\(--font-micro\)/);
+  assert.match(libraryCss, /\.ovll-library-detail-copy small\s*\{[^}]*font-size:\s*var\(--font-micro\)/);
 });
 
 test("coarse pointers get usable action targets", () => {
