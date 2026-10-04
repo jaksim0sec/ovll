@@ -4,6 +4,9 @@
 const Store =
   global.OvllWorkspaceStore;
 
+const ArtifactVisuals =
+  global.OvllArtifactVisuals;
+
 const appStage =
   document.querySelector(
     "#app-stage"
@@ -11,7 +14,8 @@ const appStage =
 
 if(
   !appStage ||
-  !Store
+  !Store ||
+  !ArtifactVisuals
 ){
   return;
 }
@@ -143,6 +147,13 @@ function icon(name){
         <path d="M4 5.1A2.1 2.1 0 0 1 6.1 3h7.8A2.1 2.1 0 0 1 16 5.1v6.1a2.1 2.1 0 0 1-2.1 2.1H8.2L4.35 16v-2.7A2.08 2.08 0 0 1 4 12.15V5.1Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
       </svg>
     `,
+    library:
+      ArtifactVisuals
+        .visual({
+          name:"library.file",
+          mime:"application/octet-stream"
+        })
+        .icon,
     user:`
       <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
         <circle cx="10" cy="7.05" r="3" stroke="currentColor" stroke-width="1.5"/>
@@ -239,6 +250,17 @@ root.innerHTML=`
           </span>
           <span>검색</span>
           <span class="ovll-sidebar-keyhint">⌘ K</span>
+        </button>
+
+        <button
+          class="ovll-sidebar-primary-action"
+          data-sidebar-action="library"
+          type="button"
+        >
+          <span class="ovll-sidebar-primary-icon">
+            ${icon("library")}
+          </span>
+          <span>라이브러리</span>
         </button>
 
         <div
@@ -1324,6 +1346,9 @@ function handleClick(event){
   ){
     event.preventDefault();
 
+    global.OvllLibraryPage
+      ?.hide?.();
+
     void openConversation(
       conversationOpen
         .dataset
@@ -1379,14 +1404,28 @@ function handleClick(event){
   }
 
   if(action==="new-chat"){
+    global.OvllLibraryPage
+      ?.hide?.();
+
     void createConversation();
     return;
   }
 
   if(action==="new-chat-section"){
+    global.OvllLibraryPage
+      ?.hide?.();
+
     void createConversation(
       actionNode.dataset.sectionId
     );
+    return;
+  }
+
+  if(action==="library"){
+    global.OvllLibraryPage
+      ?.show?.();
+
+    close();
     return;
   }
 
