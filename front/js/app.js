@@ -5060,8 +5060,26 @@
           }
         );
 
+        Presence.mascotState?.(
+          "cancelled",
+          {
+            nodeId:
+              event.pivot
+          }
+        );
+
         return;
       }
+
+      Presence.mascotState?.(
+        event.status === "FAILED"
+          ? "error"
+          : "success",
+        {
+          nodeId:
+            event.pivot
+        }
+      );
 
       const text =
         event.status === "FAILED"
