@@ -1261,6 +1261,18 @@
       );
     }
 
+    const format =
+      String(
+        input?.format || ""
+      )
+        .trim()
+        .toUpperCase();
+
+    const timeoutMs =
+      format === "PDF"
+        ? 120000
+        : 60000;
+
     const timeout =
       global.setTimeout(
         ()=>timeoutController.abort(
@@ -1268,7 +1280,7 @@
             "ARTIFACT_TIMEOUT"
           )
         ),
-        35000
+        timeoutMs
       );
 
     let result;
