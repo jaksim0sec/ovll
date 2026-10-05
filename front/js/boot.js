@@ -67,6 +67,13 @@ global.addEventListener(
   {once:true}
 );
 
+document
+  .querySelector("#boot-retry")
+  ?.addEventListener(
+    "click",
+    ()=>global.location.reload()
+  );
+
 function apiUrl(path){
   return `${API_ORIGIN}/api/${path}`;
 }
