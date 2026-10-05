@@ -88,6 +88,71 @@ const geminiExecution =
 const GEMINI_LOG_LIMIT = 100;
 const geminiRequestLogs = [];
 
+const BOOT_ID = randomUUID();
+const BOOT_STARTED_AT = Date.now();
+let eventLoopLagMs = 0;
+
+{
+  const intervalMs = 1000;
+  let expected =
+    Date.now() + intervalMs;
+
+  const timer =
+    setInterval(
+      () => {
+        const now =
+          Date.now();
+
+        eventLoopLagMs =
+          Math.max(
+            0,
+            now - expected
+          );
+
+        expected =
+          now + intervalMs;
+      },
+      intervalMs
+    );
+
+  timer.unref?.();
+}
+
+function serverRuntimeHealth() {
+  const memory =
+    process.memoryUsage();
+
+  const uptimeSec =
+    Math.max(
+      0,
+      Math.floor(
+        (
+          Date.now() -
+          BOOT_STARTED_AT
+        ) / 1000
+      )
+    );
+
+  return {
+    bootId:
+      BOOT_ID,
+    startedAt:
+      new Date(
+        BOOT_STARTED_AT
+      ).toISOString(),
+    uptimeSec,
+    recentRestart:
+      uptimeSec < 300,
+    rssBytes:
+      memory.rss,
+    heapUsedBytes:
+      memory.heapUsed,
+    heapTotalBytes:
+      memory.heapTotal,
+    eventLoopLagMs
+  };
+}
+
 function compactLogPreview(
   value,
   max = 280
@@ -3247,6 +3312,8 @@ app.get(
       generatedAt:
         new Date()
           .toISOString(),
+      runtime:
+        serverRuntimeHealth(),
       logs:
         geminiRequestLogs
     });
