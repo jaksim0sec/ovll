@@ -512,6 +512,10 @@ test("local artifact persistence keeps renderer and preview capability metadata"
   );
   assert.match(
     store,
+    /targetPages/
+  );
+  assert.match(
+    store,
     /format/
   );
   assert.match(
