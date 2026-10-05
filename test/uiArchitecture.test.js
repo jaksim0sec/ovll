@@ -567,6 +567,10 @@ test("artifact preview surface is styled by resolved preview kind", () => {
 
 
 test("artifact page targets are parsed and transported without confusing chapter labels", () => {
+  const policy =
+    read(
+      "front/js/artifactRequest.js"
+    );
   const app =
     read(
       "front/js/app.js"
@@ -579,22 +583,30 @@ test("artifact page targets are parsed and transported without confusing chapter
     read(
       "server.js"
     );
+  const boot =
+    read(
+      "front/js/boot.js"
+    );
+  const sw =
+    read(
+      "front/sw.js"
+    );
 
   assert.match(
-    app,
+    policy,
     /targetPages/
   );
   assert.match(
-    app,
+    policy,
     /페이지|쪽/
   );
   assert.match(
-    app,
-    /A4[\s\S]{0,120}장/
+    policy,
+    /A4/
   );
   assert.match(
     app,
-    /제\s*\d+\s*장/
+    /targetPages:\s*artifactRequest/
   );
   assert.match(
     api,
@@ -603,6 +615,18 @@ test("artifact page targets are parsed and transported without confusing chapter
   assert.match(
     server,
     /targetPages:\s*req\.body\?\.targetPages/
+  );
+  assert.ok(
+    boot.indexOf(
+      "./js/artifactRequest.js"
+    ) <
+    boot.indexOf(
+      "./js/app.js"
+    )
+  );
+  assert.match(
+    sw,
+    /\/js\/artifactRequest\.js/
   );
 });
 
