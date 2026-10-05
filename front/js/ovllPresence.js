@@ -2,8 +2,12 @@
 "use strict";
 
 const UI=global.AstraUI;
+const WorkspaceStore=
+  global.OvllWorkspaceStore;
 const chatPage=document.querySelector("#chat-page");
 const chatMessages=document.querySelector("#chat-messages");
+const composerInput=
+  document.querySelector("#composer-input");
 const canvasPage=document.querySelector("#canvas-page");
 const canvasWorld=document.querySelector("#canvas-world");
 
@@ -107,48 +111,377 @@ function ensureChatPresence(){
   return row;
 }
 
+function startConversationHasWork(
+  conversation
+){
+  if(
+    !conversation ||
+    typeof conversation!=="object"
+  ){
+    return false;
+  }
+
+  const messages=
+    conversation.state
+      ?.messages;
+
+  const nodes=
+    conversation.state
+      ?.canvas
+      ?.workflow
+      ?.nodes;
+
+  return (
+    (
+      Array.isArray(messages)&&
+      messages.length>0
+    )||
+    (
+      Array.isArray(nodes)&&
+      nodes.length>0
+    )||
+    !!String(
+      conversation.state
+        ?.lastUserRequest||
+      ""
+    ).trim()
+  );
+}
+
+function compactStartText(
+  value,
+  max=64
+){
+  const text=
+    String(value||"")
+      .replace(/\s+/g," ")
+      .trim();
+
+  if(text.length<=max){
+    return text;
+  }
+
+  return (
+    text.slice(
+      0,
+      Math.max(
+        1,
+        max-1
+      )
+    )+
+    "…"
+  );
+}
+
+function startViewData(){
+  if(
+    !WorkspaceStore?.search
+  ){
+    return {
+      primary:null,
+      prompts:[]
+    };
+  }
+
+  const activeId=
+    WorkspaceStore
+      .getActiveConversation?.()
+      ?.id||
+    "";
+
+  const recent=
+    WorkspaceStore
+      .search("")
+      .filter(item=>
+        item?.id!==activeId&&
+        startConversationHasWork(
+          item
+        )
+      );
+
+  const primary=
+    recent[0]||null;
+
+  const prompts=[];
+  const seen=
+    new Set();
+
+  for(const item of recent){
+    const value=
+      compactStartText(
+        item?.state
+          ?.lastUserRequest,
+        72
+      );
+
+    if(
+      !value||
+      seen.has(value)
+    ){
+      continue;
+    }
+
+    seen.add(value);
+    prompts.push(value);
+
+    if(prompts.length>=2){
+      break;
+    }
+  }
+
+  return {
+    primary,
+    prompts
+  };
+}
+
+function refreshStartView(){
+  const view=
+    state.startView;
+
+  if(!view?.isConnected){
+    return;
+  }
+
+  const data=
+    startViewData();
+
+  const primary=
+    view.querySelector(
+      ".ovll-chat-start-primary"
+    );
+
+  const title=
+    view.querySelector(
+      ".ovll-chat-start-title"
+    );
+
+  const resume=
+    view.querySelector(
+      ".ovll-chat-start-resume"
+    );
+
+  const suggestions=
+    view.querySelector(
+      ".ovll-chat-start-suggestions"
+    );
+
+  const primaryTitle=
+    data.primary
+      ? compactStartText(
+          data.primary.title!=="새 대화"
+            ? data.primary.title
+            : data.primary.state
+                ?.lastUserRequest,
+          48
+        )
+      : "";
+
+  primary.hidden=
+    !primaryTitle;
+
+  if(primaryTitle){
+    title.textContent=
+      primaryTitle;
+
+    resume.dataset
+      .conversationId=
+      String(
+        data.primary.id||
+        ""
+      );
+  }else{
+    title.textContent="";
+    delete resume.dataset
+      .conversationId;
+  }
+
+  suggestions
+    .replaceChildren();
+
+  for(const prompt of data.prompts){
+    const button=
+      document.createElement(
+        "button"
+      );
+
+    button.type="button";
+    button.className=
+      "ovll-chat-start-suggestion";
+    button.dataset.prompt=
+      prompt;
+    button.textContent=
+      prompt;
+
+    suggestions.appendChild(
+      button
+    );
+  }
+
+  suggestions.hidden=
+    !data.prompts.length;
+
+  view.classList.toggle(
+    "has-context",
+    !!primaryTitle||
+    data.prompts.length>0
+  );
+}
+
+function reactStartOrb(){
+  const orb=
+    state.startOrb;
+
+  if(!orb){
+    return;
+  }
+
+  orb.classList.remove(
+    "is-reacting"
+  );
+
+  void orb.offsetWidth;
+
+  orb.classList.add(
+    "is-reacting"
+  );
+
+  setTimeout(()=>{
+    orb.classList.remove(
+      "is-reacting"
+    );
+  },280);
+}
+
 function ensureStartView(){
   if(state.startView?.isConnected){
+    refreshStartView();
     return state.startView;
   }
 
   const view=document.createElement("div");
   view.id="ovll-chat-start";
   view.className="ovll-chat-start";
-  view.setAttribute("aria-label","새 대화");
+  view.setAttribute(
+    "aria-label",
+    "새 대화"
+  );
 
-  const orb=document.createElement("button");
-  orb.type="button";
-  orb.className="ovll-chat-start-orb";
-  orb.setAttribute("aria-label","오블");
-  orb.innerHTML=
-    '<span class="ovll-chat-start-eye" aria-hidden="true"></span>';
+  view.innerHTML=`
+    <button
+      type="button"
+      class="ovll-chat-start-orb"
+      aria-label="오블"
+    >
+      <span
+        class="ovll-chat-start-eye"
+        aria-hidden="true"
+      ></span>
+    </button>
 
-  view.appendChild(orb);
+    <section
+      class="ovll-chat-start-primary"
+      hidden
+    >
+      <div class="ovll-chat-start-kicker">
+        최근 작업
+      </div>
+      <strong class="ovll-chat-start-title"></strong>
+      <button
+        type="button"
+        class="ovll-chat-start-resume"
+      >
+        이어가기
+      </button>
+    </section>
+
+    <div
+      class="ovll-chat-start-suggestions"
+      hidden
+      aria-label="최근 요청"
+    ></div>
+  `;
+
   chatPage.appendChild(view);
 
   state.startView=view;
-  state.startOrb=orb;
-
-  listen(orb,"click",event=>{
-    event.preventDefault();
-
-    orb.classList.remove(
-      "is-reacting"
+  state.startOrb=
+    view.querySelector(
+      ".ovll-chat-start-orb"
     );
 
-    void orb.offsetWidth;
-
-    orb.classList.add(
-      "is-reacting"
-    );
-
-    setTimeout(()=>{
-      orb.classList.remove(
-        "is-reacting"
+  listen(view,"click",event=>{
+    const orb=
+      event.target.closest(
+        ".ovll-chat-start-orb"
       );
-    },280);
+
+    if(orb){
+      event.preventDefault();
+      reactStartOrb();
+      return;
+    }
+
+    const resume=
+      event.target.closest(
+        ".ovll-chat-start-resume"
+      );
+
+    if(resume){
+      event.preventDefault();
+
+      const id=
+        String(
+          resume.dataset
+            .conversationId||
+          ""
+        );
+
+      if(id){
+        void global.AstraApp
+          ?.openConversation?.(
+            id
+          );
+      }
+
+      return;
+    }
+
+    const suggestion=
+      event.target.closest(
+        ".ovll-chat-start-suggestion"
+      );
+
+    if(
+      suggestion&&
+      composerInput
+    ){
+      event.preventDefault();
+
+      composerInput.value=
+        String(
+          suggestion.dataset
+            .prompt||
+          suggestion.textContent||
+          ""
+        );
+
+      composerInput.dispatchEvent(
+        new Event(
+          "input",
+          {
+            bubbles:true
+          }
+        )
+      );
+
+      composerInput.focus({
+        preventScroll:true
+      });
+    }
   });
+
+  refreshStartView();
 
   return view;
 }
@@ -516,6 +849,29 @@ const offModeChange=
 
 if(typeof offModeChange==="function"){
   listeners.push(offModeChange);
+}
+
+const offWorkspaceChange=
+  WorkspaceStore?.on?.(
+    "change",
+    ()=>{
+      if(
+        !state.started&&
+        state.startView
+          ?.isConnected
+      ){
+        refreshStartView();
+      }
+    }
+  );
+
+if(
+  typeof offWorkspaceChange===
+    "function"
+){
+  listeners.push(
+    offWorkspaceChange
+  );
 }
 
 const api={
