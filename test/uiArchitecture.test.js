@@ -221,7 +221,7 @@ test("mobile library remains a compact list under the global chrome", () => {
   );
   assert.match(
     css,
-    /#composer-submit\\s*\\{[^}]*min-width:\\s*2\\.5rem[^}]*min-height:\\s*2\\.5rem[^}]*visibility:\\s*visible/
+    /#composer-submit\s*\{[^}]*min-width:\s*2\.5rem[^}]*min-height:\s*2\.5rem[^}]*visibility:\s*visible/
   );
   assert.match(
     css,
