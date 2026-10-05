@@ -681,7 +681,7 @@ test("hung Gemini upstream requests fail with an explicit timeout", async () => 
       error?.code ===
         "GEMINI_UPSTREAM_TIMEOUT" &&
       error?.retryable ===
-        true
+        false
   );
 });
 
