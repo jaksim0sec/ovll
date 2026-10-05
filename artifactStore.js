@@ -43,6 +43,16 @@ function formatName(value) {
   return 'TXT';
 }
 
+function previewKindForFormat(format) {
+  if (format === 'PDF') return 'pdf';
+  if (format === 'HTML') return 'html';
+  if (format === 'MD' || format === 'DOCX' || format === 'RTF') return 'document';
+  if (format === 'TXT') return 'text';
+  if (format === 'XLSX' || format === 'CSV') return 'spreadsheet';
+  if (format === 'JSON') return 'code';
+  return 'binary';
+}
+
 function safeBaseName(value) {
   const clean = String(value || 'result')
     .replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_')
@@ -445,6 +455,50 @@ export async function createStoredArtifact(input = {}) {
   const id =
     randomUUID();
 
+  const previewKind =
+    previewKindForFormat(
+      format
+    );
+
+  let previewText = "";
+
+  if (
+    format === 'PDF' ||
+    format === 'MD' ||
+    format === 'TXT' ||
+    format === 'DOCX' ||
+    format === 'RTF'
+  ) {
+    previewText =
+      document
+        .plainText
+        .slice(
+          0,
+          6000
+        );
+  } else if (
+    format === 'CSV' ||
+    format === 'XLSX'
+  ) {
+    previewText =
+      tableRows(sources)
+        .slice(0, 80)
+        .map(row =>
+          row
+            .slice(0, 24)
+            .join('\t')
+        )
+        .join('\n')
+        .slice(0, 6000);
+  } else if (
+    format === 'JSON'
+  ) {
+    previewText =
+      buffer
+        .toString('utf8')
+        .slice(0, 6000);
+  }
+
   const item = {
     id,
     name,
@@ -458,13 +512,8 @@ export async function createStoredArtifact(input = {}) {
     buffer,
     renderer:
       built.renderer,
-    previewText:
-      document
-        .plainText
-        .slice(
-          0,
-          6000
-        )
+    previewKind,
+    previewText
   };
 
   STORE.set(
@@ -491,6 +540,8 @@ export async function createStoredArtifact(input = {}) {
       item.size,
     renderer:
       item.renderer,
+    previewKind:
+      item.previewKind,
     previewText:
       item.previewText,
     previewUrl:
