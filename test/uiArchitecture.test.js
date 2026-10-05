@@ -331,6 +331,21 @@ test("workspace hierarchy favors content over decorative surfaces", () => {
   assert.match(html, /name="theme-color"[^>]*content="#060606"/s);
 });
 
+test("settled workspace clips inactive page compositing artifacts", () => {
+  const style = compact(read("front/css/style.css"));
+  const ui = compact(read("front/css/ui.css"));
+  const js = read("front/js/ui.js");
+
+  assert.match(style, /#app-stage\s*\{[^}]*overflow:\s*hidden[^}]*isolation:\s*isolate/);
+  assert.match(ui, /#workspace\s*\{[^}]*overflow:\s*hidden[^}]*isolation:\s*isolate/);
+  assert.match(ui, /#workspace\s*>\s*\.page\s*\{[^}]*contain:\s*layout paint[^}]*backface-visibility:\s*hidden/);
+  assert.match(ui, /#workspace\.is-dragging\s*>\s*\.page\s*\{[^}]*will-change:/);
+  assert.match(ui, /#workspace\[data-mode="chat"\]:not\(\.is-dragging\)[\s\S]*?#canvas-page[\s\S]*?visibility:\s*hidden/);
+  assert.match(js, /chatPage\.setAttribute\([\s\S]*?"aria-hidden"/);
+  assert.match(js, /canvasPage\.setAttribute\([\s\S]*?"aria-hidden"/);
+  assert.match(js, /dark\s*\?\s*"#060606"/);
+});
+
 test("repository no longer exposes the obsolete root Astra frontend", () => {
   for (const name of [
     "index.html",
