@@ -1102,60 +1102,41 @@
       }
     };
 
-    let stringLimit = 12000;
-    let body = null;
+    const stringLimit =
+      12000;
 
-    do {
-      body = {
-        nodes:
-          group.nodes
-            .slice(0, 6)
-            .map(
-              node => ({
-                id:
-                  String(
-                    node?.id ||
-                    ""
-                  ).slice(0, 180),
-                type:
-                  String(
-                    node?.type ||
-                    ""
-                  ).slice(0, 80),
-                params:
-                  compactExecutionValue(
-                    node?.params ||
-                    {},
-                    stringLimit
-                  ),
-                inputs:
-                  compactExecutionValue(
-                    node?.inputs ||
-                    {},
-                    stringLimit
-                  )
-              })
-            ),
-        ...base
-      };
-
-      if (
-        JSON.stringify(body)
-          .length <= 42000 ||
-        stringLimit <= 1200
-      ) {
-        break;
-      }
-
-      stringLimit =
-        Math.max(
-          1200,
-          Math.floor(
-            stringLimit * .72
-          )
-        );
-    } while (true);
-
+    const body = {
+      nodes:
+        group.nodes
+          .slice(0, 6)
+          .map(
+            node => ({
+              id:
+                String(
+                  node?.id ||
+                  ""
+                ).slice(0, 180),
+              type:
+                String(
+                  node?.type ||
+                  ""
+                ).slice(0, 80),
+              params:
+                compactExecutionValue(
+                  node?.params ||
+                  {},
+                  stringLimit
+                ),
+              inputs:
+                compactExecutionValue(
+                  node?.inputs ||
+                  {},
+                  stringLimit
+                )
+            })
+          ),
+      ...base
+    };
     return body;
   }
 
