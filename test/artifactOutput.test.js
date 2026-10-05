@@ -32,12 +32,12 @@ function pdfPageCount(buffer) {
   ).length;
 }
 
-function inflatedPdfStreams(buffer) {
+function decodedPdfStreams(buffer) {
   const source =
     buffer.toString("latin1");
   const streams = [];
   const pattern =
-    /\/Filter\s*\/FlateDecode[\s\S]*?stream\r?\n([\s\S]*?)\r?\nendstream/g;
+    /<<(.*?)>>\s*stream\r?\n([\s\S]*?)\r?\nendstream/g;
 
   let match;
 
@@ -47,16 +47,31 @@ function inflatedPdfStreams(buffer) {
         pattern.exec(source)
     )
   ) {
-    try {
-      streams.push(
-        inflateSync(
-          Buffer.from(
-            match[1],
-            "latin1"
-          )
-        ).toString("latin1")
+    const dictionary =
+      match[1] || "";
+    const raw =
+      Buffer.from(
+        match[2],
+        "latin1"
       );
-    } catch {}
+
+    if (
+      /\/FlateDecode\b/.test(
+        dictionary
+      )
+    ) {
+      try {
+        streams.push(
+          inflateSync(raw)
+            .toString("latin1")
+        );
+      } catch {}
+      continue;
+    }
+
+    streams.push(
+      raw.toString("latin1")
+    );
   }
 
   return streams;
@@ -650,7 +665,7 @@ test("fallback PDF keeps a short canonical document on one page and draws body t
   );
 
   const content =
-    inflatedPdfStreams(
+    decodedPdfStreams(
       buffer
     ).join("\n");
 
