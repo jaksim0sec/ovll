@@ -242,38 +242,6 @@ function rtfBuffer(sources) {
   return Buffer.from('{\\rtf1\\ansi\\deff0 ' + body + '}', 'utf8');
 }
 
-async function withArtifactTimeout(
-  work,
-  timeoutMs,
-  code,
-  message
-) {
-  let timer = null;
-
-  try {
-    return await Promise.race([
-      Promise.resolve(work),
-      new Promise((_, reject) => {
-        timer = setTimeout(() => {
-          const error =
-            new Error(message);
-
-          error.code =
-            code;
-          error.status =
-            504;
-
-          reject(error);
-        }, timeoutMs);
-      })
-    ]);
-  } finally {
-    if (timer) {
-      clearTimeout(timer);
-    }
-  }
-}
-
 async function buildBuffer(
   format,
   sources,
@@ -320,19 +288,14 @@ async function buildBuffer(
 
     return {
       buffer:
-        await withArtifactTimeout(
-          renderPdfFallback(
-            canonicalDocument,
-            {
-              title:
-                canonicalDocument.title ||
-                metadata.title ||
-                ''
-            }
-          ),
-          60000,
-          'PDF_RENDER_TIMEOUT',
-          'PDF 렌더링 시간이 초과되었습니다.'
+        await renderPdfFallback(
+          canonicalDocument,
+          {
+            title:
+              canonicalDocument.title ||
+              metadata.title ||
+              ''
+          }
         ),
       renderer:
         'pdfkit-fallback'
