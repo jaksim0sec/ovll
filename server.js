@@ -9,6 +9,9 @@ import {
   GeminiExecutionError
 } from './geminiExecution.js';
 import {
+  bindRequestAbort
+} from './requestAbort.js';
+import {
   createStoredArtifact,
   getStoredArtifact
 } from './artifactStore.js';
@@ -2589,17 +2592,36 @@ app.get(
 app.post(
   '/api/execute-group',
   async (req, res) => {
+    const abortContext =
+      bindRequestAbort(
+        req,
+        res
+      );
+
     try {
       const result =
         await geminiExecution
-          .executeGroup({
-            nodes:
-              req.body?.nodes,
-            connections:
-              req.body?.connections,
-            context:
-              req.body?.context
-          });
+          .executeGroup(
+            {
+              nodes:
+                req.body?.nodes,
+              connections:
+                req.body?.connections,
+              context:
+                req.body?.context
+            },
+            {
+              signal:
+                abortContext.signal
+            }
+          );
+
+      if (
+        abortContext.signal
+          .aborted
+      ) {
+        return;
+      }
 
       console.info(
         '[Gemini execution]',
@@ -2610,13 +2632,45 @@ app.post(
             result.usage
               ?.inputTokens ??
             null,
+          cachedTokens:
+            result.usage
+              ?.cachedTokens ??
+            null,
           outputTokens:
             result.usage
               ?.outputTokens ??
             null,
+          thoughtTokens:
+            result.usage
+              ?.thoughtTokens ??
+            null,
           totalTokens:
             result.usage
               ?.totalTokens ??
+            null,
+          thinkingLevel:
+            result.diagnostics
+              ?.thinkingLevel ??
+            null,
+          primaryAttempts:
+            result.diagnostics
+              ?.primaryAttempts ??
+            null,
+          transientRetries:
+            result.diagnostics
+              ?.transientRetries ??
+            null,
+          repairAttempts:
+            result.diagnostics
+              ?.repairAttempts ??
+            null,
+          fallbackUsed:
+            result.diagnostics
+              ?.fallbackUsed ===
+              true,
+          durationMs:
+            result.diagnostics
+              ?.durationMs ??
             null
         }
       );
@@ -2627,10 +2681,21 @@ app.post(
           result.model,
         usage:
           result.usage,
+        diagnostics:
+          result.diagnostics,
         results:
           result.results
       });
     } catch (error) {
+      if (
+        abortContext.signal
+          .aborted ||
+        error?.code ===
+          'GEMINI_REQUEST_ABORTED'
+      ) {
+        return;
+      }
+
       const failure =
         geminiHttpFailure(
           error,
@@ -2658,6 +2723,9 @@ app.post(
         .json(
           failure.body
         );
+    } finally {
+      abortContext
+        .cleanup();
     }
   }
 );
@@ -2665,18 +2733,37 @@ app.post(
 app.post(
   '/api/finalize-run',
   async (req, res) => {
+    const abortContext =
+      bindRequestAbort(
+        req,
+        res
+      );
+
     try {
       const result =
         await geminiExecution
-          .finalizeRun({
-            run:
-              req.body?.run,
-            userRequest:
-              req.body
-                ?.userRequest,
-            memory:
-              req.body?.memory
-          });
+          .finalizeRun(
+            {
+              run:
+                req.body?.run,
+              userRequest:
+                req.body
+                  ?.userRequest,
+              memory:
+                req.body?.memory
+            },
+            {
+              signal:
+                abortContext.signal
+            }
+          );
+
+      if (
+        abortContext.signal
+          .aborted
+      ) {
+        return;
+      }
 
       console.info(
         '[Gemini final response]',
@@ -2687,13 +2774,41 @@ app.post(
             result.usage
               ?.inputTokens ??
             null,
+          cachedTokens:
+            result.usage
+              ?.cachedTokens ??
+            null,
           outputTokens:
             result.usage
               ?.outputTokens ??
             null,
+          thoughtTokens:
+            result.usage
+              ?.thoughtTokens ??
+            null,
           totalTokens:
             result.usage
               ?.totalTokens ??
+            null,
+          thinkingLevel:
+            result.diagnostics
+              ?.thinkingLevel ??
+            null,
+          primaryAttempts:
+            result.diagnostics
+              ?.primaryAttempts ??
+            null,
+          transientRetries:
+            result.diagnostics
+              ?.transientRetries ??
+            null,
+          repairAttempts:
+            result.diagnostics
+              ?.repairAttempts ??
+            null,
+          durationMs:
+            result.diagnostics
+              ?.durationMs ??
             null
         }
       );
@@ -2704,10 +2819,21 @@ app.post(
           result.model,
         usage:
           result.usage,
+        diagnostics:
+          result.diagnostics,
         message:
           result.message
       });
     } catch (error) {
+      if (
+        abortContext.signal
+          .aborted ||
+        error?.code ===
+          'GEMINI_REQUEST_ABORTED'
+      ) {
+        return;
+      }
+
       const failure =
         geminiHttpFailure(
           error,
@@ -2735,6 +2861,9 @@ app.post(
         .json(
           failure.body
         );
+    } finally {
+      abortContext
+        .cleanup();
     }
   }
 );
