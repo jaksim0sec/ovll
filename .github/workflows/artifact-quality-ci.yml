@@ -3,6 +3,7 @@ name: artifact-quality-ci
 on:
   push:
     branches:
+      - main
       - artifact-rendering-preview-quality
   pull_request:
     branches:
