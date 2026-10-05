@@ -118,13 +118,18 @@
         "Segoe UI",
         sans-serif;
       transform: translateY(-.35rem);
+      animation:
+        ovll-boot-mark-in
+        .36s
+        cubic-bezier(.2,.82,.2,1)
+        both;
     }
 
     .ovll-boot-orb {
       --boot-orb: #202120;
       --boot-eye: #efefec;
-      width: 2.16rem;
-      height: 2.16rem;
+      width: 3.1rem;
+      height: 3.1rem;
       display: grid;
       place-items: center;
       border: .0625rem solid var(--boot-orb);
@@ -147,9 +152,9 @@
     }
 
     .ovll-boot-eye {
-      width: .46rem;
-      height: .47rem;
-      border-radius: .18rem;
+      width: .62rem;
+      height: .64rem;
+      border-radius: .23rem;
       background: var(--boot-eye);
       transform: translateY(-.01rem);
       animation:
@@ -160,17 +165,17 @@
     }
 
     .ovll-boot-wordmark {
-      margin-top: .66rem;
-      font-size: 1rem;
+      margin-top: .8rem;
+      font-size: 1.14rem;
       font-weight: 700;
       line-height: 1;
       letter-spacing: -.045em;
     }
 
     .ovll-boot-progress {
-      width: 2.8rem;
-      height: .095rem;
-      margin-top: .72rem;
+      width: 3.6rem;
+      height: .1rem;
+      margin-top: .82rem;
       overflow: hidden;
       border-radius: 999px;
       background: currentColor;
@@ -252,6 +257,22 @@
       display: block;
     }
 
+    @keyframes ovll-boot-mark-in {
+      from {
+        opacity: 0;
+        transform:
+          translateY(.15rem)
+          scale(.965);
+      }
+
+      to {
+        opacity: 1;
+        transform:
+          translateY(-.35rem)
+          scale(1);
+      }
+    }
+
     @keyframes ovll-boot-slide {
       from {
         transform: translateX(-118%);
@@ -287,6 +308,7 @@
     }
 
     @media (prefers-reduced-motion: reduce) {
+      .ovll-boot-mark,
       .ovll-boot-orb,
       .ovll-boot-eye,
       .ovll-boot-progress::after {
