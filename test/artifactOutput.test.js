@@ -467,3 +467,32 @@ test("artifact preview metadata is format aware", async () => {
     }
   }
 });
+
+
+test("inline HTML artifact route has defense-in-depth security headers", () => {
+  const server =
+    read(
+      "server.js"
+    );
+
+  assert.match(
+    server,
+    /Content-Security-Policy/
+  );
+  assert.match(
+    server,
+    /Referrer-Policy/
+  );
+  assert.match(
+    server,
+    /frame-ancestors 'none'/
+  );
+  assert.match(
+    server,
+    /connect-src 'none'/
+  );
+  assert.match(
+    server,
+    /object-src 'none'/
+  );
+});
