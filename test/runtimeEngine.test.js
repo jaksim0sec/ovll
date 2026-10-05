@@ -1209,8 +1209,7 @@ test("cache identity changes when continuity memory changes", async () => {
   assert.deepEqual(
     calls,
     [
-      ["research"],
-      ["write"]
+      ["research", "write"]
     ]
   );
 });
