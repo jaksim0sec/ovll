@@ -140,6 +140,19 @@
 /* panel */
 
 #ovll-shell-menu-panel {
+  --sidebar-text:
+    color-mix(
+      in srgb,
+      var(--text) 90%,
+      var(--sub)
+    );
+  --sidebar-text-soft:
+    color-mix(
+      in srgb,
+      var(--text) 72%,
+      var(--sub)
+    );
+
   position: absolute;
   z-index: 2;
   top: 0;
@@ -294,7 +307,7 @@
 
 .ovll-sidebar-brand-name {
   color: var(--text);
-  font-size: 1rem;
+  font-size: 1.12rem;
   font-weight: 760;
   letter-spacing: -.032em;
 }
@@ -330,7 +343,7 @@
       transparent
     );
   border-radius: 999px;
-  color: var(--sub);
+  color: var(--sidebar-text);
   background:
     color-mix(
       in srgb,
@@ -339,7 +352,7 @@
     );
   text-align: left;
   cursor: pointer;
-  font-size: .77rem;
+  font-size: .96rem;
   font-weight: 660;
   letter-spacing: -.014em;
   transition:
@@ -448,7 +461,7 @@
   box-shadow: none !important;
   color: var(--text);
   font: inherit;
-  font-size: .78rem;
+  font-size: .96rem;
   font-weight: 520;
   line-height: 1.4;
   -webkit-tap-highlight-color: transparent;
@@ -523,8 +536,8 @@
   padding:
     .3rem
     .6rem;
-  color: var(--sub);
-  font-size: .82rem;
+  color: var(--sidebar-text);
+  font-size: 1rem;
   font-weight: 710;
   letter-spacing: -.012em;
 }
@@ -607,13 +620,13 @@
     .32rem
     .5rem;
   border-radius: .72rem;
-  color: var(--muted);
+  color: var(--sidebar-text-soft);
   text-align: left;
   cursor: pointer;
 }
 
 .ovll-sidebar-section-toggle:hover {
-  color: var(--sub);
+  color: var(--sidebar-text);
   background:
     color-mix(
       in srgb,
@@ -644,7 +657,7 @@
 .ovll-sidebar-section-title {
   min-width: 0;
   overflow: hidden;
-  font-size: .69rem;
+  font-size: .86rem;
   font-weight: 640;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -686,7 +699,7 @@
     .48rem
     .68rem;
   border-radius: 1rem;
-  color: var(--sub);
+  color: var(--sidebar-text);
   background: transparent;
   text-align: left;
   cursor: pointer;
@@ -747,7 +760,7 @@
   min-width: 0;
   display: block;
   overflow: hidden;
-  font-size: .77rem;
+  font-size: .96rem;
   font-weight: 550;
   line-height: 1.4;
   letter-spacing: -.014em;
@@ -786,7 +799,7 @@
       var(--text) 4.5%,
       transparent
     );
-  font-size: .75rem;
+  font-size: .94rem;
   font-weight: 520;
 }
 
@@ -794,8 +807,8 @@
   padding:
     1.5rem
     .55rem;
-  color: var(--muted);
-  font-size: .7rem;
+  color: var(--sidebar-text-soft);
+  font-size: .86rem;
   text-align: center;
 }
 
@@ -888,7 +901,7 @@
 
 .ovll-sidebar-account-copy strong {
   overflow: hidden;
-  font-size: .86rem;
+  font-size: 1.02rem;
   font-weight: 690;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -896,8 +909,8 @@
 
 .ovll-sidebar-account-copy small {
   overflow: hidden;
-  color: var(--muted);
-  font-size: var(--font-micro);
+  color: var(--sidebar-text-soft);
+  font-size: .78rem;
   font-weight: 470;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1046,10 +1059,10 @@
     .42rem
     .58rem;
   border-radius: .68rem;
-  color: var(--sub);
+  color: var(--sidebar-text);
   background: transparent;
   text-align: left;
-  font-size: .72rem;
+  font-size: .9rem;
   font-weight: 590;
   cursor: pointer;
 }
