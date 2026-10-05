@@ -444,6 +444,42 @@ test("canvas execution is mirrored into persisted user chat", () => {
   );
 });
 
+test("chat waiting state is contextual instead of fixed copy", () => {
+  const presence =
+    read(
+      "front/js/ovllPresence.js"
+    );
+  const css =
+    read(
+      "front/css/chat.css"
+    );
+
+  assert.match(
+    presence,
+    /startViewData/
+  );
+  assert.match(
+    presence,
+    /WorkspaceStore[\s\S]*search/
+  );
+  assert.match(
+    presence,
+    /lastUserRequest/
+  );
+  assert.match(
+    presence,
+    /openConversation/
+  );
+  assert.match(
+    css,
+    /ovll-chat-start-suggestions/
+  );
+  assert.doesNotMatch(
+    presence,
+    /안녕하세요|환영합니다|돌아왔어요/
+  );
+});
+
 test("first-load splash keeps only minimal brand loading information", () => {
   const html =
     read(
