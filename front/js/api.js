@@ -1186,6 +1186,8 @@
               input?.format,
             filename:
               input?.filename,
+            targetPages:
+              input?.targetPages,
             sources:
               compactArtifactSources(
                 input?.sources
