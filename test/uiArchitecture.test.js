@@ -328,3 +328,33 @@ test("adjacent source backups are not tracked beside live files", () => {
     assert.equal(fs.existsSync(path.join(ROOT, name)), false, name + " should not be tracked");
   }
 });
+
+
+test("runtime finalization policy is booted before app and precached", () => {
+  const boot =
+    read("front/js/boot.js");
+  const sw =
+    read("front/sw.js");
+
+  const policy =
+    boot.indexOf(
+      "./js/runtimeFinalization.js"
+    );
+  const app =
+    boot.indexOf(
+      "./js/app.js"
+    );
+
+  assert.ok(
+    policy >= 0,
+    "runtime finalization policy must be booted"
+  );
+  assert.ok(
+    app > policy,
+    "runtime finalization policy must load before app"
+  );
+  assert.match(
+    sw,
+    /\/js\/runtimeFinalization\.js/
+  );
+});
