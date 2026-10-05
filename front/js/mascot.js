@@ -55,16 +55,14 @@ function installStyle(){
 
   border:
     .0625rem solid
-    rgba(0,0,0,.08);
+    var(--body-color);
   border-radius:50%;
 
   background:var(--body-color);
 
   box-shadow:
     0 .1rem .36rem
-      rgba(0,0,0,.17),
-    inset 0 0 0 .025rem
-      rgba(255,255,255,.055);
+      rgba(0,0,0,.17);
 
   transform:translate(-50%,-50%);
   rotate:
@@ -223,13 +221,11 @@ function installStyle(){
   --eye-color:#151617;
 
   border-color:
-    rgba(255,255,255,.12);
+    var(--body-color);
 
   box-shadow:
     0 .1rem .36rem
-      rgba(0,0,0,.24),
-    inset 0 0 0 .025rem
-      rgba(0,0,0,.055);
+      rgba(0,0,0,.24);
 }
 
 .ovll-mascot.connecting{
@@ -343,10 +339,11 @@ function installStyle(){
   width:var(--sat-size);
   height:var(--sat-size);
 
+  border:.0625rem solid var(--sat-color);
   border-radius:50%;
   background:var(--sat-color);
   box-shadow:
-    0 .06rem .22rem rgba(0,0,0,.22);
+    0 .06rem .2rem rgba(0,0,0,.18);
 
   opacity:0;
   pointer-events:none;
@@ -390,15 +387,24 @@ function installStyle(){
 }
 
 .ovll-mascot-satellite[data-mode="point"]{
-  --sat-size:.56rem;
-  --sat-radius:1.15rem;
+  --sat-radius:.98rem;
 
+  width:.72rem;
+  height:.28rem;
+  border-radius:999px;
   opacity:.98;
+  box-shadow:
+    0 .045rem .16rem rgba(0,0,0,.16);
   transform:
     translate(-50%,-50%)
     rotate(var(--sat-angle))
-    translateX(var(--sat-radius))
-    scale(.92);
+    translateX(var(--sat-radius));
+  transition:
+    opacity .12s ease,
+    transform .18s cubic-bezier(.16,.84,.22,1),
+    width .16s ease,
+    height .16s ease,
+    background .16s ease;
 }
 
 .ovll-mascot-satellite[data-mode="celebrate"]{
@@ -568,6 +574,7 @@ function mount(world,canvas,options={}){
   let moodTimer=null;
   let thinkingTimer=null;
   let satelliteTimer=null;
+  let satelliteTarget=null;
   let connectionColor=false;
   let lastActivity=performance.now();
 
@@ -666,6 +673,33 @@ function mount(world,canvas,options={}){
       "--ovll-world-y",
       top
     );
+
+    syncPointSatellite();
+  }
+
+  function syncPointSatellite(){
+    if(
+      satellite.dataset.mode!=="point"||
+      !satelliteTarget
+    ){
+      return;
+    }
+
+    const c=
+      clientPoint(x,y);
+
+    const angle=
+      Math.atan2(
+        satelliteTarget.y-c.y,
+        satelliteTarget.x-c.x
+      )*
+      180/
+      Math.PI;
+
+    satellite.style.setProperty(
+      "--sat-angle",
+      angle+"deg"
+    );
   }
 
   const SATELLITE_MODES=
@@ -714,32 +748,24 @@ function mount(world,canvas,options={}){
       Number.isFinite(clientX)&&
       Number.isFinite(clientY)
     ){
-      const c=
-        center(
-          orb.getBoundingClientRect()
-        );
-
-      const angle=
-        Math.atan2(
-          clientY-c.y,
-          clientX-c.x
-        )*
-        180/
-        Math.PI;
-
-      satellite.style.setProperty(
-        "--sat-angle",
-        angle+"deg"
-      );
+      satelliteTarget={
+        x:clientX,
+        y:clientY
+      };
+    }else if(next!=="point"){
+      satelliteTarget=null;
     }
 
     satellite.dataset.mode=
       next;
 
+    syncPointSatellite();
+
     if(hold>0){
       satelliteTimer=
         setTimeout(
           ()=>{
+            satelliteTarget=null;
             satellite.dataset.mode=
               "hidden";
           },
