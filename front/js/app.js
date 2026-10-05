@@ -3771,8 +3771,8 @@
 
     if (artifacts.length) {
       return artifacts.length === 1
-        ? "결과물 파일을 만들었어."
-        : `결과물 파일 ${artifacts.length}개를 만들었어.`;
+        ? "결과물 파일을 만들었습니다."
+        : `결과물 파일 ${artifacts.length}개를 만들었습니다.`;
     }
 
     return "실행이 완료되었습니다. 결과를 캔버스에 반영했습니다.";
@@ -5206,7 +5206,7 @@
         const errorText =
           userFacingError(
             event.state?.error,
-            "이 단계에서 문제가 생겼어."
+            "이 단계에서 문제가 발생했습니다."
           );
 
         completeRuntimeStep(
