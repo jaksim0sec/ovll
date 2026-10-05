@@ -100,19 +100,17 @@ function fonts() {
     return fontCache;
   }
 
+  const regular =
+    resolveFontFile(
+      400
+    );
+
   fontCache = {
-    regular:
-      resolveFontFile(
-        400
-      ),
+    regular,
     medium:
-      resolveFontFile(
-        500
-      ),
+      regular,
     bold:
-      resolveFontFile(
-        700
-      )
+      regular
   };
 
   return fontCache;
@@ -197,12 +195,12 @@ function registerFonts(
 
   doc.registerFont(
     "NotoKRMedium",
-    resolved.medium
+    resolved.regular
   );
 
   doc.registerFont(
     "NotoKRBold",
-    resolved.bold
+    resolved.regular
   );
 }
 
@@ -1136,9 +1134,9 @@ export async function renderPdfKitDocument(
           PAGE.marginLeft
       },
       bufferPages:
-        true,
+        false,
       compress:
-        true,
+        false,
       info: {
         Title:
           title,
@@ -1257,30 +1255,6 @@ export async function renderPdfKitDocument(
     ) {
       drawRule(doc);
     }
-  }
-
-  const range =
-    doc.bufferedPageRange();
-
-  const pageCount =
-    range.count;
-
-  for (
-    let index = 0;
-    index < pageCount;
-    index++
-  ) {
-    doc.switchToPage(
-      range.start +
-      index
-    );
-
-    drawFooter(
-      doc,
-      title,
-      index + 1,
-      pageCount
-    );
   }
 
   return collectBuffer(
