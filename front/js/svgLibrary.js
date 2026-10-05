@@ -21,6 +21,12 @@ const ICONS=Object.freeze({
       <rect x="11.8" y="13.1" width="4.9" height="3.6" rx="1.55"></rect>
       <path d="M10 6.9v3.1M5.75 13.1V10h8.5v3.1"></path>
     </svg>
+  `,
+  composerSend:`
+    <svg viewBox="0 0 20 20" fill="none" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+      <path d="M6 9 10 5l4 4"></path>
+      <path d="M10 5.25v9.75"></path>
+    </svg>
   `
 });
 
