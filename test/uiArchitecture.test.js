@@ -424,6 +424,50 @@ test("PDF preview loads eagerly with a normalized PDF MIME", () => {
   );
 });
 
+test("canvas execution is mirrored into persisted user chat", () => {
+  const app =
+    read(
+      "front/js/app.js"
+    );
+
+  assert.match(
+    app,
+    /function\s+canvasRunUserText/
+  );
+  assert.match(
+    app,
+    /addUserMessage\(\s*runUserText\s*\)/
+  );
+  assert.match(
+    app,
+    /state\.lastUserRequest\s*=\s*runUserText/
+  );
+});
+
+test("first-load splash keeps only minimal brand loading information", () => {
+  const html =
+    read(
+      "front/index.html"
+    );
+
+  assert.match(
+    html,
+    /ovll-boot-orb/
+  );
+  assert.match(
+    html,
+    /ovll-boot-wordmark/
+  );
+  assert.match(
+    html,
+    /ovll-boot-progress/
+  );
+  assert.doesNotMatch(
+    html,
+    /class="ovll-boot-status"/
+  );
+});
+
 test("artifact requests and local persistence are time bounded", () => {
   const api =
     read(
