@@ -229,6 +229,32 @@ test("mobile library remains a compact list under the global chrome", () => {
   );
 });
 
+test("composer submit releases textarea focus after sending", () => {
+  const js = read("front/js/app.js");
+  const start = js.indexOf("async function handleSubmit");
+  const end = js.indexOf("function handleComposerInput", start);
+  const submit = js.slice(start, end);
+
+  assert.match(submit, /composerInput\.blur\(\)/);
+  assert.match(submit, /await runPrompt\(text\)/);
+  assert.ok(
+    submit.indexOf("composerInput.blur()") <
+      submit.indexOf("await runPrompt(text)")
+  );
+  assert.doesNotMatch(js, /focusComposerWithoutScroll/);
+});
+
+test("dark theme keeps the app background distinct from surfaces", () => {
+  const css = read("front/css/style.css");
+  const start = css.indexOf(":root.dark");
+  const end = css.indexOf("/* =========================================================", start);
+  const dark = css.slice(start, end);
+
+  assert.match(dark, /--bg:\s*#060606/);
+  assert.match(dark, /--panel:\s*#171717/);
+  assert.match(dark, /--line-strong:\s*rgba\(255, 255, 255, 0\.16\)/);
+});
+
 test("library page owns Escape and focus lifecycle", () => {
   const js = read("front/js/libraryPage.js");
 
