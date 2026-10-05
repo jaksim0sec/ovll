@@ -1280,7 +1280,7 @@
 
     const timeoutMs =
       format === "PDF"
-        ? 120000
+        ? 330000
         : 60000;
 
     const timeout =

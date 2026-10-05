@@ -835,7 +835,7 @@ test("artifact requests and local persistence are time bounded", () => {
   );
   assert.match(
     api,
-    /120000/
+    /330000/
   );
   assert.match(
     api,
@@ -851,7 +851,7 @@ test("artifact requests and local persistence are time bounded", () => {
   );
 });
 
-test("PDF fallback has one worker timeout below the client request timeout", () => {
+test("PDF client timeout remains above the server worker ceiling", () => {
   const renderer =
     read(
       "pdfRenderer.js"
@@ -881,9 +881,31 @@ test("PDF fallback has one worker timeout below the client request timeout", () 
     renderer,
     /pdfKitTimeoutMs\s*\(/
   );
-  assert.match(
-    api,
-    /120000/
+
+  const clientTimeout =
+    Number(
+      api.match(
+        /format === "PDF"[\s\S]*?\?\s*(\d+)/
+      )?.[1]
+    );
+  const serverCeiling =
+    Number(
+      renderer.match(
+        /MAX_PDFKIT_TIMEOUT_MS\s*=\s*(\d+)/
+      )?.[1]
+    );
+
+  assert.equal(
+    clientTimeout,
+    330000
+  );
+  assert.equal(
+    serverCeiling,
+    300000
+  );
+  assert.ok(
+    clientTimeout >
+      serverCeiling
   );
   assert.doesNotMatch(
     artifact,

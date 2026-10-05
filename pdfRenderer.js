@@ -32,6 +32,55 @@ const DEFAULT_PDFKIT_TIMEOUT_MS =
 const MAX_PDFKIT_TIMEOUT_MS =
   300000;
 
+function pdfAbortError(
+  signal
+) {
+  if (
+    signal?.reason instanceof
+      Error
+  ) {
+    return signal.reason;
+  }
+
+  const error =
+    new Error(
+      "PDF render aborted."
+    );
+
+  error.code =
+    "PDF_RENDER_ABORTED";
+  error.status =
+    499;
+
+  return error;
+}
+
+function throwIfPdfAborted(
+  signal
+) {
+  if (
+    signal?.aborted
+  ) {
+    throw pdfAbortError(
+      signal
+    );
+  }
+}
+
+function pdfTimeoutError() {
+  const error =
+    new Error(
+      "PDFKit worker timed out."
+    );
+
+  error.code =
+    "PDFKIT_WORKER_TIMEOUT";
+  error.status =
+    504;
+
+  return error;
+}
+
 function pdfKitDocumentStats(
   document
 ) {
@@ -716,10 +765,22 @@ export function pdfDocumentHtml(
 }
 
 export async function renderPdfWithChrome(
-  input = {}
+  input = {},
+  options = {}
 ) {
+  const signal =
+    options.signal;
+
+  throwIfPdfAborted(
+    signal
+  );
+
   const executable =
     await resolveChromeExecutable();
+
+  throwIfPdfAborted(
+    signal
+  );
 
   if (!executable) {
     return null;
@@ -792,14 +853,24 @@ export async function renderPdfWithChrome(
           timeout: 9000,
           windowsHide: true,
           maxBuffer:
-            1024 * 1024
+            1024 * 1024,
+          signal
         }
       );
     } catch (error) {
-      cachedChromeExecutable =
-        null;
+      if (
+        !signal?.aborted
+      ) {
+        cachedChromeExecutable =
+          null;
+      }
+
       throw error;
     }
+
+    throwIfPdfAborted(
+      signal
+    );
 
     const buffer =
       await readFile(
@@ -833,12 +904,29 @@ export async function renderPdfWithChrome(
 
 function renderPdfKitInWorker(
   document,
-  metadata
+  metadata,
+  options = {}
 ) {
+  const signal =
+    options.signal;
   const timeoutMs =
+    Number(
+      options.timeoutMs
+    ) ||
     pdfKitTimeoutMs(
       document
     );
+
+  if (
+    signal?.aborted
+  ) {
+    return Promise.reject(
+      pdfAbortError(
+        signal
+      )
+    );
+  }
+
   const stats =
     pdfKitDocumentStats(
       document
@@ -846,6 +934,10 @@ function renderPdfKitInWorker(
 
   return new Promise(
     (resolve, reject) => {
+      const reusedWorker =
+        Boolean(
+          sharedPdfKitWorker
+        );
       const worker =
         ensurePdfKitWorker();
 
@@ -854,10 +946,9 @@ function renderPdfKitInWorker(
         (++pdfKitRequestCounter);
 
       let settled = false;
+      let abortHandler = null;
 
       const cleanup = () => {
-        clearTimeout(timer);
-
         worker.removeListener(
           "message",
           onMessage
@@ -870,6 +961,16 @@ function renderPdfKitInWorker(
           "exit",
           onExit
         );
+
+        if (
+          abortHandler
+        ) {
+          signal
+            ?.removeEventListener(
+              "abort",
+              abortHandler
+            );
+        }
       };
 
       const finish = (
@@ -893,9 +994,7 @@ function renderPdfKitInWorker(
           "[artifact pdfkit]",
           {
             durationMs,
-            reusedWorker:
-              sharedPdfKitWorker ===
-              worker
+            reusedWorker
           }
         );
 
@@ -969,27 +1068,18 @@ function renderPdfKitInWorker(
           finish(error);
         };
 
-      const timer =
-        setTimeout(
-          () => {
-            const error =
-              new Error(
-                "PDFKit worker timed out."
-              );
-
-            error.code =
-              "PDFKIT_WORKER_TIMEOUT";
-            error.status =
-              504;
-
-            disposePdfKitWorker(
-              worker
+      abortHandler =
+        () => {
+          const error =
+            pdfAbortError(
+              signal
             );
 
-            finish(error);
-          },
-          timeoutMs
-        );
+          disposePdfKitWorker(
+            worker
+          );
+          finish(error);
+        };
 
       worker.on(
         "message",
@@ -1004,6 +1094,22 @@ function renderPdfKitInWorker(
         onExit
       );
 
+      signal
+        ?.addEventListener(
+          "abort",
+          abortHandler,
+          {
+            once: true
+          }
+        );
+
+      if (
+        signal?.aborted
+      ) {
+        abortHandler();
+        return;
+      }
+
       console.info(
         "[artifact pdfkit start]",
         {
@@ -1013,11 +1119,15 @@ function renderPdfKitInWorker(
         }
       );
 
-      worker.postMessage({
-        id,
-        document,
-        metadata
-      });
+      try {
+        worker.postMessage({
+          id,
+          document,
+          metadata
+        });
+      } catch (error) {
+        finish(error);
+      }
     }
   );
 }
@@ -1078,29 +1188,103 @@ export async function warmPdfFallback() {
 
 export async function renderPdfFallback(
   inputDocument,
-  metadata = {}
+  metadata = {},
+  options = {}
 ) {
   const document =
     normalizedDocument(
       inputDocument
     );
+  const timeoutMs =
+    pdfKitTimeoutMs(
+      document
+    );
+  const parentSignal =
+    options.signal;
+  const controller =
+    new AbortController();
+
+  const onParentAbort =
+    () => {
+      if (
+        !controller.signal
+          .aborted
+      ) {
+        controller.abort(
+          pdfAbortError(
+            parentSignal
+          )
+        );
+      }
+    };
+
+  if (
+    parentSignal?.aborted
+  ) {
+    onParentAbort();
+  } else {
+    parentSignal
+      ?.addEventListener(
+        "abort",
+        onParentAbort,
+        {
+          once: true
+        }
+      );
+  }
+
+  const timer =
+    setTimeout(
+      () => {
+        if (
+          !controller.signal
+            .aborted
+        ) {
+          controller.abort(
+            pdfTimeoutError()
+          );
+        }
+      },
+      timeoutMs
+    );
+
+  const run =
+    () => {
+      throwIfPdfAborted(
+        controller.signal
+      );
+
+      return renderPdfKitInWorker(
+        document,
+        metadata,
+        {
+          signal:
+            controller.signal,
+          timeoutMs
+        }
+      );
+    };
 
   const task =
     pdfKitQueue.then(
-      () =>
-        renderPdfKitInWorker(
-          document,
-          metadata
-        ),
-      () =>
-        renderPdfKitInWorker(
-          document,
-          metadata
-        )
+      run,
+      run
     );
 
   pdfKitQueue =
     task.catch(() => {});
 
-  return task;
+  try {
+    return await task;
+  } finally {
+    clearTimeout(
+      timer
+    );
+
+    parentSignal
+      ?.removeEventListener(
+        "abort",
+        onParentAbort
+      );
+  }
 }

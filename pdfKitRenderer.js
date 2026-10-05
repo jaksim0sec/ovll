@@ -7,6 +7,7 @@ import {
   readFileSync
 } from "node:fs";
 import path from "node:path";
+import {inflateSync} from "node:zlib";
 
 const require =
   createRequire(
@@ -189,6 +190,322 @@ function collectBuffer(
   );
 }
 
+function sfntChecksum(
+  buffer
+) {
+  let sum = 0;
+
+  for (
+    let offset = 0;
+    offset < buffer.length;
+    offset += 4
+  ) {
+    const b0 =
+      buffer[offset] || 0;
+    const b1 =
+      buffer[offset + 1] || 0;
+    const b2 =
+      buffer[offset + 2] || 0;
+    const b3 =
+      buffer[offset + 3] || 0;
+
+    const word =
+      (
+        b0 * 0x1000000 +
+        b1 * 0x10000 +
+        b2 * 0x100 +
+        b3
+      ) >>> 0;
+
+    sum =
+      (sum + word) >>> 0;
+  }
+
+  return sum;
+}
+
+function uncompressedFontBuffer(
+  source
+) {
+  if (
+    !Buffer.isBuffer(source) ||
+    source.length < 44 ||
+    source.toString(
+      "ascii",
+      0,
+      4
+    ) !== "wOFF"
+  ) {
+    return source;
+  }
+
+  const declaredLength =
+    source.readUInt32BE(8);
+  const numTables =
+    source.readUInt16BE(12);
+  const totalSfntSize =
+    source.readUInt32BE(16);
+
+  if (
+    declaredLength > source.length ||
+    numTables < 1 ||
+    44 + numTables * 20 >
+      declaredLength
+  ) {
+    throw new Error(
+      "Invalid WOFF font header."
+    );
+  }
+
+  const tables = [];
+
+  for (
+    let index = 0;
+    index < numTables;
+    index++
+  ) {
+    const directoryOffset =
+      44 + index * 20;
+
+    const tag =
+      source.toString(
+        "ascii",
+        directoryOffset,
+        directoryOffset + 4
+      );
+    const offset =
+      source.readUInt32BE(
+        directoryOffset + 4
+      );
+    const compressedLength =
+      source.readUInt32BE(
+        directoryOffset + 8
+      );
+    const originalLength =
+      source.readUInt32BE(
+        directoryOffset + 12
+      );
+
+    if (
+      !originalLength ||
+      offset < 44 ||
+      offset +
+        compressedLength >
+        declaredLength
+    ) {
+      throw new Error(
+        `Invalid WOFF table: ${tag}`
+      );
+    }
+
+    const compressed =
+      source.subarray(
+        offset,
+        offset +
+          compressedLength
+      );
+
+    let data =
+      compressedLength ===
+      originalLength
+        ? Buffer.from(
+            compressed
+          )
+        : inflateSync(
+            compressed
+          );
+
+    if (
+      data.length !==
+      originalLength
+    ) {
+      throw new Error(
+        `WOFF table length mismatch: ${tag}`
+      );
+    }
+
+    if (
+      tag === "head" &&
+      data.length >= 12
+    ) {
+      data =
+        Buffer.from(data);
+
+      data.writeUInt32BE(
+        0,
+        8
+      );
+    }
+
+    tables.push({
+      tag,
+      data,
+      length:
+        originalLength,
+      checksum:
+        sfntChecksum(data)
+    });
+  }
+
+  tables.sort(
+    (left, right) =>
+      left.tag < right.tag
+        ? -1
+        : left.tag > right.tag
+          ? 1
+          : 0
+  );
+
+  const directorySize =
+    12 +
+    numTables * 16;
+
+  const dataSize =
+    tables.reduce(
+      (sum, table) =>
+        sum +
+        (
+          table.length + 3
+        & ~3),
+      0
+    );
+
+  const outputSize =
+    directorySize +
+    dataSize;
+
+  if (
+    totalSfntSize &&
+    outputSize !==
+      totalSfntSize
+  ) {
+    throw new Error(
+      "WOFF SFNT size mismatch."
+    );
+  }
+
+  const output =
+    Buffer.alloc(
+      outputSize
+    );
+
+  output.writeUInt32BE(
+    source.readUInt32BE(4),
+    0
+  );
+  output.writeUInt16BE(
+    numTables,
+    4
+  );
+
+  let maxPower = 1;
+  let entrySelector = 0;
+
+  while (
+    maxPower * 2 <=
+    numTables
+  ) {
+    maxPower *= 2;
+    entrySelector++;
+  }
+
+  const searchRange =
+    maxPower * 16;
+
+  output.writeUInt16BE(
+    searchRange,
+    6
+  );
+  output.writeUInt16BE(
+    entrySelector,
+    8
+  );
+  output.writeUInt16BE(
+    numTables * 16 -
+      searchRange,
+    10
+  );
+
+  let dataOffset =
+    directorySize;
+  let headOffset = -1;
+
+  tables.forEach(
+    (table, index) => {
+      const recordOffset =
+        12 + index * 16;
+
+      output.write(
+        table.tag,
+        recordOffset,
+        4,
+        "ascii"
+      );
+      output.writeUInt32BE(
+        table.checksum,
+        recordOffset + 4
+      );
+      output.writeUInt32BE(
+        dataOffset,
+        recordOffset + 8
+      );
+      output.writeUInt32BE(
+        table.length,
+        recordOffset + 12
+      );
+
+      table.data.copy(
+        output,
+        dataOffset
+      );
+
+      if (
+        table.tag === "head"
+      ) {
+        headOffset =
+          dataOffset;
+      }
+
+      dataOffset +=
+        (
+          table.length + 3
+        & ~3);
+    }
+  );
+
+  if (
+    headOffset < 0
+  ) {
+    throw new Error(
+      "WOFF font has no head table."
+    );
+  }
+
+  const adjustment =
+    (
+      0xB1B0AFBA -
+      sfntChecksum(
+        output
+      )
+    ) >>> 0;
+
+  output.writeUInt32BE(
+    adjustment,
+    headOffset + 8
+  );
+
+  if (
+    sfntChecksum(output) !==
+    0xB1B0AFBA
+  ) {
+    throw new Error(
+      "SFNT checksum reconstruction failed."
+    );
+  }
+
+  return output;
+}
+
 function fontBuffer() {
   if (fontBufferCache) {
     return fontBufferCache;
@@ -198,8 +515,10 @@ function fontBuffer() {
     fonts();
 
   fontBufferCache =
-    readFileSync(
-      resolved.regular
+    uncompressedFontBuffer(
+      readFileSync(
+        resolved.regular
+      )
     );
 
   return fontBufferCache;
