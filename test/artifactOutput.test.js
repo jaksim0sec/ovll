@@ -664,3 +664,32 @@ test("fallback PDF keeps a short canonical document on one page and draws body t
     "fallback PDF should contain title, section, body, and footer text operators"
   );
 });
+
+
+test("artifact metadata preserves requested target page count without forcing layout", async () => {
+  const artifact =
+    await createStoredArtifact({
+      format: "TXT",
+      filename:
+        "target-pages",
+      targetPages: 3,
+      sources: [
+        "본문"
+      ]
+    });
+
+  assert.equal(
+    artifact.targetPages,
+    3
+  );
+
+  const stored =
+    getStoredArtifact(
+      artifact.id
+    );
+
+  assert.equal(
+    stored.targetPages,
+    3
+  );
+});
