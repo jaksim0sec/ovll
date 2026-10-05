@@ -405,6 +405,23 @@ export async function createStoredArtifact(input = {}) {
   const info =
     FORMAT_INFO[format];
 
+  const targetPages =
+    Number.isInteger(
+      Number(
+        input.targetPages
+      )
+    ) &&
+    Number(
+      input.targetPages
+    ) >= 1 &&
+    Number(
+      input.targetPages
+    ) <= 30
+      ? Number(
+          input.targetPages
+        )
+      : null;
+
   const sources =
     Array.isArray(
       input.sources
@@ -514,6 +531,7 @@ export async function createStoredArtifact(input = {}) {
     buffer,
     renderer:
       built.renderer,
+    targetPages,
     previewKind,
     previewText
   };
@@ -542,6 +560,8 @@ export async function createStoredArtifact(input = {}) {
       item.size,
     renderer:
       item.renderer,
+    targetPages:
+      item.targetPages,
     previewKind:
       item.previewKind,
     previewText:
