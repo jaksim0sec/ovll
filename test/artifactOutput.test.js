@@ -317,3 +317,153 @@ test("PDF artifact preview text uses canonical semantic content", async () => {
     }
   }
 });
+
+
+test("HTML artifact selects fenced document over wrapper prose", async () => {
+  const artifact =
+    await createStoredArtifact({
+      format: "HTML",
+      filename: "wrapped",
+      sources: [
+        "설명 시작\n\n~~~html\n<!doctype html><html><body><main id=\"real\">Real</main></body></html>\n~~~\n\n설명 끝"
+      ]
+    });
+
+  const stored =
+    getStoredArtifact(
+      artifact.id
+    );
+
+  const html =
+    stored.buffer
+      .toString("utf8");
+
+  assert.match(
+    html,
+    /<main id="real">Real<\/main>/
+  );
+  assert.doesNotMatch(
+    html,
+    /설명 시작|설명 끝|~~~html/
+  );
+  assert.equal(
+    artifact.previewKind,
+    "html"
+  );
+  assert.doesNotMatch(
+    artifact.previewText || "",
+    /~~~html|설명 시작|설명 끝/
+  );
+});
+
+test("structured HTML CSS JS artifact stores one runnable document", async () => {
+  const artifact =
+    await createStoredArtifact({
+      format: "HTML",
+      filename: "app",
+      sources: [
+        {
+          html:
+            "<main id=\"app\">Hello</main>",
+          css:
+            "#app{font-weight:700}",
+          js:
+            "document.body.dataset.ready='1'"
+        }
+      ]
+    });
+
+  const stored =
+    getStoredArtifact(
+      artifact.id
+    );
+
+  const html =
+    stored.buffer
+      .toString("utf8");
+
+  assert.match(
+    html,
+    /<main id="app">Hello<\/main>/
+  );
+  assert.match(
+    html,
+    /#app\{font-weight:700\}/
+  );
+  assert.match(
+    html,
+    /document\.body\.dataset\.ready='1'/
+  );
+  assert.equal(
+    artifact.previewKind,
+    "html"
+  );
+});
+
+test("artifact preview metadata is format aware", async () => {
+  const cases = [
+    ["PDF", "pdf"],
+    ["HTML", "html"],
+    ["MD", "document"],
+    ["TXT", "text"],
+    ["DOCX", "document"],
+    ["RTF", "document"],
+    ["XLSX", "spreadsheet"],
+    ["CSV", "spreadsheet"],
+    ["JSON", "code"]
+  ];
+
+  const previous =
+    process.env
+      .OVLL_DISABLE_CHROME;
+
+  process.env
+    .OVLL_DISABLE_CHROME =
+    "1";
+
+  try {
+    for (
+      const [
+        format,
+        expected
+      ] of cases
+    ) {
+      const artifact =
+        await createStoredArtifact({
+          format,
+          filename:
+            "preview-" +
+            format.toLowerCase(),
+          sources: [
+            format === "XLSX" ||
+            format === "CSV"
+              ? [
+                  {
+                    name: "A",
+                    value: 1
+                  }
+                ]
+              : "본문"
+          ]
+        });
+
+      assert.equal(
+        artifact.previewKind,
+        expected,
+        format
+      );
+    }
+  } finally {
+    if (
+      previous ===
+        undefined
+    ) {
+      delete process.env
+        .OVLL_DISABLE_CHROME;
+    } else {
+      process.env
+        .OVLL_DISABLE_CHROME =
+        previous;
+    }
+  }
+});
