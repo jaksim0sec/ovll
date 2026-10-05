@@ -15,6 +15,9 @@ import {
   createStoredArtifact,
   getStoredArtifact
 } from './artifactStore.js';
+import {
+  warmPdfFallback
+} from './pdfRenderer.js';
 
 const app = express();
 
@@ -266,7 +269,7 @@ function groupLogMeta(
  * The frontend compares this server value with its locally stored version
  * before loading application assets.
  */
-const APP_VERSION = '2026.10.06.100';
+const APP_VERSION = '2026.10.06.101';
 
 /* =========================================================
    CANONICAL NODE DEFINITION
@@ -3643,5 +3646,16 @@ app.listen(
     console.log(
       `Version: ${APP_VERSION}`
     );
+
+    void warmPdfFallback()
+      .catch(
+        error => {
+          console.warn(
+            '[artifact pdfkit warmup] failed',
+            error?.message ||
+            error
+          );
+        }
+      );
   }
 );

@@ -25,6 +25,147 @@ let sharedPdfKitWorker = null;
 let pdfKitRequestCounter = 0;
 let pdfKitQueue =
   Promise.resolve();
+let pdfKitWarmupPromise = null;
+
+const DEFAULT_PDFKIT_TIMEOUT_MS =
+  180000;
+const MAX_PDFKIT_TIMEOUT_MS =
+  300000;
+
+function pdfKitDocumentStats(
+  document
+) {
+  const blocks =
+    Array.isArray(
+      document?.blocks
+    )
+      ? document.blocks
+      : [];
+
+  let chars = 0;
+  let tables = 0;
+  let cells = 0;
+
+  for (const block of blocks) {
+    if (!block) {
+      continue;
+    }
+
+    if (
+      typeof block.text ===
+        "string"
+    ) {
+      chars +=
+        block.text.length;
+    }
+
+    if (
+      Array.isArray(
+        block.items
+      )
+    ) {
+      for (const item of block.items) {
+        chars +=
+          String(
+            item || ""
+          ).length;
+      }
+    }
+
+    if (
+      block.type ===
+        "table"
+    ) {
+      tables++;
+
+      const headers =
+        Array.isArray(
+          block.headers
+        )
+          ? block.headers
+          : [];
+      const rows =
+        Array.isArray(
+          block.rows
+        )
+          ? block.rows
+          : [];
+
+      cells +=
+        headers.length;
+
+      for (const row of rows) {
+        if (!Array.isArray(row)) {
+          continue;
+        }
+
+        cells +=
+          row.length;
+
+        for (const cell of row) {
+          chars +=
+            String(
+              cell || ""
+            ).length;
+        }
+      }
+    }
+  }
+
+  return {
+    blocks:
+      blocks.length,
+    chars,
+    tables,
+    cells
+  };
+}
+
+function pdfKitTimeoutMs(
+  document
+) {
+  const explicit =
+    Number(
+      process.env
+        .OVLL_PDFKIT_WORKER_TIMEOUT_MS
+    );
+
+  if (
+    Number.isFinite(explicit) &&
+    explicit >= 1000
+  ) {
+    return Math.min(
+      MAX_PDFKIT_TIMEOUT_MS,
+      Math.max(
+        1000,
+        explicit
+      )
+    );
+  }
+
+  const stats =
+    pdfKitDocumentStats(
+      document
+    );
+
+  const complexityBudget =
+    Math.min(
+      120000,
+      Math.ceil(
+        stats.chars /
+        1000
+      ) *
+        850 +
+      stats.cells *
+        18
+    );
+
+  return Math.min(
+    MAX_PDFKIT_TIMEOUT_MS,
+    DEFAULT_PDFKIT_TIMEOUT_MS +
+      complexityBudget
+  );
+}
 
 function disposePdfKitWorker(
   worker
@@ -695,12 +836,12 @@ function renderPdfKitInWorker(
   metadata
 ) {
   const timeoutMs =
-    Math.max(
-      1000,
-      Number(
-        process.env
-          .OVLL_PDFKIT_WORKER_TIMEOUT_MS
-      ) || 100000
+    pdfKitTimeoutMs(
+      document
+    );
+  const stats =
+    pdfKitDocumentStats(
+      document
     );
 
   return new Promise(
@@ -863,6 +1004,15 @@ function renderPdfKitInWorker(
         onExit
       );
 
+      console.info(
+        "[artifact pdfkit start]",
+        {
+          id,
+          ...stats,
+          timeoutMs
+        }
+      );
+
       worker.postMessage({
         id,
         document,
@@ -870,6 +1020,60 @@ function renderPdfKitInWorker(
       });
     }
   );
+}
+
+export async function warmPdfFallback() {
+  if (pdfKitWarmupPromise) {
+    return pdfKitWarmupPromise;
+  }
+
+  const startedAt =
+    Date.now();
+
+  pdfKitWarmupPromise =
+    renderPdfFallback(
+      {
+        title:
+          "ovll",
+        blocks: [
+          {
+            type:
+              "paragraph",
+            text:
+              "오블 PDF 준비"
+          }
+        ]
+      },
+      {
+        title:
+          "ovll"
+      }
+    )
+      .then(
+        buffer => {
+          console.info(
+            "[artifact pdfkit warmup]",
+            {
+              durationMs:
+                Date.now() -
+                startedAt,
+              size:
+                buffer.length
+            }
+          );
+
+          return true;
+        }
+      )
+      .catch(
+        error => {
+          pdfKitWarmupPromise =
+            null;
+          throw error;
+        }
+      );
+
+  return pdfKitWarmupPromise;
 }
 
 export async function renderPdfFallback(

@@ -652,3 +652,60 @@ test("artifact metadata preserves requested target page count without forcing la
     3
   );
 });
+
+
+test("PDF fallback prewarms the shared worker and bounds pathological table cost", () => {
+  const pdfRenderer =
+    fs.readFileSync(
+      path.join(
+        ROOT,
+        "pdfRenderer.js"
+      ),
+      "utf8"
+    );
+  const pdfKitRenderer =
+    fs.readFileSync(
+      path.join(
+        ROOT,
+        "pdfKitRenderer.js"
+      ),
+      "utf8"
+    );
+  const server =
+    fs.readFileSync(
+      path.join(
+        ROOT,
+        "server.js"
+      ),
+      "utf8"
+    );
+
+  assert.match(
+    pdfRenderer,
+    /export async function warmPdfFallback\(\)/
+  );
+  assert.match(
+    pdfRenderer,
+    /DEFAULT_PDFKIT_TIMEOUT_MS\s*=\s*180000/
+  );
+  assert.match(
+    pdfRenderer,
+    /\[artifact pdfkit start\]/
+  );
+  assert.match(
+    server,
+    /void warmPdfFallback\(\)/
+  );
+  assert.match(
+    pdfKitRenderer,
+    /let fontBufferCache = null/
+  );
+  assert.match(
+    pdfKitRenderer,
+    /MAX_TABLE_ROWS = 300/
+  );
+  assert.match(
+    pdfKitRenderer,
+    /MAX_TABLE_COLUMNS = 12/
+  );
+});

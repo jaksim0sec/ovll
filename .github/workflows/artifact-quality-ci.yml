@@ -44,6 +44,9 @@ jobs:
             createStoredArtifact,
             getStoredArtifact
           } from "./artifactStore.js";
+          import {
+            warmPdfFallback
+          } from "./pdfRenderer.js";
 
           const source = [
             "# 고라니 종합 보고서",
@@ -99,6 +102,8 @@ jobs:
             "",
             "사람과 야생동물의 갈등을 줄이는 목표는 개체를 단순히 멀리 보내는 것만으로 달성되기 어렵습니다. 생활권으로 접근하게 만드는 먹이와 은신처 조건, 이동 장벽, 교통 구조를 함께 조정해야 같은 문제가 반복되는 것을 줄일 수 있습니다. 장기적인 관리는 단기 민원 대응과 공간 계획, 안전 대책을 하나의 흐름으로 연결할 때 효과가 커집니다.",
           ].join("\n");
+
+          await warmPdfFallback();
 
           const artifact = await createStoredArtifact({
             format: "PDF",

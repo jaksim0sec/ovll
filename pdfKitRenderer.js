@@ -3,7 +3,8 @@ import {
   createRequire
 } from "node:module";
 import {
-  existsSync
+  existsSync,
+  readFileSync
 } from "node:fs";
 import path from "node:path";
 
@@ -29,6 +30,7 @@ const PAGE = {
 };
 
 let fontCache = null;
+let fontBufferCache = null;
 
 const TEXT_HEIGHT_CACHE_LIMIT =
   2048;
@@ -187,15 +189,28 @@ function collectBuffer(
   );
 }
 
-function registerFonts(
-  doc
-) {
+function fontBuffer() {
+  if (fontBufferCache) {
+    return fontBufferCache;
+  }
+
   const resolved =
     fonts();
 
+  fontBufferCache =
+    readFileSync(
+      resolved.regular
+    );
+
+  return fontBufferCache;
+}
+
+function registerFonts(
+  doc
+) {
   doc.registerFont(
     "NotoKR",
-    resolved.regular
+    fontBuffer()
   );
 }
 
@@ -756,6 +771,10 @@ function drawCode(
 function normalizedTable(
   block
 ) {
+  const MAX_TABLE_COLUMNS = 12;
+  const MAX_TABLE_ROWS = 300;
+  const MAX_TABLE_CELL_CHARS = 3000;
+
   const headers =
     Array.isArray(
       block.headers
@@ -767,20 +786,35 @@ function normalizedTable(
     Array.isArray(
       block.rows
     )
-      ? block.rows
+      ? block.rows.slice(
+          0,
+          MAX_TABLE_ROWS
+        )
       : [];
 
   const count =
-    Math.max(
-      headers.length,
-      ...rows.map(
-        row =>
-          Array.isArray(row)
-            ? row.length
-            : 0
-      ),
-      1
+    Math.min(
+      MAX_TABLE_COLUMNS,
+      Math.max(
+        headers.length,
+        ...rows.map(
+          row =>
+            Array.isArray(row)
+              ? row.length
+              : 0
+        ),
+        1
+      )
     );
+
+  const cellText =
+    value =>
+      cleanText(
+        value || ""
+      ).slice(
+        0,
+        MAX_TABLE_CELL_CHARS
+      );
 
   return {
     count,
@@ -790,7 +824,7 @@ function normalizedTable(
           length: count
         },
         (_, index) =>
-          cleanText(
+          cellText(
             headers[index] ||
             `열 ${index + 1}`
           )
@@ -803,7 +837,7 @@ function normalizedTable(
               length: count
             },
             (_, index) =>
-              cleanText(
+              cellText(
                 row?.[index] ||
                 ""
               )
