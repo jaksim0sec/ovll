@@ -543,6 +543,30 @@ test("new chat waiting state uses neutral polite copy only", () => {
   );
 });
 
+test("Groq planner honors one short rate-limit delay", () => {
+  const server =
+    read(
+      "server.js"
+    );
+
+  assert.match(
+    server,
+    /plannerRateLimitDelayMs/
+  );
+  assert.match(
+    server,
+    /GROQ_RATE_LIMIT/
+  );
+  assert.match(
+    server,
+    /waitPlannerDelay/
+  );
+  assert.match(
+    server,
+    /15000/
+  );
+});
+
 test("server health preserves event-loop stall history", () => {
   const server =
     read(
