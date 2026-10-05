@@ -188,7 +188,7 @@ test("executeGroup sends a stateless structured Interactions request", async () 
   assert.equal(
     request.generation_config
       .thinking_level,
-    "low"
+    "minimal"
   );
   assert.equal(
     request.response_format.type,
@@ -648,6 +648,43 @@ test("simple organize-only groups use minimal thinking", async () => {
   );
 });
 
+test("hung Gemini upstream requests fail with an explicit timeout", async () => {
+  const execution =
+    createGeminiExecution({
+      apiKey: "test-key",
+      requestTimeoutMs: 5,
+      fetchImpl:
+        async (_url, options) =>
+          new Promise((resolve, reject) => {
+            options.signal.addEventListener(
+              "abort",
+              () => {
+                const error =
+                  new Error("aborted");
+
+                error.name =
+                  "AbortError";
+                reject(error);
+              },
+              {once:true}
+            );
+          }),
+      sleepImpl:
+        async () => {}
+    });
+
+  await assert.rejects(
+    execution.executeGroup(
+      group()
+    ),
+    error =>
+      error?.code ===
+        "GEMINI_UPSTREAM_TIMEOUT" &&
+      error?.retryable ===
+        true
+  );
+});
+
 test("429 retries once on the primary model and never falls back", async () => {
   const models = [];
 
@@ -840,7 +877,7 @@ test("execution diagnostics report bounded attempts", async () => {
   assert.equal(
     output.diagnostics
       .thinkingLevel,
-    "low"
+    "minimal"
   );
   assert.equal(
     output.diagnostics
