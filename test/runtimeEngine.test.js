@@ -1220,13 +1220,11 @@ test("oversized subgroup failure is attributed to the subgroup that actually fai
 
   const engine =
     new RuntimeEngine({
-      maxGroupInputChars: 100,
+      maxGroupInputChars: 1000,
       measureGroupInputChars(
         group
       ) {
-        return group.nodes.length > 1
-          ? group.nodes.length * 60
-          : 60;
+        return group.nodes.length * 600;
       },
       executor: {
         async run() {
