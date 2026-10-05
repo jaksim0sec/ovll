@@ -4,7 +4,7 @@
 
 :root {
   --sidebar-width: 19.25rem;
-  --sidebar-edge-gap: 2.2rem;
+  --sidebar-edge-gap: 3.75rem;
   --sidebar-radius: 1rem;
 }
 
@@ -318,78 +318,65 @@
   display: grid;
   grid-template-columns:
     minmax(0,1fr);
-  gap: .48rem;
+  gap: .08rem;
   padding:
-    .12rem
-    .78rem
-    .82rem;
+    .18rem
+    .82rem
+    1rem;
 }
 
 .ovll-sidebar-primary-action {
   min-width: 0;
-  min-height: 2.65rem;
+  min-height: 3.1rem;
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  gap: .58rem;
+  gap: .78rem;
   padding:
-    .44rem
-    .72rem;
-  border:
-    .0625rem solid
-    color-mix(
-      in srgb,
-      var(--line) 88%,
-      transparent
-    );
-  border-radius: 999px;
+    .5rem
+    .68rem;
+  border: 0;
+  border-radius: .84rem;
   color: var(--sidebar-text);
-  background:
-    color-mix(
-      in srgb,
-      var(--text) 3.5%,
-      transparent
-    );
+  background: transparent;
   text-align: left;
   cursor: pointer;
-  font-size: .96rem;
-  font-weight: 660;
-  letter-spacing: -.014em;
+  font-size: 1.01rem;
+  font-weight: 650;
+  letter-spacing: -.018em;
   transition:
     color .14s ease,
     background-color .14s ease,
-    border-color .14s ease,
     transform .14s var(--ease);
 }
 
 
 .ovll-sidebar-primary-action:hover {
   color: var(--text);
-  border-color: var(--line-strong);
   background:
     color-mix(
       in srgb,
-      var(--text) 7%,
-      var(--panel)
+      var(--text) 5.5%,
+      transparent
     );
 }
 
 .ovll-sidebar-primary-action:active {
-  transform: scale(.975);
+  transform: scale(.988);
 }
 
 .ovll-sidebar-primary-icon {
-  width: 1.3rem;
-  height: 1.3rem;
-  flex: 0 0 1.3rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  flex: 0 0 1.5rem;
   display: grid;
   place-items: center;
   color: currentColor;
 }
 
 .ovll-sidebar-primary-icon svg {
-  width: 1.28rem;
-  height: 1.28rem;
+  width: 1.46rem;
+  height: 1.46rem;
   max-width: none;
 }
 
@@ -688,17 +675,17 @@
 .ovll-sidebar-chat {
   width: 100%;
   min-width: 0;
-  min-height: 2.85rem;
+  min-height: 3.08rem;
   display: grid;
   grid-template-columns:
-    1.4rem
+    1.45rem
     minmax(0,1fr);
   align-items: center;
-  gap: .58rem;
+  gap: .68rem;
   padding:
-    .48rem
+    .5rem
     .68rem;
-  border-radius: 1rem;
+  border-radius: .82rem;
   color: var(--sidebar-text);
   background: transparent;
   text-align: left;
@@ -728,7 +715,7 @@
   background:
     color-mix(
       in srgb,
-      var(--text) 7%,
+      var(--text) 8.5%,
       transparent
     );
 }
@@ -760,8 +747,8 @@
   min-width: 0;
   display: block;
   overflow: hidden;
-  font-size: .96rem;
-  font-weight: 550;
+  font-size: .98rem;
+  font-weight: 560;
   line-height: 1.4;
   letter-spacing: -.014em;
   text-overflow: ellipsis;
@@ -834,40 +821,31 @@
 .ovll-sidebar-account {
   width: 100%;
   min-width: 0;
-  min-height: 4.15rem;
+  min-height: 3.85rem;
   display: grid;
   grid-template-columns:
-    2.55rem
+    2.4rem
     minmax(0,1fr);
   align-items: center;
-  gap: .62rem;
+  gap: .7rem;
   padding:
-    .66rem
-    .72rem;
-  border:
-    .0625rem solid
-    transparent;
-  border-radius: 1.05rem;
+    .58rem
+    .7rem;
+  border: 0;
+  border-radius: .86rem;
   color: var(--text);
-  background:
-    color-mix(
-      in srgb,
-      var(--text) 3.5%,
-      transparent
-    );
+  background: transparent;
   text-align: left;
   cursor: pointer;
   transition:
-    background-color .14s ease,
-    border-color .14s ease;
+    background-color .14s ease;
 }
 
 .ovll-sidebar-account:hover {
-  border-color: var(--line);
   background:
     color-mix(
       in srgb,
-      var(--text) 6%,
+      var(--text) 5.5%,
       transparent
     );
 }
@@ -935,9 +913,9 @@
     --sidebar-width:
       min(
         20.5rem,
-        calc(
-          100vw -
-          var(--sidebar-edge-gap)
+        max(
+          17.5rem,
+          82vw
         )
       );
   }
