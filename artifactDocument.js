@@ -593,11 +593,6 @@ export function createArtifactDocument(
         block.type ===
           "heading" &&
         block.level === 1
-    ) ||
-    blocks.find(
-      block =>
-        block.type ===
-          "heading"
     );
 
   return {
