@@ -2392,6 +2392,68 @@ function buildRetryPrompt(
    GROQ
 ========================================================= */
 
+function plannerRateLimitDelayMs(
+  response,
+  body
+) {
+  const header =
+    Number(
+      response?.headers
+        ?.get?.(
+          'retry-after'
+        )
+    );
+
+  if (
+    Number.isFinite(header) &&
+    header > 0
+  ) {
+    return Math.min(
+      15000,
+      Math.ceil(
+        header * 1000
+      ) + 250
+    );
+  }
+
+  const match =
+    String(body || '')
+      .match(
+        /try again in\s+([0-9.]+)s/i
+      );
+
+  const seconds =
+    Number(
+      match?.[1]
+    );
+
+  if (
+    Number.isFinite(seconds) &&
+    seconds > 0
+  ) {
+    return Math.min(
+      15000,
+      Math.ceil(
+        seconds * 1000
+      ) + 250
+    );
+  }
+
+  return 0;
+}
+
+function waitPlannerDelay(
+  ms
+) {
+  return new Promise(
+    resolve =>
+      setTimeout(
+        resolve,
+        ms
+      )
+  );
+}
+
 async function requestPlanner(messages) {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
@@ -2399,33 +2461,118 @@ async function requestPlanner(messages) {
     error.retryable = false;
     throw error;
   }
-  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`
-    },
-    body: JSON.stringify({
-      model: process.env.GROQ_MODEL || 'openai/gpt-oss-120b',
+  const requestBody =
+    JSON.stringify({
+      model:
+        process.env.GROQ_MODEL ||
+        'openai/gpt-oss-120b',
       temperature: 0.1,
       messages,
       response_format: {
         type: 'json_schema',
         json_schema: {
-          name: 'workflow_planner',
+          name:
+            'workflow_planner',
           strict: true,
-          schema: PLANNER_SCHEMA
+          schema:
+            PLANNER_SCHEMA
         }
       }
-    })
-  });
-  if (!response.ok) {
-    const body = await response.text();
-    const error = new Error(`Groq API 오류: ${response.status} ${body}`);
-    error.status = response.status;
-    error.retryable = response.status === 400 || response.status >= 500;
+    });
+
+  let response = null;
+
+  for (
+    let attempt = 0;
+    attempt < 2;
+    attempt++
+  ) {
+    response =
+      await fetch(
+        'https://api.groq.com/openai/v1/chat/completions',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type':
+              'application/json',
+            'Authorization':
+              `Bearer ${apiKey}`
+          },
+          body:
+            requestBody
+        }
+      );
+
+    if (response.ok) {
+      break;
+    }
+
+    const body =
+      await response.text();
+
+    if (
+      response.status === 429 &&
+      attempt === 0
+    ) {
+      const waitMs =
+        plannerRateLimitDelayMs(
+          response,
+          body
+        );
+
+      if (
+        waitMs > 0 &&
+        waitMs <= 15000
+      ) {
+        console.warn(
+          '[Groq rate limit]',
+          {
+            waitMs,
+            retry:
+              true
+          }
+        );
+
+        await waitPlannerDelay(
+          waitMs
+        );
+
+        continue;
+      }
+    }
+
+    const error =
+      new Error(
+        `Groq API 오류: ${response.status} ${body}`
+      );
+
+    error.status =
+      response.status;
+    error.code =
+      response.status === 429
+        ? 'GROQ_RATE_LIMIT'
+        : 'GROQ_API_ERROR';
+    error.retryable =
+      response.status === 400 ||
+      response.status >= 500;
+
     throw error;
   }
+
+  if (!response?.ok) {
+    const error =
+      new Error(
+        'Groq planner request failed.'
+      );
+
+    error.code =
+      'GROQ_API_ERROR';
+    error.retryable =
+      false;
+
+    throw error;
+  }
+
   const payload =
     await response.json();
 
