@@ -912,14 +912,15 @@
 
 .astra-runtime-activity {
   width: min(43.75rem, 94%);
+  margin-bottom: -.48rem;
   padding: 0;
   color:
     color-mix(
       in srgb,
-      var(--text) 84%,
+      var(--text) 88%,
       transparent
     );
-  opacity: .78;
+  opacity: .9;
 }
 
 .astra-runtime-activity-body {
@@ -1021,12 +1022,12 @@
 
 .astra-runtime-activity-steps {
   display: grid;
-  gap: .24rem;
+  gap: .18rem;
   max-height: 32rem;
   padding:
-    .22rem
+    .16rem
     0
-    .28rem;
+    .18rem;
   overflow: hidden;
   opacity: 1;
   transition:
@@ -1051,9 +1052,9 @@
   grid-template-columns:
     1.35rem
     minmax(0,1fr);
-  gap: .58rem;
+  gap: .52rem;
   align-items: start;
-  padding: .24rem 0;
+  padding: .18rem 0;
   opacity: 0;
   transform:
     translateY(.12rem);
