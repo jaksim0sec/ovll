@@ -1714,6 +1714,21 @@ export function createGeminiExecution(
       durationMs: 0
     };
 
+    const attachDiagnostics =
+      error => {
+        diagnostics.durationMs =
+          Math.max(
+            0,
+            Date.now() -
+            startedAt
+          );
+
+        error.diagnostics =
+          diagnostics;
+
+        return error;
+      };
+
     let body = null;
     let transientRetried = false;
 
@@ -1738,9 +1753,9 @@ export function createGeminiExecution(
           transientRetried ||
           !allowTransientRetry
         ) {
-          error.diagnostics =
-            diagnostics;
-          throw error;
+          throw attachDiagnostics(
+            error
+          );
         }
 
         transientRetried = true;
@@ -1821,9 +1836,9 @@ export function createGeminiExecution(
             signal
           );
       } catch (repairError) {
-        repairError.diagnostics =
-          diagnostics;
-        throw repairError;
+        throw attachDiagnostics(
+          repairError
+        );
       }
 
       try {
@@ -1848,9 +1863,9 @@ export function createGeminiExecution(
                 }
               );
 
-        normalized.diagnostics =
-          diagnostics;
-        throw normalized;
+        throw attachDiagnostics(
+          normalized
+        );
       }
     }
 
