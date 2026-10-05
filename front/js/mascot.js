@@ -729,16 +729,21 @@ function mount(world,canvas,options={}){
         ?mode
         :"hidden";
 
-    const executionPoint=
+    const visiblePoint=
       next==="point"&&
-      orb.classList.contains(
-        "working"
+      (
+        orb.classList.contains(
+          "working"
+        )||
+        orb.classList.contains(
+          "connecting"
+        )
       );
 
     if(
       next!=="hidden"&&
       next!=="orbit"&&
-      !executionPoint
+      !visiblePoint
     ){
       next="hidden";
     }
