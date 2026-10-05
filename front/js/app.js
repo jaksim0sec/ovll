@@ -6165,7 +6165,10 @@
      ======================================================= */
   async function initializeCanvas() {
     const canvas = await mountCanvasNode("#canvas-viewport", {
-      nodeDefinitions: state.nodeDefinitions || undefined,
+      nodeDefinitions:
+        state.nodeDefinitions ||
+        global.nodeDefinitions ||
+        undefined,
       interactionEnabled: false
     });
 
