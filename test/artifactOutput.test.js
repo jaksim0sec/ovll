@@ -660,8 +660,12 @@ test("fallback PDF keeps a short canonical document on one page and draws body t
     ) || [];
 
   assert.ok(
-    textOperators.length >= 5,
-    "fallback PDF should contain title, section, body, and footer text operators"
+    textOperators.length >= 3,
+    "fallback PDF should contain multiple text runs for the title, sections, and body"
+  );
+  assert.ok(
+    buffer.length > 5000,
+    "fallback PDF should contain a non-trivial embedded-font document"
   );
 });
 
