@@ -2312,12 +2312,30 @@
                             candidate;
                         }
 
-                        await executeIds(
+                        const segmentIds =
                           ids.slice(
                             cursor,
                             bestEnd
-                          )
-                        );
+                          );
+
+                        try {
+                          await executeIds(
+                            segmentIds
+                          );
+                        } catch (error) {
+                          if (
+                            error &&
+                            typeof error ===
+                              "object"
+                          ) {
+                            error
+                              .executionFailedNodeId =
+                              segmentIds[0] ||
+                              "";
+                          }
+
+                          throw error;
+                        }
 
                         cursor =
                           bestEnd;
@@ -2368,7 +2386,12 @@
                         }
 
                         const failedId =
-                          ids[0];
+                          String(
+                            error
+                              ?.executionFailedNodeId ||
+                            ids[0] ||
+                            ""
+                          );
                         const failure =
                           runtimeErrorState(
                             error
@@ -2525,7 +2548,12 @@
                     }
 
                     const failedId =
-                      nodeIds[0];
+                      String(
+                        error
+                          ?.executionFailedNodeId ||
+                        nodeIds[0] ||
+                        ""
+                      );
                     const failure =
                       runtimeErrorState(
                         error
@@ -2550,9 +2578,19 @@
                       }
                     );
 
+                    const failedIndex =
+                      Math.max(
+                        0,
+                        nodeIds.indexOf(
+                          failedId
+                        )
+                      );
+
                     for (
                       const laterId
-                        of nodeIds.slice(1)
+                        of nodeIds.slice(
+                          failedIndex + 1
+                        )
                     ) {
                       setState(
                         laterId,
