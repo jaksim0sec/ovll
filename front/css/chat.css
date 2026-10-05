@@ -917,10 +917,10 @@
   color:
     color-mix(
       in srgb,
-      var(--text) 88%,
+      var(--text) 82%,
       transparent
     );
-  opacity: .9;
+  opacity: .68;
 }
 
 .astra-runtime-activity-body {
