@@ -198,9 +198,14 @@ function close(
     return false;
   }
 
-  suppressed.add(
-    current.id
-  );
+  if(
+    typeof closeNow===
+      "function"
+  ){
+    suppressed.add(
+      current.id
+    );
+  }
 
   closeNow?.();
 
@@ -236,9 +241,14 @@ function goToDepth(
     return false;
   }
 
-  suppressed.add(
-    current.id
-  );
+  if(
+    typeof closeNow===
+      "function"
+  ){
+    suppressed.add(
+      current.id
+    );
+  }
 
   closeNow?.();
 
