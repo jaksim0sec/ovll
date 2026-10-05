@@ -476,6 +476,42 @@ test("new chat waiting state uses neutral polite copy only", () => {
   );
 });
 
+test("Gemini request logs stay lightweight and expose a dedicated log page", () => {
+  const server =
+    read(
+      "server.js"
+    );
+  const page =
+    read(
+      "front/log.html"
+    );
+
+  assert.match(
+    server,
+    /const\s+geminiRequestLogs\s*=/
+  );
+  assert.match(
+    server,
+    /\/api\/logs/
+  );
+  assert.match(
+    server,
+    /\/log/
+  );
+  assert.match(
+    server,
+    /pushGeminiRequestLog/
+  );
+  assert.match(
+    page,
+    /\/api\/logs/
+  );
+  assert.doesNotMatch(
+    page,
+    /GEMINI_API_KEY/
+  );
+});
+
 test("bootstrap fetches app scripts concurrently while preserving ordered execution", () => {
   const boot =
     read(
