@@ -539,13 +539,49 @@ async function putRemote(
     );
   }
 
-  const response =
-    await fetch(
-      value,
-      {
-        cache:"no-store"
-      }
+  const controller =
+    new AbortController();
+  const timeout =
+    global.setTimeout(
+      ()=>controller.abort(),
+      15000
     );
+
+  let response;
+
+  try{
+    response =
+      await fetch(
+        value,
+        {
+          cache:"no-store",
+          signal:
+            controller.signal
+        }
+      );
+  }catch(error){
+    if(
+      controller.signal.aborted
+    ){
+      const timeoutError =
+        new Error(
+          "파일 로컬 저장 시간이 초과되었습니다."
+        );
+
+      timeoutError.code =
+        "LOCAL_FILE_TIMEOUT";
+      timeoutError.retryable =
+        true;
+
+      throw timeoutError;
+    }
+
+    throw error;
+  }finally{
+    global.clearTimeout(
+      timeout
+    );
+  }
 
   if(!response.ok){
     throw new Error(
