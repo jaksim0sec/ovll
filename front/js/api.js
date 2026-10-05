@@ -223,6 +223,16 @@
         response.status;
       requestError.retryable =
         data?.retryable === true;
+      requestError.origin =
+        String(
+          data?.origin || ""
+        );
+      requestError.diagnostics =
+        data?.diagnostics &&
+        typeof data.diagnostics ===
+          "object"
+          ? data.diagnostics
+          : null;
       throw requestError;
     }
     return data;
