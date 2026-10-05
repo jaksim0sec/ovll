@@ -309,10 +309,26 @@ test("sidebar typography is larger and higher contrast", () => {
   const css = compact(read("front/css/shellMenu.css"));
 
   assert.match(css, /#ovll-shell-menu-panel\s*\{[^}]*--sidebar-text:/);
-  assert.match(css, /\.ovll-sidebar-primary-action\s*\{[^}]*color:\s*var\(--sidebar-text\)[^}]*font-size:\s*\.96rem/);
+  assert.match(css, /\.ovll-sidebar-primary-action\s*\{[^}]*color:\s*var\(--sidebar-text\)[^}]*font-size:\s*1\.01rem/);
   assert.match(css, /\.ovll-sidebar-section-title\s*\{[^}]*font-size:\s*\.86rem/);
-  assert.match(css, /\.ovll-sidebar-chat-title\s*\{[^}]*font-size:\s*\.96rem/);
+  assert.match(css, /\.ovll-sidebar-chat-title\s*\{[^}]*font-size:\s*\.98rem/);
   assert.match(css, /\.ovll-sidebar-chat-menu button\s*\{[^}]*color:\s*var\(--sidebar-text\)[^}]*font-size:\s*\.9rem/);
+});
+
+test("workspace hierarchy favors content over decorative surfaces", () => {
+  const shell = compact(read("front/css/shellMenu.css"));
+  const chat = compact(read("front/css/chat.css"));
+  const ui = compact(read("front/css/ui.css"));
+  const html = read("front/index.html");
+
+  assert.match(shell, /\.ovll-sidebar-primary-action\s*\{[^}]*border:\s*0[^}]*background:\s*transparent/);
+  assert.match(shell, /@media\s*\(max-width:\s*43\.75rem\)[^{]*\{[\s\S]*?--sidebar-width:[^;]*82vw/);
+  assert.match(chat, /#chat-messages\s*\{[^}]*width:\s*min\(42\.5rem,\s*100%\)/);
+  assert.match(chat, /\.astra-message-user\s*\.astra-message-body\s*\{[^}]*border:\s*0[^}]*font-size:\s*\.98rem/);
+  assert.match(chat, /\.astra-message-assistant\s*\.astra-message-body\s*\{[^}]*max-width:\s*42\.5rem[^}]*font-size:\s*1\.06rem/);
+  assert.match(ui, /#composer-form\s*\{[^}]*width:\s*min\(40rem,\s*calc\(100% - 1\.5rem\)\)[^}]*min-height:\s*3\.65rem/);
+  assert.match(ui, /#composer-input\s*\{[^}]*font-size:\s*\.96rem/);
+  assert.match(html, /name="theme-color"[^>]*content="#060606"/s);
 });
 
 test("repository no longer exposes the obsolete root Astra frontend", () => {
