@@ -162,6 +162,17 @@ function normalizedDocument(
   input = {}
 ) {
   if (
+    input &&
+    typeof input ===
+      "object" &&
+    Array.isArray(
+      input.blocks
+    )
+  ) {
+    return input;
+  }
+
+  if (
     input.document &&
     typeof input.document ===
       "object" &&
