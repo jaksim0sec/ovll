@@ -871,7 +871,15 @@ test("PDF fallback has one worker timeout below the client request timeout", () 
   );
   assert.match(
     renderer,
-    /100000/
+    /DEFAULT_PDFKIT_TIMEOUT_MS\s*=\s*180000/
+  );
+  assert.match(
+    renderer,
+    /MAX_PDFKIT_TIMEOUT_MS\s*=\s*300000/
+  );
+  assert.match(
+    renderer,
+    /pdfKitTimeoutMs\s*\(/
   );
   assert.match(
     api,
