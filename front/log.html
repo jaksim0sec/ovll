@@ -304,7 +304,10 @@
       }
 
       runtimeEl.innerHTML = [
-        `<span class="pill ${runtime.recentRestart ? "warn" : ""}">uptime ${esc(uptime(runtime.uptimeSec))}</span>`,
+        runtime.recentRestart
+          ? '<span class="pill warn">recent restart</span>'
+          : "",
+        `<span class="pill">uptime ${esc(uptime(runtime.uptimeSec))}</span>`,
         `<span class="pill">RSS ${esc(mb(runtime.rssBytes))}</span>`,
         `<span class="pill">heap ${esc(mb(runtime.heapUsedBytes))} / ${esc(mb(runtime.heapTotalBytes))}</span>`,
         `<span class="pill">event loop ${esc(Math.round(Number(runtime.eventLoopLagMs) || 0))}ms</span>`,
