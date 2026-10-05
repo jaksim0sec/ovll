@@ -188,7 +188,7 @@ test("executeGroup sends a stateless structured Interactions request", async () 
   assert.equal(
     request.generation_config
       .thinking_level,
-    "minimal"
+    "low"
   );
   assert.equal(
     request.response_format.type,
@@ -215,7 +215,10 @@ test("executeGroup sends a stateless structured Interactions request", async () 
     {
       inputTokens: 12,
       outputTokens: 8,
-      totalTokens: 20
+      totalTokens: 20,
+      cachedTokens: null,
+      thoughtTokens: null,
+      toolUseTokens: null
     }
   );
   assert.equal(
@@ -597,5 +600,261 @@ test("judge results must expose the selected branch output port", async () => {
       ])
     ),
     /required output port: true/
+  );
+});
+
+
+test("simple organize-only groups use minimal thinking", async () => {
+  let request = null;
+
+  const execution =
+    createGeminiExecution({
+      apiKey: "test-key",
+      fetchImpl:
+        async (_url, options) => {
+          request =
+            JSON.parse(
+              options.body
+            );
+
+          return jsonResponse(
+            200,
+            interaction([
+              result("organize")
+            ])
+          );
+        },
+      sleepImpl:
+        async () => {}
+    });
+
+  await execution.executeGroup(
+    group([
+      {
+        id: "organize",
+        type: "organize",
+        params: {
+          request: "organize"
+        },
+        inputs: {}
+      }
+    ])
+  );
+
+  assert.equal(
+    request.generation_config
+      .thinking_level,
+    "minimal"
+  );
+});
+
+test("429 retries once on the primary model and never falls back", async () => {
+  const models = [];
+
+  const execution =
+    createGeminiExecution({
+      apiKey: "test-key",
+      fetchImpl:
+        async (_url, options) => {
+          const request =
+            JSON.parse(
+              options.body
+            );
+
+          models.push(
+            request.model
+          );
+
+          return jsonResponse(
+            429,
+            {
+              error: {
+                message:
+                  "rate limited"
+              }
+            },
+            {
+              "retry-after": "0"
+            }
+          );
+        },
+      sleepImpl:
+        async () => {},
+      random:
+        () => 0
+    });
+
+  await assert.rejects(
+    execution.executeGroup(
+      group()
+    ),
+    error =>
+      error?.status === 429
+  );
+
+  assert.deepEqual(
+    models,
+    [
+      DEFAULT_GEMINI_MODEL,
+      DEFAULT_GEMINI_MODEL
+    ]
+  );
+});
+
+test("abort during retry wait prevents another Gemini request", async () => {
+  const controller =
+    new AbortController();
+  let count = 0;
+
+  const execution =
+    createGeminiExecution({
+      apiKey: "test-key",
+      fetchImpl:
+        async () => {
+          count++;
+
+          return jsonResponse(
+            500,
+            {
+              error: {
+                message:
+                  "temporary failure"
+              }
+            }
+          );
+        },
+      sleepImpl:
+        async () => {
+          controller.abort();
+        },
+      random:
+        () => 0
+    });
+
+  await assert.rejects(
+    execution.executeGroup(
+      group(),
+      {
+        signal:
+          controller.signal
+      }
+    ),
+    error =>
+      error?.code ===
+        "GEMINI_REQUEST_ABORTED"
+  );
+
+  assert.equal(
+    count,
+    1
+  );
+});
+
+test("usage includes cached thought and tool-use token counters", async () => {
+  const execution =
+    createGeminiExecution({
+      apiKey: "test-key",
+      fetchImpl:
+        async () => {
+          const payload =
+            interaction([
+              result("research")
+            ]);
+
+          payload.usage = {
+            total_input_tokens: 100,
+            total_output_tokens: 40,
+            total_tokens: 160,
+            total_cached_tokens: 30,
+            total_thought_tokens: 15,
+            total_tool_use_tokens: 5
+          };
+
+          return jsonResponse(
+            200,
+            payload
+          );
+        },
+      sleepImpl:
+        async () => {}
+    });
+
+  const output =
+    await execution.executeGroup(
+      group()
+    );
+
+  assert.deepEqual(
+    output.usage,
+    {
+      inputTokens: 100,
+      outputTokens: 40,
+      totalTokens: 160,
+      cachedTokens: 30,
+      thoughtTokens: 15,
+      toolUseTokens: 5
+    }
+  );
+});
+
+test("execution diagnostics report bounded attempts", async () => {
+  let count = 0;
+
+  const execution =
+    createGeminiExecution({
+      apiKey: "test-key",
+      fetchImpl:
+        async () => {
+          count++;
+
+          if (count === 1) {
+            return jsonResponse(
+              500,
+              {
+                error: {
+                  message:
+                    "temporary"
+                }
+              }
+            );
+          }
+
+          return jsonResponse(
+            200,
+            interaction([
+              result("research")
+            ])
+          );
+        },
+      sleepImpl:
+        async () => {},
+      random:
+        () => 0
+    });
+
+  const output =
+    await execution.executeGroup(
+      group()
+    );
+
+  assert.equal(
+    output.diagnostics
+      .thinkingLevel,
+    "low"
+  );
+  assert.equal(
+    output.diagnostics
+      .primaryAttempts,
+    2
+  );
+  assert.equal(
+    output.diagnostics
+      .transientRetries,
+    1
+  );
+  assert.equal(
+    output.diagnostics
+      .fallbackAttempts,
+    0
   );
 });

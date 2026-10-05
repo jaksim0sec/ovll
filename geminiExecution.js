@@ -1029,6 +1029,36 @@ export function normalizeUsage(
         ? Number(
             usage.total_tokens
           )
+        : null,
+    cachedTokens:
+      Number.isFinite(
+        Number(
+          usage?.total_cached_tokens
+        )
+      )
+        ? Number(
+            usage.total_cached_tokens
+          )
+        : null,
+    thoughtTokens:
+      Number.isFinite(
+        Number(
+          usage?.total_thought_tokens
+        )
+      )
+        ? Number(
+            usage.total_thought_tokens
+          )
+        : null,
+    toolUseTokens:
+      Number.isFinite(
+        Number(
+          usage?.total_tool_use_tokens
+        )
+      )
+        ? Number(
+            usage.total_tool_use_tokens
+          )
         : null
   };
 }
@@ -1315,7 +1345,7 @@ async function readResponseJson(
         retryable:
           response.status >= 500,
         fallbackEligible:
-          response.status >= 500
+          false
       }
     );
   }
@@ -1347,12 +1377,20 @@ export function createGeminiExecution(
       DEFAULT_GEMINI_FALLBACK_MODEL
     ).trim();
 
-  const thinkingLevel =
-    normalizeThinkingLevel(
-      options.thinkingLevel ??
-      process.env
-        .GEMINI_THINKING_LEVEL
-    );
+  const forcedThinkingInput =
+    options.thinkingLevel ??
+    process.env
+      .GEMINI_THINKING_LEVEL ??
+    "";
+
+  const forcedThinkingLevel =
+    String(
+      forcedThinkingInput || ""
+    ).trim()
+      ? normalizeThinkingLevel(
+          forcedThinkingInput
+        )
+      : "";
 
   const maxNodes =
     positiveInteger(
@@ -1431,195 +1469,269 @@ export function createGeminiExecution(
     return response;
   }
 
+  function selectThinkingLevel(
+    nodes,
+    fallback = "minimal"
+  ) {
+    if (forcedThinkingLevel) {
+      return forcedThinkingLevel;
+    }
+
+    const types =
+      new Set(
+        (
+          Array.isArray(nodes)
+            ? nodes
+            : []
+        )
+          .map(
+            node =>
+              String(
+                node?.type ||
+                ""
+              )
+          )
+      );
+
+    if (
+      types.has("research") ||
+      types.has("write") ||
+      types.has("judge")
+    ) {
+      return "low";
+    }
+
+    return fallback;
+  }
+
+  function abortError() {
+    return new GeminiExecutionError(
+      "Gemini request was aborted.",
+      {
+        code:
+          "GEMINI_REQUEST_ABORTED",
+        status: 499,
+        retryable: false,
+        fallbackEligible: false
+      }
+    );
+  }
+
+  function throwIfAborted(
+    signal
+  ) {
+    if (signal?.aborted) {
+      throw abortError();
+    }
+  }
+
+  async function waitBeforeRetry(
+    ms,
+    signal
+  ) {
+    throwIfAborted(signal);
+
+    await sleepImpl(
+      ms
+    );
+
+    throwIfAborted(signal);
+  }
+
+  async function performRequest(
+    request,
+    signal
+  ) {
+    throwIfAborted(signal);
+    retryAfterHint = null;
+
+    let response;
+
+    try {
+      response =
+        await requestFetch(
+          INTERACTIONS_URL,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type":
+                "application/json",
+              "x-goog-api-key":
+                apiKey
+            },
+            body:
+              JSON.stringify(
+                request
+              ),
+            signal
+          }
+        );
+    } catch (error) {
+      if (
+        signal?.aborted ||
+        error?.name ===
+          "AbortError"
+      ) {
+        throw abortError();
+      }
+
+      throw new GeminiExecutionError(
+        error?.message ||
+        "Gemini network request failed.",
+        {
+          code:
+            "GEMINI_NETWORK_ERROR",
+          retryable: true,
+          fallbackEligible: false
+        }
+      );
+    }
+
+    const body =
+      await readResponseJson(
+        response
+      );
+
+    if (!response.ok) {
+      const message =
+        errorMessageFromBody(
+          body,
+          `Gemini API error: ${response.status}`
+        );
+
+      const unavailable =
+        isModelUnavailable(
+          response.status,
+          message
+        );
+
+      throw new GeminiExecutionError(
+        message,
+        {
+          code:
+            unavailable
+              ? "GEMINI_MODEL_UNAVAILABLE"
+              : "GEMINI_API_ERROR",
+          status:
+            response.status,
+          retryable:
+            !unavailable &&
+            (
+              response.status ===
+                429 ||
+              response.status >=
+                500
+            ),
+          fallbackEligible:
+            unavailable
+        }
+      );
+    }
+
+    if (
+      body?.status &&
+      body.status !==
+        "completed"
+    ) {
+      throw new GeminiExecutionError(
+        `Gemini interaction did not complete: ${body.status}`,
+        {
+          code:
+            "GEMINI_INCOMPLETE",
+          retryable:
+            body.status ===
+              "failed" ||
+            body.status ===
+              "incomplete",
+          fallbackEligible:
+            false
+        }
+      );
+    }
+
+    return body;
+  }
+
   async function executeStructuredModel(
     selectedModel,
     {
       buildRequest,
       parseText,
-      invalidMessage
+      invalidMessage,
+      thinkingLevel,
+      stage = "execution",
+      signal,
+      allowTransientRetry = true
     }
   ) {
-    let lastError = null;
-    let repairError = "";
-    let repairUsed = false;
+    const startedAt =
+      Date.now();
 
-    for (
-      let attempt = 0;
-      attempt < maxAttempts;
-      attempt++
-    ) {
-      retryAfterHint =
-        null;
+    const diagnostics = {
+      stage,
+      thinkingLevel,
+      models: [
+        selectedModel
+      ],
+      primaryAttempts: 0,
+      transientRetries: 0,
+      repairAttempts: 0,
+      fallbackAttempts: 0,
+      fallbackUsed: false,
+      durationMs: 0
+    };
 
-      const request =
-        buildRequest(
-          repairError
-        );
+    let body = null;
+    let transientRetried = false;
 
-      let response;
+    while (true) {
+      throwIfAborted(signal);
+      diagnostics.primaryAttempts++;
 
       try {
-        response =
-          await requestFetch(
-            INTERACTIONS_URL,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type":
-                  "application/json",
-                "x-goog-api-key":
-                  apiKey
-              },
-              body:
-                JSON.stringify(
-                  request
-                )
-            }
+        body =
+          await performRequest(
+            buildRequest(""),
+            signal
           );
+        break;
       } catch (error) {
-        lastError =
-          new GeminiExecutionError(
-            error?.message ||
-            "Gemini network request failed.",
-            {
-              code:
-                "GEMINI_NETWORK_ERROR",
-              retryable: true,
-              fallbackEligible:
-                true
-            }
-          );
-
         if (
-          attempt + 1 >=
-            maxAttempts
+          error?.code ===
+            "GEMINI_REQUEST_ABORTED" ||
+          error?.code ===
+            "GEMINI_MODEL_UNAVAILABLE" ||
+          !error?.retryable ||
+          transientRetried ||
+          !allowTransientRetry
         ) {
-          throw lastError;
+          error.diagnostics =
+            diagnostics;
+          throw error;
         }
 
-        await sleepImpl(
-          750 *
-          (2 ** attempt) +
-          Math.floor(
-            random() * 250
-          )
-        );
+        transientRetried = true;
+        diagnostics
+          .transientRetries++;
 
-        continue;
-      }
-
-      const body =
-        await readResponseJson(
-          response
-        );
-
-      if (!response.ok) {
-        const message =
-          errorMessageFromBody(
-            body,
-            `Gemini API error: ${response.status}`
-          );
-
-        const unavailable =
-          isModelUnavailable(
-            response.status,
-            message
-          );
-
-        lastError =
-          new GeminiExecutionError(
-            message,
-            {
-              code:
-                unavailable
-                  ? "GEMINI_MODEL_UNAVAILABLE"
-                  : "GEMINI_API_ERROR",
-              status:
-                response.status,
-              retryable:
-                response.status ===
-                  429 ||
-                response.status >=
-                  500,
-              fallbackEligible:
-                unavailable ||
-                response.status ===
-                  429 ||
-                response.status >=
-                  500
-            }
-          );
-
-        if (unavailable) {
-          throw lastError;
-        }
-
-        if (
-          !lastError.retryable ||
-          attempt + 1 >=
-            maxAttempts
-        ) {
-          throw lastError;
-        }
-
-        await sleepImpl(
+        await waitBeforeRetry(
           retryAfterHint ??
           (
-            750 *
-            (2 ** attempt) +
+            750 +
             Math.floor(
               random() * 250
             )
-          )
+          ),
+          signal
         );
-
-        continue;
       }
+    }
 
-      if (
-        body?.status &&
-        body.status !==
-          "completed"
-      ) {
-        lastError =
-          new GeminiExecutionError(
-            `Gemini interaction did not complete: ${body.status}`,
-            {
-              code:
-                "GEMINI_INCOMPLETE",
-              retryable:
-                body.status ===
-                  "failed" ||
-                body.status ===
-                  "incomplete",
-              fallbackEligible:
-                body.status ===
-                  "failed"
-            }
-          );
-
-        if (
-          lastError.retryable &&
-          attempt + 1 <
-            maxAttempts
-        ) {
-          await sleepImpl(
-            750 *
-            (2 ** attempt) +
-            Math.floor(
-              random() * 250
-            )
-          );
-          continue;
-        }
-
-        throw lastError;
-      }
-
-      try {
+    const parseBody =
+      currentBody => {
         const text =
           extractInteractionText(
-            body
+            currentBody
           );
 
         if (!text.trim()) {
@@ -1633,26 +1745,66 @@ export function createGeminiExecution(
           );
         }
 
-        const value =
-          parseText(text);
+        return parseText(text);
+      };
 
-        return {
-          model:
-            String(
-              body?.model ||
-              selectedModel
+    let value;
+
+    try {
+      value =
+        parseBody(body);
+    } catch (error) {
+      const semanticError =
+        error instanceof
+          GeminiExecutionError
+          ? error
+          : new GeminiExecutionError(
+              invalidMessage ||
+              "Gemini structured output was not valid.",
+              {
+                code:
+                  "INVALID_GEMINI_RESULT",
+                semantic: true
+              }
+            );
+
+      if (!semanticError.semantic) {
+        semanticError.diagnostics =
+          diagnostics;
+        throw semanticError;
+      }
+
+      throwIfAborted(signal);
+      diagnostics.repairAttempts++;
+
+      let repairBody;
+
+      try {
+        repairBody =
+          await performRequest(
+            buildRequest(
+              semanticError.message
             ),
-          usage:
-            normalizeUsage(
-              body?.usage
-            ),
-          value
-        };
-      } catch (error) {
-        lastError =
-          error instanceof
+            signal
+          );
+      } catch (repairError) {
+        repairError.diagnostics =
+          diagnostics;
+        throw repairError;
+      }
+
+      try {
+        value =
+          parseBody(
+            repairBody
+          );
+        body =
+          repairBody;
+      } catch (repairParseError) {
+        const normalized =
+          repairParseError instanceof
             GeminiExecutionError
-            ? error
+            ? repairParseError
             : new GeminiExecutionError(
                 invalidMessage ||
                 "Gemini structured output was not valid.",
@@ -1663,34 +1815,45 @@ export function createGeminiExecution(
                 }
               );
 
-        if (
-          lastError.semantic &&
-          !repairUsed &&
-          attempt + 1 <
-            maxAttempts
-        ) {
-          repairUsed = true;
-          repairError =
-            lastError.message;
-          continue;
-        }
-
-        throw lastError;
+        normalized.diagnostics =
+          diagnostics;
+        throw normalized;
       }
     }
 
-    throw (
-      lastError ||
-      new GeminiExecutionError(
-        "Gemini execution failed."
-      )
-    );
+    diagnostics.durationMs =
+      Math.max(
+        0,
+        Date.now() -
+        startedAt
+      );
+
+    return {
+      model:
+        String(
+          body?.model ||
+          selectedModel
+        ),
+      usage:
+        normalizeUsage(
+          body?.usage
+        ),
+      value,
+      diagnostics
+    };
   }
 
   async function executeModel(
     group,
-    selectedModel
+    selectedModel,
+    options = {}
   ) {
+    const selectedThinking =
+      selectThinkingLevel(
+        group.nodes,
+        "minimal"
+      );
+
     const response =
       await executeStructuredModel(
         selectedModel,
@@ -1702,7 +1865,8 @@ export function createGeminiExecution(
                 {
                   model:
                     selectedModel,
-                  thinkingLevel,
+                  thinkingLevel:
+                    selectedThinking,
                   repairError
                 }
               ),
@@ -1730,7 +1894,17 @@ export function createGeminiExecution(
               );
             },
           invalidMessage:
-            "Gemini structured output was not valid JSON."
+            "Gemini structured output was not valid JSON.",
+          thinkingLevel:
+            selectedThinking,
+          stage:
+            "execution",
+          signal:
+            options.signal,
+          allowTransientRetry:
+            options
+              .allowTransientRetry !==
+              false
         }
       );
 
@@ -1740,14 +1914,21 @@ export function createGeminiExecution(
       usage:
         response.usage,
       results:
-        response.value
+        response.value,
+      diagnostics:
+        response.diagnostics
     };
   }
 
   async function finalizeModel(
     input,
-    selectedModel
+    selectedModel,
+    options = {}
   ) {
+    const selectedThinking =
+      forcedThinkingLevel ||
+      "minimal";
+
     const response =
       await executeStructuredModel(
         selectedModel,
@@ -1760,7 +1941,7 @@ export function createGeminiExecution(
                   model:
                     selectedModel,
                   thinkingLevel:
-                    "minimal",
+                    selectedThinking,
                   repairError
                 }
               ),
@@ -1802,7 +1983,14 @@ export function createGeminiExecution(
               return message;
             },
           invalidMessage:
-            "Gemini final response was not valid."
+            "Gemini final response was not valid.",
+          thinkingLevel:
+            selectedThinking,
+          stage:
+            "finalizer",
+          signal:
+            options.signal,
+          allowTransientRetry: true
         }
       );
 
@@ -1812,12 +2000,15 @@ export function createGeminiExecution(
       usage:
         response.usage,
       message:
-        response.value
+        response.value,
+      diagnostics:
+        response.diagnostics
     };
   }
 
   async function executeGroup(
-    input
+    input,
+    options = {}
   ) {
     if (!apiKey) {
       throw new GeminiExecutionError(
@@ -1828,6 +2019,10 @@ export function createGeminiExecution(
         }
       );
     }
+
+    throwIfAborted(
+      options.signal
+    );
 
     const group =
       validateExecutionGroup(
@@ -1838,60 +2033,58 @@ export function createGeminiExecution(
         }
       );
 
-    const models =
-      [
+    try {
+      return await executeModel(
+        group,
         model,
-        fallbackModel
-      ]
-        .filter(Boolean)
-        .filter(
-          (
-            value,
-            index,
-            list
-          ) =>
-            list.indexOf(value) ===
-            index
-        );
-
-    let lastError =
-      null;
-
-    for (
-      let index = 0;
-      index < models.length;
-      index++
-    ) {
-      try {
-        return await executeModel(
-          group,
-          models[index]
-        );
-      } catch (error) {
-        lastError =
-          error;
-
-        if (
-          index + 1 >=
-            models.length ||
-          !error
-            ?.fallbackEligible
-        ) {
-          throw error;
+        {
+          signal:
+            options.signal
         }
+      );
+    } catch (error) {
+      if (
+        error?.code !==
+          "GEMINI_MODEL_UNAVAILABLE" ||
+        !fallbackModel ||
+        fallbackModel === model
+      ) {
+        throw error;
       }
-    }
 
-    throw (
-      lastError ||
-      new GeminiExecutionError(
-        "Gemini execution failed."
-      )
-    );
+      throwIfAborted(
+        options.signal
+      );
+
+      const output =
+        await executeModel(
+          group,
+          fallbackModel,
+          {
+            signal:
+              options.signal,
+            allowTransientRetry:
+              false
+          }
+        );
+
+      output.diagnostics = {
+        ...output.diagnostics,
+        models: [
+          model,
+          fallbackModel
+        ],
+        fallbackAttempts: 1,
+        fallbackUsed: true
+      };
+
+      return output;
+    }
   }
 
   async function finalizeRun(
-    input
+    input,
+    options = {}
   ) {
     if (!apiKey) {
       throw new GeminiExecutionError(
@@ -1903,53 +2096,17 @@ export function createGeminiExecution(
       );
     }
 
-    const models =
-      [
-        model,
-        fallbackModel
-      ]
-        .filter(Boolean)
-        .filter(
-          (
-            value,
-            index,
-            list
-          ) =>
-            list.indexOf(value) ===
-            index
-        );
+    throwIfAborted(
+      options.signal
+    );
 
-    let lastError = null;
-
-    for (
-      let index = 0;
-      index < models.length;
-      index++
-    ) {
-      try {
-        return await finalizeModel(
-          input,
-          models[index]
-        );
-      } catch (error) {
-        lastError = error;
-
-        if (
-          index + 1 >=
-            models.length ||
-          !error
-            ?.fallbackEligible
-        ) {
-          throw error;
-        }
+    return finalizeModel(
+      input,
+      model,
+      {
+        signal:
+          options.signal
       }
-    }
-
-    throw (
-      lastError ||
-      new GeminiExecutionError(
-        "Gemini final response failed."
-      )
     );
   }
 
@@ -1959,7 +2116,9 @@ export function createGeminiExecution(
     config: {
       model,
       fallbackModel,
-      thinkingLevel,
+      thinkingLevel:
+        forcedThinkingLevel ||
+        "auto",
       maxNodes,
       maxInputChars,
       maxAttempts

@@ -292,6 +292,124 @@
       .slice(0, 1000);
   }
 
+
+  function clipStructuredText(
+    value,
+    max
+  ) {
+    const text =
+      String(value ?? "")
+        .replace(/\r\n?/g, "\n")
+        .replace(/\u0000/g, "")
+        .trim();
+
+    if (
+      !Number.isFinite(max) ||
+      max <= 0 ||
+      text.length <= max
+    ) {
+      return text;
+    }
+
+    const marker =
+      "\n… [omitted] …\n";
+    const tail =
+      Math.max(
+        240,
+        Math.floor(
+          max * .28
+        )
+      );
+    const head =
+      Math.max(
+        0,
+        max -
+        tail -
+        marker.length
+      );
+
+    return (
+      text.slice(0, head) +
+      marker +
+      text.slice(-tail)
+    ).slice(0, max);
+  }
+
+  function compactExecutionValue(
+    value,
+    stringLimit = 12000,
+    depth = 0
+  ) {
+    if (value == null) {
+      return value;
+    }
+
+    if (
+      typeof value ===
+        "string"
+    ) {
+      return clipStructuredText(
+        value,
+        stringLimit
+      );
+    }
+
+    if (
+      typeof value ===
+        "number" ||
+      typeof value ===
+        "boolean"
+    ) {
+      return value;
+    }
+
+    if (depth >= 7) {
+      return "[nested]";
+    }
+
+    if (Array.isArray(value)) {
+      return value
+        .slice(0, 24)
+        .map(
+          item =>
+            compactExecutionValue(
+              item,
+              stringLimit,
+              depth + 1
+            )
+        );
+    }
+
+    if (
+      typeof value ===
+        "object"
+    ) {
+      return Object.fromEntries(
+        Object.entries(value)
+          .slice(0, 32)
+          .map(
+            ([key, item]) => [
+              String(key)
+                .slice(0, 120),
+              compactExecutionValue(
+                item,
+                stringLimit,
+                depth + 1
+              )
+            ]
+          )
+      );
+    }
+
+    return clipStructuredText(
+      value,
+      Math.min(
+        stringLimit,
+        2000
+      )
+    );
+  }
+
   function compactArtifactValue(
     value,
     depth = 0
@@ -938,10 +1056,9 @@
   /* =======================================================
      Execution
      ======================================================= */
-  async function executeGroup(
+  function buildExecutionPayload(
     group,
-    context = {},
-    options = {}
+    context = {}
   ) {
     if (
       !group ||
@@ -961,59 +1078,94 @@
         ? group.internalConnections
         : [];
 
+    const base = {
+      connections:
+        connections
+          .slice(0, 24)
+          .map(
+            item =>
+              compactExecutionValue(
+                item,
+                3000
+              )
+          ),
+      context: {
+        userRequest:
+          clipPayloadText(
+            context.userRequest,
+            6000
+          ),
+        memory:
+          compactMemoryPayload(
+            context.memory
+          )
+      }
+    };
+
+    const stringLimit =
+      12000;
+
+    const body = {
+      nodes:
+        group.nodes
+          .slice(0, 6)
+          .map(
+            node => ({
+              id:
+                String(
+                  node?.id ||
+                  ""
+                ).slice(0, 180),
+              type:
+                String(
+                  node?.type ||
+                  ""
+                ).slice(0, 80),
+              params:
+                compactExecutionValue(
+                  node?.params ||
+                  {},
+                  stringLimit
+                ),
+              inputs:
+                compactExecutionValue(
+                  node?.inputs ||
+                  {},
+                  stringLimit
+                )
+            })
+          ),
+      ...base
+    };
+    return body;
+  }
+
+  function measureExecutionPayloadChars(
+    group,
+    context = {}
+  ) {
+    return JSON.stringify(
+      buildExecutionPayload(
+        group,
+        context
+      )
+    ).length;
+  }
+
+  async function executeGroup(
+    group,
+    context = {},
+    options = {}
+  ) {
     return request(
       "execute-group",
       {
         method: "POST",
-        body: {
-          nodes:
-            group.nodes
-              .slice(0, 6)
-              .map(
-                node => ({
-                  id:
-                    String(
-                      node?.id ||
-                      ""
-                    ).slice(0, 180),
-                  type:
-                    String(
-                      node?.type ||
-                      ""
-                    ).slice(0, 80),
-                  params:
-                    compactPayloadValue(
-                      node?.params ||
-                      {}
-                    ),
-                  inputs:
-                    compactPayloadValue(
-                      node?.inputs ||
-                      {}
-                    )
-                })
-              ),
-          connections:
-            connections
-              .slice(0, 24)
-              .map(
-                item =>
-                  compactPayloadValue(
-                    item
-                  )
-              ),
-          context: {
-            userRequest:
-              clipPayloadText(
-                context.userRequest,
-                6000
-              ),
-            memory:
-              compactMemoryPayload(
-                context.memory
-              )
-          }
-        },
+        body:
+          buildExecutionPayload(
+            group,
+            context
+          ),
         signal:
           options.signal
       }
@@ -1123,6 +1275,8 @@
     request,
     planWorkflow,
     executeGroup,
+    buildExecutionPayload,
+    measureExecutionPayloadChars,
     createArtifact,
     finalizeRun,
     execute,

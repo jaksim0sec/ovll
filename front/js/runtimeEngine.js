@@ -127,6 +127,9 @@
       .filter(value => value !== undefined);
   }
 
+  const EXECUTION_CACHE_POLICY_VERSION =
+    "execution-quality-v1";
+
   const GEMINI_NODE_TYPES =
     new Set([
       "research",
@@ -386,7 +389,9 @@
         inputs:
           inputs || {},
         context:
-          cacheContext || null
+          cacheContext || null,
+        policy:
+          EXECUTION_CACHE_POLICY_VERSION
       })
     );
   }
@@ -983,6 +988,14 @@
             42000
           ) || 42000
         );
+
+      this.measureGroupInputChars =
+        typeof options
+          .measureGroupInputChars ===
+            "function"
+          ? options
+              .measureGroupInputChars
+          : null;
     }
 
     isRunning() {
@@ -2156,25 +2169,11 @@
                     );
                   };
 
-                const hasCachedIntermediate =
-                  nodeIds.some(
-                    nodeId =>
-                      nodeId !== pivot &&
-                      this.resultCache.has(
-                        nodeId
-                      )
-                  );
-
-                if (hasCachedIntermediate) {
-                  for (
-                    let index = 0;
-                    index < nodeIds.length;
-                    index++
-                  ) {
-                    throwIfCancelled();
-
-                    const nodeId =
-                      nodeIds[index];
+                const commitCachedResult =
+                  nodeId => {
+                    if (nodeId === pivot) {
+                      return false;
+                    }
 
                     const inputs =
                       collectInputs(
@@ -2187,98 +2186,345 @@
                         inputs
                       );
 
-                    if (cachedResult) {
-                      setState(
-                        nodeId,
-                        "SUCCESS",
-                        {
-                          inputs:
-                            clone(inputs),
-                          result:
-                            clone(
-                              cachedResult
-                            ),
-                          cached: true,
-                          finishedAt:
-                            Date.now(),
-                          report:
-                            cachedResult
-                              ?.report ||
-                            null
-                        }
-                      );
-
-                      continue;
+                    if (!cachedResult) {
+                      return false;
                     }
 
-                    try {
-                      await executeIds([
-                        nodeId
-                      ]);
-                    } catch (error) {
-                      if (
-                        isRuntimeAbort(
-                          error
-                        ) ||
-                        signal.aborted
+                    setState(
+                      nodeId,
+                      "SUCCESS",
+                      {
+                        inputs:
+                          clone(inputs),
+                        result:
+                          clone(
+                            cachedResult
+                          ),
+                        cached: true,
+                        finishedAt:
+                          Date.now(),
+                        report:
+                          cachedResult
+                            ?.report ||
+                          null
+                      }
+                    );
+
+                    return true;
+                  };
+
+                const executeSegment =
+                  async ids => {
+                    if (!ids.length) {
+                      return true;
+                    }
+
+                    const request =
+                      buildRequest(ids);
+
+                    const measuredSize =
+                      this
+                        .measureGroupInputChars
+                        ? this
+                            .measureGroupInputChars(
+                              clone(request),
+                              {
+                                userRequest:
+                                  cacheContext
+                                    ?.userRequest ||
+                                  "",
+                                memory:
+                                  cacheContext
+                                    ?.memory ||
+                                  null
+                              }
+                            )
+                        : JSON.stringify(
+                            request
+                          ).length;
+
+                    if (
+                      measuredSize >
+                        this
+                          .maxGroupInputChars &&
+                      ids.length > 1
+                    ) {
+                      let cursor = 0;
+
+                      while (
+                        cursor <
+                        ids.length
                       ) {
-                        throw runtimeAbortError();
+                        let bestEnd =
+                          cursor + 1;
+
+                        for (
+                          let candidate =
+                            cursor + 1;
+                          candidate <=
+                            ids.length;
+                          candidate++
+                        ) {
+                          const candidateIds =
+                            ids.slice(
+                              cursor,
+                              candidate
+                            );
+                          const candidateRequest =
+                            buildRequest(
+                              candidateIds
+                            );
+                          const candidateSize =
+                            this
+                              .measureGroupInputChars
+                              ? this
+                                  .measureGroupInputChars(
+                                    clone(
+                                      candidateRequest
+                                    ),
+                                    {
+                                      userRequest:
+                                        cacheContext
+                                          ?.userRequest ||
+                                        "",
+                                      memory:
+                                        cacheContext
+                                          ?.memory ||
+                                        null
+                                    }
+                                  )
+                              : JSON.stringify(
+                                  candidateRequest
+                                ).length;
+
+                          if (
+                            candidateSize >
+                              this
+                                .maxGroupInputChars &&
+                            candidateIds
+                              .length >
+                              1
+                          ) {
+                            break;
+                          }
+
+                          bestEnd =
+                            candidate;
+                        }
+
+                        const segmentIds =
+                          ids.slice(
+                            cursor,
+                            bestEnd
+                          );
+
+                        try {
+                          await executeIds(
+                            segmentIds
+                          );
+                        } catch (error) {
+                          if (
+                            error &&
+                            typeof error ===
+                              "object"
+                          ) {
+                            error
+                              .executionFailedNodeId =
+                              segmentIds[0] ||
+                              "";
+                          }
+
+                          throw error;
+                        }
+
+                        cursor =
+                          bestEnd;
                       }
 
-                      this.resultCache.delete(
+                      return true;
+                    }
+
+                    await executeIds(ids);
+                    return true;
+                  };
+
+                const hasCachedIntermediate =
+                  nodeIds.some(
+                    nodeId =>
+                      nodeId !== pivot &&
+                      this.resultCache.has(
                         nodeId
-                      );
+                      )
+                  );
 
-                      const failure =
-                        runtimeErrorState(
-                          error
+                if (hasCachedIntermediate) {
+                  let pending = [];
+
+                  const flushPending =
+                    async () => {
+                      if (!pending.length) {
+                        return true;
+                      }
+
+                      const ids =
+                        pending;
+                      pending = [];
+
+                      try {
+                        await executeSegment(
+                          ids
                         );
-
-                      setState(
-                        nodeId,
-                        "FAILED",
-                        {
-                          error: failure,
-                          finishedAt:
-                            Date.now()
+                        return true;
+                      } catch (error) {
+                        if (
+                          isRuntimeAbort(
+                            error
+                          ) ||
+                          signal.aborted
+                        ) {
+                          throw runtimeAbortError();
                         }
-                      );
 
-                      for (
-                        const laterId
-                          of nodeIds.slice(
-                            index + 1
-                          )
-                      ) {
+                        const failedId =
+                          String(
+                            error
+                              ?.executionFailedNodeId ||
+                            ids[0] ||
+                            ""
+                          );
+                        const failure =
+                          runtimeErrorState(
+                            error
+                          );
+
+                        for (
+                          const id of ids
+                        ) {
+                          this.resultCache
+                            .delete(id);
+                        }
+
                         setState(
-                          laterId,
-                          "SKIPPED",
+                          failedId,
+                          "FAILED",
                           {
-                            skipReason:
-                              "dependency_failed",
-                            blockedBy: [
-                              nodeId
-                            ],
+                            error:
+                              failure,
                             finishedAt:
                               Date.now()
                           }
                         );
-                      }
 
-                      return null;
+                        for (
+                          const laterId
+                            of nodeIds.slice(
+                              nodeIds
+                                .indexOf(
+                                  failedId
+                                ) + 1
+                            )
+                        ) {
+                          if (
+                            states.get(
+                              laterId
+                            )?.status ===
+                              "IDLE" ||
+                            states.get(
+                              laterId
+                            )?.status ===
+                              "WAITING"
+                          ) {
+                            setState(
+                              laterId,
+                              "SKIPPED",
+                              {
+                                skipReason:
+                                  "dependency_failed",
+                                blockedBy: [
+                                  failedId
+                                ],
+                                finishedAt:
+                                  Date.now()
+                              }
+                            );
+                          }
+                        }
+
+                        return false;
+                      }
+                    };
+
+                  for (
+                    const nodeId
+                      of nodeIds
+                  ) {
+                    throwIfCancelled();
+
+                    const hasCacheCandidate =
+                      nodeId !== pivot &&
+                      this.resultCache.has(
+                        nodeId
+                      );
+
+                    if (
+                      hasCacheCandidate &&
+                      pending.length
+                    ) {
+                      const ok =
+                        await flushPending();
+
+                      if (!ok) {
+                        return null;
+                      }
                     }
+
+                    if (
+                      hasCacheCandidate &&
+                      commitCachedResult(
+                        nodeId
+                      )
+                    ) {
+                      continue;
+                    }
+
+                    pending.push(
+                      nodeId
+                    );
                   }
 
-                  return true;
+                  const ok =
+                    await flushPending();
+
+                  return ok
+                    ? true
+                    : null;
                 }
 
                 const fullRequest =
                   buildRequest(nodeIds);
 
                 const serializedSize =
-                  JSON.stringify(
-                    fullRequest
-                  ).length;
+                  this
+                    .measureGroupInputChars
+                    ? this
+                        .measureGroupInputChars(
+                          clone(
+                            fullRequest
+                          ),
+                          {
+                            userRequest:
+                              cacheContext
+                                ?.userRequest ||
+                              "",
+                            memory:
+                              cacheContext
+                                ?.memory ||
+                              null
+                          }
+                        )
+                    : JSON.stringify(
+                        fullRequest
+                      ).length;
 
                 if (
                   serializedSize >
@@ -2286,73 +2532,83 @@
                       .maxGroupInputChars &&
                   nodeIds.length > 1
                 ) {
-                  for (
-                    let index = 0;
-                    index < nodeIds.length;
-                    index++
-                  ) {
-                    const nodeId =
-                      nodeIds[index];
+                  try {
+                    await executeSegment(
+                      nodeIds
+                    );
+                    return true;
+                  } catch (error) {
+                    if (
+                      isRuntimeAbort(
+                        error
+                      ) ||
+                      signal.aborted
+                    ) {
+                      throw runtimeAbortError();
+                    }
 
-                    try {
-                      await executeIds([
-                        nodeId
-                      ]);
-                    } catch (error) {
-                      if (
-                        isRuntimeAbort(
-                          error
-                        ) ||
-                        signal.aborted
-                      ) {
-                        throw runtimeAbortError();
-                      }
+                    const failedId =
+                      String(
+                        error
+                          ?.executionFailedNodeId ||
+                        nodeIds[0] ||
+                        ""
+                      );
+                    const failure =
+                      runtimeErrorState(
+                        error
+                      );
 
+                    for (
+                      const nodeId
+                        of nodeIds
+                    ) {
                       this.resultCache.delete(
                         nodeId
                       );
+                    }
 
-                      const failure =
-                        runtimeErrorState(
-                          error
-                        );
+                    setState(
+                      failedId,
+                      "FAILED",
+                      {
+                        error: failure,
+                        finishedAt:
+                          Date.now()
+                      }
+                    );
 
+                    const failedIndex =
+                      Math.max(
+                        0,
+                        nodeIds.indexOf(
+                          failedId
+                        )
+                      );
+
+                    for (
+                      const laterId
+                        of nodeIds.slice(
+                          failedIndex + 1
+                        )
+                    ) {
                       setState(
-                        nodeId,
-                        "FAILED",
+                        laterId,
+                        "SKIPPED",
                         {
-                          error: failure,
+                          skipReason:
+                            "dependency_failed",
+                          blockedBy: [
+                            failedId
+                          ],
                           finishedAt:
                             Date.now()
                         }
                       );
-
-                      for (
-                        const laterId
-                          of nodeIds.slice(
-                            index + 1
-                          )
-                      ) {
-                        setState(
-                          laterId,
-                          "SKIPPED",
-                          {
-                            skipReason:
-                              "dependency_failed",
-                            blockedBy: [
-                              nodeId
-                            ],
-                            finishedAt:
-                              Date.now()
-                          }
-                        );
-                      }
-
-                      return null;
                     }
-                  }
 
-                  return true;
+                    return null;
+                  }
                 }
 
                 try {
