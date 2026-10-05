@@ -91,39 +91,97 @@ test("common file formats have distinct visual kinds", () => {
   }
 });
 
-test("builtin PDF fallback positions glyphs explicitly and repairs inline headings", async () => {
-  const source = read("artifactStore.js");
+test("builtin PDF fallback positions Korean glyphs explicitly through the dedicated renderer", async () => {
+  const renderer =
+    read(
+      "pdfRenderer.js"
+    );
+  const documentModel =
+    read(
+      "artifactDocument.js"
+    );
 
-  assert.match(source, /function\s+pdfPositionedTextCommand\s*\(/);
-  assert.match(source, /function\s+normalizeInlineDocumentStructure\s*\(/);
-  assert.match(source, /function\s+utf16PdfTextHex\s*\(/);
-  assert.match(source, /\/DW\s+1000/);
-  assert.match(source, /\sTm\b/);
+  assert.match(
+    renderer,
+    /function\s+pdfPositionedTextCommand\s*\(/
+  );
+  assert.match(
+    renderer,
+    /function\s+utf16PdfTextHex\s*\(/
+  );
+  assert.match(
+    renderer,
+    /export\s+function\s+renderPdfFallback\s*\(/
+  );
+  assert.match(
+    renderer,
+    /\/DW\s+1000/
+  );
+  assert.match(
+    renderer,
+    /\sTm\b/
+  );
+  assert.match(
+    documentModel,
+    /제\\s\*\\d\+\\s\*장/
+  );
 
-  const previous = process.env.OVLL_DISABLE_CHROME;
-  process.env.OVLL_DISABLE_CHROME = "1";
+  const previous =
+    process.env
+      .OVLL_DISABLE_CHROME;
+
+  process.env
+    .OVLL_DISABLE_CHROME =
+    "1";
 
   try {
-    const artifact = await createStoredArtifact({
-      format: "PDF",
-      filename: "korean",
-      sources: [
-        "조사 및 요약 결과 보고서 ## 1. 개요 앞서 수집된 조사 결과를 요약합니다. 다음 문장도 별도 문단으로 읽혀야 합니다."
-      ]
-    });
+    const artifact =
+      await createStoredArtifact({
+        format: "PDF",
+        filename: "korean",
+        sources: [
+          "조사 및 요약 결과 보고서\n\n제1장: 개요\n앞서 수집된 조사 결과를 요약합니다.\n\n제2장: 세부 내용\n다음 문장도 별도 문단으로 읽혀야 합니다."
+        ]
+      });
 
-    const stored = getStoredArtifact(artifact.id);
-    const pdf = stored.buffer.toString("latin1");
+    const stored =
+      getStoredArtifact(
+        artifact.id
+      );
 
-    assert.equal(artifact.renderer, "builtin-fallback");
-    assert.match(pdf, /\sTm\n<[0-9A-F]{4,}> Tj/);
-    assert.doesNotMatch(pdf, /<FEFF[0-9A-F]+> Tj/);
-    assert.ok(stored.buffer.length > 1000);
+    const pdf =
+      stored.buffer
+        .toString(
+          "latin1"
+        );
+
+    assert.equal(
+      artifact.renderer,
+      "builtin-fallback"
+    );
+    assert.match(
+      pdf,
+      /\sTm\n<[0-9A-F]{4,}> Tj/
+    );
+    assert.doesNotMatch(
+      pdf,
+      /<FEFF[0-9A-F]+> Tj/
+    );
+    assert.ok(
+      stored.buffer.length >
+        1000
+    );
   } finally {
-    if (previous === undefined) {
-      delete process.env.OVLL_DISABLE_CHROME;
+    if (
+      previous ===
+        undefined
+    ) {
+      delete process.env
+        .OVLL_DISABLE_CHROME;
     } else {
-      process.env.OVLL_DISABLE_CHROME = previous;
+      process.env
+        .OVLL_DISABLE_CHROME =
+        previous;
     }
   }
 });
