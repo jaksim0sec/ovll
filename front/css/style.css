@@ -234,7 +234,8 @@ svg {
   width: 100%;
   height: var(--app-stage-height);
 
-  overflow: visible;
+  overflow: hidden;
+  isolation: isolate;
 
   background: var(--bg);
 
