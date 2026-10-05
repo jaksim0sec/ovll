@@ -732,19 +732,35 @@ test("artifact requests and local persistence are time bounded", () => {
   );
 });
 
-test("PDF fallback rendering has a server-side timeout", () => {
+test("PDF fallback has one worker timeout below the client request timeout", () => {
+  const renderer =
+    read(
+      "pdfRenderer.js"
+    );
   const artifact =
     read(
       "artifactStore.js"
     );
+  const api =
+    read(
+      "front/js/api.js"
+    );
 
   assert.match(
-    artifact,
-    /PDF_RENDER_TIMEOUT/
+    renderer,
+    /OVLL_PDFKIT_WORKER_TIMEOUT_MS/
   );
   assert.match(
+    renderer,
+    /100000/
+  );
+  assert.match(
+    api,
+    /120000/
+  );
+  assert.doesNotMatch(
     artifact,
-    /60000/
+    /PDF_RENDER_TIMEOUT/
   );
 });
 
