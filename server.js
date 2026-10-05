@@ -266,7 +266,7 @@ function groupLogMeta(
  * The frontend compares this server value with its locally stored version
  * before loading application assets.
  */
-const APP_VERSION = '2026.10.05.86';
+const APP_VERSION = '2026.10.05.87';
 
 /* =========================================================
    CANONICAL NODE DEFINITION
