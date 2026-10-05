@@ -55,6 +55,14 @@
     throw new Error("ovll Application dependency가 준비되지 않았습니다.");
   }
 
+  const composerSendIcon =
+    SvgLibrary.get("composerSend");
+
+  if (composerSendIcon) {
+    composerSubmit.innerHTML =
+      composerSendIcon;
+  }
+
   /* =======================================================
      State
      ======================================================= */
