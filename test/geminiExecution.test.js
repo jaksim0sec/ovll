@@ -604,7 +604,7 @@ test("judge results must expose the selected branch output port", async () => {
 });
 
 
-test("simple organize-only groups use minimal thinking", async () => {
+test("organize-only groups use low thinking", async () => {
   let request = null;
 
   const execution =
@@ -635,6 +635,114 @@ test("simple organize-only groups use minimal thinking", async () => {
         type: "organize",
         params: {
           request: "organize"
+        },
+        inputs: {}
+      }
+    ])
+  );
+
+  assert.equal(
+    request.generation_config
+      .thinking_level,
+    "low"
+  );
+});
+
+test("mixed node groups use the highest required thinking level without high", async () => {
+  const requests = [];
+
+  const execution =
+    createGeminiExecution({
+      apiKey: "test-key",
+      fetchImpl:
+        async (_url, options) => {
+          const request =
+            JSON.parse(
+              options.body
+            );
+
+          requests.push(
+            request
+          );
+
+          return jsonResponse(
+            200,
+            interaction([
+              result("convert"),
+              result("write")
+            ])
+          );
+        },
+      sleepImpl:
+        async () => {}
+    });
+
+  await execution.executeGroup(
+    group([
+      {
+        id: "convert",
+        type: "convert",
+        params: {
+          request: "convert"
+        },
+        inputs: {}
+      },
+      {
+        id: "write",
+        type: "write",
+        params: {
+          request: "write"
+        },
+        inputs: {}
+      }
+    ])
+  );
+
+  assert.equal(
+    requests[0]
+      .generation_config
+      .thinking_level,
+    "medium"
+  );
+  assert.notEqual(
+    requests[0]
+      .generation_config
+      .thinking_level,
+    "high"
+  );
+});
+
+test("convert-only groups stay on minimal thinking", async () => {
+  let request = null;
+
+  const execution =
+    createGeminiExecution({
+      apiKey: "test-key",
+      fetchImpl:
+        async (_url, options) => {
+          request =
+            JSON.parse(
+              options.body
+            );
+
+          return jsonResponse(
+            200,
+            interaction([
+              result("convert")
+            ])
+          );
+        },
+      sleepImpl:
+        async () => {}
+    });
+
+  await execution.executeGroup(
+    group([
+      {
+        id: "convert",
+        type: "convert",
+        params: {
+          request: "convert"
         },
         inputs: {}
       }
@@ -877,7 +985,7 @@ test("execution diagnostics report bounded attempts", async () => {
   assert.equal(
     output.diagnostics
       .thinkingLevel,
-    "minimal"
+    "medium"
   );
   assert.equal(
     output.diagnostics
