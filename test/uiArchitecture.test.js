@@ -444,7 +444,7 @@ test("canvas execution is mirrored into persisted user chat", () => {
   );
 });
 
-test("chat waiting state is contextual instead of fixed copy", () => {
+test("new chat waiting state uses neutral polite copy only", () => {
   const presence =
     read(
       "front/js/ovllPresence.js"
@@ -456,27 +456,23 @@ test("chat waiting state is contextual instead of fixed copy", () => {
 
   assert.match(
     presence,
-    /startViewData/
+    /안녕하세요\. 무엇을 도와드릴까요\?/
   );
   assert.match(
     presence,
-    /WorkspaceStore[\s\S]*search/
+    /function\s+showStart\s*\(/
   );
   assert.match(
     presence,
-    /lastUserRequest/
-  );
-  assert.match(
-    presence,
-    /openConversation/
-  );
-  assert.match(
-    css,
-    /ovll-chat-start-suggestions/
+    /resetConversation[\s\S]*if\(started\)[\s\S]*beginConversation\(\)[\s\S]*else[\s\S]*showStart\(\)/
   );
   assert.doesNotMatch(
     presence,
-    /안녕하세요|환영합니다|돌아왔어요/
+    /startViewData|ovll-chat-start-suggestion|WorkspaceStore/
+  );
+  assert.match(
+    css,
+    /ovll-chat-start-greeting/
   );
 });
 
@@ -520,7 +516,11 @@ test("artifact requests and local persistence are time bounded", () => {
   );
   assert.match(
     api,
-    /35000/
+    /120000/
+  );
+  assert.match(
+    api,
+    /60000/
   );
   assert.match(
     store,
@@ -529,6 +529,22 @@ test("artifact requests and local persistence are time bounded", () => {
   assert.match(
     store,
     /15000/
+  );
+});
+
+test("PDF fallback rendering has a server-side timeout", () => {
+  const artifact =
+    read(
+      "artifactStore.js"
+    );
+
+  assert.match(
+    artifact,
+    /PDF_RENDER_TIMEOUT/
+  );
+  assert.match(
+    artifact,
+    /60000/
   );
 });
 
