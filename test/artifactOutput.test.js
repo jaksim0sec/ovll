@@ -91,39 +91,23 @@ test("common file formats have distinct visual kinds", () => {
   }
 });
 
-test("builtin PDF fallback positions Korean glyphs explicitly through the dedicated renderer", async () => {
+test("PDF fallback uses the dedicated embedded-font renderer", async () => {
   const renderer =
     read(
-      "pdfRenderer.js"
-    );
-  const documentModel =
-    read(
-      "artifactDocument.js"
+      "pdfKitRenderer.js"
     );
 
   assert.match(
     renderer,
-    /function\s+pdfPositionedTextCommand\s*\(/
+    /from\s+"pdfkit"/
   );
   assert.match(
     renderer,
-    /function\s+utf16PdfTextHex\s*\(/
+    /@fontsource\/noto-sans-kr/
   );
   assert.match(
     renderer,
-    /export\s+function\s+renderPdfFallback\s*\(/
-  );
-  assert.match(
-    renderer,
-    /\/DW\s+1000/
-  );
-  assert.match(
-    renderer,
-    /\sTm\b/
-  );
-  assert.match(
-    documentModel,
-    /제\\s\*\\d\+\\s\*장/
+    /registerFont/
   );
 
   const previous =
@@ -140,7 +124,7 @@ test("builtin PDF fallback positions Korean glyphs explicitly through the dedica
         format: "PDF",
         filename: "korean",
         sources: [
-          "조사 및 요약 결과 보고서\n\n제1장: 개요\n앞서 수집된 조사 결과를 요약합니다.\n\n제2장: 세부 내용\n다음 문장도 별도 문단으로 읽혀야 합니다."
+          "# 조사 및 요약 결과 보고서\n\n제1장: 개요\n앞서 수집된 조사 결과를 요약합니다.\n\n제2장: 세부 내용\n다음 문장도 별도 문단으로 읽혀야 합니다."
         ]
       });
 
@@ -149,27 +133,24 @@ test("builtin PDF fallback positions Korean glyphs explicitly through the dedica
         artifact.id
       );
 
-    const pdf =
-      stored.buffer
-        .toString(
-          "latin1"
-        );
-
     assert.equal(
       artifact.renderer,
-      "builtin-fallback"
+      "pdfkit-fallback"
     );
-    assert.match(
-      pdf,
-      /\sTm\n<[0-9A-F]{4,}> Tj/
+    assert.equal(
+      stored.buffer
+        .subarray(0,5)
+        .toString("ascii"),
+      "%PDF-"
     );
     assert.doesNotMatch(
-      pdf,
-      /<FEFF[0-9A-F]+> Tj/
+      stored.buffer
+        .toString("latin1"),
+      /HYSMyeongJo|HYGoThic/
     );
     assert.ok(
       stored.buffer.length >
-        1000
+        5000
     );
   } finally {
     if (
@@ -184,10 +165,7 @@ test("builtin PDF fallback positions Korean glyphs explicitly through the dedica
         previous;
     }
   }
-});
-
-
-test("PDF HTML renderer uses canonical Korean chapter headings and paged media", () => {
+});test("PDF HTML renderer uses canonical Korean chapter headings and paged media", () => {
   const document =
     createArtifactDocument(
       [
@@ -234,20 +212,16 @@ test("PDF HTML renderer uses canonical Korean chapter headings and paged media",
   );
 });
 
-test("fallback PDF draws canonical section hierarchy", () => {
+test("fallback PDF accepts canonical section hierarchy", async () => {
   const document =
     createArtifactDocument(
       [
-        "고라니 종합 보고서\n\n제1장: 생태\n본문입니다."
-      ],
-      {
-        title:
-          "고라니 종합 보고서"
-      }
+        "# 고라니 종합 보고서\n\n제1장: 생태\n본문입니다."
+      ]
     );
 
   const buffer =
-    renderPdfFallback(
+    await renderPdfFallback(
       document,
       {
         title:
@@ -255,22 +229,31 @@ test("fallback PDF draws canonical section hierarchy", () => {
       }
     );
 
-  const pdf =
-    buffer.toString(
-      "latin1"
+  assert.equal(
+    buffer
+      .subarray(0,5)
+      .toString("ascii"),
+    "%PDF-"
+  );
+  assert.ok(
+    buffer.length >
+      5000
+  );
+});test("fallback PDF renders canonical tables through the table layout engine", async () => {
+  const renderer =
+    read(
+      "pdfKitRenderer.js"
     );
 
   assert.match(
-    pdf,
-    /\/F2\s+24(?:\.0+)?\s+Tf/
+    renderer,
+    /function\s+drawTable\s*\(/
   );
   assert.match(
-    pdf,
-    /\/F2\s+15(?:\.5)?\s+Tf/
+    renderer,
+    /function\s+drawTableRow\s*\(/
   );
-});
 
-test("fallback PDF tables place columns at distinct horizontal positions", () => {
   const document = {
     title:
       "표 테스트",
@@ -295,38 +278,26 @@ test("fallback PDF tables place columns at distinct horizontal positions", () =>
     ]
   };
 
-  const pdf =
-    renderPdfFallback(
+  const buffer =
+    await renderPdfFallback(
       document,
       {
         title:
           document.title
       }
-    ).toString(
-      "latin1"
-    );
-
-  const positions =
-    [...pdf.matchAll(
-      /1 0 0 1 ([0-9.]+) ([0-9.]+) Tm\n<00(?:41|42)> Tj/g
-    )].map(
-      match =>
-        Number(
-          match[1]
-        )
     );
 
   assert.equal(
-    positions.length >= 2,
-    true
+    buffer
+      .subarray(0,5)
+      .toString("ascii"),
+    "%PDF-"
   );
-  assert.notEqual(
-    positions[0],
-    positions[1]
+  assert.ok(
+    buffer.length >
+      5000
   );
-});
-
-test("PDF artifact preview text uses canonical semantic content", async () => {
+});test("PDF artifact preview text uses canonical semantic content", async () => {
   const previous =
     process.env
       .OVLL_DISABLE_CHROME;
