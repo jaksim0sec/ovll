@@ -233,7 +233,7 @@ test("library page owns Escape and focus lifecycle", () => {
   const js = read("front/js/libraryPage.js");
 
   assert.match(js, /returnFocus/);
-  assert.match(js, /event\.key\s*===\s*"Escape"/);
+  assert.match(js, /event\.key\s*!==\s*"Escape"/);
   assert.match(js, /restorePageFocus/);
   assert.match(js, /focusLibraryEntry/);
 });
