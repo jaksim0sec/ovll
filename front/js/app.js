@@ -5364,7 +5364,13 @@
               conversationId:
                 currentConversationId(),
               userRequest:
-                state.lastUserRequest
+                state.lastUserRequest,
+              memory:
+                state.conversationMemory
+                  ? clone(
+                      state.conversationMemory
+                    )
+                  : null
             }
           }
         );
@@ -6124,7 +6130,17 @@
         executor:
           runtimeExecutor,
         onEvent:
-          handleRuntimeEvent
+          handleRuntimeEvent,
+        measureGroupInputChars:
+          (
+            group,
+            context
+          ) =>
+            API
+              .measureExecutionPayloadChars(
+                group,
+                context
+              )
       });
 
     initializeNodeBuilder();
