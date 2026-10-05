@@ -39,35 +39,28 @@
     calc(
       var(--safe-top) +
       var(--topbar-height) +
-      5.5rem
+      2.4rem
     );
   background:
     linear-gradient(
       to bottom,
       color-mix(
         in srgb,
-        var(--bg) 86%,
+        var(--bg) 98%,
         transparent
       ) 0%,
       color-mix(
         in srgb,
-        var(--bg) 63%,
+        var(--bg) 92%,
         transparent
-      ) 34%,
+      ) 42%,
       color-mix(
         in srgb,
-        var(--bg) 30%,
+        var(--bg) 55%,
         transparent
-      ) 58%,
-      color-mix(
-        in srgb,
-        var(--bg) 8%,
-        transparent
-      ) 76%,
-      transparent 88%,
+      ) 72%,
       transparent 100%
     );
-  filter: blur(.22rem);
   pointer-events: none;
 }
 
@@ -96,11 +89,10 @@
   backdrop-filter: var(--ui-backdrop);
   -webkit-backdrop-filter: var(--ui-backdrop);
   box-shadow:
-    var(--ui-control-shadow),
-    0 .9rem 2.1rem
+    0 .18rem .7rem
     color-mix(
       in srgb,
-      var(--bg) 46%,
+      #000 16%,
       transparent
     );
   overflow: hidden;
@@ -252,7 +244,7 @@
   overflow-x: hidden;
   overflow-y: auto;
   padding:
-    calc(var(--safe-top) + var(--topbar-height) + .5rem)
+    calc(var(--safe-top) + var(--topbar-height) + 1.2rem)
     max(1.0625rem, var(--safe-right))
     calc(
       var(--composer-live-height) +
@@ -473,16 +465,21 @@
 #composer-form {
   position: relative;
   z-index: 1;
-  width: min(var(--content-rail), calc(100% - 1rem));
-  min-height: 3.375rem;
+  width: min(40rem, calc(100% - 1.5rem));
+  min-height: 3.65rem;
   margin: 0 auto;
-  padding: .4375rem .4375rem .4375rem .5rem;
+  padding: .48rem .48rem .48rem .56rem;
   display: flex;
   align-items: center;
   gap: .25rem;
   border: .0625rem solid var(--line);
-  border-radius: 1.25rem;
-  background: var(--ui-control-surface);
+  border-radius: 1.45rem;
+  background:
+    color-mix(
+      in srgb,
+      var(--ui-control-surface-strong) 94%,
+      var(--bg)
+    );
   backdrop-filter: var(--ui-backdrop);
   -webkit-backdrop-filter: var(--ui-backdrop);
   box-shadow: var(--ui-control-shadow);
@@ -520,8 +517,8 @@
   resize: none;
   background: transparent;
   color: var(--text);
-  font-size: .8125rem;
-  font-weight: 450;
+  font-size: .96rem;
+  font-weight: 460;
   line-height: 1.375rem;
   letter-spacing: -.015em;
   overflow-y: auto;
@@ -539,7 +536,12 @@
 }
 
 #composer-input::placeholder {
-  color: var(--muted);
+  color:
+    color-mix(
+      in srgb,
+      var(--sub) 86%,
+      transparent
+    );
   transition: color .16s ease, opacity .16s ease;
 }
 
@@ -554,11 +556,11 @@
 #composer-submit {
   position: relative;
   z-index: 2;
-  width: 2.375rem;
-  height: 2.375rem;
-  min-width: 2.375rem;
-  min-height: 2.375rem;
-  flex: 0 0 2.375rem;
+  width: 2.5rem;
+  height: 2.5rem;
+  min-width: 2.5rem;
+  min-height: 2.5rem;
+  flex: 0 0 2.5rem;
   margin: 0;
   padding: 0;
   display: grid;
@@ -654,8 +656,8 @@
 
   #chat-content {
     padding:
-      calc(var(--safe-top) + var(--topbar-height) + .375rem)
-      max(.875rem, var(--safe-right))
+      calc(var(--safe-top) + var(--topbar-height) + 1rem)
+      max(1.15rem, var(--safe-right))
       calc(
         var(--composer-form-height) +
         var(--safe-bottom) +
@@ -671,22 +673,22 @@
   }
 
   #composer-form {
-    width: calc(100% - 1rem);
-    min-height: 3.25rem;
-    padding: .375rem .375rem .375rem .4375rem;
-    gap: .2rem;
+    width: calc(100% - 2.5rem);
+    min-height: 3.6rem;
+    padding: .45rem .45rem .45rem .5rem;
+    gap: .22rem;
   }
 
   #composer-input {
-    height: 2.3125rem;
-    min-height: 2.3125rem;
-    font-size: .875rem;
+    height: 2.45rem;
+    min-height: 2.45rem;
+    font-size: 1rem;
   }
 
   #composer-submit {
-    width: 2.25rem;
-    height: 2.25rem;
-    flex-basis: 2.25rem;
+    width: 2.5rem;
+    height: 2.5rem;
+    flex-basis: 2.5rem;
   }
 }
 
@@ -1153,11 +1155,11 @@
   z-index: 2;
   display: grid;
   place-items: center;
-  width: 2.0625rem;
-  height: 2.0625rem;
-  flex: 0 0 2.0625rem;
-  min-width: 2.0625rem;
-  min-height: 2.0625rem;
+  width: 2.3rem;
+  height: 2.3rem;
+  flex: 0 0 2.3rem;
+  min-width: 2.3rem;
+  min-height: 2.3rem;
   margin: 0;
   padding: 0;
   border: 0;
