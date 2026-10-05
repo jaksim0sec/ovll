@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { inflateSync } from "node:zlib";
 import {
   createStoredArtifact,
   getStoredArtifact
@@ -21,6 +22,46 @@ const ROOT = path.resolve(HERE, "..");
 function read(relativePath) {
   return fs.readFileSync(path.join(ROOT, relativePath), "utf8");
 }
+
+function pdfPageCount(buffer) {
+  return (
+    buffer
+      .toString("latin1")
+      .match(/\/Type \/Page\b/g) ||
+    []
+  ).length;
+}
+
+function inflatedPdfStreams(buffer) {
+  const source =
+    buffer.toString("latin1");
+  const streams = [];
+  const pattern =
+    /\/Filter\s*\/FlateDecode[\s\S]*?stream\r?\n([\s\S]*?)\r?\nendstream/g;
+
+  let match;
+
+  while (
+    (
+      match =
+        pattern.exec(source)
+    )
+  ) {
+    try {
+      streams.push(
+        inflateSync(
+          Buffer.from(
+            match[1],
+            "latin1"
+          )
+        ).toString("latin1")
+      );
+    } catch {}
+  }
+
+  return streams;
+}
+
 
 test("HTML artifacts preserve runnable markup instead of escaping it", async () => {
   const source =
@@ -585,4 +626,41 @@ test("fallback PDF embeds a deterministic Korean font", async () => {
         previous;
     }
   }
+});
+
+
+test("fallback PDF keeps a short canonical document on one page and draws body text", async () => {
+  const document =
+    createArtifactDocument([
+      "# 고라니 종합 보고서\n\n제1장: 생태\n고라니의 생태를 설명하는 본문입니다.\n\n제2장: 서식지\n서식지를 설명하는 본문입니다."
+    ]);
+
+  const buffer =
+    await renderPdfFallback(
+      document,
+      {
+        title:
+          document.title
+      }
+    );
+
+  assert.equal(
+    pdfPageCount(buffer),
+    1
+  );
+
+  const content =
+    inflatedPdfStreams(
+      buffer
+    ).join("\n");
+
+  const textOperators =
+    content.match(
+      /\bTf\b/g
+    ) || [];
+
+  assert.ok(
+    textOperators.length >= 5,
+    "fallback PDF should contain title, section, body, and footer text operators"
+  );
 });
