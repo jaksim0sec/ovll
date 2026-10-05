@@ -191,12 +191,75 @@ function normalizeMessage(value){
     return null;
   }
 
+  const kind =
+    value.kind === "runtime"
+      ? "runtime"
+      : "message";
+
   const role =
     ["user","assistant","system"].includes(
       String(value.role || "")
     )
       ? String(value.role)
       : "assistant";
+
+  const runtime =
+    kind === "runtime" &&
+    value.runtime &&
+    typeof value.runtime === "object"
+      ? {
+          meta:
+            String(
+              value.runtime.meta || ""
+            ).slice(0,80),
+          collapsed:
+            value.runtime.collapsed === true,
+          steps:
+            Array.isArray(
+              value.runtime.steps
+            )
+              ? value.runtime.steps
+                  .filter(step =>
+                    step &&
+                    typeof step === "object"
+                  )
+                  .map(step => ({
+                    id:
+                      String(
+                        step.id || ""
+                      ).slice(0,120),
+                    nodeType:
+                      String(
+                        step.nodeType || ""
+                      ).slice(0,80),
+                    label:
+                      String(
+                        step.label || ""
+                      ).slice(0,500),
+                    detail:
+                      String(
+                        step.detail || ""
+                      ).slice(0,500),
+                    status:
+                      [
+                        "running",
+                        "done",
+                        "failed",
+                        "skipped"
+                      ].includes(
+                        String(
+                          step.status || ""
+                        )
+                      )
+                        ? String(
+                            step.status
+                          )
+                        : "done"
+                  }))
+                  .slice(0,64)
+              : []
+        }
+      : null;
 
   const blocks =
     Array.isArray(value.blocks)
@@ -255,8 +318,10 @@ function normalizeMessage(value){
       value.id ||
       id("msg")
     ),
+    kind,
     role,
     text:String(value.text || ""),
+    runtime,
     blocks,
     question:String(value.question || ""),
     showCanvasView:
