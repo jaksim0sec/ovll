@@ -41,8 +41,47 @@
   /* =======================================================
      Internal State
      ======================================================= */
+  const NODE_DEFINITIONS_KEY =
+    "ovll:node-definitions";
   let nodeDefinitionsCache = null;
   let nodeDefinitionsPromise = null;
+
+  function readStoredNodeDefinitions() {
+    try {
+      const parsed =
+        JSON.parse(
+          localStorage.getItem(
+            NODE_DEFINITIONS_KEY
+          ) || "null"
+        );
+
+      return (
+        parsed &&
+        typeof parsed === "object" &&
+        !Array.isArray(parsed)
+      )
+        ? parsed
+        : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function storeNodeDefinitions(
+    definitions
+  ) {
+    try {
+      localStorage.setItem(
+        NODE_DEFINITIONS_KEY,
+        JSON.stringify(
+          definitions
+        )
+      );
+    } catch {}
+  }
+
+  nodeDefinitionsCache =
+    readStoredNodeDefinitions();
   /* =======================================================
      Request
      ======================================================= */
@@ -747,6 +786,10 @@
     ) {
       return nodeDefinitionsPromise;
     }
+    const stale =
+      nodeDefinitionsCache ||
+      readStoredNodeDefinitions();
+
     nodeDefinitionsPromise =
       request(
         "node-definitions",
@@ -768,8 +811,13 @@
             "노드 정의 응답이 올바르지 않습니다."
           );
         }
+
         nodeDefinitionsCache =
           result.nodes;
+        storeNodeDefinitions(
+          nodeDefinitionsCache
+        );
+
         /*
          * 기존 코드와의 호환성을 위해
          * 전역에도 노출한다.
@@ -777,6 +825,23 @@
         global.nodeDefinitions =
           nodeDefinitionsCache;
         return nodeDefinitionsCache;
+      })
+      .catch(error => {
+        if (stale) {
+          console.warn(
+            "Node definition refresh failed; using local cache.",
+            error
+          );
+
+          nodeDefinitionsCache =
+            stale;
+          global.nodeDefinitions =
+            stale;
+
+          return stale;
+        }
+
+        throw error;
       })
       .finally(() => {
         nodeDefinitionsPromise =
