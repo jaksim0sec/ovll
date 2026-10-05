@@ -575,7 +575,7 @@ test("server health preserves event-loop stall history", () => {
   );
 });
 
-test("PDFKit fallback uses a low-CPU single-pass profile", () => {
+test("PDFKit fallback uses one font subset and a low-CPU single-pass profile", () => {
   const renderer =
     read(
       "pdfKitRenderer.js"
@@ -583,11 +583,11 @@ test("PDFKit fallback uses a low-CPU single-pass profile", () => {
 
   assert.match(
     renderer,
-    /NotoKRMedium",[\s\S]*resolved\.regular/
+    /registerFont\(\s*"NotoKR"/
   );
-  assert.match(
+  assert.doesNotMatch(
     renderer,
-    /NotoKRBold",[\s\S]*resolved\.regular/
+    /NotoKRMedium|NotoKRBold/
   );
   assert.match(
     renderer,
