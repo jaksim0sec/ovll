@@ -89,6 +89,7 @@ const APP_SCRIPTS=[
   "./js/api.js",
   "./js/canvasNode.js",
   "./js/runtimeEngine.js",
+  "./js/navigation.js",
   "./js/ui.js",
   "./js/workspaceStore.js",
   "./js/libraryPage.js",

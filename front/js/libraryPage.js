@@ -4,6 +4,9 @@
 const FileStore=
   global.OvllFileStore;
 
+const Navigation=
+  global.OvllNavigation;
+
 const ArtifactVisuals=
   global.OvllArtifactVisuals;
 
@@ -24,6 +27,7 @@ const search=
 
 if(
   !FileStore||
+  !Navigation||
   !ArtifactVisuals||
   !page||
   !grid
@@ -383,7 +387,7 @@ async function refresh(){
   renderGrid();
 }
 
-function show(){
+function show(options={}){
   if(state.destroyed){
     return false;
   }
@@ -396,6 +400,24 @@ function show(){
       document.activeElement instanceof HTMLElement
         ?document.activeElement
         :null;
+
+    if(
+      options.history !==
+        false
+    ){
+      if(
+        options.history ===
+          "replace"
+      ){
+        Navigation.replace(
+          "library"
+        );
+      }else{
+        Navigation.open(
+          "library"
+        );
+      }
+    }
   }
 
   clearTimeout(
@@ -426,12 +448,29 @@ function show(){
   return true;
 }
 
-function hide(){
+function hide(options={}){
   if(
     state.destroyed||
     !state.open
   ){
     return false;
+  }
+
+  if(
+    options.history !==
+      false &&
+    Navigation.isCurrent(
+      "library"
+    )
+  ){
+    Navigation.close(
+      "library",
+      ()=>hide({
+        history:false
+      })
+    );
+
+    return true;
   }
 
   state.open=false;
@@ -514,6 +553,22 @@ listen(
   ()=>{
     if(state.open){
       void refresh();
+    }
+  }
+);
+
+listen(
+  global,
+  "ovll:navigation-back",
+  event=>{
+    if(
+      event.detail?.layer===
+        "library" &&
+      state.open
+    ){
+      hide({
+        history:false
+      });
     }
   }
 );

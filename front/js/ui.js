@@ -4,6 +4,9 @@
   const THEME_KEY =
     "ovll:theme";
 
+  const Navigation =
+    global.OvllNavigation;
+
   const workspace =
     document.querySelector(
       "#workspace"
@@ -103,27 +106,35 @@
       : "chat";
   }
 
+  function modeUrl(
+    mode
+  ) {
+    const url =
+      new URL(
+        global.location.href
+      );
+
+    url.searchParams.set(
+      "mode",
+      mode === "canvas"
+        ? "canvas"
+        : "chat"
+    );
+
+    return url;
+  }
+
   function setUrlMode(
     mode
   ) {
     try {
-      const url =
-        new URL(
-          global.location.href
-        );
-
-      url.searchParams.set(
-        "mode",
-        mode === "canvas"
-          ? "canvas"
-          : "chat"
-      );
-
       global.history
         .replaceState(
-          null,
+          global.history.state,
           "",
-          url
+          modeUrl(
+            mode
+          )
         );
     } catch {}
   }
@@ -670,12 +681,63 @@
     const previous =
       state.mode;
 
+    const navigationEnabled =
+      options.history !==
+        false &&
+      previous !==
+        target &&
+      !!Navigation;
+
+    const marker =
+      Navigation
+        ?.current?.();
+
+    if (
+      navigationEnabled &&
+      target === "canvas" &&
+      marker?.layer === "base"
+    ) {
+      try {
+        Navigation.open(
+          "canvas",
+          {
+            url:
+              modeUrl(
+                "canvas"
+              ).href
+          }
+        );
+      } catch {
+        setUrlMode(
+          target
+        );
+      }
+    } else if (
+      navigationEnabled &&
+      target === "chat" &&
+      marker?.layer === "canvas"
+    ) {
+      Navigation.close(
+        "canvas"
+      );
+    } else if (
+      navigationEnabled &&
+      target === "chat" &&
+      marker?.parentLayer ===
+        "canvas" &&
+      marker.depth >= 2
+    ) {
+      Navigation.goToDepth(
+        marker.depth - 2
+      );
+    } else {
+      setUrlMode(
+        target
+      );
+    }
+
     state.mode =
       target;
-
-    setUrlMode(
-      target
-    );
 
     syncCanvasInteraction();
 
@@ -1718,6 +1780,54 @@
     scheduleViewportSync
   );
 
+  listen(
+    global,
+    "popstate",
+    () => {
+      const target =
+        getUrlMode();
+
+      if (
+        target !==
+        state.mode
+      ) {
+        setMode(
+          target,
+          {
+            history:
+              false,
+            immediate:
+              true
+          }
+        );
+      }
+    }
+  );
+
+  listen(
+    global,
+    "ovll:navigation-back",
+    event => {
+      if (
+        event.detail
+          ?.layer ===
+        "canvas" &&
+        state.mode ===
+          "canvas"
+      ) {
+        setMode(
+          "chat",
+          {
+            history:
+              false,
+            immediate:
+              true
+          }
+        );
+      }
+    }
+  );
+
   if (
     useKeyboardOverlay &&
     virtualKeyboard
@@ -1828,9 +1938,40 @@
       api
     );
 
-  setUrlMode(
-    state.mode
-  );
+  if (
+    initialMode === "canvas" &&
+    Navigation
+      ?.isCurrent?.(
+        "base"
+      )
+  ) {
+    try {
+      const canvasUrl =
+        modeUrl(
+          "canvas"
+        );
+
+      setUrlMode(
+        "chat"
+      );
+
+      Navigation.open(
+        "canvas",
+        {
+          url:
+            canvasUrl.href
+        }
+      );
+    } catch {
+      setUrlMode(
+        state.mode
+      );
+    }
+  } else {
+    setUrlMode(
+      state.mode
+    );
+  }
 
   render();
   syncViewport();
