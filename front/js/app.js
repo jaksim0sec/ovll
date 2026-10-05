@@ -454,16 +454,6 @@
     UI.syncViewport?.();
   }
 
-  function focusComposerWithoutScroll() {
-    try {
-      composerInput.focus({
-        preventScroll: true
-      });
-    } catch {
-      composerInput.focus();
-    }
-  }
-
   function cleanPublicMessage(
     value,
     fallback = ""
@@ -5112,7 +5102,6 @@
       );
     } finally {
       setBusy(false);
-      focusComposerWithoutScroll();
       resizeComposer();
     }
   }
@@ -5122,6 +5111,10 @@
 
     const text = composerInput.value.trim();
     if (!text) return;
+
+    if (document.activeElement === composerInput) {
+      composerInput.blur();
+    }
 
     await runPrompt(text);
   }
