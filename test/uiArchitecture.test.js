@@ -575,6 +575,34 @@ test("server health preserves event-loop stall history", () => {
   );
 });
 
+test("PDFKit fallback uses a low-CPU single-pass profile", () => {
+  const renderer =
+    read(
+      "pdfKitRenderer.js"
+    );
+
+  assert.match(
+    renderer,
+    /NotoKRMedium",[\s\S]*resolved\.regular/
+  );
+  assert.match(
+    renderer,
+    /NotoKRBold",[\s\S]*resolved\.regular/
+  );
+  assert.match(
+    renderer,
+    /bufferPages:\s*false/
+  );
+  assert.match(
+    renderer,
+    /compress:\s*false/
+  );
+  assert.doesNotMatch(
+    renderer,
+    /bufferedPageRange\(/
+  );
+});
+
 test("PDFKit fallback reuses one isolated worker instead of cold-starting every PDF", () => {
   const renderer =
     read(
