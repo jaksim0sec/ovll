@@ -927,6 +927,16 @@
   width: min(43.75rem, 100%);
 }
 
+.astra-runtime-activity.is-compact
+.astra-runtime-activity-summary {
+  display: none;
+}
+
+.astra-runtime-activity.is-compact
+.astra-runtime-activity-steps {
+  padding-top: 0;
+}
+
 .astra-runtime-activity-summary {
   appearance: none;
   -webkit-appearance: none;
