@@ -288,17 +288,17 @@ async function buildBuffer(
 
     return {
       buffer:
-        renderPdfFallback(
+        await renderPdfFallback(
           canonicalDocument,
           {
             title:
-              metadata.title ||
               canonicalDocument.title ||
+              metadata.title ||
               ''
           }
         ),
       renderer:
-        'builtin-fallback'
+        'pdfkit-fallback'
     };
   }
 
@@ -433,11 +433,13 @@ export async function createStoredArtifact(input = {}) {
 
   const document =
     createArtifactDocument(
-      sources,
-      {
-        title
-      }
+      sources
     );
+
+  if (!document.title) {
+    document.title =
+      title;
+  }
 
   const built =
     await buildBuffer(
