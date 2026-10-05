@@ -2558,7 +2558,7 @@ app.get(
         ''
       ) === '1';
 
-    res.set({
+    const responseHeaders = {
       'Content-Type':
         artifact.mime,
       'Content-Length':
@@ -2576,8 +2576,37 @@ app.get(
       'X-Content-Type-Options':
         'nosniff',
       'Cache-Control':
-        'private, no-store'
-    });
+        'private, no-store',
+      'Referrer-Policy':
+        'no-referrer'
+    };
+
+    if (
+      inline &&
+      artifact.format ===
+        'HTML'
+    ) {
+      responseHeaders[
+        'Content-Security-Policy'
+      ] = [
+        "default-src 'none'",
+        "script-src 'unsafe-inline'",
+        "style-src 'unsafe-inline'",
+        "img-src data: blob:",
+        "font-src data:",
+        "media-src data: blob:",
+        "connect-src 'none'",
+        "frame-src 'none'",
+        "object-src 'none'",
+        "base-uri 'none'",
+        "form-action 'none'",
+        "frame-ancestors 'none'"
+      ].join('; ');
+    }
+
+    res.set(
+      responseHeaders
+    );
 
     return res.send(
       artifact.buffer
