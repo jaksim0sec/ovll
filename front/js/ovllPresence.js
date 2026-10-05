@@ -2,12 +2,8 @@
 "use strict";
 
 const UI=global.AstraUI;
-const WorkspaceStore=
-  global.OvllWorkspaceStore;
 const chatPage=document.querySelector("#chat-page");
 const chatMessages=document.querySelector("#chat-messages");
-const composerInput=
-  document.querySelector("#composer-input");
 const canvasPage=document.querySelector("#canvas-page");
 const canvasWorld=document.querySelector("#canvas-world");
 
@@ -111,221 +107,54 @@ function ensureChatPresence(){
   return row;
 }
 
-function startConversationHasWork(
-  conversation
-){
-  if(
-    !conversation ||
-    typeof conversation!=="object"
-  ){
-    return false;
+function ensureStartView(){
+  if(state.startView?.isConnected){
+    return state.startView;
   }
 
-  const messages=
-    conversation.state
-      ?.messages;
-
-  const nodes=
-    conversation.state
-      ?.canvas
-      ?.workflow
-      ?.nodes;
-
-  return (
-    (
-      Array.isArray(messages)&&
-      messages.length>0
-    )||
-    (
-      Array.isArray(nodes)&&
-      nodes.length>0
-    )||
-    !!String(
-      conversation.state
-        ?.lastUserRequest||
-      ""
-    ).trim()
+  const view=document.createElement("div");
+  view.id="ovll-chat-start";
+  view.className="ovll-chat-start";
+  view.setAttribute(
+    "aria-label",
+    "새 대화"
   );
-}
 
-function compactStartText(
-  value,
-  max=64
-){
-  const text=
-    String(value||"")
-      .replace(/\s+/g," ")
-      .trim();
+  view.innerHTML=`
+    <button
+      type="button"
+      class="ovll-chat-start-orb"
+      aria-label="오블"
+    >
+      <span
+        class="ovll-chat-start-eye"
+        aria-hidden="true"
+      ></span>
+    </button>
 
-  if(text.length<=max){
-    return text;
-  }
+    <div class="ovll-chat-start-greeting">
+      안녕하세요. 무엇을 도와드릴까요?
+    </div>
+  `;
 
-  return (
-    text.slice(
-      0,
-      Math.max(
-        1,
-        max-1
-      )
-    )+
-    "…"
-  );
-}
+  chatPage.appendChild(view);
 
-function startViewData(){
-  if(
-    !WorkspaceStore?.search
-  ){
-    return {
-      primary:null,
-      prompts:[]
-    };
-  }
+  state.startView=view;
+  state.startOrb=
+    view.querySelector(
+      ".ovll-chat-start-orb"
+    );
 
-  const activeId=
-    WorkspaceStore
-      .getActiveConversation?.()
-      ?.id||
-    "";
-
-  const recent=
-    WorkspaceStore
-      .search("")
-      .filter(item=>
-        item?.id!==activeId&&
-        startConversationHasWork(
-          item
-        )
-      );
-
-  const primary=
-    recent[0]||null;
-
-  const prompts=[];
-  const seen=
-    new Set();
-
-  for(const item of recent){
-    const value=
-      compactStartText(
-        item?.state
-          ?.lastUserRequest,
-        72
-      );
-
-    if(
-      !value||
-      seen.has(value)
-    ){
-      continue;
+  listen(
+    state.startOrb,
+    "click",
+    event=>{
+      event.preventDefault();
+      reactStartOrb();
     }
-
-    seen.add(value);
-    prompts.push(value);
-
-    if(prompts.length>=2){
-      break;
-    }
-  }
-
-  return {
-    primary,
-    prompts
-  };
-}
-
-function refreshStartView(){
-  const view=
-    state.startView;
-
-  if(!view?.isConnected){
-    return;
-  }
-
-  const data=
-    startViewData();
-
-  const primary=
-    view.querySelector(
-      ".ovll-chat-start-primary"
-    );
-
-  const title=
-    view.querySelector(
-      ".ovll-chat-start-title"
-    );
-
-  const resume=
-    view.querySelector(
-      ".ovll-chat-start-resume"
-    );
-
-  const suggestions=
-    view.querySelector(
-      ".ovll-chat-start-suggestions"
-    );
-
-  const primaryTitle=
-    data.primary
-      ? compactStartText(
-          data.primary.title!=="새 대화"
-            ? data.primary.title
-            : data.primary.state
-                ?.lastUserRequest,
-          48
-        )
-      : "";
-
-  primary.hidden=
-    !primaryTitle;
-
-  if(primaryTitle){
-    title.textContent=
-      primaryTitle;
-
-    resume.dataset
-      .conversationId=
-      String(
-        data.primary.id||
-        ""
-      );
-  }else{
-    title.textContent="";
-    delete resume.dataset
-      .conversationId;
-  }
-
-  suggestions
-    .replaceChildren();
-
-  for(const prompt of data.prompts){
-    const button=
-      document.createElement(
-        "button"
-      );
-
-    button.type="button";
-    button.className=
-      "ovll-chat-start-suggestion";
-    button.dataset.prompt=
-      prompt;
-    button.textContent=
-      prompt;
-
-    suggestions.appendChild(
-      button
-    );
-  }
-
-  suggestions.hidden=
-    !data.prompts.length;
-
-  view.classList.toggle(
-    "has-context",
-    !!primaryTitle||
-    data.prompts.length>0
   );
+
+  return view;
 }
 
 function reactStartOrb(){
@@ -849,29 +678,6 @@ const offModeChange=
 
 if(typeof offModeChange==="function"){
   listeners.push(offModeChange);
-}
-
-const offWorkspaceChange=
-  WorkspaceStore?.on?.(
-    "change",
-    ()=>{
-      if(
-        !state.started&&
-        state.startView
-          ?.isConnected
-      ){
-        refreshStartView();
-      }
-    }
-  );
-
-if(
-  typeof offWorkspaceChange===
-    "function"
-){
-  listeners.push(
-    offWorkspaceChange
-  );
 }
 
 const api={
