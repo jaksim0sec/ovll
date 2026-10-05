@@ -3912,6 +3912,12 @@
           format:
             artifact.format ||
             "",
+          renderer:
+            artifact.renderer ||
+            "",
+          previewKind:
+            artifact.previewKind ||
+            "",
           downloadUrl:
             artifact.downloadUrl ||
             "",
