@@ -93,8 +93,18 @@ jobs:
             sudo apt-get update -qq
             sudo apt-get install -y -qq poppler-utils
           fi
-          pdfinfo artifact-quality-output/gorani-quality-fixture.pdf
-          pdftoppm             -png             -singlefile             -r 180             artifact-quality-output/gorani-quality-fixture.pdf             artifact-quality-output/gorani-quality-fixture
+          pdfinfo artifact-quality-output/gorani-quality-fixture.pdf | tee artifact-quality-output/pdfinfo.txt
+          pdffonts artifact-quality-output/gorani-quality-fixture.pdf | tee artifact-quality-output/pdffonts.txt
+          pdftotext artifact-quality-output/gorani-quality-fixture.pdf artifact-quality-output/gorani-quality-fixture.txt
+          grep -q "제1장: 생태와 특징" artifact-quality-output/gorani-quality-fixture.txt
+          grep -q "제2장: 서식지와 생활" artifact-quality-output/gorani-quality-fixture.txt
+          grep -q "제3장: 사람과의 관계" artifact-quality-output/gorani-quality-fixture.txt
+          pdftoppm \
+            -png \
+            -r 180 \
+            artifact-quality-output/gorani-quality-fixture.pdf \
+            artifact-quality-output/gorani-quality-fixture-page
+          cp package-lock.json artifact-quality-output/package-lock.json
 
       - name: Upload visual fixture
         uses: actions/upload-artifact@v4
