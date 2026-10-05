@@ -231,3 +231,26 @@ test("plain prose HTML output is escaped into semantic paragraphs", () => {
     /<p>둘째 &lt;문단&gt;<\/p>/
   );
 });
+
+
+test("document title comes from H1 but natural chapter headings are not promoted to title", () => {
+  const withH1 =
+    createArtifactDocument([
+      "# 고라니 종합 보고서\n\n제1장: 생태\n본문"
+    ]);
+
+  assert.equal(
+    withH1.title,
+    "고라니 종합 보고서"
+  );
+
+  const chaptersOnly =
+    createArtifactDocument([
+      "제1장: 생태\n본문"
+    ]);
+
+  assert.equal(
+    chaptersOnly.title,
+    ""
+  );
+});
