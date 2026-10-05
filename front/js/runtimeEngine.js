@@ -2437,10 +2437,15 @@
                   ) {
                     throwIfCancelled();
 
-                    if (
-                      commitCachedResult(
+                    const hasCacheCandidate =
+                      nodeId !== pivot &&
+                      this.resultCache.has(
                         nodeId
-                      )
+                      );
+
+                    if (
+                      hasCacheCandidate &&
+                      pending.length
                     ) {
                       const ok =
                         await flushPending();
@@ -2448,7 +2453,14 @@
                       if (!ok) {
                         return null;
                       }
+                    }
 
+                    if (
+                      hasCacheCandidate &&
+                      commitCachedResult(
+                        nodeId
+                      )
+                    ) {
                       continue;
                     }
 
