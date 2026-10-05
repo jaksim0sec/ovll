@@ -53,17 +53,19 @@ function run({
 test("cancelled runs skip final response generation", () => {
   const policy = loadPolicy();
 
-  assert.deepEqual(
-    policy.decide(
-      run({
-        status: "CANCELLED"
-      })
+  assert.equal(
+    JSON.stringify(
+      policy.decide(
+        run({
+          status: "CANCELLED"
+        })
+      )
     ),
-    {
+    JSON.stringify({
       mode: "skip",
       reason: "cancelled",
       message: ""
-    }
+    })
   );
 });
 
