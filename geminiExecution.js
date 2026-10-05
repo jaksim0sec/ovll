@@ -10,6 +10,7 @@ export const DEFAULT_GEMINI_FALLBACK_MODEL =
 const DEFAULT_MAX_GROUP_NODES = 6;
 const DEFAULT_MAX_INPUT_CHARS = 42000;
 const DEFAULT_MAX_ATTEMPTS = 3;
+const DEFAULT_REQUEST_TIMEOUT_MS = 45000;
 
 const GEMINI_NODE_TYPES =
   new Set([
@@ -1414,6 +1415,14 @@ export function createGeminiExecution(
       DEFAULT_MAX_ATTEMPTS
     );
 
+  const requestTimeoutMs =
+    positiveInteger(
+      options.requestTimeoutMs ??
+      process.env
+        .GEMINI_REQUEST_TIMEOUT_MS,
+      DEFAULT_REQUEST_TIMEOUT_MS
+    );
+
   const fetchImpl =
     options.fetchImpl ||
     globalThis.fetch;
@@ -1473,32 +1482,10 @@ export function createGeminiExecution(
     nodes,
     fallback = "minimal"
   ) {
+    void nodes;
+
     if (forcedThinkingLevel) {
       return forcedThinkingLevel;
-    }
-
-    const types =
-      new Set(
-        (
-          Array.isArray(nodes)
-            ? nodes
-            : []
-        )
-          .map(
-            node =>
-              String(
-                node?.type ||
-                ""
-              )
-          )
-      );
-
-    if (
-      types.has("research") ||
-      types.has("write") ||
-      types.has("judge")
-    ) {
-      return "low";
     }
 
     return fallback;
@@ -1545,6 +1532,32 @@ export function createGeminiExecution(
     throwIfAborted(signal);
     retryAfterHint = null;
 
+    const controller =
+      new AbortController();
+    let timedOut = false;
+
+    const abortFromParent =
+      () => controller.abort();
+
+    if (signal?.aborted) {
+      abortFromParent();
+    } else {
+      signal?.addEventListener(
+        "abort",
+        abortFromParent,
+        {once:true}
+      );
+    }
+
+    const timeout =
+      setTimeout(
+        () => {
+          timedOut = true;
+          controller.abort();
+        },
+        requestTimeoutMs
+      );
+
     let response;
 
     try {
@@ -1563,10 +1576,24 @@ export function createGeminiExecution(
               JSON.stringify(
                 request
               ),
-            signal
+            signal:
+              controller.signal
           }
         );
     } catch (error) {
+      if (timedOut) {
+        throw new GeminiExecutionError(
+          "Gemini upstream request timed out.",
+          {
+            code:
+              "GEMINI_UPSTREAM_TIMEOUT",
+            status: 504,
+            retryable: false,
+            fallbackEligible: false
+          }
+        );
+      }
+
       if (
         signal?.aborted ||
         error?.name ===
@@ -1584,6 +1611,12 @@ export function createGeminiExecution(
           retryable: true,
           fallbackEligible: false
         }
+      );
+    } finally {
+      clearTimeout(timeout);
+      signal?.removeEventListener(
+        "abort",
+        abortFromParent
       );
     }
 
@@ -2121,7 +2154,8 @@ export function createGeminiExecution(
         "auto",
       maxNodes,
       maxInputChars,
-      maxAttempts
+      maxAttempts,
+      requestTimeoutMs
     }
   };
 }
