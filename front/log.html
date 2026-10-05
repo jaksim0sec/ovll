@@ -311,6 +311,8 @@
         `<span class="pill">RSS ${esc(mb(runtime.rssBytes))}</span>`,
         `<span class="pill">heap ${esc(mb(runtime.heapUsedBytes))} / ${esc(mb(runtime.heapTotalBytes))}</span>`,
         `<span class="pill">event loop ${esc(Math.round(Number(runtime.eventLoopLagMs) || 0))}ms</span>`,
+        `<span class="pill">max lag ${esc(Math.round(Number(runtime.maxEventLoopLagMs) || 0))}ms</span>`,
+        `<span class="pill ${Number(runtime.severeLagCount) ? "warn" : ""}">stall ${esc(Number(runtime.severeLagCount) || 0)}</span>`,
         `<span class="pill">boot ${esc(String(runtime.bootId || "").slice(0,8))}</span>`
       ].join("");
     }
