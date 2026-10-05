@@ -4,6 +4,9 @@
 const Store =
   global.OvllWorkspaceStore;
 
+const Navigation =
+  global.OvllNavigation;
+
 const ArtifactVisuals =
   global.OvllArtifactVisuals;
 
@@ -15,6 +18,7 @@ const appStage =
 if(
   !appStage ||
   !Store ||
+  !Navigation ||
   !ArtifactVisuals
 ){
   return;
@@ -353,12 +357,58 @@ function activeConversation(){
 
 function closeOnSmallScreen(){
   if(
-    global.matchMedia?.(
+    !global.matchMedia?.(
       "(max-width: 60rem)"
     ).matches
   ){
-    close();
+    return;
   }
+
+  const marker=
+    Navigation.current();
+
+  const mode=
+    global.AstraUI
+      ?.getMode?.()||
+    "chat";
+
+  if(
+    marker.layer===
+      "sidebar" &&
+    mode==="canvas" &&
+    marker.parentLayer!==
+      "canvas"
+  ){
+    Navigation.replace(
+      "canvas"
+    );
+
+    close({
+      history:false
+    });
+
+    return;
+  }
+
+  if(
+    marker.layer===
+      "sidebar" &&
+    mode==="chat" &&
+    marker.parentLayer===
+      "canvas" &&
+    marker.depth>=2
+  ){
+    Navigation.goToDepth(
+      marker.depth-2,
+      ()=>close({
+        history:false
+      })
+    );
+
+    return;
+  }
+
+  close();
 }
 
 function currentSectionId(){
@@ -1265,19 +1315,46 @@ function setOpen(open){
   return api;
 }
 
-function open(){
+function open(options={}){
+  if(
+    !state.open &&
+    options.history !==
+      false
+  ){
+    Navigation.open(
+      "sidebar"
+    );
+  }
+
   return setOpen(true);
 }
 
-function close(){
+function close(options={}){
   setSearchOpen(false,false);
+
+  if(
+    state.open &&
+    options.history !==
+      false &&
+    Navigation.isCurrent(
+      "sidebar"
+    )
+  ){
+    Navigation.close(
+      "sidebar",
+      ()=>setOpen(false)
+    );
+
+    return api;
+  }
+
   return setOpen(false);
 }
 
 function toggle(){
-  return setOpen(
-    !state.open
-  );
+  return state.open
+    ?close()
+    :open();
 }
 
 function handleClick(event){
@@ -1390,9 +1467,14 @@ function handleClick(event){
 
   if(action==="library"){
     global.OvllLibraryPage
-      ?.show?.();
+      ?.show?.({
+        history:
+          "replace"
+      });
 
-    close();
+    close({
+      history:false
+    });
     return;
   }
 
@@ -2110,6 +2192,22 @@ listeners.push(
 );
 
 scheduleRender();
+
+listen(
+  global,
+  "ovll:navigation-back",
+  event=>{
+    if(
+      event.detail?.layer===
+        "sidebar" &&
+      state.open
+    ){
+      close({
+        history:false
+      });
+    }
+  }
+);
 
 const api={
   open,
