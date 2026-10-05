@@ -1580,6 +1580,18 @@
         previewUrl:
           local.previewUrl ||
           "",
+        format:
+          artifact.format ||
+          local.format ||
+          "",
+        renderer:
+          artifact.renderer ||
+          local.renderer ||
+          "",
+        previewKind:
+          artifact.previewKind ||
+          local.previewKind ||
+          "",
         previewText:
           artifact.previewText ||
           local.previewText ||
@@ -1653,6 +1665,15 @@
               "",
             conversationId:
               currentConversationId(),
+            format:
+              artifact.format ||
+              "",
+            renderer:
+              artifact.renderer ||
+              "",
+            previewKind:
+              artifact.previewKind ||
+              "",
             previewText:
               artifact.previewText ||
               ""
