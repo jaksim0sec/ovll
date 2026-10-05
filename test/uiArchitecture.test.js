@@ -1152,3 +1152,88 @@ test("planner keeps document length requirements on the upstream writer", () => 
     /padding|whitespace|여백/i
   );
 });
+
+
+test("PDFKit fallback keeps flowing text cheap and table rows anchored", () => {
+  const renderer =
+    read(
+      "pdfKitRenderer.js"
+    );
+
+  const paragraphStart =
+    renderer.indexOf(
+      "function drawParagraph"
+    );
+  const listStart =
+    renderer.indexOf(
+      "function drawList",
+      paragraphStart
+    );
+  const quoteStart =
+    renderer.indexOf(
+      "function drawQuote",
+      listStart
+    );
+  const tableRowStart =
+    renderer.indexOf(
+      "function drawTableRow"
+    );
+  const tableStart =
+    renderer.indexOf(
+      "function drawTable",
+      tableRowStart + 1
+    );
+
+  const paragraph =
+    renderer.slice(
+      paragraphStart,
+      listStart
+    );
+  const list =
+    renderer.slice(
+      listStart,
+      quoteStart
+    );
+  const tableRow =
+    renderer.slice(
+      tableRowStart,
+      tableStart
+    );
+
+  assert.ok(
+    paragraphStart >= 0 &&
+    listStart > paragraphStart &&
+    quoteStart > listStart &&
+    tableRowStart >= 0 &&
+    tableStart > tableRowStart
+  );
+
+  assert.doesNotMatch(
+    paragraph,
+    /textHeight\s*\(/
+  );
+  assert.doesNotMatch(
+    list,
+    /textHeight\s*\(/
+  );
+  assert.match(
+    renderer,
+    /TEXT_HEIGHT_CACHE_LIMIT/
+  );
+  assert.match(
+    tableRow,
+    /ensureSpace[\s\S]*const y\s*=\s*doc\.y/
+  );
+  assert.match(
+    tableRow,
+    /doc\.rect\(\s*cellX,\s*y,/
+  );
+  assert.match(
+    tableRow,
+    /y \+ 8/
+  );
+  assert.match(
+    renderer,
+    /measuredHeight:\s*rowHeight/
+  );
+});

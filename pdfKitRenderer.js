@@ -30,6 +30,11 @@ const PAGE = {
 
 let fontCache = null;
 
+const TEXT_HEIGHT_CACHE_LIMIT =
+  2048;
+const textHeightCaches =
+  new WeakMap();
+
 function fontPackageRoot() {
   const candidates = [];
 
@@ -228,18 +233,57 @@ function textHeight(
     lineGap = 4.6
   } = {}
 ) {
+  const normalized =
+    cleanText(text) || " ";
+
+  let cache =
+    textHeightCaches.get(doc);
+
+  if (!cache) {
+    cache = new Map();
+    textHeightCaches.set(
+      doc,
+      cache
+    );
+  }
+
+  const cacheKey = [
+    font,
+    size,
+    lineGap,
+    Number(width).toFixed(2),
+    normalized
+  ].join("\u0000");
+
+  if (cache.has(cacheKey)) {
+    return cache.get(cacheKey);
+  }
+
   doc.font(font)
     .fontSize(size);
 
-  return doc.heightOfString(
-    cleanText(text) || " ",
-    {
-      width,
-      lineGap,
-      align:
-        "left"
-    }
-  );
+  const height =
+    doc.heightOfString(
+      normalized,
+      {
+        width,
+        lineGap,
+        align:
+          "left"
+      }
+    );
+
+  if (
+    cache.size <
+    TEXT_HEIGHT_CACHE_LIMIT
+  ) {
+    cache.set(
+      cacheKey,
+      height
+    );
+  }
+
+  return height;
 }
 
 function drawTitle(
@@ -402,24 +446,9 @@ function drawParagraph(
   const size = 10.35;
   const lineGap = 5.25;
 
-  const height =
-    textHeight(
-      doc,
-      block.text,
-      {
-        width:
-          available,
-        size,
-        lineGap
-      }
-    );
-
   ensureSpace(
     doc,
-    Math.min(
-      height + 16,
-      150
-    )
+    42
   );
 
   doc.font(
@@ -473,21 +502,9 @@ function drawList(
         PAGE.marginRight -
         markerWidth;
 
-      const height =
-        textHeight(
-          doc,
-          item,
-          {
-            width:
-              contentWidth,
-            size: 10.15,
-            lineGap: 4.7
-          }
-        );
-
       ensureSpace(
         doc,
-        height + 12
+        30
       );
 
       const y =
@@ -835,18 +852,15 @@ function drawTableRow(
   row,
   widths,
   {
-    header = false
+    header = false,
+    measuredHeight = null
   } = {}
 ) {
   const x =
     PAGE.marginLeft;
-  const y =
-    doc.y;
 
   const font =
-    header
-      ? "NotoKR"
-      : "NotoKR";
+    "NotoKR";
 
   const size =
     header
@@ -854,20 +868,28 @@ function drawTableRow(
       : 9.1;
 
   const height =
-    tableRowHeight(
-      doc,
-      row,
-      widths,
-      {
-        font,
-        size
-      }
-    );
+    Number.isFinite(
+      measuredHeight
+    ) &&
+    measuredHeight > 0
+      ? measuredHeight
+      : tableRowHeight(
+          doc,
+          row,
+          widths,
+          {
+            font,
+            size
+          }
+        );
 
   ensureSpace(
     doc,
     height + 4
   );
+
+  const y =
+    doc.y;
 
   let cellX = x;
 
@@ -878,7 +900,7 @@ function drawTableRow(
 
       doc.rect(
         cellX,
-        doc.y,
+        y,
         width,
         height
       )
@@ -899,7 +921,7 @@ function drawTableRow(
         .text(
           cell,
           cellX + 8,
-          doc.y + 8,
+          y + 8,
           {
             width:
               width - 16,
@@ -942,9 +964,24 @@ function drawTable(
         table.count
     );
 
+  const headerHeight =
+    tableRowHeight(
+      doc,
+      table.headers,
+      widths,
+      {
+        font:
+          "NotoKR",
+        size: 9.2
+      }
+    );
+
   ensureSpace(
     doc,
-    60
+    Math.max(
+      60,
+      headerHeight + 4
+    )
   );
 
   drawTableRow(
@@ -952,7 +989,9 @@ function drawTable(
     table.headers,
     widths,
     {
-      header: true
+      header: true,
+      measuredHeight:
+        headerHeight
     }
   );
 
@@ -960,7 +999,7 @@ function drawTable(
     const row
     of table.rows
   ) {
-    const estimated =
+    const rowHeight =
       tableRowHeight(
         doc,
         row,
@@ -974,7 +1013,7 @@ function drawTable(
 
     if (
       doc.y +
-      estimated >
+      rowHeight >
       bottomLimit(doc)
     ) {
       doc.addPage();
@@ -984,7 +1023,9 @@ function drawTable(
         table.headers,
         widths,
         {
-          header: true
+          header: true,
+          measuredHeight:
+            headerHeight
         }
       );
     }
@@ -992,7 +1033,11 @@ function drawTable(
     drawTableRow(
       doc,
       row,
-      widths
+      widths,
+      {
+        measuredHeight:
+          rowHeight
+      }
     );
   }
 
