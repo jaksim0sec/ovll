@@ -21,6 +21,71 @@ const execFileAsync =
 
 let cachedChromeExecutable;
 
+let sharedPdfKitWorker = null;
+let pdfKitRequestCounter = 0;
+let pdfKitQueue =
+  Promise.resolve();
+
+function disposePdfKitWorker(
+  worker
+) {
+  if (!worker) {
+    return;
+  }
+
+  if (
+    sharedPdfKitWorker ===
+    worker
+  ) {
+    sharedPdfKitWorker =
+      null;
+  }
+
+  try {
+    const result =
+      worker.terminate();
+
+    result?.catch?.(() => {});
+  } catch {}
+}
+
+function ensurePdfKitWorker() {
+  if (sharedPdfKitWorker) {
+    return sharedPdfKitWorker;
+  }
+
+  const worker =
+    new Worker(
+      new URL(
+        "./pdfKitWorker.js",
+        import.meta.url
+      ),
+      {
+        type: "module"
+      }
+    );
+
+  worker.unref?.();
+
+  worker.once(
+    "exit",
+    () => {
+      if (
+        sharedPdfKitWorker ===
+        worker
+      ) {
+        sharedPdfKitWorker =
+          null;
+      }
+    }
+  );
+
+  sharedPdfKitWorker =
+    worker;
+
+  return worker;
+}
+
 function escapeHtml(value) {
   return String(value ?? "")
     .replace(/&/g, "&amp;")
@@ -625,94 +690,98 @@ export async function renderPdfWithChrome(
   }
 }
 
-export async function renderPdfFallback(
-  inputDocument,
-  metadata = {}
+function renderPdfKitInWorker(
+  document,
+  metadata
 ) {
-  const document =
-    normalizedDocument(
-      inputDocument
-    );
-
   const timeoutMs =
     Math.max(
       1000,
       Number(
         process.env
           .OVLL_PDFKIT_WORKER_TIMEOUT_MS
-      ) || 55000
+      ) || 100000
     );
 
   return new Promise(
     (resolve, reject) => {
       const worker =
-        new Worker(
-          new URL(
-            "./pdfKitWorker.js",
-            import.meta.url
-          ),
-          {
-            type: "module"
-          }
-        );
+        ensurePdfKitWorker();
+
+      const id =
+        "pdf_" +
+        (++pdfKitRequestCounter);
 
       let settled = false;
 
-      const finish =
-        async (
-          error,
-          buffer
-        ) => {
-          if (settled) {
-            return;
+      const cleanup = () => {
+        clearTimeout(timer);
+
+        worker.removeListener(
+          "message",
+          onMessage
+        );
+        worker.removeListener(
+          "error",
+          onError
+        );
+        worker.removeListener(
+          "exit",
+          onExit
+        );
+      };
+
+      const finish = (
+        error,
+        buffer,
+        durationMs = null
+      ) => {
+        if (settled) {
+          return;
+        }
+
+        settled = true;
+        cleanup();
+
+        if (error) {
+          reject(error);
+          return;
+        }
+
+        console.info(
+          "[artifact pdfkit]",
+          {
+            durationMs,
+            reusedWorker:
+              sharedPdfKitWorker ===
+              worker
           }
-
-          settled = true;
-          clearTimeout(timer);
-
-          worker.removeAllListeners();
-
-          try {
-            await worker.terminate();
-          } catch {}
-
-          if (error) {
-            reject(error);
-            return;
-          }
-
-          resolve(
-            Buffer.from(
-              buffer
-            )
-          );
-        };
-
-      const timer =
-        setTimeout(
-          () => {
-            const error =
-              new Error(
-                "PDFKit worker timed out."
-              );
-
-            error.code =
-              "PDFKIT_WORKER_TIMEOUT";
-
-            void finish(
-              error
-            );
-          },
-          timeoutMs
         );
 
-      worker.once(
-        "message",
+        resolve(
+          Buffer.from(
+            buffer
+          )
+        );
+      };
+
+      const onMessage =
         payload => {
+          if (
+            String(
+              payload?.id || ""
+            ) !== id
+          ) {
+            return;
+          }
+
           if (payload?.ok) {
-            void finish(
+            finish(
               null,
-              payload.buffer
+              payload.buffer,
+              Number(
+                payload.durationMs
+              ) || null
             );
             return;
           }
@@ -729,47 +798,105 @@ export async function renderPdfFallback(
               ?.code ||
             "PDFKIT_WORKER_ERROR";
 
-          void finish(
-            error
-          );
-        }
-      );
+          finish(error);
+        };
 
-      worker.once(
-        "error",
+      const onError =
         error => {
-          void finish(
-            error
+          disposePdfKitWorker(
+            worker
           );
-        }
-      );
+          finish(error);
+        };
 
-      worker.once(
-        "exit",
+      const onExit =
         code => {
-          if (
-            !settled &&
-            code !== 0
-          ) {
+          if (settled) {
+            return;
+          }
+
+          const error =
+            new Error(
+              "PDFKit worker exited unexpectedly."
+            );
+
+          error.code =
+            "PDFKIT_WORKER_EXIT";
+          error.exitCode =
+            code;
+
+          finish(error);
+        };
+
+      const timer =
+        setTimeout(
+          () => {
             const error =
               new Error(
-                "PDFKit worker exited unexpectedly."
+                "PDFKit worker timed out."
               );
 
             error.code =
-              "PDFKIT_WORKER_EXIT";
+              "PDFKIT_WORKER_TIMEOUT";
+            error.status =
+              504;
 
-            void finish(
-              error
+            disposePdfKitWorker(
+              worker
             );
-          }
-        }
+
+            finish(error);
+          },
+          timeoutMs
+        );
+
+      worker.on(
+        "message",
+        onMessage
+      );
+      worker.once(
+        "error",
+        onError
+      );
+      worker.once(
+        "exit",
+        onExit
       );
 
       worker.postMessage({
+        id,
         document,
         metadata
       });
     }
   );
+}
+
+export async function renderPdfFallback(
+  inputDocument,
+  metadata = {}
+) {
+  const document =
+    normalizedDocument(
+      inputDocument
+    );
+
+  const task =
+    pdfKitQueue.then(
+      () =>
+        renderPdfKitInWorker(
+          document,
+          metadata
+        ),
+      () =>
+        renderPdfKitInWorker(
+          document,
+          metadata
+        )
+    );
+
+  pdfKitQueue =
+    task.catch(() => {});
+
+  return task;
 }
