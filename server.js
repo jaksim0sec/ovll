@@ -269,7 +269,7 @@ function groupLogMeta(
  * The frontend compares this server value with its locally stored version
  * before loading application assets.
  */
-const APP_VERSION = '2026.10.06.102';
+const APP_VERSION = '2026.10.06.103';
 
 /* =========================================================
    CANONICAL NODE DEFINITION
@@ -2858,24 +2858,50 @@ function geminiHttpFailure(
 app.post(
   '/api/create-artifact',
   async (req, res) => {
+    const abortContext =
+      bindRequestAbort(
+        req,
+        res
+      );
+
     try {
       const artifact =
-        await createStoredArtifact({
-          format:
-            req.body?.format,
-          filename:
-            req.body?.filename,
-          targetPages:
-            req.body?.targetPages,
-          sources:
-            req.body?.sources
-        });
+        await createStoredArtifact(
+          {
+            format:
+              req.body?.format,
+            filename:
+              req.body?.filename,
+            targetPages:
+              req.body?.targetPages,
+            sources:
+              req.body?.sources
+          },
+          {
+            signal:
+              abortContext.signal
+          }
+        );
+
+      if (
+        abortContext.signal
+          .aborted
+      ) {
+        return;
+      }
 
       return res.json({
         ok: true,
         artifact
       });
     } catch (error) {
+      if (
+        abortContext.signal
+          .aborted
+      ) {
+        return;
+      }
+
       console.error(
         '[artifact create]',
         error
@@ -2898,6 +2924,8 @@ app.post(
             error?.message ||
             '파일을 생성하지 못했습니다.'
         });
+    } finally {
+      abortContext.cleanup();
     }
   }
 );
