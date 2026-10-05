@@ -5649,6 +5649,68 @@
     apply();
   }
 
+  function canvasRunUserText(
+    nodeId,
+    workflow
+  ) {
+    const node =
+      workflow?.nodes?.find(
+        item =>
+          item?.id === nodeId
+      ) ||
+      state.canvas?.getNode?.(
+        nodeId
+      );
+
+    if(!node){
+      return "워크플로우 실행해줘";
+    }
+
+    const params =
+      node?.data?.params ||
+      node?.params ||
+      {};
+
+    const request =
+      String(
+        params.request ||
+        ""
+      )
+        .replace(/\s+/g," ")
+        .trim();
+
+    if(request){
+      return /실행해\s*줘[.!?]?$/i
+        .test(request)
+          ? request
+          : request + " 실행해줘";
+    }
+
+    const definition =
+      state.nodeDefinitions?.[
+        node.type
+      ];
+
+    const subject =
+      String(
+        definition?.name ||
+        node?.data?.title ||
+        node?.type ||
+        "워크플로우"
+      )
+        .replace(/\s+/g," ")
+        .trim();
+
+    if(
+      node.type === "start" ||
+      !subject
+    ){
+      return "워크플로우 실행해줘";
+    }
+
+    return subject + " 실행해줘";
+  }
+
   async function runCanvasNode(
     nodeId,
     mode = "spread"
@@ -5728,6 +5790,21 @@
       }
 
       dismissErrorNotice();
+
+      const runUserText =
+        canvasRunUserText(
+          nodeId,
+          workflow
+        );
+
+      addUserMessage(
+        runUserText
+      );
+
+      state.lastUserRequest =
+        runUserText;
+
+      scheduleWorkspaceSave();
 
       started = true;
 
