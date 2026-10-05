@@ -91,6 +91,9 @@ const geminiRequestLogs = [];
 const BOOT_ID = randomUUID();
 const BOOT_STARTED_AT = Date.now();
 let eventLoopLagMs = 0;
+let maxEventLoopLagMs = 0;
+let severeLagCount = 0;
+let lastSevereLagAt = null;
 
 {
   const intervalMs = 1000;
@@ -108,6 +111,32 @@ let eventLoopLagMs = 0;
             0,
             now - expected
           );
+
+        maxEventLoopLagMs =
+          Math.max(
+            maxEventLoopLagMs,
+            eventLoopLagMs
+          );
+
+        if (
+          eventLoopLagMs >= 250
+        ) {
+          severeLagCount++;
+          lastSevereLagAt =
+            new Date(now)
+              .toISOString();
+
+          console.warn(
+            '[server event-loop stall]',
+            {
+              lagMs:
+                eventLoopLagMs,
+              maxLagMs:
+                maxEventLoopLagMs,
+              severeLagCount
+            }
+          );
+        }
 
         expected =
           now + intervalMs;
@@ -149,7 +178,10 @@ function serverRuntimeHealth() {
       memory.heapUsed,
     heapTotalBytes:
       memory.heapTotal,
-    eventLoopLagMs
+    eventLoopLagMs,
+    maxEventLoopLagMs,
+    severeLagCount,
+    lastSevereLagAt
   };
 }
 
