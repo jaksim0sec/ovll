@@ -1176,27 +1176,94 @@
     input,
     options = {}
   ) {
-    const result =
-      await request(
-        "create-artifact",
-        {
-          method: "POST",
-          body: {
-            format:
-              input?.format,
-            filename:
-              input?.filename,
-            targetPages:
-              input?.targetPages,
-            sources:
-              compactArtifactSources(
-                input?.sources
-              )
-          },
-          signal:
-            options.signal
-        }
+    const timeoutController =
+      new AbortController();
+    const parentSignal =
+      options.signal;
+    const onParentAbort =
+      () =>
+        timeoutController.abort(
+          parentSignal?.reason
+        );
+
+    if(parentSignal?.aborted){
+      onParentAbort();
+    }else{
+      parentSignal?.addEventListener(
+        "abort",
+        onParentAbort,
+        {once:true}
       );
+    }
+
+    const timeout =
+      global.setTimeout(
+        ()=>timeoutController.abort(
+          new Error(
+            "ARTIFACT_TIMEOUT"
+          )
+        ),
+        35000
+      );
+
+    let result;
+
+    try {
+      result =
+        await request(
+          "create-artifact",
+          {
+            method: "POST",
+            body: {
+              format:
+                input?.format,
+              filename:
+                input?.filename,
+              targetPages:
+                input?.targetPages,
+              sources:
+                compactArtifactSources(
+                  input?.sources
+                )
+            },
+            signal:
+              timeoutController.signal
+          }
+        );
+    } catch(error) {
+      if(
+        timeoutController.signal.aborted &&
+        !parentSignal?.aborted
+      ) {
+        const timeoutError =
+          new Error(
+            "파일 생성 시간이 초과되었습니다. 다시 시도해 주세요."
+          );
+
+        timeoutError.name =
+          "OvllApiError";
+        timeoutError.code =
+          "ARTIFACT_TIMEOUT";
+        timeoutError.status =
+          504;
+        timeoutError.retryable =
+          true;
+
+        throw timeoutError;
+      }
+
+      throw error;
+    } finally {
+      global.clearTimeout(
+        timeout
+      );
+
+      parentSignal
+        ?.removeEventListener(
+          "abort",
+          onParentAbort
+        );
+    }
 
     if (
       result?.artifact
