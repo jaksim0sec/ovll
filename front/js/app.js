@@ -3250,10 +3250,10 @@
             "failed"
       );
 
-    if (activity.finished) {
-      const compact =
-        count < 4;
+    const compact =
+      count <= 4;
 
+    if (activity.finished) {
       activity.meta.textContent =
         failed
           ? compact
@@ -3276,7 +3276,7 @@
       ).length;
 
     activity.meta.textContent =
-      running
+      running || (compact && count)
         ? "진행 중"
         : count
           ? `${count}단계`
