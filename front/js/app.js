@@ -1588,6 +1588,10 @@
           artifact.renderer ||
           local.renderer ||
           "",
+        targetPages:
+          artifact.targetPages ??
+          local.targetPages ??
+          null,
         previewKind:
           artifact.previewKind ||
           local.previewKind ||
@@ -1671,6 +1675,9 @@
             renderer:
               artifact.renderer ||
               "",
+            targetPages:
+              artifact.targetPages ??
+              null,
             previewKind:
               artifact.previewKind ||
               "",
@@ -3915,6 +3922,9 @@
           renderer:
             artifact.renderer ||
             "",
+          targetPages:
+            artifact.targetPages ??
+            null,
           previewKind:
             artifact.previewKind ||
             "",
