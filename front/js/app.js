@@ -533,6 +533,12 @@
       title =
         "작업이 너무 커";
     } else if (
+      code ===
+        "GEMINI_UPSTREAM_TIMEOUT"
+    ) {
+      title =
+        "AI 응답 지연";
+    } else if (
       /NETWORK|FETCH/.test(
         code
       ) ||
