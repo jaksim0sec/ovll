@@ -78,11 +78,22 @@
       box-shadow:0 0 0 4px rgba(119,197,139,.08);
     }
 
+    #runtime,
     #summary {
       display:flex;
       gap:8px;
       flex-wrap:wrap;
       margin-bottom:14px;
+    }
+
+    #runtime {
+      margin-bottom:8px;
+    }
+
+    .pill.warn {
+      color:#d8b36f;
+      border-color:#4b3b21;
+      background:#1c1811;
     }
 
     .pill {
@@ -217,6 +228,7 @@
       </div>
     </header>
 
+    <div id="runtime"></div>
     <div id="summary"></div>
     <section id="logs"></section>
   </main>
@@ -226,6 +238,8 @@
       document.querySelector("#logs");
     const summaryEl =
       document.querySelector("#summary");
+    const runtimeEl =
+      document.querySelector("#runtime");
 
     const esc = value =>
       String(value ?? "")
@@ -244,6 +258,58 @@
       }
 
       return `<span>${esc(label)} <b>${esc(value)}</b></span>`;
+    }
+
+    const mb = bytes =>
+      Number.isFinite(
+        Number(bytes)
+      )
+        ? (
+            Number(bytes) /
+            1024 /
+            1024
+          ).toFixed(1) +
+          "MB"
+        : "-";
+
+    const uptime = seconds => {
+      const value =
+        Math.max(
+          0,
+          Number(seconds) || 0
+        );
+
+      if (value < 60) {
+        return Math.round(value) + "s";
+      }
+
+      if (value < 3600) {
+        return Math.floor(value / 60) + "m";
+      }
+
+      return (
+        Math.floor(value / 3600) +
+        "h " +
+        Math.floor(
+          (value % 3600) / 60
+        ) +
+        "m"
+      );
+    };
+
+    function renderRuntime(runtime){
+      if (!runtime) {
+        runtimeEl.innerHTML = "";
+        return;
+      }
+
+      runtimeEl.innerHTML = [
+        `<span class="pill ${runtime.recentRestart ? "warn" : ""}">uptime ${esc(uptime(runtime.uptimeSec))}</span>`,
+        `<span class="pill">RSS ${esc(mb(runtime.rssBytes))}</span>`,
+        `<span class="pill">heap ${esc(mb(runtime.heapUsedBytes))} / ${esc(mb(runtime.heapTotalBytes))}</span>`,
+        `<span class="pill">event loop ${esc(Math.round(Number(runtime.eventLoopLagMs) || 0))}ms</span>`,
+        `<span class="pill">boot ${esc(String(runtime.bootId || "").slice(0,8))}</span>`
+      ].join("");
     }
 
     function render(logs){
@@ -331,6 +397,10 @@
           response.ok &&
           data?.ok
         ) {
+          renderRuntime(
+            data.runtime || null
+          );
+
           render(
             Array.isArray(data.logs)
               ? data.logs
