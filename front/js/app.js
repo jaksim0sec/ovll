@@ -1981,6 +1981,19 @@
     panel.className =
       "astra-artifact-preview-panel";
 
+    const resolvedPreviewKind =
+      PreviewEngine
+        .kind(
+          artifact
+        ) ||
+      "file";
+
+    root.dataset.previewKind =
+      resolvedPreviewKind;
+
+    panel.dataset.previewKind =
+      resolvedPreviewKind;
+
     panel.setAttribute(
       "role",
       "dialog"
