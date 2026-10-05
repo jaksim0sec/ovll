@@ -75,19 +75,32 @@
     let definitions = options.nodeDefinitions || {};
     const getFreshNodeDefinitions =
       global.AstraAPI?.getNodeDefinitions;
-    if (typeof getFreshNodeDefinitions === 'function') {
-      const freshDefinitions = await getFreshNodeDefinitions.call(
-        global.AstraAPI,
-        { force: true }
-      );
-      if (
-        !freshDefinitions ||
-        typeof freshDefinitions !== 'object' ||
-        Array.isArray(freshDefinitions)
-      ) {
-        throw new Error('서버 노드 정의 응답이 올바르지 않습니다.');
+    const canRefreshDefinitions =
+      typeof getFreshNodeDefinitions === 'function' &&
+      global.navigator?.onLine !== false;
+
+    if (canRefreshDefinitions) {
+      try {
+        const freshDefinitions = await getFreshNodeDefinitions.call(
+          global.AstraAPI,
+          { force: true }
+        );
+
+        if (
+          freshDefinitions &&
+          typeof freshDefinitions === 'object' &&
+          !Array.isArray(freshDefinitions)
+        ) {
+          definitions =
+            freshDefinitions.nodes ||
+            freshDefinitions;
+        }
+      } catch (error) {
+        console.warn(
+          'Node definitions unavailable; continuing with cached UI state.',
+          error
+        );
       }
-      definitions = freshDefinitions.nodes || freshDefinitions;
     }
     const viewport = target.matches('#canvas-viewport')
       ? target
