@@ -508,7 +508,7 @@ test("server health preserves event-loop stall history", () => {
   );
 });
 
-test("PDFKit fallback runs outside the main server thread", () => {
+test("PDFKit fallback reuses one isolated worker instead of cold-starting every PDF", () => {
   const renderer =
     read(
       "pdfRenderer.js"
@@ -517,10 +517,18 @@ test("PDFKit fallback runs outside the main server thread", () => {
     read(
       "pdfKitWorker.js"
     );
+  const artifact =
+    read(
+      "artifactStore.js"
+    );
 
   assert.match(
     renderer,
-    /new\s+Worker\(/
+    /sharedPdfKitWorker/
+  );
+  assert.match(
+    renderer,
+    /ensurePdfKitWorker/
   );
   assert.match(
     renderer,
@@ -528,11 +536,15 @@ test("PDFKit fallback runs outside the main server thread", () => {
   );
   assert.match(
     worker,
-    /renderPdfKitDocument/
+    /parentPort\.on/
   );
-  assert.match(
+  assert.doesNotMatch(
     worker,
-    /parentPort/
+    /parentPort\.close\(/
+  );
+  assert.doesNotMatch(
+    artifact,
+    /withArtifactTimeout\([\s\S]*renderPdfFallback/
   );
 });
 
