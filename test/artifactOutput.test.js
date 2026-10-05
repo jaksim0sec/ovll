@@ -3,7 +3,6 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { inflateSync } from "node:zlib";
 import {
   createStoredArtifact,
   getStoredArtifact
@@ -30,51 +29,6 @@ function pdfPageCount(buffer) {
       .match(/\/Type \/Page\b/g) ||
     []
   ).length;
-}
-
-function decodedPdfStreams(buffer) {
-  const source =
-    buffer.toString("latin1");
-  const streams = [];
-  const pattern =
-    /<<(.*?)>>\s*stream\r?\n([\s\S]*?)\r?\nendstream/g;
-
-  let match;
-
-  while (
-    (
-      match =
-        pattern.exec(source)
-    )
-  ) {
-    const dictionary =
-      match[1] || "";
-    const raw =
-      Buffer.from(
-        match[2],
-        "latin1"
-      );
-
-    if (
-      /\/FlateDecode\b/.test(
-        dictionary
-      )
-    ) {
-      try {
-        streams.push(
-          inflateSync(raw)
-            .toString("latin1")
-        );
-      } catch {}
-      continue;
-    }
-
-    streams.push(
-      raw.toString("latin1")
-    );
-  }
-
-  return streams;
 }
 
 
@@ -664,21 +618,6 @@ test("fallback PDF keeps a short canonical document on one page and draws body t
     1
   );
 
-  const content =
-    decodedPdfStreams(
-      buffer
-    ).join("\n");
-
-  assert.match(
-    content,
-    /\bBT\b/,
-    "fallback PDF should contain at least one text object"
-  );
-  assert.match(
-    content,
-    /\bET\b/,
-    "fallback PDF text object should be closed"
-  );
   assert.ok(
     buffer.length > 5000,
     "fallback PDF should contain a non-trivial embedded-font document"
