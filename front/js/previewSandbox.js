@@ -810,7 +810,10 @@ function clearRoot(
 
 async function directUrl(
   artifact,
-  fileStore
+  fileStore,
+  {
+    mime=""
+  }={}
 ){
   const blob=
     await localBlob(
@@ -823,10 +826,24 @@ async function directUrl(
     global.URL
       ?.createObjectURL
   ){
+    const normalizedMime=
+      String(mime||"")
+        .trim();
+
+    const source=
+      normalizedMime&&
+      blob.type!==normalizedMime
+        ?blob.slice(
+            0,
+            blob.size,
+            normalizedMime
+          )
+        :blob;
+
     const url=
       global.URL
         .createObjectURL(
-          blob
+          source
         );
 
     return {
@@ -1035,7 +1052,11 @@ async function renderPreview(
     const direct=
       await directUrl(
         hydrated,
-        fileStore
+        fileStore,
+        {
+          mime:
+            "application/pdf"
+        }
       );
 
     if(!direct.url){
@@ -1057,7 +1078,12 @@ async function renderPreview(
 
     frame.setAttribute(
       "loading",
-      "lazy"
+      "eager"
+    );
+
+    frame.setAttribute(
+      "referrerpolicy",
+      "no-referrer"
     );
 
     attachObjectUrl(
