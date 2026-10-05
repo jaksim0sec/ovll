@@ -790,12 +790,12 @@
   position:absolute;
   z-index:6;
   left:50%;
-  top:47%;
+  top:46%;
   width:min(38rem,calc(100% - 2.5rem));
   display:flex;
   flex-direction:column;
   align-items:center;
-  gap:0;
+  gap:1rem;
   transform:translate(-50%,-50%);
   text-align:center;
   pointer-events:none;
@@ -818,15 +818,13 @@
   padding:0;
   display:grid;
   place-items:center;
-  border:
-    .0625rem solid
-    #202120;
+  border:.0625rem solid #202120;
   border-radius:50%;
   background:#202120;
   color:#efefec;
   box-shadow:
     0 .1rem .34rem
-      rgba(0,0,0,.13);
+    rgba(0,0,0,.13);
   pointer-events:auto;
   cursor:pointer;
   animation:
@@ -843,7 +841,7 @@
   color:#151617;
   box-shadow:
     0 .1rem .4rem
-      rgba(0,0,0,.22);
+    rgba(0,0,0,.22);
 }
 
 .ovll-chat-start-eye {
@@ -859,144 +857,19 @@
     border-radius .18s var(--ease);
 }
 
-.ovll-chat-start.has-context
-.ovll-chat-start-orb {
-  margin-bottom:1.05rem;
-}
-
-.ovll-chat-start-primary {
-  width:min(32rem,100%);
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  gap:.78rem;
-  pointer-events:auto;
-}
-
-.ovll-chat-start-primary[hidden],
-.ovll-chat-start-suggestions[hidden] {
-  display:none;
-}
-
-.ovll-chat-start-kicker {
-  display:none;
-}
-
-.ovll-chat-start-title {
+.ovll-chat-start-greeting {
   max-width:30rem;
   color:var(--text);
   font-size:
     clamp(
-      1.5rem,
-      4.6vw,
-      2.15rem
+      1.55rem,
+      4.9vw,
+      2.2rem
     );
-  font-weight:620;
+  font-weight:610;
   line-height:1.2;
   letter-spacing:-.036em;
   text-wrap:balance;
-}
-
-.ovll-chat-start-resume {
-  min-height:2.2rem;
-  padding:0 .82rem;
-  border:
-    .0625rem solid
-    color-mix(
-      in srgb,
-      var(--line) 92%,
-      transparent
-    );
-  border-radius:999px;
-  background:
-    color-mix(
-      in srgb,
-      var(--panel) 78%,
-      transparent
-    );
-  color:
-    color-mix(
-      in srgb,
-      var(--text) 76%,
-      transparent
-    );
-  font:inherit;
-  font-size:.72rem;
-  font-weight:610;
-  letter-spacing:-.01em;
-  cursor:pointer;
-  transition:
-    color .14s ease,
-    background-color .14s ease,
-    transform .14s ease;
-}
-
-.ovll-chat-start-resume:hover {
-  color:var(--text);
-  background:
-    color-mix(
-      in srgb,
-      var(--panel) 94%,
-      transparent
-    );
-}
-
-.ovll-chat-start-resume:active {
-  transform:scale(.97);
-}
-
-.ovll-chat-start-suggestions {
-  width:min(31rem,100%);
-  margin-top:2.1rem;
-  display:grid;
-  border-top:
-    .0625rem solid
-    color-mix(
-      in srgb,
-      var(--line) 72%,
-      transparent
-    );
-  pointer-events:auto;
-}
-
-.ovll-chat-start-suggestion {
-  width:100%;
-  min-height:3.2rem;
-  padding:.78rem .12rem;
-  border:0;
-  border-bottom:
-    .0625rem solid
-    color-mix(
-      in srgb,
-      var(--line) 72%,
-      transparent
-    );
-  border-radius:0;
-  background:transparent;
-  color:
-    color-mix(
-      in srgb,
-      var(--text) 68%,
-      transparent
-    );
-  font:inherit;
-  font-size:.8rem;
-  font-weight:500;
-  line-height:1.48;
-  letter-spacing:-.012em;
-  text-align:left;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
-  cursor:pointer;
-  transition:
-    color .14s ease,
-    padding-left .14s ease;
-}
-
-.ovll-chat-start-suggestion:hover {
-  color:var(--text);
-  padding-left:.28rem;
 }
 
 .ovll-chat-start-orb.is-reacting {
@@ -1629,33 +1502,19 @@
 
 @media (max-width: 43.75rem) {
   .ovll-chat-start {
-    top:45%;
+    top:44%;
     width:calc(100% - 2.4rem);
+    gap:.9rem;
   }
 
-  .ovll-chat-start.has-context
-  .ovll-chat-start-orb {
-    margin-bottom:.9rem;
-  }
-
-  .ovll-chat-start-title {
-    max-width:22rem;
+  .ovll-chat-start-greeting {
+    max-width:23rem;
     font-size:
       clamp(
-        1.45rem,
-        7.4vw,
-        1.9rem
+        1.48rem,
+        7.2vw,
+        1.92rem
       );
-  }
-
-  .ovll-chat-start-suggestions {
-    width:min(27rem,100%);
-    margin-top:1.65rem;
-  }
-
-  .ovll-chat-start-suggestion {
-    min-height:3rem;
-    font-size:.76rem;
   }
 
   #chat-messages {
