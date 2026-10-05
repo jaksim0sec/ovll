@@ -1078,6 +1078,8 @@ function drawFooter(
       {
         width:
           300,
+        height:
+          10,
         lineBreak:
           false,
         ellipsis:
@@ -1100,6 +1102,8 @@ function drawFooter(
       y,
       {
         width: 55,
+        height:
+          10,
         align:
           "right",
         lineBreak:
