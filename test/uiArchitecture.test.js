@@ -476,6 +476,58 @@ test("new chat waiting state uses neutral polite copy only", () => {
   );
 });
 
+test("bootstrap fetches app scripts concurrently while preserving ordered execution", () => {
+  const boot =
+    read(
+      "front/js/boot.js"
+    );
+
+  assert.match(
+    boot,
+    /Promise\.all\(\s*APP_SCRIPTS[\s\S]*map\(\s*loadScript/
+  );
+  assert.doesNotMatch(
+    boot,
+    /for\s*\(\s*const\s+src\s+of\s+APP_SCRIPTS\s*\)[\s\S]*await\s+loadScript/
+  );
+});
+
+test("server version check cannot hold first-load indefinitely", () => {
+  const boot =
+    read(
+      "front/js/boot.js"
+    );
+
+  assert.match(
+    boot,
+    /AbortController/
+  );
+  assert.match(
+    boot,
+    /VERSION_CHECK_TIMEOUT/
+  );
+});
+
+test("first-load mark is deliberately larger but remains minimal", () => {
+  const html =
+    read(
+      "front/index.html"
+    );
+
+  assert.match(
+    html,
+    /\.ovll-boot-orb\s*\{[\s\S]*width:\s*3\.1rem;[\s\S]*height:\s*3\.1rem;/
+  );
+  assert.match(
+    html,
+    /ovll-boot-mark-in/
+  );
+  assert.doesNotMatch(
+    html,
+    /ovll-boot-status/
+  );
+});
+
 test("first-load splash keeps only minimal brand loading information", () => {
   const html =
     read(
