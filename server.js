@@ -2475,9 +2475,12 @@ function geminiHttpFailure(
       : code ===
           'GEMINI_API_KEY_MISSING'
         ? 503
-        : error?.status === 429
-          ? 429
-          : 502;
+        : code ===
+            'GEMINI_UPSTREAM_TIMEOUT'
+          ? 504
+          : error?.status === 429
+            ? 429
+            : 502;
 
   return {
     code,
@@ -2490,7 +2493,34 @@ function geminiHttpFailure(
         fallback,
       retryable:
         error?.retryable ===
-          true
+          true,
+      origin:
+        'gemini',
+      diagnostics:
+        error?.diagnostics &&
+        typeof error.diagnostics ===
+          'object'
+          ? {
+              stage:
+                error.diagnostics
+                  .stage ?? null,
+              thinkingLevel:
+                error.diagnostics
+                  .thinkingLevel ?? null,
+              primaryAttempts:
+                error.diagnostics
+                  .primaryAttempts ?? null,
+              transientRetries:
+                error.diagnostics
+                  .transientRetries ?? null,
+              repairAttempts:
+                error.diagnostics
+                  .repairAttempts ?? null,
+              durationMs:
+                error.diagnostics
+                  .durationMs ?? null
+            }
+          : null
     }
   };
 }
@@ -2753,7 +2783,10 @@ app.post(
             null,
           retryable:
             error?.retryable ===
-            true
+              true,
+          diagnostics:
+            error?.diagnostics ??
+            null
         }
       );
 
