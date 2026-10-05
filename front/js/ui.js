@@ -374,6 +374,31 @@
     canvasPage.style.transform =
       `translate3d(${offset}px,0,0)`;
 
+    const settled =
+      !workspace.classList.contains(
+        "is-dragging"
+      ) &&
+      (
+        progress === 0 ||
+        progress === 1
+      );
+
+    chatPage.setAttribute(
+      "aria-hidden",
+      String(
+        settled &&
+        state.mode !== "chat"
+      )
+    );
+
+    canvasPage.setAttribute(
+      "aria-hidden",
+      String(
+        settled &&
+        state.mode !== "canvas"
+      )
+    );
+
     modeChat.setAttribute(
       "aria-selected",
       String(
@@ -725,7 +750,7 @@
     if (meta) {
       meta.content =
         dark
-          ? "#101010"
+          ? "#060606"
           : "#f3f3f2";
     }
 
