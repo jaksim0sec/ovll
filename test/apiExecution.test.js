@@ -160,7 +160,10 @@ test("executeGroup sends the canonical execution payload", async () => {
     context
   );
 
-  assert.deepEqual(captured, expected);
+  assert.equal(
+    JSON.stringify(captured),
+    JSON.stringify(expected)
+  );
   assert.equal(
     api.measureExecutionPayloadChars(
       group,
