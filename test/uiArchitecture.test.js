@@ -358,3 +358,135 @@ test("runtime finalization policy is booted before app and precached", () => {
     /\/js\/runtimeFinalization\.js/
   );
 });
+
+
+test("preview engine uses format-aware sources and keeps HTML sandbox opaque", () => {
+  const source =
+    read(
+      "front/js/previewSandbox.js"
+    );
+
+  assert.match(
+    source,
+    /artifact\?\.previewKind/
+  );
+  assert.match(
+    source,
+    /sandbox[\s\S]{0,160}allow-scripts/
+  );
+  assert.doesNotMatch(
+    source,
+    /allow-same-origin/
+  );
+  assert.match(
+    source,
+    /connect-src 'none'/
+  );
+  assert.match(
+    source,
+    /frame-src 'none'/
+  );
+  assert.match(
+    source,
+    /object-src 'none'/
+  );
+  assert.match(
+    source,
+    /function\s+htmlSource\s*\(/
+  );
+  assert.match(
+    source,
+    /function\s+semanticText\s*\(/
+  );
+  assert.match(
+    source,
+    /function\s+isBinaryOffice\s*\(/
+  );
+});
+
+test("binary office preview path does not decode local blobs as text", () => {
+  const source =
+    read(
+      "front/js/previewSandbox.js"
+    );
+
+  const start =
+    source.indexOf(
+      "function semanticText"
+    );
+  const end =
+    source.indexOf(
+      "function parseDelimitedRows",
+      start
+    );
+  const semantic =
+    source.slice(
+      start,
+      end
+    );
+
+  assert.match(
+    semantic,
+    /isBinaryOffice/
+  );
+  assert.match(
+    semantic,
+    /previewText/
+  );
+
+  const officeBranch =
+    semantic.slice(
+      semantic.indexOf(
+        "isBinaryOffice"
+      ),
+      semantic.indexOf(
+        "const blob"
+      )
+    );
+
+  assert.doesNotMatch(
+    officeBranch,
+    /blob\.text\s*\(/
+  );
+});
+
+test("HTML preview reads actual artifact bytes before previewText fallback", () => {
+  const source =
+    read(
+      "front/js/previewSandbox.js"
+    );
+
+  const start =
+    source.indexOf(
+      "async function htmlSource"
+    );
+  const end =
+    source.indexOf(
+      "async function semanticText",
+      start
+    );
+  const htmlSource =
+    source.slice(
+      start,
+      end
+    );
+
+  const local =
+    htmlSource.indexOf(
+      "localBlob"
+    );
+  const remote =
+    htmlSource.indexOf(
+      "fetchText"
+    );
+  const fallback =
+    htmlSource.indexOf(
+      "previewText"
+    );
+
+  assert.ok(
+    local >= 0 &&
+    remote > local &&
+    fallback > remote
+  );
+});
