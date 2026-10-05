@@ -858,3 +858,64 @@ test("execution diagnostics report bounded attempts", async () => {
     0
   );
 });
+
+
+test("write execution treats page count as substantive content length, not padding", async () => {
+  let request = null;
+
+  const execution =
+    createGeminiExecution({
+      apiKey: "test-key",
+      fetchImpl:
+        async (_url, options) => {
+          request =
+            JSON.parse(
+              options.body
+            );
+
+          return jsonResponse(
+            200,
+            interaction([
+              result(
+                "write",
+                {
+                  outputs: {
+                    result:
+                      "본문"
+                  }
+                }
+              )
+            ])
+          );
+        },
+      sleepImpl:
+        async () => {}
+    });
+
+  await execution.executeGroup(
+    group([
+      {
+        id: "write",
+        type: "write",
+        params: {
+          request:
+            "A4 3페이지 분량의 보고서로 작성해줘"
+        },
+        inputs: {}
+      }
+    ])
+  );
+
+  assert.match(
+    request.system_instruction,
+    /page|페이지|분량/i
+  );
+  assert.match(
+    request.system_instruction,
+    /substantive|실질|내용/i
+  );
+  assert.match(
+    request.system_instruction,
+    /padding|whitespace|여백|반복/i
+  );
+});

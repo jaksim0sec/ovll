@@ -219,6 +219,31 @@ function metadataFromRecord(
       record.conversationId ||
       ""
     ),
+    format:String(
+      record.format ||
+      ""
+    ),
+    renderer:String(
+      record.renderer ||
+      ""
+    ),
+    targetPages:
+      Number.isInteger(
+        Number(
+          record.targetPages
+        )
+      ) &&
+      Number(
+        record.targetPages
+      ) >= 1
+        ? Number(
+            record.targetPages
+          )
+        : null,
+    previewKind:String(
+      record.previewKind ||
+      ""
+    ),
     previewText:String(
       record.previewText ||
       ""
@@ -389,6 +414,34 @@ async function putBlob(
     conversationId:cleanText(
       metadata.conversationId,
       160
+    ),
+    format:cleanText(
+      metadata.format,
+      40
+    ),
+    renderer:cleanText(
+      metadata.renderer,
+      80
+    ),
+    targetPages:
+      Number.isInteger(
+        Number(
+          metadata.targetPages
+        )
+      ) &&
+      Number(
+        metadata.targetPages
+      ) >= 1 &&
+      Number(
+        metadata.targetPages
+      ) <= 30
+        ? Number(
+            metadata.targetPages
+          )
+        : null,
+    previewKind:cleanText(
+      metadata.previewKind,
+      40
     ),
     previewText:cleanText(
       metadata.previewText,

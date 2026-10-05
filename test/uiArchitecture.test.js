@@ -233,7 +233,7 @@ test("library page owns Escape and focus lifecycle", () => {
   const js = read("front/js/libraryPage.js");
 
   assert.match(js, /returnFocus/);
-  assert.match(js, /event\.key\s*===\s*"Escape"/);
+  assert.match(js, /event\.key\s*!==\s*"Escape"/);
   assert.match(js, /restorePageFocus/);
   assert.match(js, /focusLibraryEntry/);
 });
@@ -356,5 +356,304 @@ test("runtime finalization policy is booted before app and precached", () => {
   assert.match(
     sw,
     /\/js\/runtimeFinalization\.js/
+  );
+});
+
+
+test("preview engine uses format-aware sources and keeps HTML sandbox opaque", () => {
+  const source =
+    read(
+      "front/js/previewSandbox.js"
+    );
+
+  assert.match(
+    source,
+    /artifact\?\.previewKind/
+  );
+  assert.match(
+    source,
+    /sandbox[\s\S]{0,160}allow-scripts/
+  );
+  assert.doesNotMatch(
+    source,
+    /allow-same-origin/
+  );
+  assert.match(
+    source,
+    /connect-src 'none'/
+  );
+  assert.match(
+    source,
+    /frame-src 'none'/
+  );
+  assert.match(
+    source,
+    /object-src 'none'/
+  );
+  assert.match(
+    source,
+    /function\s+htmlSource\s*\(/
+  );
+  assert.match(
+    source,
+    /function\s+semanticText\s*\(/
+  );
+  assert.match(
+    source,
+    /function\s+isBinaryOffice\s*\(/
+  );
+});
+
+test("binary office preview path does not decode local blobs as text", () => {
+  const source =
+    read(
+      "front/js/previewSandbox.js"
+    );
+
+  const start =
+    source.indexOf(
+      "function semanticText"
+    );
+  const end =
+    source.indexOf(
+      "function parseDelimitedRows",
+      start
+    );
+  const semantic =
+    source.slice(
+      start,
+      end
+    );
+
+  assert.match(
+    semantic,
+    /isBinaryOffice/
+  );
+  assert.match(
+    semantic,
+    /previewText/
+  );
+
+  const officeBranch =
+    semantic.slice(
+      semantic.indexOf(
+        "isBinaryOffice"
+      ),
+      semantic.indexOf(
+        "const blob"
+      )
+    );
+
+  assert.doesNotMatch(
+    officeBranch,
+    /blob\.text\s*\(/
+  );
+});
+
+test("HTML preview reads actual artifact bytes before previewText fallback", () => {
+  const source =
+    read(
+      "front/js/previewSandbox.js"
+    );
+
+  const start =
+    source.indexOf(
+      "async function htmlSource"
+    );
+  const end =
+    source.indexOf(
+      "async function semanticText",
+      start
+    );
+  const htmlSource =
+    source.slice(
+      start,
+      end
+    );
+
+  const local =
+    htmlSource.indexOf(
+      "localBlob"
+    );
+  const remote =
+    htmlSource.indexOf(
+      "fetchText"
+    );
+  const fallback =
+    htmlSource.indexOf(
+      "previewText"
+    );
+
+  assert.ok(
+    local >= 0 &&
+    remote > local &&
+    fallback > remote
+  );
+});
+
+
+test("local artifact persistence keeps renderer and preview capability metadata", () => {
+  const store =
+    read(
+      "front/js/fileStore.js"
+    );
+  const app =
+    read(
+      "front/js/app.js"
+    );
+
+  assert.match(
+    store,
+    /previewKind/
+  );
+  assert.match(
+    store,
+    /renderer/
+  );
+  assert.match(
+    store,
+    /targetPages/
+  );
+  assert.match(
+    store,
+    /format/
+  );
+  assert.match(
+    app,
+    /previewKind:\s*artifact\.previewKind/
+  );
+  assert.match(
+    app,
+    /renderer:\s*artifact\.renderer/
+  );
+  assert.match(
+    app,
+    /format:\s*artifact\.format/
+  );
+});
+
+
+test("artifact preview surface is styled by resolved preview kind", () => {
+  const app =
+    read(
+      "front/js/app.js"
+    );
+  const css =
+    read(
+      "front/css/chat.css"
+    );
+
+  assert.match(
+    app,
+    /dataset\.previewKind/
+  );
+  assert.match(
+    app,
+    /PreviewEngine\s*\.kind/
+  );
+  assert.match(
+    css,
+    /data-preview-kind="pdf"/
+  );
+  assert.match(
+    css,
+    /data-preview-kind="html"/
+  );
+  assert.match(
+    css,
+    /100dvh/
+  );
+  assert.match(
+    css,
+    /\.astra-artifact-preview-body\.is-spreadsheet/
+  );
+});
+
+
+test("artifact page targets are parsed and transported without confusing chapter labels", () => {
+  const policy =
+    read(
+      "front/js/artifactRequest.js"
+    );
+  const app =
+    read(
+      "front/js/app.js"
+    );
+  const api =
+    read(
+      "front/js/api.js"
+    );
+  const server =
+    read(
+      "server.js"
+    );
+  const boot =
+    read(
+      "front/js/boot.js"
+    );
+  const sw =
+    read(
+      "front/sw.js"
+    );
+
+  assert.match(
+    policy,
+    /targetPages/
+  );
+  assert.match(
+    policy,
+    /페이지|쪽/
+  );
+  assert.match(
+    policy,
+    /A4/
+  );
+  assert.match(
+    app,
+    /targetPages:\s*artifactRequest/
+  );
+  assert.match(
+    api,
+    /targetPages:\s*input\?\.targetPages/
+  );
+  assert.match(
+    server,
+    /targetPages:\s*req\.body\?\.targetPages/
+  );
+  assert.ok(
+    boot.indexOf(
+      "./js/artifactRequest.js"
+    ) <
+    boot.indexOf(
+      "./js/app.js"
+    )
+  );
+  assert.match(
+    sw,
+    /\/js\/artifactRequest\.js/
+  );
+});
+
+test("planner keeps document length requirements on the upstream writer", () => {
+  const server =
+    read(
+      "server.js"
+    );
+
+  assert.match(
+    server,
+    /createFile[^\n]*does not generate|createFile[^\n]*does not expand/i
+  );
+  assert.match(
+    server,
+    /page|페이지|분량/i
+  );
+  assert.match(
+    server,
+    /upstream write|write\.request/i
+  );
+  assert.match(
+    server,
+    /padding|whitespace|여백/i
   );
 });

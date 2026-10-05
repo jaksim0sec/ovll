@@ -1580,6 +1580,22 @@
         previewUrl:
           local.previewUrl ||
           "",
+        format:
+          artifact.format ||
+          local.format ||
+          "",
+        renderer:
+          artifact.renderer ||
+          local.renderer ||
+          "",
+        targetPages:
+          artifact.targetPages ??
+          local.targetPages ??
+          null,
+        previewKind:
+          artifact.previewKind ||
+          local.previewKind ||
+          "",
         previewText:
           artifact.previewText ||
           local.previewText ||
@@ -1653,6 +1669,18 @@
               "",
             conversationId:
               currentConversationId(),
+            format:
+              artifact.format ||
+              "",
+            renderer:
+              artifact.renderer ||
+              "",
+            targetPages:
+              artifact.targetPages ??
+              null,
+            previewKind:
+              artifact.previewKind ||
+              "",
             previewText:
               artifact.previewText ||
               ""
@@ -1959,6 +1987,19 @@
 
     panel.className =
       "astra-artifact-preview-panel";
+
+    const resolvedPreviewKind =
+      PreviewEngine
+        .kind(
+          artifact
+        ) ||
+      "file";
+
+    root.dataset.previewKind =
+      resolvedPreviewKind;
+
+    panel.dataset.previewKind =
+      resolvedPreviewKind;
 
     panel.setAttribute(
       "role",
@@ -3877,6 +3918,15 @@
             ),
           format:
             artifact.format ||
+            "",
+          renderer:
+            artifact.renderer ||
+            "",
+          targetPages:
+            artifact.targetPages ??
+            null,
+          previewKind:
+            artifact.previewKind ||
             "",
           downloadUrl:
             artifact.downloadUrl ||
@@ -5923,135 +5973,23 @@
     function resolveArtifactRequest(
       params
     ) {
-      const source =
-        params &&
-        typeof params ===
-          "object"
-          ? params
-          : {};
-
-      const request =
-        String(
-          source.request ||
-          ""
-        )
-          .replace(/\s+/g, " ")
-          .trim()
-          .slice(0, 1200);
-
-      const aliases = [
-        ["PDF", /(?:\.pdf\b|\bpdf\b)/i],
-        ["DOCX", /(?:\.docx\b|\bdocx\b|\bword\b|워드)/i],
-        ["XLSX", /(?:\.xlsx\b|\bxlsx\b|\bexcel\b|엑셀)/i],
-        ["CSV", /(?:\.csv\b|\bcsv\b)/i],
-        ["JSON", /(?:\.json\b|\bjson\b)/i],
-        ["HTML", /(?:\.html?\b|\bhtml\b)/i],
-        ["RTF", /(?:\.rtf\b|\brtf\b)/i],
-        ["MD", /(?:\.md\b|\bmarkdown\b|마크다운)/i],
-        ["TXT", /(?:\.txt\b|\btxt\b|텍스트 파일)/i]
-      ];
-
-      let format =
-        String(
-          source.format ||
-          ""
-        )
-          .trim()
-          .toUpperCase();
+      const resolver =
+        global
+          .OvllArtifactRequest
+          ?.resolve;
 
       if (
-        request
+        typeof resolver !==
+          "function"
       ) {
-        const matched =
-          aliases.find(
-            ([, pattern]) =>
-              pattern.test(
-                request
-              )
-          );
-
-        if (matched) {
-          format =
-            matched[0];
-        }
-      }
-
-      if (
-        !aliases.some(
-          ([value]) =>
-            value === format
-        )
-      ) {
-        format = "PDF";
-      }
-
-      let filename =
-        String(
-          source.filename ||
-          ""
-        )
-          .trim();
-
-      const extensionMatch =
-        request.match(
-          /([^\n"'“”\\/]{1,80})\.(pdf|docx|xlsx|csv|txt|md|json|html?|rtf)\b/i
+        throw new Error(
+          "파일 요청 해석기를 불러오지 못했습니다."
         );
-
-      if (extensionMatch) {
-        filename =
-          extensionMatch[1]
-            .replace(
-              /^(?:파일명|이름)\s*(?:은|는|:)?\s*/i,
-              ""
-            )
-            .trim();
-
-        const ext =
-          extensionMatch[2]
-            .toUpperCase();
-
-        format =
-          ext === "HTM"
-            ? "HTML"
-            : ext;
-      } else if (
-        !filename &&
-        request
-      ) {
-        const named =
-          request.match(
-            /(?:파일명|이름)\s*(?:은|는|:)?\s*["'“]?([^"'”\n,]{1,64})/i
-          );
-
-        if (named) {
-          filename =
-            named[1]
-              .replace(
-                /\s*(?:파일)?(?:로|으로)?\s*(?:만들어|생성).*$/i,
-                ""
-              )
-              .trim();
-        }
       }
 
-      filename =
-        (filename || "결과물")
-          .replace(
-            /\.(pdf|docx|xlsx|csv|txt|md|json|html?|rtf)$/i,
-            ""
-          )
-          .replace(
-            /[\\/:*?"<>|\u0000-\u001f]/g,
-            "_"
-          )
-          .trim()
-          .slice(0, 100) ||
-        "결과물";
-
-      return {
-        format,
-        filename
-      };
+      return resolver(
+        params
+      );
     }
 
     const runtimeExecutor = {
@@ -6090,6 +6028,9 @@
                     filename:
                       artifactRequest
                         .filename,
+                    targetPages:
+                      artifactRequest
+                        .targetPages,
                     sources:
                       runtimeInputValues(
                         inputs

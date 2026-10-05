@@ -877,16 +877,19 @@ test("unchanged intermediate results are reused but param changes invalidate cac
   );
 
   assert.deepEqual(
-    calls.slice(-2),
-    [
-      ["research"],
-      ["write"]
-    ]
+    calls.at(-1),
+    ["research", "write"]
   );
 });
 
 test("cancel aborts an active group run cleanly", async () => {
   let aborted = false;
+  let markStarted = null;
+
+  const started =
+    new Promise(resolve => {
+      markStarted = resolve;
+    });
 
   const engine =
     new RuntimeEngine({
@@ -900,6 +903,8 @@ test("cancel aborts an active group run cleanly", async () => {
           group,
           context
         ) {
+          markStarted?.();
+
           await new Promise(
             (resolve, reject) => {
               const timer =
@@ -976,6 +981,8 @@ test("cancel aborts an active group run cleanly", async () => {
         mode: "spread"
       }
     );
+
+  await started;
 
   assert.equal(
     engine.cancel(),

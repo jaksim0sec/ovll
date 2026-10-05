@@ -1,0 +1,158 @@
+name: artifact-quality-ci
+
+on:
+  push:
+    branches:
+      - artifact-rendering-preview-quality
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: |
+          npm ci
+          du -sh node_modules/pdfkit 2>/dev/null || true
+          du -sh node_modules/@fontsource/noto-sans-kr 2>/dev/null || true
+
+      - name: Full tests
+        run: npm test
+
+      - name: Generate fallback PDF fixture
+        env:
+          OVLL_DISABLE_CHROME: "1"
+        run: |
+          mkdir -p artifact-quality-output
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          import {
+            createStoredArtifact,
+            getStoredArtifact
+          } from "./artifactStore.js";
+
+          const source = [
+            "# 고라니 종합 보고서",
+            "",
+            "제1장: 생태와 특징",
+            "고라니는 물가와 초지, 낮은 산지의 경계처럼 먹이와 은신처를 함께 확보할 수 있는 환경을 주로 이용합니다. 단순히 한 장소에 머무르기보다 계절과 먹이 조건, 사람의 활동 정도에 따라 이동 범위를 조절하며 주변 환경의 변화에 민감하게 반응합니다.",
+            "",
+            "수컷의 송곳니와 비교적 짧은 꼬리, 단단한 다리 같은 형태적 특징은 다른 사슴과 구별되는 지점입니다. 이러한 특징은 종을 식별하는 데 도움이 되지만 실제 관찰에서는 거리와 빛, 개체의 자세에 따라 인상이 달라질 수 있어 서식 환경과 행동을 함께 보는 편이 정확합니다.",
+            "",
+            "활동 시간은 지역과 계절에 따라 달라질 수 있으며 사람이 많이 다니는 곳에서는 비교적 조용한 시간대로 활동이 이동하기도 합니다. 먹이는 풀과 어린 잎, 농경지 작물처럼 접근하기 쉬운 식물성 자원을 폭넓게 이용하고 위험을 느끼면 빠르게 은폐 공간으로 이동합니다.",
+            "",
+            "개체의 행동을 이해할 때에는 특정 장면 하나보다 반복적으로 관찰되는 이동 경로와 휴식 장소, 먹이 이용 흔적을 함께 살펴야 합니다. 이런 정보가 쌓이면 서식지 이용 패턴을 더 안정적으로 설명할 수 있고 단순한 인상에 의존한 판단도 줄일 수 있습니다.",
+            "",
+            "서식 환경을 더 세밀하게 이해하려면 지형과 식생을 함께 기록하는 것이 좋습니다. 같은 하천 주변이라도 제방의 높이, 수풀의 밀도, 사람의 출입 빈도에 따라 실제 이용 정도가 달라질 수 있습니다. 반복 관찰에서 이런 조건을 같이 남기면 개체가 왜 특정 구간을 자주 선택하는지 설명하기 쉬워지고 단순 목격 횟수 이상의 정보를 얻을 수 있습니다.",
+            "",
+            "번식기와 성장 단계에 따라 행동 양상이 달라질 가능성도 고려해야 합니다. 어린 개체와 성체가 같은 장소를 이용하더라도 이동 속도나 경계 행동, 머무는 시간에 차이가 생길 수 있습니다. 따라서 행동을 해석할 때에는 개체의 크기와 동행 여부처럼 현장에서 확인 가능한 특징을 함께 기록하는 편이 좋습니다.",
+            "",
+            "소리와 냄새, 갑작스러운 조명 같은 자극도 활동에 영향을 줄 수 있습니다. 공사나 차량 통행이 늘어난 뒤 이동 경로가 변했다면 단순한 우연으로 보기보다 주변 환경 변화와 시점을 대조해 볼 필요가 있습니다. 이런 관찰은 특정 시설이나 활동이 야생동물의 공간 이용에 어떤 영향을 주는지 추정하는 기초가 됩니다.",
+            "",
+            "관찰 자료의 신뢰도를 높이려면 같은 기준을 꾸준히 사용하는 것이 중요합니다. 시간, 위치, 날씨, 개체 수, 행동 유형을 일정한 형식으로 기록하면 서로 다른 날의 자료를 비교하기 쉽고, 여러 사람이 수집한 기록도 하나의 자료로 묶기 수월합니다. 장기적인 패턴을 보려면 기록 방식 자체의 일관성이 큰 역할을 합니다.",
+            "",
+            "제2장: 서식지와 생활",
+            "고라니가 이용하는 공간은 하천 주변 갈대밭, 농경지 인접 지역, 낮은 산지의 숲 가장자리처럼 서로 다른 환경이 이어지는 곳에 많이 나타납니다. 물과 먹이, 은신처가 가까이 존재하면 짧은 이동으로 여러 자원을 이용할 수 있기 때문입니다.",
+            "",
+            "도시 외곽에서는 도로와 산책로, 주거지, 농경지가 서식 공간과 촘촘하게 맞닿습니다. 이때 고라니는 사람의 이동이 적은 통로를 선택하거나 구조물 사이의 좁은 녹지를 이용할 수 있으며, 같은 장소라도 시간대에 따라 사람과 동물의 사용 방식이 달라집니다.",
+            "",
+            "계절 변화도 생활 공간에 영향을 줍니다. 식생이 풍부한 시기에는 먹이 선택 폭이 넓어지고 겨울처럼 자원이 줄어드는 시기에는 비교적 쉽게 접근할 수 있는 장소에 활동이 집중될 수 있습니다. 따라서 한 계절의 관찰만으로 연중 서식 특성을 단정하기는 어렵습니다.",
+            "",
+            "서식지를 평가할 때에는 단순한 면적보다 연결성이 중요합니다. 작은 녹지라도 다른 숲이나 하천과 이어져 있으면 이동 통로 역할을 할 수 있고, 반대로 넓은 공간도 도로와 울타리로 잘게 끊기면 실제 이용 가능성이 낮아질 수 있어 공간 구조를 함께 살펴야 합니다.",
+            "",
+            "하천과 숲 사이에 작은 녹지나 수풀이 이어져 있으면 개체가 노출을 줄인 채 이동할 수 있습니다. 반대로 폭이 넓은 도로나 긴 담장처럼 연속적인 장벽이 생기면 이동 경로가 특정 지점에 몰릴 수 있고, 그 지점에서 차량이나 사람과 마주칠 가능성도 커질 수 있습니다. 연결성은 단순한 면적보다 실제 이동 가능성을 설명하는 데 직접적인 지표가 됩니다.",
+            "",
+            "먹이 자원의 분포도 서식지 선택과 밀접합니다. 자연 식생이 줄어든 곳에서는 농경지나 조경 식물처럼 사람이 만든 자원이 상대적으로 중요한 먹이원이 될 수 있습니다. 이런 변화는 동물이 생활권 가까이 접근하는 빈도를 높일 수 있으므로 피해 대책을 세울 때에는 단순 차단뿐 아니라 주변 먹이 환경의 변화도 함께 고려해야 합니다.",
+            "",
+            "비와 적설, 폭염 같은 기상 조건은 이동 거리와 휴식 장소 선택에 영향을 줄 수 있습니다. 예를 들어 더운 시기에는 그늘과 물에 가까운 공간의 가치가 높아지고, 눈이 많이 쌓인 시기에는 이동하기 쉬운 길이나 경사가 완만한 구간을 더 자주 이용할 수 있습니다. 계절별 관찰을 누적하면 이런 조건 변화와 활동 패턴의 관계를 파악하는 데 도움이 됩니다.",
+            "",
+            "서식지 관리는 하나의 지점을 고정적으로 보호하는 방식보다 여러 공간 사이의 연결을 함께 보는 접근이 적합합니다. 번식, 먹이 이용, 휴식에 필요한 장소가 서로 떨어져 있다면 그 사이를 오갈 수 있는 통로가 유지되어야 하기 때문입니다. 개발이나 도로 정비 계획에서도 이런 이동 경로를 사전에 파악하면 충돌 가능성을 낮추는 설계로 이어질 수 있습니다.",
+            "",
+            "제3장: 사람과의 관계",
+            "사람의 생활권과 고라니의 활동 범위가 겹치면 교통사고와 농작물 피해 같은 갈등이 발생할 수 있습니다. 특히 야간이나 새벽처럼 시야가 제한되는 시간에는 도로를 건너는 개체를 늦게 발견할 수 있으므로 반복 출현 지역의 환경과 이동 경로를 함께 파악하는 것이 중요합니다.",
+            "",
+            "농경지 피해는 개체 수만으로 설명하기 어렵습니다. 먹이가 되는 작물의 위치와 주변 은신처, 울타리 구조, 인접 서식지의 상태가 함께 영향을 주기 때문에 지역별 조건을 고려하지 않은 단일 대책은 효과가 제한될 수 있습니다.",
+            "",
+            "관리에서는 사람의 안전과 생활 피해를 줄이는 목표와 야생동물의 이동 가능성을 함께 고려할 필요가 있습니다. 사고가 반복되는 구간의 속도 관리와 안내, 이동 통로 개선, 농경지 방어 시설처럼 문제 유형에 맞는 방법을 조합하면 불필요한 충돌을 줄이는 데 도움이 됩니다.",
+            "",
+            "장기적으로는 출현 기록과 사고 지점, 계절별 이동 흔적을 꾸준히 축적하는 방식이 효과적입니다. 특정 시기의 민원이나 단편적인 목격만으로 판단하기보다 반복되는 패턴을 근거로 대책을 조정하면 관리의 예측 가능성과 설명 가능성을 함께 높일 수 있습니다.",
+            "",
+            "교통사고가 반복되는 지역에서는 단순 경고 표지보다 실제 이동 패턴을 반영한 대책이 필요합니다. 출현 시간대와 도로 횡단 지점을 기록하고 주변 식생, 배수로, 울타리 구조를 함께 살펴보면 위험이 집중되는 원인을 더 구체적으로 찾을 수 있습니다. 이후 속도 저감, 시야 확보, 유도 울타리, 생태 통로 같은 방법을 상황에 맞게 조합할 수 있습니다.",
+            "",
+            "농작물 피해를 줄이기 위해서는 작물의 생육 시기와 피해가 집중되는 시점을 맞춰 보는 것이 중요합니다. 피해가 특정 계절이나 작물에 몰린다면 방어 시설을 연중 동일하게 유지하기보다 위험 시기에 집중적으로 관리하는 편이 효율적일 수 있습니다. 지역별 기록이 쌓이면 비용을 줄이면서도 효과를 높일 수 있는 관리 시점을 찾기 쉬워집니다.",
+            "",
+            "주민 제보와 관찰 자료를 함께 활용하는 방식도 도움이 됩니다. 다만 제보는 위치나 시간 표현이 제각각일 수 있으므로 사진, 지도 좌표, 대략적인 이동 방향처럼 확인 가능한 정보를 함께 받는 체계가 필요합니다. 표준화된 제보가 축적되면 공식 조사 자료가 부족한 지역에서도 반복 출현 구간과 갈등 유형을 빠르게 파악할 수 있습니다.",
+            "",
+            "사람과 야생동물의 갈등을 줄이는 목표는 개체를 단순히 멀리 보내는 것만으로 달성되기 어렵습니다. 생활권으로 접근하게 만드는 먹이와 은신처 조건, 이동 장벽, 교통 구조를 함께 조정해야 같은 문제가 반복되는 것을 줄일 수 있습니다. 장기적인 관리는 단기 민원 대응과 공간 계획, 안전 대책을 하나의 흐름으로 연결할 때 효과가 커집니다.",
+          ].join("\n");
+
+          const artifact = await createStoredArtifact({
+            format: "PDF",
+            filename: "gorani-quality-fixture",
+            targetPages: 3,
+            sources: [source]
+          });
+
+          const stored = getStoredArtifact(artifact.id);
+
+          fs.writeFileSync(
+            "artifact-quality-output/gorani-quality-fixture.pdf",
+            stored.buffer
+          );
+
+          fs.writeFileSync(
+            "artifact-quality-output/metadata.json",
+            JSON.stringify({
+              renderer: artifact.renderer,
+              targetPages: artifact.targetPages,
+              previewKind: artifact.previewKind,
+              previewText: artifact.previewText,
+              size: artifact.size
+            }, null, 2)
+          );
+
+          console.log(JSON.stringify({
+            renderer: artifact.renderer,
+            previewKind: artifact.previewKind,
+            size: artifact.size
+          }));
+          NODE
+
+      - name: Render PDF fixture
+        run: |
+          if ! command -v pdftoppm >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq poppler-utils
+          fi
+          pdfinfo artifact-quality-output/gorani-quality-fixture.pdf | tee artifact-quality-output/pdfinfo.txt
+          pdffonts artifact-quality-output/gorani-quality-fixture.pdf | tee artifact-quality-output/pdffonts.txt
+          pdftotext artifact-quality-output/gorani-quality-fixture.pdf artifact-quality-output/gorani-quality-fixture.txt
+          grep -q "제1장: 생태와 특징" artifact-quality-output/gorani-quality-fixture.txt
+          grep -q "제2장: 서식지와 생활" artifact-quality-output/gorani-quality-fixture.txt
+          grep -q "제3장: 사람과의 관계" artifact-quality-output/gorani-quality-fixture.txt
+          pdftoppm \
+            -png \
+            -r 180 \
+            artifact-quality-output/gorani-quality-fixture.pdf \
+            artifact-quality-output/gorani-quality-fixture-page
+          cp package-lock.json artifact-quality-output/package-lock.json
+
+      - name: Upload visual fixture
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifact-quality-visual
+          path: artifact-quality-output/
+          if-no-files-found: error
