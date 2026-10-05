@@ -404,6 +404,26 @@ test("preview engine uses format-aware sources and keeps HTML sandbox opaque", (
   );
 });
 
+test("PDF preview loads eagerly with a normalized PDF MIME", () => {
+  const source =
+    read(
+      "front/js/previewSandbox.js"
+    );
+
+  assert.match(
+    source,
+    /kind==="pdf"[\s\S]*loading",[\s\S]*"eager"/
+  );
+  assert.match(
+    source,
+    /application\/pdf/
+  );
+  assert.match(
+    source,
+    /blob\.slice\([\s\S]*normalizedMime/
+  );
+});
+
 test("binary office preview path does not decode local blobs as text", () => {
   const source =
     read(
