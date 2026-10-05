@@ -12,9 +12,21 @@ if (!parentPort) {
   );
 }
 
-parentPort.once(
+parentPort.on(
   "message",
   async payload => {
+    const id =
+      String(
+        payload?.id || ""
+      );
+
+    if (!id) {
+      return;
+    }
+
+    const startedAt =
+      Date.now();
+
     try {
       const buffer =
         await renderPdfKitDocument(
@@ -23,12 +35,20 @@ parentPort.once(
         );
 
       parentPort.postMessage({
+        id,
         ok: true,
+        durationMs:
+          Date.now() -
+          startedAt,
         buffer
       });
     } catch (error) {
       parentPort.postMessage({
+        id,
         ok: false,
+        durationMs:
+          Date.now() -
+          startedAt,
         error: {
           message:
             error?.message ||
@@ -38,8 +58,6 @@ parentPort.once(
             ""
         }
       });
-    } finally {
-      parentPort.close();
     }
   }
 );
