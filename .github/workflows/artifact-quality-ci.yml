@@ -38,7 +38,7 @@ jobs:
           OVLL_DISABLE_CHROME: "1"
         run: |
           mkdir -p artifact-quality-output
-          node --input-type=module <<'NODE'
+          cat > artifact-quality-fixture.mjs <<'NODE'
           import fs from "node:fs";
           import {
             createStoredArtifact,
@@ -131,6 +131,8 @@ jobs:
             size: artifact.size
           }));
           NODE
+          node artifact-quality-fixture.mjs
+          rm -f artifact-quality-fixture.mjs
 
       - name: Render PDF fixture
         run: |
