@@ -1213,3 +1213,114 @@ test("cache identity changes when continuity memory changes", async () => {
     ]
   );
 });
+
+
+test("oversized subgroup failure is attributed to the subgroup that actually failed", async () => {
+  const calls = [];
+
+  const engine =
+    new RuntimeEngine({
+      maxGroupInputChars: 100,
+      measureGroupInputChars(
+        group
+      ) {
+        return group.nodes.length > 1
+          ? group.nodes.length * 60
+          : 60;
+      },
+      executor: {
+        async run() {
+          throw new Error(
+            "unexpected local run"
+          );
+        },
+        async runGroup(
+          group
+        ) {
+          const ids =
+            group.nodes.map(
+              item => item.id
+            );
+
+          calls.push(ids);
+
+          if (
+            ids.includes("C")
+          ) {
+            throw new Error(
+              "C failed"
+            );
+          }
+
+          return {
+            results:
+              group.nodes.map(
+                item => ({
+                  nodeId:
+                    item.id,
+                  outputs: {
+                    result:
+                      item.id
+                  },
+                  decision:
+                    null,
+                  report:
+                    item.id
+                })
+              )
+          };
+        }
+      }
+    });
+
+  const graph =
+    workflow(
+      ["A", "B", "C"]
+        .map(
+          id => ({
+            id,
+            type: "organize",
+            data: {
+              params: {
+                request:
+                  "organize " + id
+              }
+            }
+          })
+        ),
+      [
+        edge("ab", "A", "B"),
+        edge("bc", "B", "C")
+      ]
+    );
+
+  const output =
+    await engine.run(
+      graph,
+      "A",
+      {
+        mode: "spread"
+      }
+    );
+
+  assert.deepEqual(
+    calls,
+    [
+      ["A"],
+      ["B"],
+      ["C"]
+    ]
+  );
+  assert.equal(
+    output.nodes.A.status,
+    "SUCCESS"
+  );
+  assert.equal(
+    output.nodes.B.status,
+    "SUCCESS"
+  );
+  assert.equal(
+    output.nodes.C.status,
+    "FAILED"
+  );
+});
