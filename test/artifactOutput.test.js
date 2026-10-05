@@ -554,3 +554,64 @@ test("inline HTML artifact route has defense-in-depth security headers", () => {
     /object-src 'none'/
   );
 });
+
+
+test("fallback PDF embeds a deterministic Korean font", async () => {
+  const previous =
+    process.env
+      .OVLL_DISABLE_CHROME;
+
+  process.env
+    .OVLL_DISABLE_CHROME =
+    "1";
+
+  try {
+    const artifact =
+      await createStoredArtifact({
+        format: "PDF",
+        filename:
+          "embedded-korean",
+        sources: [
+          "# 한글 제목\n\n제1장: 한글 섹션\n영문 ABC와 숫자 123을 함께 표시합니다."
+        ]
+      });
+
+    const stored =
+      getStoredArtifact(
+        artifact.id
+      );
+
+    const pdf =
+      stored.buffer
+        .toString(
+          "latin1"
+        );
+
+    assert.equal(
+      artifact.renderer,
+      "pdfkit-fallback"
+    );
+
+    assert.doesNotMatch(
+      pdf,
+      /HYSMyeongJo|HYGoThic/
+    );
+
+    assert.match(
+      pdf,
+      /\/FontFile\d?\b/
+    );
+  } finally {
+    if (
+      previous ===
+        undefined
+    ) {
+      delete process.env
+        .OVLL_DISABLE_CHROME;
+    } else {
+      process.env
+        .OVLL_DISABLE_CHROME =
+        previous;
+    }
+  }
+});
