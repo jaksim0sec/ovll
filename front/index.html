@@ -88,13 +88,7 @@
       display: grid;
       place-items: center;
       overflow: hidden;
-      background:
-        radial-gradient(
-          circle at 50% 45%,
-          rgba(255, 255, 255, .64),
-          transparent 28rem
-        ),
-        #f3f3f2;
+      background: #f3f3f2;
       color: #171717;
       opacity: 1;
       transition:
@@ -103,13 +97,7 @@
     }
 
     :root.dark #boot-screen {
-      background:
-        radial-gradient(
-          circle at 50% 45%,
-          rgba(255, 255, 255, .025),
-          transparent 25rem
-        ),
-        #101010;
+      background: #101010;
       color: #f5f5f5;
     }
 
@@ -129,21 +117,21 @@
         BlinkMacSystemFont,
         "Segoe UI",
         sans-serif;
-      transform: translateY(-.5rem);
+      transform: translateY(-.35rem);
     }
 
     .ovll-boot-orb {
       --boot-orb: #202120;
       --boot-eye: #efefec;
-      width: 2.32rem;
-      height: 2.32rem;
+      width: 2.16rem;
+      height: 2.16rem;
       display: grid;
       place-items: center;
       border: .0625rem solid var(--boot-orb);
       border-radius: 50%;
       background: var(--boot-orb);
       box-shadow:
-        0 .18rem .62rem rgba(0, 0, 0, .14);
+        0 .12rem .42rem rgba(0, 0, 0, .105);
       animation:
         ovll-boot-orb
         2.8s
@@ -155,7 +143,7 @@
       --boot-orb: #dededb;
       --boot-eye: #151617;
       box-shadow:
-        0 .18rem .68rem rgba(0, 0, 0, .28);
+        0 .12rem .48rem rgba(0, 0, 0, .22);
     }
 
     .ovll-boot-eye {
@@ -172,26 +160,17 @@
     }
 
     .ovll-boot-wordmark {
-      margin-top: .72rem;
-      font-size: 1.02rem;
-      font-weight: 720;
+      margin-top: .66rem;
+      font-size: 1rem;
+      font-weight: 700;
       line-height: 1;
       letter-spacing: -.045em;
     }
 
-    .ovll-boot-status {
-      margin-top: .38rem;
-      color: currentColor;
-      font-size: .665rem;
-      font-weight: 520;
-      letter-spacing: -.015em;
-      opacity: .42;
-    }
-
     .ovll-boot-progress {
-      width: 4.1rem;
-      height: .115rem;
-      margin-top: .82rem;
+      width: 2.8rem;
+      height: .095rem;
+      margin-top: .72rem;
       overflow: hidden;
       border-radius: 999px;
       background: currentColor;
@@ -201,14 +180,14 @@
     .ovll-boot-progress::after {
       content: "";
       display: block;
-      width: 46%;
+      width: 38%;
       height: 100%;
       border-radius: inherit;
       background: currentColor;
       opacity: 1;
       animation:
         ovll-boot-slide
-        1.05s
+        1.18s
         cubic-bezier(.45,0,.25,1)
         infinite;
     }
@@ -261,8 +240,6 @@
       animation: none;
     }
 
-    #boot-screen.is-error
-    .ovll-boot-status,
     #boot-screen.is-error
     .ovll-boot-progress {
       display: none;
@@ -364,11 +341,10 @@
         <span class="ovll-boot-eye"></span>
       </div>
       <div class="ovll-boot-wordmark">ovll</div>
-      <div class="ovll-boot-status">준비 중</div>
       <div class="ovll-boot-progress" aria-hidden="true"></div>
       <div class="ovll-boot-error">
         오블을 불러오지 못했습니다<br>
-        연결 상태를 확인한 뒤 다시 시도해 주세요
+        다시 시도해 주세요
       </div>
       <button
         id="boot-retry"
