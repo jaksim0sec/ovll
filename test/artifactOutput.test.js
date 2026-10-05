@@ -7,6 +7,13 @@ import {
   createStoredArtifact,
   getStoredArtifact
 } from "../artifactStore.js";
+import {
+  createArtifactDocument
+} from "../artifactDocument.js";
+import {
+  pdfDocumentHtml,
+  renderPdfFallback
+} from "../pdfRenderer.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, "..");
@@ -117,6 +124,196 @@ test("builtin PDF fallback positions glyphs explicitly and repairs inline headin
       delete process.env.OVLL_DISABLE_CHROME;
     } else {
       process.env.OVLL_DISABLE_CHROME = previous;
+    }
+  }
+});
+
+
+test("PDF HTML renderer uses canonical Korean chapter headings and paged media", () => {
+  const document =
+    createArtifactDocument(
+      [
+        "고라니 종합 보고서\n\n제1장: 생태\n첫 번째 본문입니다.\n\n제2장: 서식지\n두 번째 본문입니다."
+      ],
+      {
+        title:
+          "고라니 종합 보고서"
+      }
+    );
+
+  const html =
+    pdfDocumentHtml(
+      document
+    );
+
+  assert.match(
+    html,
+    /<h2[^>]*>제1장: 생태<\/h2>/
+  );
+  assert.match(
+    html,
+    /<h2[^>]*>제2장: 서식지<\/h2>/
+  );
+  assert.match(
+    html,
+    /@page\s*\{[^}]*size\s*:\s*A4/i
+  );
+  assert.match(
+    html,
+    /break-inside\s*:\s*avoid/i
+  );
+  assert.match(
+    html,
+    /orphans\s*:\s*3/
+  );
+  assert.match(
+    html,
+    /widows\s*:\s*3/
+  );
+  assert.match(
+    html,
+    /word-break\s*:\s*keep-all/
+  );
+});
+
+test("fallback PDF draws canonical section hierarchy", () => {
+  const document =
+    createArtifactDocument(
+      [
+        "고라니 종합 보고서\n\n제1장: 생태\n본문입니다."
+      ],
+      {
+        title:
+          "고라니 종합 보고서"
+      }
+    );
+
+  const buffer =
+    renderPdfFallback(
+      document,
+      {
+        title:
+          document.title
+      }
+    );
+
+  const pdf =
+    buffer.toString(
+      "latin1"
+    );
+
+  assert.match(
+    pdf,
+    /\/F2\s+24(?:\.0+)?\s+Tf/
+  );
+  assert.match(
+    pdf,
+    /\/F2\s+15(?:\.5)?\s+Tf/
+  );
+});
+
+test("fallback PDF tables place columns at distinct horizontal positions", () => {
+  const document = {
+    title:
+      "표 테스트",
+    plainText:
+      "",
+    truncated:
+      false,
+    blocks: [
+      {
+        type: "table",
+        headers: [
+          "A",
+          "B"
+        ],
+        rows: [
+          [
+            "1",
+            "2"
+          ]
+        ]
+      }
+    ]
+  };
+
+  const pdf =
+    renderPdfFallback(
+      document,
+      {
+        title:
+          document.title
+      }
+    ).toString(
+      "latin1"
+    );
+
+  const positions =
+    [...pdf.matchAll(
+      /1 0 0 1 ([0-9.]+) ([0-9.]+) Tm\n<00(?:41|42)> Tj/g
+    )].map(
+      match =>
+        Number(
+          match[1]
+        )
+    );
+
+  assert.equal(
+    positions.length >= 2,
+    true
+  );
+  assert.notEqual(
+    positions[0],
+    positions[1]
+  );
+});
+
+test("PDF artifact preview text uses canonical semantic content", async () => {
+  const previous =
+    process.env
+      .OVLL_DISABLE_CHROME;
+
+  process.env
+    .OVLL_DISABLE_CHROME =
+    "1";
+
+  try {
+    const artifact =
+      await createStoredArtifact({
+        format: "PDF",
+        filename:
+          "semantic",
+        sources: [
+          {
+            outputs: {
+              result:
+                "실제 본문"
+            },
+            report:
+              "internal"
+          }
+        ]
+      });
+
+    assert.equal(
+      artifact.previewText,
+      "실제 본문"
+    );
+    assert.doesNotMatch(
+      artifact.previewText,
+      /outputs|result|report/
+    );
+  } finally {
+    if (
+      previous ===
+        undefined
+    ) {
+      delete process.env
+        .OVLL_DISABLE_CHROME;
+    } else {
+      process.env
+        .OVLL_DISABLE_CHROME =
+        previous;
     }
   }
 });
