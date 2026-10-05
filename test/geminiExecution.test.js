@@ -188,7 +188,7 @@ test("executeGroup sends a stateless structured Interactions request", async () 
   assert.equal(
     request.generation_config
       .thinking_level,
-    "minimal"
+    "medium"
   );
   assert.equal(
     request.response_format.type,
