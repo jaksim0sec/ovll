@@ -85,6 +85,85 @@ const PORT = process.env.PORT || 3000;
 const geminiExecution =
   createGeminiExecution();
 
+const GEMINI_LOG_LIMIT = 100;
+const geminiRequestLogs = [];
+
+function compactLogPreview(
+  value,
+  max = 280
+) {
+  let text = '';
+
+  if (typeof value === 'string') {
+    text = value;
+  } else {
+    try {
+      text =
+        JSON.stringify(value);
+    } catch {
+      text =
+        String(value ?? '');
+    }
+  }
+
+  text =
+    text
+      .replace(/\s+/g, ' ')
+      .trim();
+
+  if (text.length <= max) {
+    return text;
+  }
+
+  return (
+    text.slice(0, max - 1) +
+    '…'
+  );
+}
+
+function pushGeminiRequestLog(
+  entry
+) {
+  geminiRequestLogs.unshift({
+    id: randomUUID(),
+    at:
+      new Date()
+        .toISOString(),
+    ...entry
+  });
+
+  if (
+    geminiRequestLogs.length >
+    GEMINI_LOG_LIMIT
+  ) {
+    geminiRequestLogs.length =
+      GEMINI_LOG_LIMIT;
+  }
+}
+
+function groupLogMeta(
+  body
+) {
+  const nodes =
+    Array.isArray(body?.nodes)
+      ? body.nodes
+      : [];
+
+  return {
+    nodeTypes:
+      nodes
+        .map(node =>
+          String(
+            node?.type || ''
+          ).trim()
+        )
+        .filter(Boolean)
+        .slice(0, 12),
+    nodeCount:
+      nodes.length
+  };
+}
+
 /*
  * Bump this for every deployed app update.
  * The frontend compares this server value with its locally stored version
@@ -2694,6 +2773,24 @@ app.post(
         return;
       }
 
+      pushGeminiRequestLog({
+        kind: 'execution',
+        ok: true,
+        ...groupLogMeta(
+          req.body
+        ),
+        model:
+          result.model,
+        usage:
+          result.usage,
+        diagnostics:
+          result.diagnostics,
+        preview:
+          compactLogPreview(
+            result.results
+          )
+      });
+
       console.info(
         '[Gemini execution]',
         {
@@ -2773,6 +2870,28 @@ app.post(
           'Gemini execution failed.'
         );
 
+      pushGeminiRequestLog({
+        kind: 'execution',
+        ok: false,
+        ...groupLogMeta(
+          req.body
+        ),
+        code:
+          failure.code,
+        status:
+          failure.status,
+        retryable:
+          error?.retryable ===
+            true,
+        diagnostics:
+          error?.diagnostics ??
+          null,
+        preview:
+          compactLogPreview(
+            failure.body?.error
+          )
+      });
+
       console.warn(
         '[Gemini execution failed]',
         {
@@ -2838,6 +2957,21 @@ app.post(
       ) {
         return;
       }
+
+      pushGeminiRequestLog({
+        kind: 'finalizer',
+        ok: true,
+        model:
+          result.model,
+        usage:
+          result.usage,
+        diagnostics:
+          result.diagnostics,
+        preview:
+          compactLogPreview(
+            result.message
+          )
+      });
 
       console.info(
         '[Gemini final response]',
@@ -2913,6 +3047,25 @@ app.post(
           error,
           'Gemini final response failed.'
         );
+
+      pushGeminiRequestLog({
+        kind: 'finalizer',
+        ok: false,
+        code:
+          failure.code,
+        status:
+          failure.status,
+        retryable:
+          error?.retryable ===
+            true,
+        diagnostics:
+          error?.diagnostics ??
+          null,
+        preview:
+          compactLogPreview(
+            failure.body?.error
+          )
+      });
 
       console.warn(
         '[Gemini final response failed]',
@@ -3074,6 +3227,46 @@ app.get(
       nodes:
         nodeDefinitionsPublic
     });
+  }
+);
+
+/* =========================================================
+   GEMINI REQUEST LOG
+========================================================= */
+
+app.get(
+  '/api/logs',
+  (req, res) => {
+    res.set(
+      'Cache-Control',
+      'no-store'
+    );
+
+    return res.json({
+      ok: true,
+      generatedAt:
+        new Date()
+          .toISOString(),
+      logs:
+        geminiRequestLogs
+    });
+  }
+);
+
+app.get(
+  ['/log', '/log/'],
+  (req, res, next) => {
+    res.sendFile(
+      path.join(
+        FRONT_DIR,
+        'log.html'
+      ),
+      error => {
+        if (error) {
+          next(error);
+        }
+      }
+    );
   }
 );
 
