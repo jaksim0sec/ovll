@@ -76,27 +76,27 @@
 :root.dark {
   color-scheme: dark;
 
-  --bg: #101010;
-  --panel: #181818;
-  --panel-soft: rgba(25, 25, 25, 0.76);
-  --panel-strong: rgba(25, 25, 25, 0.94);
+  --bg: #060606;
+  --panel: #171717;
+  --panel-soft: rgba(21, 21, 21, 0.82);
+  --panel-strong: rgba(24, 24, 24, 0.96);
 
-  --text: #f5f5f5;
-  --sub: #aaaaaa;
-  --muted: #6d6d6d;
+  --text: #f7f7f7;
+  --sub: #b3b3b3;
+  --muted: #747474;
 
-  --line: rgba(255, 255, 255, 0.075);
-  --line-strong: rgba(255, 255, 255, 0.13);
+  --line: rgba(255, 255, 255, 0.09);
+  --line-strong: rgba(255, 255, 255, 0.16);
 
   --shadow:
-    0 .625rem 1.875rem rgba(0, 0, 0, 0.18);
+    0 .625rem 1.875rem rgba(0, 0, 0, 0.28);
 
   --shadow-soft:
-    0 .25rem .875rem rgba(0, 0, 0, 0.14);
+    0 .25rem .875rem rgba(0, 0, 0, 0.2);
 
-  --ui-control-surface: rgba(29, 29, 29, .89);
-  --ui-control-surface-strong: rgba(35, 35, 35, .96);
-  --ui-control-shadow: 0 .34rem 1.1rem rgba(0, 0, 0, .22);
+  --ui-control-surface: rgba(26, 26, 26, .94);
+  --ui-control-surface-strong: rgba(32, 32, 32, .98);
+  --ui-control-shadow: 0 .34rem 1.1rem rgba(0, 0, 0, .32);
 }
 
 
