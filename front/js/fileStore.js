@@ -219,6 +219,18 @@ function metadataFromRecord(
       record.conversationId ||
       ""
     ),
+    format:String(
+      record.format ||
+      ""
+    ),
+    renderer:String(
+      record.renderer ||
+      ""
+    ),
+    previewKind:String(
+      record.previewKind ||
+      ""
+    ),
     previewText:String(
       record.previewText ||
       ""
@@ -389,6 +401,18 @@ async function putBlob(
     conversationId:cleanText(
       metadata.conversationId,
       160
+    ),
+    format:cleanText(
+      metadata.format,
+      40
+    ),
+    renderer:cleanText(
+      metadata.renderer,
+      80
+    ),
+    previewKind:cleanText(
+      metadata.previewKind,
+      40
     ),
     previewText:cleanText(
       metadata.previewText,
