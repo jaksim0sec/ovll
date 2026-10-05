@@ -14,6 +14,35 @@ const STORE = new Map();
 const TTL_MS = 2 * 60 * 60 * 1000;
 const MAX_TEXT_CHARS = 420000;
 
+function throwIfArtifactAborted(
+  signal
+) {
+  if (
+    !signal?.aborted
+  ) {
+    return;
+  }
+
+  if (
+    signal.reason instanceof
+      Error
+  ) {
+    throw signal.reason;
+  }
+
+  const error =
+    new Error(
+      "Artifact creation aborted."
+    );
+
+  error.code =
+    "ARTIFACT_ABORTED";
+  error.status =
+    499;
+
+  throw error;
+}
+
 const FORMAT_INFO = {
   PDF:  {ext: 'pdf',  mime: 'application/pdf'},
   DOCX: {ext: 'docx', mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'},
@@ -246,8 +275,16 @@ async function buildBuffer(
   format,
   sources,
   metadata = {},
-  document = null
+  document = null,
+  options = {}
 ) {
+  const signal =
+    options.signal;
+
+  throwIfArtifactAborted(
+    signal
+  );
+
   const canonicalDocument =
     document ||
     createArtifactDocument(
@@ -262,14 +299,19 @@ async function buildBuffer(
   if (format === 'PDF') {
     try {
       const browserBuffer =
-        await renderPdfWithChrome({
-          document:
-            canonicalDocument,
-          title:
-            metadata.title ||
-            canonicalDocument.title ||
-            ''
-        });
+        await renderPdfWithChrome(
+          {
+            document:
+              canonicalDocument,
+            title:
+              metadata.title ||
+              canonicalDocument.title ||
+              ''
+          },
+          {
+            signal
+          }
+        );
 
       if (browserBuffer) {
         return {
@@ -280,11 +322,23 @@ async function buildBuffer(
         };
       }
     } catch (error) {
+      if (
+        signal?.aborted
+      ) {
+        throwIfArtifactAborted(
+          signal
+        );
+      }
+
       console.warn(
         '[artifact pdf] Chromium render failed; using fallback renderer.',
         error?.message || error
       );
     }
+
+    throwIfArtifactAborted(
+      signal
+    );
 
     return {
       buffer:
@@ -295,6 +349,9 @@ async function buildBuffer(
               canonicalDocument.title ||
               metadata.title ||
               ''
+          },
+          {
+            signal
           }
         ),
       renderer:
@@ -394,8 +451,18 @@ async function buildBuffer(
       'native'
   };
 }
-export async function createStoredArtifact(input = {}) {
+export async function createStoredArtifact(
+  input = {},
+  options = {}
+) {
   prune();
+
+  const signal =
+    options.signal;
+
+  throwIfArtifactAborted(
+    signal
+  );
 
   const format =
     formatName(
@@ -465,8 +532,15 @@ export async function createStoredArtifact(input = {}) {
       {
         title
       },
-      document
+      document,
+      {
+        signal
+      }
     );
+
+  throwIfArtifactAborted(
+    signal
+  );
 
   const buffer =
     built.buffer;
@@ -535,6 +609,10 @@ export async function createStoredArtifact(input = {}) {
     previewKind,
     previewText
   };
+
+  throwIfArtifactAborted(
+    signal
+  );
 
   STORE.set(
     id,
