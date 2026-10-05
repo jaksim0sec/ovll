@@ -69,8 +69,8 @@ function resolveFontFile(
   }
 
   const files = [
-    `noto-sans-kr-korean-${weight}-normal.woff2`,
-    `noto-sans-kr-korean-${weight}-normal.woff`
+    `noto-sans-kr-korean-${weight}-normal.woff`,
+    `noto-sans-kr-korean-${weight}-normal.woff2`
   ];
 
   for (const file of files) {
