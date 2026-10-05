@@ -3887,41 +3887,81 @@
   async function finalizeRuntimeRun(
     run
   ) {
+    const decision =
+      global
+        .OvllRuntimeFinalization
+        ?.decide?.(
+          run
+        ) || {
+          mode: "model",
+          reason:
+            "policy-unavailable",
+          message: ""
+        };
+
+    if (
+      decision.mode ===
+        "skip"
+    ) {
+      finishRuntimeActivity({
+        failed: false
+      });
+      Presence.settle();
+      return;
+    }
+
     setRuntimeActivity(
       run?.status === "FAILED"
         ? "실행 결과 확인 중"
-        : "결과를 정리 중",
+        : decision.mode ===
+            "model"
+          ? "결과를 정리 중"
+          : "결과 확인 중",
       {
         id:
           "__finalize__"
       }
     );
 
-    let message = "";
+    let message =
+      String(
+        decision.message ||
+        ""
+      ).trim();
 
-    try {
-      const response =
-        await API.finalizeRun(
-          run,
-          {
-            userRequest:
-              state.lastUserRequest,
-            memory:
-              state.conversationMemory
-          }
+    if (
+      decision.mode ===
+        "model"
+    ) {
+      try {
+        const response =
+          await API.finalizeRun(
+            run,
+            {
+              userRequest:
+                state.lastUserRequest,
+              memory:
+                state.conversationMemory
+            }
+          );
+
+        message =
+          String(
+            response?.message ||
+            ""
+          ).trim();
+      } catch (error) {
+        console.warn(
+          "ovll runtime finalizer failed:",
+          error
         );
 
-      message =
-        String(
-          response?.message ||
-          ""
-        ).trim();
-    } catch (error) {
-      console.warn(
-        "ovll runtime finalizer failed:",
-        error
-      );
-
+        message =
+          fallbackRuntimeMessage(
+            run
+          );
+      }
+    } else if (!message) {
       message =
         fallbackRuntimeMessage(
           run
