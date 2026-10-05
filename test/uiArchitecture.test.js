@@ -476,6 +476,66 @@ test("new chat waiting state uses neutral polite copy only", () => {
   );
 });
 
+test("server health preserves event-loop stall history", () => {
+  const server =
+    read(
+      "server.js"
+    );
+  const page =
+    read(
+      "front/log.html"
+    );
+
+  assert.match(
+    server,
+    /maxEventLoopLagMs/
+  );
+  assert.match(
+    server,
+    /severeLagCount/
+  );
+  assert.match(
+    server,
+    /lastSevereLagAt/
+  );
+  assert.match(
+    page,
+    /max lag/
+  );
+  assert.match(
+    page,
+    /stall/
+  );
+});
+
+test("PDFKit fallback runs outside the main server thread", () => {
+  const renderer =
+    read(
+      "pdfRenderer.js"
+    );
+  const worker =
+    read(
+      "pdfKitWorker.js"
+    );
+
+  assert.match(
+    renderer,
+    /new\s+Worker\(/
+  );
+  assert.match(
+    renderer,
+    /pdfKitWorker\.js/
+  );
+  assert.match(
+    worker,
+    /renderPdfKitDocument/
+  );
+  assert.match(
+    worker,
+    /parentPort/
+  );
+});
+
 test("log API exposes lightweight server runtime health", () => {
   const server =
     read(
