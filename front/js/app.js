@@ -481,7 +481,7 @@
   function errorPresentation(
     error,
     fallback =
-      "작업을 완료하지 못했어."
+      "작업을 완료하지 못했습니다."
   ) {
     const code =
       String(
@@ -597,7 +597,7 @@
   function userFacingError(
     error,
     fallback =
-      "작업을 완료하지 못했어."
+      "작업을 완료하지 못했습니다."
   ) {
     return errorPresentation(
       error,
@@ -640,7 +640,7 @@
       errorPresentation(
         error,
         options.fallback ||
-        "작업을 완료하지 못했어."
+        "작업을 완료하지 못했습니다."
       );
 
     const notice =
@@ -3251,10 +3251,17 @@
       );
 
     if (activity.finished) {
+      const compact =
+        count < 4;
+
       activity.meta.textContent =
         failed
-          ? `${count}단계 · 일부 실패`
-          : `${count}단계 완료`;
+          ? compact
+            ? "일부 실패"
+            : `${count}단계 · 일부 실패`
+          : compact
+            ? "완료"
+            : `${count}단계 완료`;
       return;
     }
 
@@ -3753,7 +3760,7 @@
     if (failed) {
       return userFacingError(
         failed.error,
-        "실행 중 문제가 생겼어. 다시 시도해줘."
+        "실행 중 문제가 발생했습니다. 다시 시도해 주세요."
       );
     }
 
@@ -3768,7 +3775,7 @@
         : `결과물 파일 ${artifacts.length}개를 만들었어.`;
     }
 
-    return "실행은 끝났어. 결과를 캔버스에 반영했어.";
+    return "실행이 완료되었습니다. 결과를 캔버스에 반영했습니다.";
   }
 
   function collectRunArtifacts(
@@ -4811,7 +4818,7 @@
           scope:
             "요청 처리 오류",
           fallback:
-            "요청을 처리하지 못했어.",
+            "요청을 처리하지 못했습니다.",
           onRetry:
             () => {
               void runPrompt(
@@ -5044,7 +5051,7 @@
           scope:
             "파일 추가 오류",
           fallback:
-            "파일을 캔버스에 추가하지 못했어."
+            "파일을 캔버스에 추가하지 못했습니다."
         }
       );
     }
@@ -5503,7 +5510,7 @@
       const presentation =
         errorPresentation(
           error,
-          "실행을 완료하지 못했어."
+          "실행을 완료하지 못했습니다."
         );
 
       Presence.canvasStatus?.(
@@ -5519,7 +5526,7 @@
           scope:
             "실행 오류",
           fallback:
-            "실행을 완료하지 못했어.",
+            "실행을 완료하지 못했습니다.",
           onRetry:
             () => {
               void runCanvasNode(
@@ -6686,7 +6693,7 @@ listen(composerInput, "keydown", handleComposerKeydown);
             message:
               userFacingError(
                 error,
-                "오블을 초기화하지 못했어. 새로고침해서 다시 시도해줘."
+                "오블을 초기화하지 못했습니다. 새로고침 후 다시 시도해 주세요."
               )
           }
         }
@@ -6696,7 +6703,7 @@ listen(composerInput, "keydown", handleComposerKeydown);
     addSystemMessage(
       userFacingError(
         error,
-        "오블을 초기화하지 못했어. 새로고침해서 다시 시도해줘."
+        "오블을 초기화하지 못했습니다. 새로고침 후 다시 시도해 주세요."
       )
     );
   });
