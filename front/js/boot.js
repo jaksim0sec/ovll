@@ -3,6 +3,7 @@
 
 const VERSION_KEY="ovll:app-version";
 const RELOAD_KEY="ovll:version-reload";
+const VERSION_CHECK_TIMEOUT=1600;
 
 const RUNTIME=
   global.OVLL_RUNTIME||{};
@@ -99,38 +100,55 @@ const APP_SCRIPTS=[
 ];
 
 async function getServerVersion(){
-  const response=
-    await fetch(
-      apiUrl("version"),
-      {
-        cache:"no-store",
-        headers:{
-          Accept:"application/json"
+  const controller=
+    new AbortController();
+
+  const timeout=
+    global.setTimeout(
+      ()=>controller.abort(),
+      VERSION_CHECK_TIMEOUT
+    );
+
+  try{
+    const response=
+      await fetch(
+        apiUrl("version"),
+        {
+          cache:"no-store",
+          signal:
+            controller.signal,
+          headers:{
+            Accept:"application/json"
+          }
         }
-      }
-    );
+      );
 
-  if(!response.ok){
-    throw new Error(
-      `Version check failed: ${response.status}`
+    if(!response.ok){
+      throw new Error(
+        `Version check failed: ${response.status}`
+      );
+    }
+
+    const data=
+      await response.json();
+
+    const version=
+      String(
+        data?.version||""
+      ).trim();
+
+    if(!version){
+      throw new Error(
+        "Server version is empty."
+      );
+    }
+
+    return version;
+  }finally{
+    global.clearTimeout(
+      timeout
     );
   }
-
-  const data=
-    await response.json();
-
-  const version=
-    String(
-      data?.version||""
-    ).trim();
-
-  if(!version){
-    throw new Error(
-      "Server version is empty."
-    );
-  }
-
-  return version;
 }
 
 async function clearAppCaches(){
@@ -183,9 +201,11 @@ function loadScript(src){
 }
 
 async function loadApp(){
-  for(const src of APP_SCRIPTS){
-    await loadScript(src);
-  }
+  await Promise.all(
+    APP_SCRIPTS.map(
+      loadScript
+    )
+  );
 }
 
 async function registerServiceWorker(){
