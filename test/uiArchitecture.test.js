@@ -424,6 +424,50 @@ test("PDF preview loads eagerly with a normalized PDF MIME", () => {
   );
 });
 
+test("artifact requests and local persistence are time bounded", () => {
+  const api =
+    read(
+      "front/js/api.js"
+    );
+  const store =
+    read(
+      "front/js/fileStore.js"
+    );
+
+  assert.match(
+    api,
+    /ARTIFACT_TIMEOUT/
+  );
+  assert.match(
+    api,
+    /35000/
+  );
+  assert.match(
+    store,
+    /LOCAL_FILE_TIMEOUT/
+  );
+  assert.match(
+    store,
+    /15000/
+  );
+});
+
+test("node definitions survive temporary server unavailability", () => {
+  const api =
+    read(
+      "front/js/api.js"
+    );
+
+  assert.match(
+    api,
+    /ovll:node-definitions/
+  );
+  assert.match(
+    api,
+    /using local cache/
+  );
+});
+
 test("binary office preview path does not decode local blobs as text", () => {
   const source =
     read(
