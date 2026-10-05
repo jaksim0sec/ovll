@@ -307,7 +307,7 @@ const defaultNodeDef = {
   write: {
     name: '작성하기',
     desc: '원하는 결과물을 자연어로 작성 요청합니다.',
-    llmdesc: '입력 자료와 맥락을 바탕으로 request에 적힌 최종 글을 직접 작성함. request가 없을 때만 legacy title/length/style/about을 사용함.',
+    llmdesc: '입력 자료와 맥락을 바탕으로 request에 적힌 최종 글을 직접 작성함. request가 없을 때만 legacy title/length/style/about을 사용함. 페이지 수·쪽 수·분량 목표가 있으면 여백이나 반복으로 때우지 말고 실제 내용 분량과 구조를 충분히 만들어야 함.',
     tag: 'WRITE',
     color: '#D96F83',
     icon: `
@@ -403,7 +403,7 @@ const defaultNodeDef = {
   createFile: {
     name: '생성하기',
     desc: '원하는 파일 결과를 자연스럽게 요청합니다.',
-    llmdesc: '입력 결과를 request에 적힌 파일명/형식으로 내보내는 최종 출력 노드임. request가 없을 때만 legacy format/filename을 사용함. PDF/DOCX/RTF/HTML/MD 같은 문서 파일은 입력 단계에서 문단 줄바꿈과 제목·목록·표 등 필요한 구조가 보존된 완성형 콘텐츠를 준비해야 하며 한 줄 텍스트 덩어리로 만들지 않음.',
+    llmdesc: '입력 결과를 request에 적힌 파일명/형식으로 내보내는 최종 출력 노드임. createFile 자체는 문서 내용을 생성하거나 늘리지 않음. request가 없을 때만 legacy format/filename을 사용함. PDF/DOCX/RTF/HTML/MD 같은 문서 파일은 입력 단계에서 문단 줄바꿈과 제목·목록·표 등 필요한 구조와 요청된 페이지·분량을 갖춘 완성형 콘텐츠를 준비해야 하며 한 줄 텍스트 덩어리로 만들지 않음.',
     tag: 'OUTPUT',
     color: '#0EA5A4',
     icon: `
@@ -642,6 +642,7 @@ SPECIAL NODES:
 - contentAvailable=false does not prevent workflow editing. Still preserve and route the existing file node when the user's request is about that file; ask only if the missing content makes the requested final workflow genuinely impossible.
 - Never recreate an uploaded file node merely to rename or describe it. Existing file nodes are user-owned sources and should be preserved unless the user explicitly asks to remove them.
 - createFile: one input in, no outputs. It is an output node.
+- createFile does not generate or expand document content. If the user requests a page count, word/character count, section count, or other document-length target, preserve that requirement in the upstream write.request that produces the document body. The write node must create enough substantive content for the requested length; never satisfy a page target with padding, blank whitespace, or repetitive filler. Keep file naming/format instructions on createFile.
 - judge: inputs true and false, outputs true and false. Never use in or result on judge.
 - start exists in the canonical definitions but is not generatable by the planner.
 
@@ -2508,6 +2509,8 @@ app.post(
             req.body?.format,
           filename:
             req.body?.filename,
+          targetPages:
+            req.body?.targetPages,
           sources:
             req.body?.sources
         });
