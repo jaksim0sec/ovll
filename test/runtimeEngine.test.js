@@ -998,3 +998,219 @@ test("cancel aborts an active group run cleanly", async () => {
     false
   );
 });
+
+
+test("partial cache hits preserve maximal Gemini miss segments", async () => {
+  const calls = [];
+
+  const engine =
+    new RuntimeEngine({
+      executor: {
+        async run() {
+          throw new Error("unexpected local run");
+        },
+        async runGroup(group) {
+          const ids =
+            group.nodes.map(
+              item => item.id
+            );
+
+          calls.push(ids);
+
+          return {
+            results:
+              group.nodes.map(
+                item => ({
+                  nodeId: item.id,
+                  outputs: {
+                    result:
+                      item.id
+                  },
+                  decision: null,
+                  report:
+                    item.id
+                })
+              )
+          };
+        }
+      }
+    });
+
+  const ids = ["A", "B", "C", "D", "E"];
+  const graph =
+    workflow(
+      ids.map(
+        id => ({
+          id,
+          type: "organize",
+          data: {
+            params: {
+              request:
+                "organize " + id
+            }
+          }
+        })
+      ),
+      ids.slice(0, -1)
+        .map(
+          (id, index) =>
+            edge(
+              "e-" + id,
+              id,
+              ids[index + 1]
+            )
+        )
+    );
+
+  await engine.run(
+    graph,
+    "A",
+    {
+      mode: "spread",
+      cacheContext: {
+        conversationId: "one",
+        userRequest: "same",
+        memory: {
+          recent: "same"
+        }
+      }
+    }
+  );
+
+  engine.clearResultCache("A");
+  engine.clearResultCache("B");
+  engine.clearResultCache("D");
+  engine.clearResultCache("E");
+
+  calls.length = 0;
+
+  await engine.run(
+    graph,
+    "A",
+    {
+      mode: "spread",
+      cacheContext: {
+        conversationId: "one",
+        userRequest: "same",
+        memory: {
+          recent: "same"
+        }
+      }
+    }
+  );
+
+  assert.deepEqual(
+    calls,
+    [
+      ["A", "B"],
+      ["D", "E"]
+    ]
+  );
+});
+
+test("cache identity changes when continuity memory changes", async () => {
+  const calls = [];
+
+  const engine =
+    new RuntimeEngine({
+      executor: {
+        async run() {
+          throw new Error("unexpected local run");
+        },
+        async runGroup(group) {
+          calls.push(
+            group.nodes.map(
+              item => item.id
+            )
+          );
+
+          return {
+            results:
+              group.nodes.map(
+                item => ({
+                  nodeId: item.id,
+                  outputs: {
+                    result:
+                      item.id
+                  },
+                  decision: null,
+                  report:
+                    item.id
+                })
+              )
+          };
+        }
+      }
+    });
+
+  const graph =
+    workflow(
+      [
+        {
+          id: "research",
+          type: "research",
+          data: {
+            params: {
+              request: "research"
+            }
+          }
+        },
+        {
+          id: "write",
+          type: "write",
+          data: {
+            params: {
+              request: "write"
+            }
+          }
+        }
+      ],
+      [
+        edge(
+          "rw-memory",
+          "research",
+          "write"
+        )
+      ]
+    );
+
+  await engine.run(
+    graph,
+    "research",
+    {
+      mode: "spread",
+      cacheContext: {
+        conversationId: "one",
+        userRequest: "continue",
+        memory: {
+          recent: "version one"
+        }
+      }
+    }
+  );
+
+  calls.length = 0;
+
+  await engine.run(
+    graph,
+    "write",
+    {
+      mode: "target",
+      cacheContext: {
+        conversationId: "one",
+        userRequest: "continue",
+        memory: {
+          recent: "version two"
+        }
+      }
+    }
+  );
+
+  assert.deepEqual(
+    calls,
+    [
+      ["research"],
+      ["write"]
+    ]
+  );
+});
