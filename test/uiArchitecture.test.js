@@ -305,6 +305,16 @@ test("sidebar source has no definition-only formatTime helper", () => {
   assert.doesNotMatch(js, /function\s+formatTime\s*\(/);
 });
 
+test("sidebar typography is larger and higher contrast", () => {
+  const css = compact(read("front/css/shellMenu.css"));
+
+  assert.match(css, /#ovll-shell-menu-panel\s*\{[^}]*--sidebar-text:/);
+  assert.match(css, /\.ovll-sidebar-primary-action\s*\{[^}]*color:\s*var\(--sidebar-text\)[^}]*font-size:\s*\.96rem/);
+  assert.match(css, /\.ovll-sidebar-section-title\s*\{[^}]*font-size:\s*\.86rem/);
+  assert.match(css, /\.ovll-sidebar-chat-title\s*\{[^}]*font-size:\s*\.96rem/);
+  assert.match(css, /\.ovll-sidebar-chat-menu button\s*\{[^}]*color:\s*var\(--sidebar-text\)[^}]*font-size:\s*\.9rem/);
+});
+
 test("repository no longer exposes the obsolete root Astra frontend", () => {
   for (const name of [
     "index.html",
