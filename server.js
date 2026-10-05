@@ -2525,10 +2525,19 @@ app.post(
         error
       );
 
+      const status =
+        Number(
+          error?.status
+        ) || 400;
+
       return res
-        .status(400)
+        .status(status)
         .json({
           ok: false,
+          code:
+            String(
+              error?.code || ''
+            ),
           error:
             error?.message ||
             '파일을 생성하지 못했습니다.'
