@@ -527,3 +527,40 @@ test("local artifact persistence keeps renderer and preview capability metadata"
     /format:\s*artifact\.format/
   );
 });
+
+
+test("artifact preview surface is styled by resolved preview kind", () => {
+  const app =
+    read(
+      "front/js/app.js"
+    );
+  const css =
+    read(
+      "front/css/chat.css"
+    );
+
+  assert.match(
+    app,
+    /dataset\.previewKind/
+  );
+  assert.match(
+    app,
+    /PreviewEngine\s*\.kind/
+  );
+  assert.match(
+    css,
+    /data-preview-kind="pdf"/
+  );
+  assert.match(
+    css,
+    /data-preview-kind="html"/
+  );
+  assert.match(
+    css,
+    /100dvh/
+  );
+  assert.match(
+    css,
+    /\.astra-artifact-preview-body\.is-spreadsheet/
+  );
+});
