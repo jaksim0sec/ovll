@@ -490,3 +490,40 @@ test("HTML preview reads actual artifact bytes before previewText fallback", () 
     fallback > remote
   );
 });
+
+
+test("local artifact persistence keeps renderer and preview capability metadata", () => {
+  const store =
+    read(
+      "front/js/fileStore.js"
+    );
+  const app =
+    read(
+      "front/js/app.js"
+    );
+
+  assert.match(
+    store,
+    /previewKind/
+  );
+  assert.match(
+    store,
+    /renderer/
+  );
+  assert.match(
+    store,
+    /format/
+  );
+  assert.match(
+    app,
+    /previewKind:\s*artifact\.previewKind/
+  );
+  assert.match(
+    app,
+    /renderer:\s*artifact\.renderer/
+  );
+  assert.match(
+    app,
+    /format:\s*artifact\.format/
+  );
+});
