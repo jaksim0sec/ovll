@@ -85,6 +85,7 @@ const APP_SCRIPTS=[
   "./js/libraryPage.js",
   "./js/shellMenu.js",
   "./js/ovllPresence.js",
+  "./js/runtimeFinalization.js",
   "./js/app.js",
   "./js/mascot.js"
 ];
