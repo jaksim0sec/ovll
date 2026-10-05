@@ -1,0 +1,98 @@
+name: artifact-quality-ci
+
+on:
+  push:
+    branches:
+      - artifact-rendering-preview-quality
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Full tests
+        run: npm test
+
+      - name: Generate fallback PDF fixture
+        env:
+          OVLL_DISABLE_CHROME: "1"
+        run: |
+          mkdir -p artifact-quality-output
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          import {
+            createStoredArtifact,
+            getStoredArtifact
+          } from "./artifactStore.js";
+
+          const source = [
+            "# 고라니 종합 보고서",
+            "",
+            "제1장: 생태와 특징",
+            "고라니는 한반도에서 관찰되는 사슴과 동물로, 물가와 초지 주변의 환경을 이용합니다. 몸의 특징과 생활 방식은 서식 환경에 적응한 결과로 이해할 수 있습니다.",
+            "",
+            "제2장: 서식지와 생활",
+            "하천 주변의 갈대밭, 농경지 인접 지역, 낮은 산지처럼 은신처와 먹이를 함께 확보할 수 있는 공간을 이용합니다. 계절과 주변 환경에 따라 활동 범위가 달라질 수 있습니다.",
+            "",
+            "제3장: 사람과의 관계",
+            "도시 주변까지 활동 범위가 겹치면서 교통사고나 농작물 피해 같은 갈등이 생길 수 있습니다. 개체와 서식 환경을 함께 고려하는 관리가 중요합니다."
+          ].join("\n");
+
+          const artifact = await createStoredArtifact({
+            format: "PDF",
+            filename: "gorani-quality-fixture",
+            sources: [source]
+          });
+
+          const stored = getStoredArtifact(artifact.id);
+
+          fs.writeFileSync(
+            "artifact-quality-output/gorani-quality-fixture.pdf",
+            stored.buffer
+          );
+
+          fs.writeFileSync(
+            "artifact-quality-output/metadata.json",
+            JSON.stringify({
+              renderer: artifact.renderer,
+              previewKind: artifact.previewKind,
+              previewText: artifact.previewText,
+              size: artifact.size
+            }, null, 2)
+          );
+
+          console.log(JSON.stringify({
+            renderer: artifact.renderer,
+            previewKind: artifact.previewKind,
+            size: artifact.size
+          }));
+          NODE
+
+      - name: Render PDF fixture
+        run: |
+          if ! command -v pdftoppm >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq poppler-utils
+          fi
+          pdfinfo artifact-quality-output/gorani-quality-fixture.pdf
+          pdftoppm             -png             -singlefile             -r 180             artifact-quality-output/gorani-quality-fixture.pdf             artifact-quality-output/gorani-quality-fixture
+
+      - name: Upload visual fixture
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifact-quality-visual
+          path: artifact-quality-output/
+          if-no-files-found: error
