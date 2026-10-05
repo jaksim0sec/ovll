@@ -3105,6 +3105,259 @@
     `;
   }
 
+  function runtimeActivityRecord(
+    activity
+  ) {
+    if (!activity) return null;
+
+    const steps =
+      activity.order
+        .map(id => {
+          const step =
+            activity.steps.get(id);
+
+          if (!step) return null;
+
+          return {
+            id,
+            nodeType:
+              String(
+                step.dataset
+                  ?.nodeType || ""
+              ),
+            label:
+              String(
+                step.querySelector(
+                  ".astra-runtime-step-label"
+                )?.textContent || ""
+              ),
+            detail:
+              String(
+                step.querySelector(
+                  ".astra-runtime-step-detail"
+                )?.textContent || ""
+              ),
+            status:
+              String(
+                step.dataset
+                  ?.status || "done"
+              )
+          };
+        })
+        .filter(Boolean);
+
+    return {
+      id:
+        "runtime_" +
+        Date.now().toString(36) +
+        "_" +
+        Math.random()
+          .toString(36)
+          .slice(2,8),
+      kind: "runtime",
+      role: "assistant",
+      text: "",
+      runtime: {
+        meta:
+          String(
+            activity.meta
+              ?.textContent || ""
+          ),
+        collapsed:
+          activity.row
+            ?.classList
+            .contains(
+              "is-collapsed"
+            ) === true,
+        steps
+      },
+      blocks: [],
+      question: "",
+      showCanvasView: false,
+      artifacts: [],
+      createdAt: Date.now()
+    };
+  }
+
+  function renderStoredRuntimeActivity(
+    record
+  ) {
+    const runtime =
+      record?.runtime;
+
+    if (
+      !runtime ||
+      !Array.isArray(
+        runtime.steps
+      )
+    ) {
+      return null;
+    }
+
+    const row =
+      document.createElement(
+        "div"
+      );
+
+    row.className =
+      "astra-message astra-message-assistant astra-runtime-activity is-complete";
+    row.dataset.runtimeActivity =
+      "stored";
+
+    const body =
+      document.createElement(
+        "div"
+      );
+
+    body.className =
+      "astra-runtime-activity-body";
+    body.innerHTML =
+      runtimeActivityMarkup();
+
+    row.appendChild(body);
+
+    const summary =
+      body.querySelector(
+        ".astra-runtime-activity-summary"
+      );
+    const meta =
+      body.querySelector(
+        ".astra-runtime-activity-meta"
+      );
+    const stepsRoot =
+      body.querySelector(
+        ".astra-runtime-activity-steps"
+      );
+
+    const compact =
+      runtime.steps.length <= 4;
+
+    row.classList.toggle(
+      "is-compact",
+      compact
+    );
+
+    if (meta) {
+      meta.textContent =
+        String(
+          runtime.meta || ""
+        );
+    }
+
+    for (
+      const item
+      of runtime.steps
+    ) {
+      const step =
+        document.createElement(
+          "div"
+        );
+
+      step.className =
+        "astra-runtime-step is-visible";
+      step.dataset.stepId =
+        String(item.id || "");
+      step.dataset.nodeType =
+        String(
+          item.nodeType || "node"
+        );
+      step.dataset.status =
+        String(
+          item.status || "done"
+        );
+      step.innerHTML =
+        runtimeStepMarkup();
+
+      const presentation =
+        runtimeStepPresentation(
+          item.id
+        );
+      const icon =
+        step.querySelector(
+          ".astra-runtime-step-icon"
+        );
+
+      if (icon) {
+        icon.innerHTML =
+          presentation.icon;
+        icon.hidden =
+          !presentation.icon;
+      }
+
+      if (
+        presentation.color
+      ) {
+        step.style.setProperty(
+          "--runtime-node-color",
+          presentation.color
+        );
+      }
+
+      const label =
+        step.querySelector(
+          ".astra-runtime-step-label"
+        );
+      const detail =
+        step.querySelector(
+          ".astra-runtime-step-detail"
+        );
+
+      if (label) {
+        label.textContent =
+          String(
+            item.label || ""
+          );
+      }
+
+      if (detail) {
+        detail.textContent =
+          String(
+            item.detail || ""
+          );
+        detail.hidden =
+          !item.detail;
+      }
+
+      stepsRoot?.appendChild(
+        step
+      );
+    }
+
+    if (
+      runtime.collapsed === true &&
+      !compact
+    ) {
+      row.classList.add(
+        "is-collapsed"
+      );
+      summary?.setAttribute(
+        "aria-expanded",
+        "false"
+      );
+    }
+
+    summary?.addEventListener(
+      "click",
+      () => {
+        const collapsed =
+          row.classList.toggle(
+            "is-collapsed"
+          );
+
+        summary.setAttribute(
+          "aria-expanded",
+          String(!collapsed)
+        );
+      }
+    );
+
+    chatMessages.appendChild(
+      row
+    );
+
+    return row;
+  }
+
   function beginRuntimeActivity(
     text = "실행 준비 중"
   ) {
@@ -3253,15 +3506,18 @@
     const compact =
       count <= 4;
 
+    activity.row
+      ?.classList
+      .toggle(
+        "is-compact",
+        compact && count > 0
+      );
+
     if (activity.finished) {
       activity.meta.textContent =
         failed
-          ? compact
-            ? "일부 실패"
-            : `${count}단계 · 일부 실패`
-          : compact
-            ? "완료"
-            : `${count}단계 완료`;
+          ? `${count}단계 · 일부 실패`
+          : `${count}단계 완료`;
       return;
     }
 
@@ -3276,8 +3532,10 @@
       ).length;
 
     activity.meta.textContent =
-      running || (compact && count)
-        ? "진행 중"
+      running
+        ? count
+          ? `${count}단계 진행 중`
+          : "진행 중"
         : count
           ? `${count}단계`
           : "준비 중";
@@ -3620,6 +3878,21 @@
           "aria-expanded",
           "true"
         );
+    }
+
+    const record =
+      runtimeActivityRecord(
+        activity
+      );
+
+    if (
+      record &&
+      options.persist !== false
+    ) {
+      state.messages.push(
+        record
+      );
+      scheduleWorkspaceSave();
     }
 
     state.runtimeActivity =
@@ -5760,28 +6033,37 @@
             const item
             of messages
           ) {
-            createMessage(
-              item.role,
-              item.text,
-              {
-                id:
-                  item.id,
-                question:
-                  item.question,
-                showCanvasView:
-                  item.showCanvasView,
-                artifacts:
-                  item.artifacts,
-                blocks:
-                  item.blocks,
-                createdAt:
-                  item.createdAt,
-                persist:
-                  false,
-                silent:
-                  true
-              }
-            );
+            if (
+              item.kind ===
+                "runtime"
+            ) {
+              renderStoredRuntimeActivity(
+                item
+              );
+            } else {
+              createMessage(
+                item.role,
+                item.text,
+                {
+                  id:
+                    item.id,
+                  question:
+                    item.question,
+                  showCanvasView:
+                    item.showCanvasView,
+                  artifacts:
+                    item.artifacts,
+                  blocks:
+                    item.blocks,
+                  createdAt:
+                    item.createdAt,
+                  persist:
+                    false,
+                  silent:
+                    true
+                }
+              );
+            }
 
             state.messages.push(
               clone(item)
