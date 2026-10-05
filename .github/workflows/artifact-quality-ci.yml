@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - artifact-rendering-preview-quality
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: read
