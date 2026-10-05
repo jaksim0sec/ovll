@@ -227,6 +227,19 @@ function metadataFromRecord(
       record.renderer ||
       ""
     ),
+    targetPages:
+      Number.isInteger(
+        Number(
+          record.targetPages
+        )
+      ) &&
+      Number(
+        record.targetPages
+      ) >= 1
+        ? Number(
+            record.targetPages
+          )
+        : null,
     previewKind:String(
       record.previewKind ||
       ""
@@ -410,6 +423,22 @@ async function putBlob(
       metadata.renderer,
       80
     ),
+    targetPages:
+      Number.isInteger(
+        Number(
+          metadata.targetPages
+        )
+      ) &&
+      Number(
+        metadata.targetPages
+      ) >= 1 &&
+      Number(
+        metadata.targetPages
+      ) <= 30
+        ? Number(
+            metadata.targetPages
+          )
+        : null,
     previewKind:cleanText(
       metadata.previewKind,
       40
