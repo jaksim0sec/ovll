@@ -564,3 +564,68 @@ test("artifact preview surface is styled by resolved preview kind", () => {
     /\.astra-artifact-preview-body\.is-spreadsheet/
   );
 });
+
+
+test("artifact page targets are parsed and transported without confusing chapter labels", () => {
+  const app =
+    read(
+      "front/js/app.js"
+    );
+  const api =
+    read(
+      "front/js/api.js"
+    );
+  const server =
+    read(
+      "server.js"
+    );
+
+  assert.match(
+    app,
+    /targetPages/
+  );
+  assert.match(
+    app,
+    /페이지|쪽/
+  );
+  assert.match(
+    app,
+    /A4[\s\S]{0,120}장/
+  );
+  assert.match(
+    app,
+    /제\s*\d+\s*장/
+  );
+  assert.match(
+    api,
+    /targetPages:\s*input\?\.targetPages/
+  );
+  assert.match(
+    server,
+    /targetPages:\s*req\.body\?\.targetPages/
+  );
+});
+
+test("planner keeps document length requirements on the upstream writer", () => {
+  const server =
+    read(
+      "server.js"
+    );
+
+  assert.match(
+    server,
+    /createFile[^\n]*does not generate|createFile[^\n]*does not expand/i
+  );
+  assert.match(
+    server,
+    /page|페이지|분량/i
+  );
+  assert.match(
+    server,
+    /upstream write|write\.request/i
+  );
+  assert.match(
+    server,
+    /padding|whitespace|여백/i
+  );
+});
