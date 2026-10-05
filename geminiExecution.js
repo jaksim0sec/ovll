@@ -1482,13 +1482,54 @@ export function createGeminiExecution(
     nodes,
     fallback = "minimal"
   ) {
-    void nodes;
-
     if (forcedThinkingLevel) {
       return forcedThinkingLevel;
     }
 
-    return fallback;
+    const priority = {
+      minimal: 0,
+      low: 1,
+      medium: 2
+    };
+
+    const nodeLevel = {
+      research: "medium",
+      organize: "low",
+      judge: "low",
+      write: "medium",
+      convert: "minimal"
+    };
+
+    let selected =
+      priority[fallback] !==
+        undefined
+        ? fallback
+        : "minimal";
+
+    for (
+      const node
+      of Array.isArray(nodes)
+        ? nodes
+        : []
+    ) {
+      const candidate =
+        nodeLevel[
+          String(
+            node?.type || ""
+          )
+        ] ||
+        "minimal";
+
+      if (
+        priority[candidate] >
+        priority[selected]
+      ) {
+        selected =
+          candidate;
+      }
+    }
+
+    return selected;
   }
 
   function abortError() {
