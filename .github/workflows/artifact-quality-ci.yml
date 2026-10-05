@@ -24,7 +24,10 @@ jobs:
           cache: npm
 
       - name: Install
-        run: npm ci
+        run: |
+          npm install
+          du -sh node_modules/pdfkit 2>/dev/null || true
+          du -sh node_modules/@fontsource/noto-sans-kr 2>/dev/null || true
 
       - name: Full tests
         run: npm test
