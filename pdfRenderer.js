@@ -1,4 +1,5 @@
 import {execFile} from "node:child_process";
+import {Worker} from "node:worker_threads";
 import {promisify} from "node:util";
 import {
   access,
@@ -14,9 +15,6 @@ import {pathToFileURL} from "node:url";
 import {
   createArtifactDocument
 } from "./artifactDocument.js";
-import {
-  renderPdfKitDocument
-} from "./pdfKitRenderer.js";
 
 const execFileAsync =
   promisify(execFile);
@@ -636,8 +634,142 @@ export async function renderPdfFallback(
       inputDocument
     );
 
-  return renderPdfKitDocument(
-    document,
-    metadata
+  const timeoutMs =
+    Math.max(
+      1000,
+      Number(
+        process.env
+          .OVLL_PDFKIT_WORKER_TIMEOUT_MS
+      ) || 55000
+    );
+
+  return new Promise(
+    (resolve, reject) => {
+      const worker =
+        new Worker(
+          new URL(
+            "./pdfKitWorker.js",
+            import.meta.url
+          ),
+          {
+            type: "module"
+          }
+        );
+
+      let settled = false;
+
+      const finish =
+        async (
+          error,
+          buffer
+        ) => {
+          if (settled) {
+            return;
+          }
+
+          settled = true;
+          clearTimeout(timer);
+
+          worker.removeAllListeners();
+
+          try {
+            await worker.terminate();
+          } catch {}
+
+          if (error) {
+            reject(error);
+            return;
+          }
+
+          resolve(
+            Buffer.from(
+              buffer
+            )
+          );
+        };
+
+      const timer =
+        setTimeout(
+          () => {
+            const error =
+              new Error(
+                "PDFKit worker timed out."
+              );
+
+            error.code =
+              "PDFKIT_WORKER_TIMEOUT";
+
+            void finish(
+              error
+            );
+          },
+          timeoutMs
+        );
+
+      worker.once(
+        "message",
+        payload => {
+          if (payload?.ok) {
+            void finish(
+              null,
+              payload.buffer
+            );
+            return;
+          }
+
+          const error =
+            new Error(
+              payload?.error
+                ?.message ||
+              "PDFKit worker failed."
+            );
+
+          error.code =
+            payload?.error
+              ?.code ||
+            "PDFKIT_WORKER_ERROR";
+
+          void finish(
+            error
+          );
+        }
+      );
+
+      worker.once(
+        "error",
+        error => {
+          void finish(
+            error
+          );
+        }
+      );
+
+      worker.once(
+        "exit",
+        code => {
+          if (
+            !settled &&
+            code !== 0
+          ) {
+            const error =
+              new Error(
+                "PDFKit worker exited unexpectedly."
+              );
+
+            error.code =
+              "PDFKIT_WORKER_EXIT";
+
+            void finish(
+              error
+            );
+          }
+        }
+      );
+
+      worker.postMessage({
+        document,
+        metadata
+      });
+    }
   );
 }
