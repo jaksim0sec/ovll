@@ -1883,20 +1883,16 @@
   display: grid;
   place-items: center;
   padding:
-    max(1rem, var(--safe-top))
-    max(1rem, var(--safe-right))
-    max(1rem, var(--safe-bottom))
-    max(1rem, var(--safe-left));
-  background:
-    rgba(0,0,0,.3);
+    max(.9rem, var(--safe-top))
+    max(.9rem, var(--safe-right))
+    max(.9rem, var(--safe-bottom))
+    max(.9rem, var(--safe-left));
+  background: rgba(0,0,0,.32);
   opacity: 0;
   pointer-events: none;
-  transition:
-    opacity .18s ease;
-  backdrop-filter:
-    blur(.5rem);
-  -webkit-backdrop-filter:
-    blur(.5rem);
+  transition: opacity .18s ease;
+  backdrop-filter: blur(.55rem);
+  -webkit-backdrop-filter: blur(.55rem);
 }
 
 .astra-artifact-preview-root.is-open {
@@ -1905,102 +1901,74 @@
 }
 
 .astra-artifact-preview-panel {
-  width:
-    min(
-      54rem,
-      100%
-    );
-  height:
-    min(
-      44rem,
-      86vh
-    );
+  width: min(58rem,100%);
+  height: min(48rem,88vh);
   min-height: 18rem;
   display: grid;
-  grid-template-rows:
-    auto
-    minmax(0,1fr);
+  grid-template-rows: auto minmax(0,1fr);
   overflow: hidden;
-  border:
-    .0625rem solid
-    color-mix(
-      in srgb,
-      var(--line) 90%,
-      transparent
-    );
-  border-radius: 1.45rem;
+  border: .0625rem solid
+    color-mix(in srgb,var(--line) 88%,transparent);
+  border-radius: 1.35rem;
   background:
-    color-mix(
-      in srgb,
-      var(--panel) 97%,
-      var(--bg)
-    );
+    color-mix(in srgb,var(--panel) 98%,var(--bg));
   box-shadow:
-    0
-    1.2rem
-    4rem
-    rgba(0,0,0,.2);
-  transform:
-    translateY(.45rem)
-    scale(.985);
+    0 1.3rem 4.5rem rgba(0,0,0,.22);
+  transform: translateY(.4rem) scale(.986);
   transition:
-    transform .22s
-    cubic-bezier(.2,.82,.2,1);
+    transform .22s cubic-bezier(.2,.82,.2,1);
+}
+
+.astra-artifact-preview-root[data-preview-kind="pdf"]
+.astra-artifact-preview-panel,
+.astra-artifact-preview-root[data-preview-kind="html"]
+.astra-artifact-preview-panel {
+  width: min(72rem,100%);
+  height: min(52rem,92vh);
 }
 
 .astra-artifact-preview-root.is-open
 .astra-artifact-preview-panel {
-  transform:
-    translateY(0)
-    scale(1);
+  transform: translateY(0) scale(1);
 }
 
 .astra-artifact-preview-header {
-  min-height: 4rem;
+  min-height: 3.65rem;
   display: grid;
   grid-template-columns:
-    2.5rem
+    2.25rem
     minmax(0,1fr)
     auto;
   align-items: center;
-  gap: .65rem;
-  padding:
-    .65rem
-    .72rem;
-  border-bottom:
-    .0625rem solid
-    color-mix(
-      in srgb,
-      var(--line) 74%,
-      transparent
-    );
+  gap: .6rem;
+  padding: .55rem .65rem;
+  border-bottom: .0625rem solid
+    color-mix(in srgb,var(--line) 72%,transparent);
+  background:
+    color-mix(in srgb,var(--panel) 96%,transparent);
 }
 
 .astra-artifact-preview-icon {
-  width: 2.5rem;
-  height: 2.5rem;
+  width: 2.25rem;
+  height: 2.25rem;
   display: grid;
   place-items: center;
-  border-radius: .82rem;
+  border-radius: .72rem;
   color: var(--artifact-accent);
   background:
-    color-mix(
-      in srgb,
-      var(--artifact-accent) 12%,
-      transparent
-    );
+    color-mix(in srgb,var(--artifact-accent) 11%,transparent);
 }
 
 .astra-artifact-preview-icon svg {
-  width: 1.35rem;
-  height: 1.35rem;
+  width: 1.22rem;
+  height: 1.22rem;
   max-width: none;
 }
 
 .astra-artifact-preview-copy {
   min-width: 0;
   display: grid;
-  gap: .1rem;
+  gap: .08rem;
 }
 
 .astra-artifact-preview-copy strong {
@@ -2022,26 +1990,20 @@
 .astra-artifact-preview-actions {
   display: flex;
   align-items: center;
-  gap: .35rem;
+  gap: .32rem;
 }
 
 .astra-artifact-preview-download,
 .astra-artifact-preview-close {
-  width: 2.15rem;
-  height: 2.15rem;
+  width: 2.05rem;
+  height: 2.05rem;
   display: grid;
   place-items: center;
-  border:
-    .0625rem solid
-    var(--line);
+  border: .0625rem solid var(--line);
   border-radius: 999px;
   color: var(--sub);
   background:
-    color-mix(
-      in srgb,
-      var(--text) 3.5%,
-      transparent
-    );
+    color-mix(in srgb,var(--text) 3.5%,transparent);
   text-decoration: none;
   cursor: pointer;
   transition:
@@ -2054,11 +2016,7 @@
 .astra-artifact-preview-close:hover {
   color: var(--text);
   background:
-    color-mix(
-      in srgb,
-      var(--text) 7%,
-      transparent
-    );
+    color-mix(in srgb,var(--text) 7%,transparent);
 }
 
 .astra-artifact-preview-download:active,
@@ -2068,8 +2026,8 @@
 
 .astra-artifact-preview-download svg,
 .astra-artifact-preview-close svg {
-  width: 1rem;
-  height: 1rem;
+  width: .96rem;
+  height: .96rem;
   max-width: none;
 }
 
@@ -2077,11 +2035,14 @@
   min-height: 0;
   overflow: hidden;
   background:
-    color-mix(
-      in srgb,
-      var(--bg) 88%,
-      var(--panel)
-    );
+    color-mix(in srgb,var(--bg) 92%,var(--panel));
+}
+
+.astra-artifact-preview-body.is-html,
+.astra-artifact-preview-body.is-pdf {
+  padding: 0;
+  background:
+    color-mix(in srgb,#eef0f3 82%,var(--bg));
 }
 
 .astra-artifact-preview-body iframe,
@@ -2097,40 +2058,202 @@
   padding: 1rem;
 }
 
+.astra-artifact-preview-body.is-document,
+.astra-artifact-preview-body.is-text,
+.astra-artifact-preview-body.is-code,
+.astra-artifact-preview-body.is-spreadsheet {
+  overflow: auto;
+  padding: 1rem;
+  overscroll-behavior: contain;
+  background:
+    color-mix(in srgb,var(--panel) 84%,var(--bg));
+}
+
+.astra-artifact-preview-document,
+.astra-artifact-preview-text,
+.ovll-preview-sheet {
+  width: min(48rem,100%);
+  min-height: 100%;
+  margin: 0 auto;
+  border: .0625rem solid
+    color-mix(in srgb,var(--line) 74%,transparent);
+  border-radius: .95rem;
+  color: var(--text);
+  background:
+    color-mix(in srgb,var(--bg) 87%,var(--panel));
+  box-shadow:
+    0 .35rem 1.25rem rgba(0,0,0,.04);
+}
+
+.astra-artifact-preview-document {
+  padding: 1.55rem 1.7rem;
+  font-size: .83rem;
+  line-height: 1.72;
+}
+
+.astra-artifact-preview-document > :first-child {
+  margin-top: 0;
+}
+
+.astra-artifact-preview-document h1 {
+  margin: 0 0 1rem;
+  font-size: 1.55rem;
+  line-height: 1.25;
+}
+
+.astra-artifact-preview-document h2 {
+  margin: 1.65rem 0 .65rem;
+  font-size: 1.16rem;
+  line-height: 1.35;
+}
+
+.astra-artifact-preview-document h3 {
+  margin: 1.3rem 0 .55rem;
+  font-size: .98rem;
+  line-height: 1.4;
+}
+
+.astra-artifact-preview-document p {
+  margin: 0 0 .85rem;
+}
+
+.astra-artifact-preview-text {
+  padding: 1.4rem 1.55rem;
+  font-family: inherit;
+  font-size: .79rem;
+  font-weight: 470;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.astra-artifact-preview-body.is-code
+.astra-artifact-preview-text {
+  font-family:
+    "SFMono-Regular",
+    "Cascadia Mono",
+    "Roboto Mono",
+    Consolas,
+    monospace;
+  font-size: .74rem;
+  line-height: 1.62;
+  tab-size: 2;
+}
+
+.ovll-preview-sheet {
+  width: min(60rem,100%);
+  min-height: auto;
+  overflow: hidden;
+}
+
+.ovll-preview-sheet table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .75rem;
+  line-height: 1.45;
+}
+
+.ovll-preview-sheet th,
+.ovll-preview-sheet td {
+  padding: .62rem .72rem;
+  border-right: .0625rem solid var(--line);
+  border-bottom: .0625rem solid var(--line);
+  text-align: left;
+  vertical-align: top;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.ovll-preview-sheet th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background:
+    color-mix(in srgb,var(--panel) 94%,var(--bg));
+  font-weight: 700;
+}
+
+.ovll-preview-sheet th:last-child,
+.ovll-preview-sheet td:last-child {
+  border-right: 0;
+}
+
+.ovll-preview-sheet tr:last-child td {
+  border-bottom: 0;
+}
+
+.ovll-preview-code-note {
+  width: min(48rem,100%);
+  margin: .65rem auto 0;
+  color: var(--muted);
+  font-size: var(--font-micro);
+  text-align: right;
+}
+
 @media (max-width: 43.75rem) {
   .astra-artifact-preview-root {
     padding:
-      max(.55rem, var(--safe-top))
-      max(.55rem, var(--safe-right))
-      max(.55rem, var(--safe-bottom))
-      max(.55rem, var(--safe-left));
+      max(.45rem,var(--safe-top))
+      max(.45rem,var(--safe-right))
+      max(.45rem,var(--safe-bottom))
+      max(.45rem,var(--safe-left));
   }
 
+  .astra-artifact-preview-panel,
+  .astra-artifact-preview-root[data-preview-kind="pdf"]
+  .astra-artifact-preview-panel,
+  .astra-artifact-preview-root[data-preview-kind="html"]
   .astra-artifact-preview-panel {
+    width: 100%;
     height:
       min(
-        48rem,
-        88vh
+        52rem,
+        calc(
+          100dvh -
+          max(.9rem,var(--safe-top)) -
+          max(.9rem,var(--safe-bottom))
+        )
       );
-    border-radius: 1.25rem;
+    min-height: 0;
+    border-radius: 1.05rem;
   }
 
   .astra-artifact-preview-header {
-    min-height: 3.7rem;
+    min-height: 3.45rem;
     grid-template-columns:
-      2.2rem
+      2.05rem
       minmax(0,1fr)
       auto;
-    gap: .52rem;
+    gap: .48rem;
     padding:
-      .58rem
-      .62rem;
+      .5rem
+      .55rem;
   }
 
   .astra-artifact-preview-icon {
-    width: 2.2rem;
-    height: 2.2rem;
-    border-radius: .72rem;
+    width: 2.05rem;
+    height: 2.05rem;
+    border-radius: .66rem;
+  }
+
+  .astra-artifact-preview-body.is-document,
+  .astra-artifact-preview-body.is-text,
+  .astra-artifact-preview-body.is-code,
+  .astra-artifact-preview-body.is-spreadsheet {
+    padding: .65rem;
+  }
+
+  .astra-artifact-preview-document,
+  .astra-artifact-preview-text {
+    border-radius: .78rem;
+  }
+
+  .astra-artifact-preview-document {
+    padding: 1.15rem 1.05rem;
+  }
+
+  .astra-artifact-preview-text {
+    padding: 1rem;
   }
 }
 
@@ -2139,61 +2262,6 @@
   .astra-artifact-preview-panel {
     transition: none;
   }
-}
-
-
-.astra-artifact-preview-body.is-document {
-  overflow: auto;
-  padding: 1rem;
-  background:
-    color-mix(in srgb, var(--panel) 84%, var(--bg));
-}
-
-.astra-artifact-preview-document {
-  width: min(46rem, 100%);
-  min-height: 100%;
-  margin: 0 auto;
-  padding: 1.45rem 1.55rem;
-  border: .0625rem solid
-    color-mix(in srgb, var(--line) 76%, transparent);
-  border-radius: 1rem;
-  color: var(--text);
-  background:
-    color-mix(in srgb, var(--bg) 84%, var(--panel));
-  box-shadow:
-    0 .35rem 1.2rem rgba(0,0,0,.045);
-}
-
-.astra-artifact-preview-document > :first-child {
-  margin-top: 0;
-}
-
-.astra-artifact-preview-body.is-text {
-  overflow: auto;
-  padding: 1rem;
-  background:
-    color-mix(in srgb, var(--panel) 84%, var(--bg));
-}
-
-.astra-artifact-preview-text {
-  width: min(46rem, 100%);
-  min-height: 100%;
-  margin: 0 auto;
-  padding: 1.35rem 1.45rem;
-  border: .0625rem solid
-    color-mix(in srgb, var(--line) 76%, transparent);
-  border-radius: 1rem;
-  color: var(--text);
-  background:
-    color-mix(in srgb, var(--bg) 84%, var(--panel));
-  font-family: inherit;
-  font-size: .78rem;
-  font-weight: 470;
-  line-height: 1.7;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  box-shadow:
-    0 .35rem 1.2rem rgba(0,0,0,.045);
 }
 
 
