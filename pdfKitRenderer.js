@@ -192,16 +192,6 @@ function registerFonts(
     "NotoKR",
     resolved.regular
   );
-
-  doc.registerFont(
-    "NotoKRMedium",
-    resolved.regular
-  );
-
-  doc.registerFont(
-    "NotoKRBold",
-    resolved.regular
-  );
 }
 
 function bottomLimit(
@@ -262,7 +252,7 @@ function drawTitle(
   );
 
   doc.font(
-    "NotoKRBold"
+    "NotoKR"
   )
     .fontSize(25)
     .fillColor(
@@ -324,21 +314,21 @@ function drawHeading(
       before: 22,
       after: 12,
       font:
-        "NotoKRBold"
+        "NotoKR"
     },
     2: {
       size: 15.2,
       before: 25,
       after: 9,
       font:
-        "NotoKRBold"
+        "NotoKR"
     },
     3: {
       size: 12.3,
       before: 20,
       after: 7,
       font:
-        "NotoKRMedium"
+        "NotoKR"
     }
   };
 
@@ -504,7 +494,7 @@ function drawList(
         doc.y;
 
       doc.font(
-        "NotoKRBold"
+        "NotoKR"
       )
         .fontSize(
           9.8
@@ -855,7 +845,7 @@ function drawTableRow(
 
   const font =
     header
-      ? "NotoKRBold"
+      ? "NotoKR"
       : "NotoKR";
 
   const size =
@@ -1086,7 +1076,7 @@ function drawFooter(
     );
 
   doc.font(
-    "NotoKRMedium"
+    "NotoKR"
   )
     .fontSize(7.4)
     .fillColor(
