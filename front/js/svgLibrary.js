@@ -24,8 +24,8 @@ const ICONS=Object.freeze({
   `,
   composerSend:`
     <svg viewBox="0 0 20 20" fill="none" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-      <path d="M6 9 10 5l4 4"></path>
-      <path d="M10 5.25v9.75"></path>
+      <path d="M6.35 8.75 10 5.1l3.65 3.65" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round"></path>
+      <path d="M10 5.35v9.55" stroke="currentColor" stroke-width="1.55" stroke-linecap="round"></path>
     </svg>
   `
 });
