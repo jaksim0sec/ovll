@@ -9,6 +9,7 @@
      Dependencies
      ======================================================= */
   const UI = global.AstraUI;
+  const Navigation = global.OvllNavigation;
   const API = global.AstraAPI;
   const Presence = global.OvllPresence;
   const WorkspaceStore = global.OvllWorkspaceStore;
@@ -40,6 +41,7 @@
 
   if (
     !UI ||
+    !Navigation ||
     !API ||
     !Presence ||
     !WorkspaceStore ||
@@ -2181,6 +2183,10 @@
       return false;
     }
 
+    Navigation.open(
+      "artifact-preview"
+    );
+
     panel.append(
       header,
       body
@@ -2192,7 +2198,7 @@
 
     let closed = false;
 
-    const closePreview =
+    const closePreviewNow =
       () => {
         if (closed) return;
         closed = true;
@@ -2204,6 +2210,11 @@
         document.removeEventListener(
           "keydown",
           keyHandler
+        );
+
+        global.removeEventListener(
+          "ovll:navigation-back",
+          navigationHandler
         );
 
         setTimeout(
@@ -2227,6 +2238,27 @@
         );
       };
 
+    const closePreview =
+      (options = {}) => {
+        if (closed) return;
+
+        if (
+          options.history !==
+            false &&
+          Navigation.isCurrent(
+            "artifact-preview"
+          )
+        ) {
+          Navigation.close(
+            "artifact-preview",
+            closePreviewNow
+          );
+          return;
+        }
+
+        closePreviewNow();
+      };
+
     const keyHandler =
       event => {
         if (
@@ -2235,6 +2267,18 @@
         ) {
           event.preventDefault();
           closePreview();
+        }
+      };
+
+    const navigationHandler =
+      event => {
+        if (
+          event.detail?.layer ===
+            "artifact-preview"
+        ) {
+          closePreview({
+            history:false
+          });
         }
       };
 
@@ -2258,6 +2302,11 @@
     document.addEventListener(
       "keydown",
       keyHandler
+    );
+
+    global.addEventListener(
+      "ovll:navigation-back",
+      navigationHandler
     );
 
     document.body.appendChild(
@@ -6158,7 +6207,12 @@
               ?.mode ||
             "chat",
             {
-              immediate: true
+              immediate: true,
+              history:
+                Navigation
+                  .current()
+                  .layer ===
+                "base"
             }
           );
 
@@ -6567,15 +6621,71 @@
     root.classList.toggle("is-empty", list.children.length === 0);
   }
 
-  function setNodeBuilderOpen(open) {
+  function setNodeBuilderOpen(
+    open,
+    options = {}
+  ) {
     if (!state.nodeBuilder.root) return;
 
-    state.nodeBuilder.open = !!open;
-    state.nodeBuilder.root.classList.toggle("is-open", state.nodeBuilder.open);
+    const next =
+      !!open;
 
-    const toggle = state.nodeBuilder.root.querySelector("#canvas-node-builder-toggle");
+    if (
+      next ===
+      state.nodeBuilder.open
+    ) {
+      return;
+    }
 
-    toggle?.setAttribute("aria-expanded", String(state.nodeBuilder.open));
+    if (
+      next &&
+      options.history !==
+        false
+    ) {
+      Navigation.open(
+        "node-builder"
+      );
+    }
+
+    if (
+      !next &&
+      options.history !==
+        false &&
+      Navigation.isCurrent(
+        "node-builder"
+      )
+    ) {
+      Navigation.close(
+        "node-builder",
+        () => setNodeBuilderOpen(
+          false,
+          {
+            history:false
+          }
+        )
+      );
+      return;
+    }
+
+    state.nodeBuilder.open =
+      next;
+
+    state.nodeBuilder.root.classList.toggle(
+      "is-open",
+      state.nodeBuilder.open
+    );
+
+    const toggle =
+      state.nodeBuilder.root.querySelector(
+        "#canvas-node-builder-toggle"
+      );
+
+    toggle?.setAttribute(
+      "aria-expanded",
+      String(
+        state.nodeBuilder.open
+      )
+    );
   }
 
   function initializeNodeBuilder() {
@@ -6811,6 +6921,25 @@ listen(composerInput, "keydown", handleComposerKeydown);
         resizeComposer();
       });
     }
+
+    listen(
+      global,
+      "ovll:navigation-back",
+      event => {
+        if (
+          event.detail?.layer ===
+            "node-builder" &&
+          state.nodeBuilder.open
+        ) {
+          setNodeBuilderOpen(
+            false,
+            {
+              history:false
+            }
+          );
+        }
+      }
+    );
 
     UI.on("modechange", ({ mode }) => {
       if (mode === "canvas") {
