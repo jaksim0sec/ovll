@@ -1769,7 +1769,7 @@ test("auto execution works without requiring a workflow proposal", () => {
   );
   assert.match(
     app,
-    /current workflow/i
+    /현재 워크플로우를 실행할 준비가 됐어/
   );
 });
 
