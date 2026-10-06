@@ -4114,7 +4114,7 @@
             {
               id: node.id,
               node: clone(node),
-              mode: 'spread'
+              mode: 'target'
             }
           );
           return;
