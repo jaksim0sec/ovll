@@ -704,6 +704,12 @@ const NODE_DEFINITION_PROMPT =
 ========================================================= */
 
 const SYSTEM_PROMPT = `
+PRODUCT IDENTITY:
+- The user-facing assistant and product identity is 오블 (ovll).
+- If the user asks the assistant's name or identity, the answer is 오블.
+- Never identify the user-facing assistant as ChatGPT, Gemini, GPT, Claude, or another underlying model/provider. Those are implementation details, not the product identity.
+- User-facing planner messages are spoken by 오블.
+
 CONVERSATION AND WORKFLOW:
 - mode="conversation" for greetings, questions, explanations, casual conversation, follow-up requests, and anything that does not require changing the workflow.
 - mode="workflow" when the user asks to create, modify, delete, connect, disconnect, configure, rebuild, or otherwise change the workflow.
@@ -2346,10 +2352,71 @@ function translatePlannerOps(
   );
 }
 
+function normalizeConversationHistory(
+  history
+) {
+  const source =
+    Array.isArray(history)
+      ? history
+      : [];
+
+  const items = [];
+  let total = 0;
+
+  for (
+    let index =
+      source.length - 1;
+    index >= 0;
+    index--
+  ) {
+    const item =
+      source[index];
+
+    const role =
+      item?.role === 'assistant'
+        ? 'assistant'
+        : item?.role === 'user'
+          ? 'user'
+          : '';
+
+    const text =
+      clipInstructionText(
+        item?.text,
+        3200
+      );
+
+    if (
+      !role ||
+      !text
+    ) {
+      continue;
+    }
+
+    if (
+      items.length >= 12 ||
+      total + text.length >
+        14000
+    ) {
+      break;
+    }
+
+    items.unshift({
+      role,
+      text
+    });
+
+    total +=
+      text.length;
+  }
+
+  return items;
+}
+
 function buildUserPrompt(
   text,
   workflow,
-  memory
+  memory,
+  history
 ) {
   return [
     '<PREVIOUS_MEMORY>',
@@ -2359,6 +2426,13 @@ function buildUserPrompt(
       )
     ),
     '</PREVIOUS_MEMORY>',
+    '<RECENT_CONVERSATION>',
+    JSON.stringify(
+      normalizeConversationHistory(
+        history
+      )
+    ),
+    '</RECENT_CONVERSATION>',
     '<CURRENT_WORKFLOW>',
     JSON.stringify(
       workflow
@@ -2376,7 +2450,8 @@ function buildUserPrompt(
 function buildPlannerMessages(
   text,
   workflow,
-  memory
+  memory,
+  history
 ) {
   return [
     {
@@ -2390,7 +2465,8 @@ function buildPlannerMessages(
         buildUserPrompt(
           text,
           workflow,
-          memory
+          memory,
+          history
         )
     }
   ];
@@ -2697,7 +2773,8 @@ async function requestPlanner(messages) {
 async function planWorkflow(
   text,
   workflow,
-  memory
+  memory,
+  history
 ) {
   const compact =
     buildPlannerWorkflow(
@@ -2708,7 +2785,8 @@ async function planWorkflow(
     buildPlannerMessages(
       text,
       compact.workflow,
-      memory
+      memory,
+      history
     );
 
   let planner = null;
@@ -3405,6 +3483,151 @@ app.post(
 );
 
 /* =========================================================
+   CONVERSATION API
+========================================================= */
+
+app.post(
+  '/api/chat',
+  async (req, res) => {
+    const abortContext =
+      bindRequestAbort(
+        req,
+        res
+      );
+
+    try {
+      const text =
+        clipInstructionText(
+          req.body?.text,
+          6000
+        );
+
+      if (!text) {
+        return res
+          .status(400)
+          .json({
+            ok: false,
+            error:
+              '대화 내용을 입력해주세요.'
+          });
+      }
+
+      const workflow =
+        cloneWorkflow(
+          req.body?.workflow
+        );
+
+      validateWorkflow(
+        workflow
+      );
+
+      const compact =
+        buildPlannerWorkflow(
+          workflow
+        );
+
+      const result =
+        await geminiExecution
+          .chat(
+            {
+              text,
+              history:
+                normalizeConversationHistory(
+                  req.body?.history
+                ),
+              memory:
+                normalizeMemory(
+                  req.body?.memory
+                ),
+              workflow:
+                compact.workflow
+            },
+            {
+              signal:
+                abortContext.signal
+            }
+          );
+
+      if (
+        abortContext.signal
+          .aborted
+      ) {
+        return;
+      }
+
+      pushGeminiRequestLog({
+        kind: 'chat',
+        ok: true,
+        model:
+          result.model,
+        usage:
+          result.usage,
+        diagnostics:
+          result.diagnostics,
+        preview:
+          compactLogPreview(
+            result.message
+          )
+      });
+
+      return res.json({
+        ok: true,
+        mode:
+          result.mode,
+        message:
+          result.message,
+        model:
+          result.model
+      });
+    } catch (error) {
+      if (
+        abortContext.signal
+          .aborted ||
+        error?.code ===
+          'GEMINI_REQUEST_ABORTED'
+      ) {
+        return;
+      }
+
+      const failure =
+        geminiHttpFailure(
+          error,
+          'Gemini conversation failed.'
+        );
+
+      pushGeminiRequestLog({
+        kind: 'chat',
+        ok: false,
+        code:
+          failure.code,
+        status:
+          failure.status,
+        retryable:
+          error?.retryable ===
+            true,
+        diagnostics:
+          error?.diagnostics ??
+          null,
+        preview:
+          compactLogPreview(
+            failure.body?.error
+          )
+      });
+
+      return res
+        .status(
+          failure.status
+        )
+        .json(
+          failure.body
+        );
+    } finally {
+      abortContext.cleanup();
+    }
+  }
+);
+
+/* =========================================================
    WORKFLOW API
 ========================================================= */
 
@@ -3413,7 +3636,7 @@ app.post(
   async (req, res) => {
     try {
       const text =
-        clipCompactText(
+        clipInstructionText(
           req.body?.text,
           6000
         );
@@ -3444,7 +3667,10 @@ if (!text) {
         await planWorkflow(
           text,
           currentWorkflow,
-          memory
+          memory,
+          normalizeConversationHistory(
+            req.body?.history
+          )
         );
 
       return res.json({
