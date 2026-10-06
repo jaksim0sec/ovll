@@ -3032,6 +3032,284 @@
       );
   }
 
+  function settleWorkflowExecutionControls(
+    proposalId,
+    status,
+    silent = false
+  ) {
+    const id =
+      String(
+        proposalId || ""
+      );
+
+    if (!id) {
+      return;
+    }
+
+    chatMessages
+      .querySelectorAll(
+        ".astra-workflow-proposal"
+      )
+      .forEach(
+        row => {
+          if (
+            row.dataset
+              .workflowProposalId !==
+              id
+          ) {
+            return;
+          }
+
+          if (silent) {
+            row.remove();
+            return;
+          }
+
+          const label =
+            row.querySelector(
+              ".astra-workflow-proposal-label"
+            );
+
+          if (label) {
+            label.textContent =
+              status === "accepted"
+                ? "변경 적용됨"
+                : "변경 취소됨";
+          }
+
+          row.querySelectorAll(
+            "button"
+          )
+            .forEach(
+              button =>
+                button.remove()
+            );
+
+          row.classList.add(
+            "is-settled"
+          );
+
+          setTimeout(
+            () => {
+              row.classList.add(
+                "is-leaving"
+              );
+
+              setTimeout(
+                () =>
+                  row.remove(),
+                180
+              );
+            },
+            700
+          );
+        }
+      );
+  }
+
+  async function executeWorkflowProposal(
+    proposalId,
+    execution,
+    control
+  ) {
+    if (
+      state.destroyed ||
+      state.busy ||
+      !execution?.pivot
+    ) {
+      return null;
+    }
+
+    const proposal =
+      state.workflowProposal;
+
+    if (
+      !proposal ||
+      proposal.id !==
+        String(
+          proposalId || ""
+        )
+    ) {
+      settleWorkflowExecutionControls(
+        proposalId,
+        "accepted"
+      );
+
+      return null;
+    }
+
+    const label =
+      control?.querySelector(
+        ".astra-workflow-proposal-label"
+      );
+
+    const button =
+      control?.querySelector(
+        "[data-workflow-execution-action]"
+      );
+
+    if (label) {
+      label.textContent =
+        "실행 중";
+    }
+
+    if (button) {
+      button.disabled = true;
+    }
+
+    control?.classList.add(
+      "is-running"
+    );
+
+    setBusy(true);
+
+    const accepted =
+      acceptWorkflowProposal(
+        proposalId,
+        {
+          silent: true,
+          preserveExecutionUi:
+            true
+        }
+      );
+
+    if (!accepted) {
+      setBusy(false);
+      return null;
+    }
+
+    try {
+      const result =
+        await runCanvasNode(
+          execution.pivot,
+          "target",
+          {
+            addUserMessage:
+              false,
+            userRequest:
+              state.workflowUserRequest ||
+              state.lastUserRequest,
+            source:
+              "workflow-confirm"
+          }
+        );
+
+      if (label) {
+        label.textContent =
+          result
+            ? "실행 완료"
+            : "실행 확인 필요";
+      }
+
+      if (result) {
+        control?.classList.add(
+          "is-settled"
+        );
+
+        setTimeout(
+          () => {
+            control?.classList.add(
+              "is-leaving"
+            );
+
+            setTimeout(
+              () =>
+                control?.remove(),
+              180
+            );
+          },
+          800
+        );
+      }
+
+      return result;
+    } finally {
+      setBusy(false);
+      resizeComposer();
+    }
+  }
+
+  function appendWorkflowExecutionControl(
+    message,
+    proposalId,
+    execution
+  ) {
+    if (
+      !message ||
+      execution?.mode !==
+        "confirm" ||
+      !execution?.pivot ||
+      !proposalId
+    ) {
+      return;
+    }
+
+    const control =
+      document.createElement(
+        "div"
+      );
+
+    control.className =
+      "astra-workflow-proposal";
+
+    control.dataset
+      .workflowProposalId =
+      String(proposalId);
+
+    const label =
+      document.createElement(
+        "span"
+      );
+
+    label.className =
+      "astra-workflow-proposal-label";
+
+    label.textContent =
+      execution.score >= 6
+        ? "실행 범위 확인 필요"
+        : "바뀐 부분만 실행";
+
+    const run =
+      document.createElement(
+        "button"
+      );
+
+    run.type =
+      "button";
+    run.className =
+      "astra-workflow-proposal-action is-accept";
+    run.dataset
+      .workflowExecutionAction =
+      "run";
+    run.textContent =
+      "실행";
+    run.disabled =
+      state.busy;
+
+    run.addEventListener(
+      "click",
+      event => {
+        event.preventDefault();
+        event.stopPropagation();
+
+        void executeWorkflowProposal(
+          proposalId,
+          execution,
+          control
+        );
+      }
+    );
+
+    control.append(
+      label,
+      run
+    );
+
+    message.appendChild(
+      control
+    );
+  }
+
   function createMessage(
     role,
     text,
@@ -3186,6 +3464,18 @@
     ) {
       showWorkflowProposalDock(
         options.workflowProposalId
+      );
+    }
+
+    if (
+      role === "assistant" &&
+      options.workflowProposalId &&
+      options.workflowExecution
+    ) {
+      appendWorkflowExecutionControl(
+        message,
+        options.workflowProposalId,
+        options.workflowExecution
       );
     }
 
@@ -4705,8 +4995,12 @@
             run,
             {
               userRequest:
-                state.workflowUserRequest ||
-                state.lastUserRequest,
+                String(
+                  options.userRequest ||
+                  state.workflowUserRequest ||
+                  state.lastUserRequest ||
+                  ""
+                ),
               memory:
                 state.conversationMemory
             }
@@ -5268,6 +5562,18 @@
       options.silent === true
     );
 
+    if (
+      options
+        .preserveExecutionUi !==
+        true
+    ) {
+      settleWorkflowExecutionControls(
+        proposal.id,
+        "accepted",
+        options.silent === true
+      );
+    }
+
     scheduleWorkspaceSave(
       options.immediate === false
         ? 180
@@ -5320,6 +5626,12 @@
       getCurrentWorkflow();
 
     settleWorkflowProposalUi(
+      proposal.id,
+      "reverted",
+      options.silent === true
+    );
+
+    settleWorkflowExecutionControls(
       proposal.id,
       "reverted",
       options.silent === true
@@ -5593,6 +5905,45 @@
 
         state.workflow =
           getCurrentWorkflow();
+
+        const execution =
+          typeof Execution
+            .analyzeWorkflowExecutionDelta ===
+            "function"
+            ? Execution
+                .analyzeWorkflowExecutionDelta(
+                  beforeWorkflow,
+                  state.canvas
+                    ?.getWorkflowIR?.() ||
+                    result.workflow,
+                  state.canvas
+                    ?.getWorkflow?.() ||
+                    state.workflow,
+                  text
+                )
+            : {
+                mode: "manual",
+                reason:
+                  "policy-unavailable",
+                pivot: ""
+              };
+
+        if (
+          result.question &&
+          execution.mode ===
+            "auto"
+        ) {
+          execution.mode =
+            "confirm";
+          execution.reason =
+            "planner-question";
+        }
+
+        result.workflowExecution =
+          execution;
+
+        proposal.execution =
+          clone(execution);
       } else {
         state.workflow =
           clone(
@@ -5729,6 +6080,47 @@
 
       Presence.settle();
 
+      const execution =
+        result.workflowExecution;
+
+      if (
+        execution?.mode ===
+          "auto" &&
+        execution.pivot &&
+        result.workflowProposalId
+      ) {
+        const accepted =
+          acceptWorkflowProposal(
+            result.workflowProposalId,
+            {
+              silent: true
+            }
+          );
+
+        if (accepted) {
+          await runCanvasNode(
+            execution.pivot,
+            "target",
+            {
+              addUserMessage:
+                false,
+              userRequest:
+                value,
+              source:
+                "workflow-auto"
+            }
+          );
+
+          syncWorkflow();
+          return;
+        }
+
+        execution.mode =
+          "confirm";
+        execution.reason =
+          "proposal-not-available";
+      }
+
       if (
         result.message ||
         result.question ||
@@ -5738,7 +6130,17 @@
           result.message ||
           (
             result.workflowProposalId
-              ? "노드 구성을 바꿔봤어."
+              ? result
+                  .workflowExecution
+                  ?.mode ===
+                  "confirm"
+                ? "바뀐 부분만 실행할 준비가 됐어."
+                : result
+                    .workflowExecution
+                    ?.mode ===
+                    "manual"
+                  ? "실행 범위가 커서 먼저 확인해줘."
+                  : "노드 구성을 바꿔봤어."
               : ""
           );
 
@@ -5753,6 +6155,8 @@
                 "workflow",
               workflowProposalId:
                 result.workflowProposalId,
+              workflowExecution:
+                result.workflowExecution,
               blocks:
                 result.blocks,
               presenceSpeech:
@@ -6411,7 +6815,8 @@
 
   async function runCanvasNode(
     nodeId,
-    mode = "spread"
+    mode = "spread",
+    options = {}
   ) {
     if (
       !state.canvas ||
@@ -6489,15 +6894,20 @@
 
       dismissErrorNotice();
 
-      const runUserText =
-        canvasRunUserText(
-          nodeId,
-          workflow
-        );
+      if (
+        options.addUserMessage !==
+          false
+      ) {
+        const runUserText =
+          canvasRunUserText(
+            nodeId,
+            workflow
+          );
 
-      addUserMessage(
-        runUserText
-      );
+        addUserMessage(
+          runUserText
+        );
+      }
 
       scheduleWorkspaceSave();
 
@@ -6577,7 +6987,8 @@
             () => {
               void runCanvasNode(
                 nodeId,
-                mode
+                mode,
+                options
               );
             }
         }
