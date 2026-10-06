@@ -888,6 +888,200 @@
     return text;
   }
 
+  function normalizeChatTableLine(
+    value
+  ) {
+    let line =
+      String(value ?? "")
+        .trim()
+        .replace(
+          /\\\s*$/,
+          ""
+        )
+        .trim();
+
+    const strongWrapped =
+      (
+        line.startsWith("**|") &&
+        line.endsWith("|**")
+      ) ||
+      (
+        line.startsWith("__|") &&
+        line.endsWith("|__")
+      );
+
+    if (strongWrapped) {
+      line =
+        line
+          .slice(
+            2,
+            -2
+          )
+          .trim();
+    }
+
+    return line;
+  }
+
+  function splitChatTableRow(
+    value
+  ) {
+    let line =
+      normalizeChatTableLine(
+        value
+      );
+
+    if (
+      !line ||
+      !line.includes("|")
+    ) {
+      return null;
+    }
+
+    if (
+      line.startsWith("|")
+    ) {
+      line =
+        line.slice(1);
+    }
+
+    if (
+      line.endsWith("|")
+    ) {
+      line =
+        line.slice(
+          0,
+          -1
+        );
+    }
+
+    const cells =
+      line
+        .split("|")
+        .map(
+          cell =>
+            cell.trim()
+        );
+
+    return cells.length >= 2
+      ? cells
+      : null;
+  }
+
+  function chatTableAlignments(
+    value
+  ) {
+    const cells =
+      splitChatTableRow(
+        value
+      );
+
+    if (
+      !cells ||
+      !cells.length
+    ) {
+      return null;
+    }
+
+    const compact =
+      cells.map(
+        cell =>
+          cell.replace(
+            /\s+/g,
+            ""
+          )
+      );
+
+    if (
+      !compact.every(
+        cell =>
+          /^:?-{3,}:?$/
+            .test(cell)
+      )
+    ) {
+      return null;
+    }
+
+    return compact.map(
+      cell => {
+        const left =
+          cell.startsWith(":");
+        const right =
+          cell.endsWith(":");
+
+        if (
+          left &&
+          right
+        ) {
+          return "center";
+        }
+
+        if (right) {
+          return "right";
+        }
+
+        return "left";
+      }
+    );
+  }
+
+  function renderChatTable(
+    headers,
+    alignments,
+    rows
+  ) {
+    const alignClass =
+      alignment =>
+        alignment === "center"
+          ? " is-center"
+          : alignment === "right"
+            ? " is-right"
+            : "";
+
+    const normalizedRows =
+      rows.map(
+        row =>
+          headers.map(
+            (_, index) =>
+              row[index] ?? ""
+          )
+      );
+
+    return [
+      '<div class="astra-chat-table-wrap">',
+      '<table class="astra-chat-table">',
+      "<thead><tr>",
+      headers
+        .map(
+          (cell, index) =>
+            `<th class="${alignClass(
+              alignments[index]
+            ).trim()}">${renderInlineChatMarkup(cell)}</th>`
+        )
+        .join(""),
+      "</tr></thead>",
+      "<tbody>",
+      normalizedRows
+        .map(
+          row =>
+            "<tr>" +
+            row
+              .map(
+                (cell, index) =>
+                  `<td class="${alignClass(
+                    alignments[index]
+                  ).trim()}">${renderInlineChatMarkup(cell)}</td>`
+              )
+              .join("") +
+            "</tr>"
+        )
+        .join(""),
+      "</tbody>",
+      "</table>",
+      "</div>"
+    ].join("");
+  }
+
   function chatMarkupHtml(
     value
   ) {
@@ -959,8 +1153,13 @@
     };
 
     for (
-      const rawLine of lines
+      let lineIndex = 0;
+      lineIndex < lines.length;
+      lineIndex++
     ) {
+      const rawLine =
+        lines[lineIndex];
+
       const blockMatch =
         rawLine.match(
           /^@@OVLL_BLOCK_(\d+)@@$/
@@ -987,6 +1186,66 @@
       if (!rawLine.trim()) {
         flushParagraph();
         flushList();
+        continue;
+      }
+
+      const tableHeaders =
+        splitChatTableRow(
+          rawLine
+        );
+
+      const tableAlignments =
+        lineIndex + 1 <
+          lines.length
+          ? chatTableAlignments(
+              lines[
+                lineIndex + 1
+              ]
+            )
+          : null;
+
+      if (
+        tableHeaders &&
+        tableAlignments &&
+        tableHeaders.length ===
+          tableAlignments.length
+      ) {
+        flushParagraph();
+        flushList();
+
+        const rows = [];
+        lineIndex += 2;
+
+        while (
+          lineIndex <
+          lines.length
+        ) {
+          const row =
+            splitChatTableRow(
+              lines[lineIndex]
+            );
+
+          if (
+            !row ||
+            row.length !==
+              tableHeaders.length
+          ) {
+            lineIndex--;
+            break;
+          }
+
+          rows.push(row);
+          lineIndex++;
+        }
+
+        html.push(
+          renderChatTable(
+            tableHeaders,
+            tableAlignments,
+            rows
+          )
+        );
+
         continue;
       }
 

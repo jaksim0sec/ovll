@@ -1460,3 +1460,44 @@ test("runtime UI never renders raw successful model reports", () => {
     /raw\.length\s*>\s*max/
   );
 });
+
+
+test("chat markup renders markdown tables including bold-wrapped Gemini rows", () => {
+  const app =
+    read(
+      "front/js/app.js"
+    );
+  const css =
+    read(
+      "front/css/chat.css"
+    );
+
+  assert.match(
+    app,
+    /function\s+normalizeChatTableLine\s*\(/
+  );
+  assert.match(
+    app,
+    /function\s+chatTableAlignments\s*\(/
+  );
+  assert.match(
+    app,
+    /function\s+renderChatTable\s*\(/
+  );
+  assert.match(
+    app,
+    /line\.startsWith\("\*\*\|"\)[\s\S]*line\.endsWith\("\|\*\*"\)/
+  );
+  assert.match(
+    app,
+    /astra-chat-table-wrap/
+  );
+  assert.match(
+    css,
+    /\.astra-chat-table-wrap\s*\{[\s\S]*overflow-x:\s*auto/
+  );
+  assert.match(
+    css,
+    /\.astra-chat-table\s*\{[\s\S]*min-width:\s*30rem/
+  );
+});

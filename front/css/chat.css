@@ -370,6 +370,95 @@
   color: var(--muted);
 }
 
+.astra-chat-table-wrap {
+  width: 100%;
+  max-width: 100%;
+  margin:
+    .55rem
+    0
+    .82rem;
+  overflow-x: auto;
+  border:
+    .0625rem solid
+    color-mix(
+      in srgb,
+      var(--line) 92%,
+      transparent
+    );
+  border-radius: .88rem;
+  background:
+    color-mix(
+      in srgb,
+      var(--panel) 86%,
+      var(--bg)
+    );
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+
+.astra-chat-table {
+  width: 100%;
+  min-width: 30rem;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: .86rem;
+  line-height: 1.48;
+}
+
+.astra-chat-table th,
+.astra-chat-table td {
+  padding:
+    .58rem
+    .68rem;
+  border-right:
+    .0625rem solid
+    color-mix(
+      in srgb,
+      var(--line) 78%,
+      transparent
+    );
+  border-bottom:
+    .0625rem solid
+    color-mix(
+      in srgb,
+      var(--line) 78%,
+      transparent
+    );
+  text-align: left;
+  vertical-align: top;
+}
+
+.astra-chat-table th {
+  background:
+    color-mix(
+      in srgb,
+      var(--text) 4%,
+      transparent
+    );
+  color: var(--text);
+  font-weight: 700;
+}
+
+.astra-chat-table th:last-child,
+.astra-chat-table td:last-child {
+  border-right: 0;
+}
+
+.astra-chat-table tbody
+tr:last-child td {
+  border-bottom: 0;
+}
+
+.astra-chat-table
+.is-center {
+  text-align: center;
+}
+
+.astra-chat-table
+.is-right {
+  text-align: right;
+}
+
 .astra-message-markup blockquote {
   margin:
     .55rem

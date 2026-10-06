@@ -1575,7 +1575,7 @@ export function createGeminiExecution(
       research: "medium",
       organize: "low",
       judge: "low",
-      write: "medium",
+      write: "low",
       convert: "minimal"
     };
 
