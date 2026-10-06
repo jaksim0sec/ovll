@@ -343,7 +343,7 @@ test("frontend split and PWA shell include navigation infrastructure",()=>{
   );
   assert.match(
     server,
-    /2026\.10\.06\.105/
+    /const APP_VERSION = ['"]\d{4}\.\d{2}\.\d{2}\.\d+['"];/
   );
 
   const apiRewrite=
