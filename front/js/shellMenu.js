@@ -168,6 +168,13 @@ function icon(name){
         />
       </svg>
     `,
+    build:`
+      <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <rect x="3.6" y="4.1" width="5" height="5" rx="1.55" stroke="currentColor" stroke-width="1.5"/>
+        <rect x="11.4" y="10.9" width="5" height="5" rx="1.55" stroke="currentColor" stroke-width="1.5"/>
+        <path d="M8.6 6.6h2a2.1 2.1 0 0 1 2.1 2.1v2.2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+    `,
     user:`
       <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
         <circle cx="10" cy="7.05" r="3" stroke="currentColor" stroke-width="1.5"/>
@@ -280,6 +287,17 @@ root.innerHTML=`
           <span>라이브러리</span>
         </button>
 
+        <button
+          class="ovll-sidebar-primary-action"
+          data-sidebar-action="custom-nodes"
+          type="button"
+        >
+          <span class="ovll-sidebar-primary-icon">
+            ${icon("build")}
+          </span>
+          <span>만들기</span>
+        </button>
+
         <div
           class="ovll-sidebar-search"
           data-sidebar-search
@@ -372,6 +390,14 @@ const searchInput=
 function activeConversation(){
   return Store
     .getActiveConversation?.();
+}
+
+function hideStandalonePages(){
+  global.OvllLibraryPage
+    ?.hide?.();
+
+  global.OvllCustomNodePage
+    ?.hide?.();
 }
 
 function closeOnSmallScreen(){
@@ -1418,8 +1444,7 @@ function handleClick(event){
   ){
     event.preventDefault();
 
-    global.OvllLibraryPage
-      ?.hide?.();
+    hideStandalonePages();
 
     void openConversation(
       conversationOpen
@@ -1476,16 +1501,14 @@ function handleClick(event){
   }
 
   if(action==="new-chat"){
-    global.OvllLibraryPage
-      ?.hide?.();
+    hideStandalonePages();
 
     void createConversation();
     return;
   }
 
   if(action==="new-chat-section"){
-    global.OvllLibraryPage
-      ?.hide?.();
+    hideStandalonePages();
 
     void createConversation(
       actionNode.dataset.sectionId
@@ -1494,7 +1517,32 @@ function handleClick(event){
   }
 
   if(action==="library"){
+    global.OvllCustomNodePage
+      ?.hide?.({
+        history:false
+      });
+
     global.OvllLibraryPage
+      ?.show?.({
+        history:
+          "replace"
+      });
+
+    if(!usesDockedSidebar()){
+      close({
+        history:false
+      });
+    }
+    return;
+  }
+
+  if(action==="custom-nodes"){
+    global.OvllLibraryPage
+      ?.hide?.({
+        history:false
+      });
+
+    global.OvllCustomNodePage
       ?.show?.({
         history:
           "replace"

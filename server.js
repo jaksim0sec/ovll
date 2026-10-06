@@ -261,7 +261,7 @@ function groupLogMeta(
  * The frontend compares this server value with its locally stored version
  * before loading application assets.
  */
-const APP_VERSION = '2026.10.06.124';
+const APP_VERSION = '2026.10.06.125';
 
 /* =========================================================
    CANONICAL NODE DEFINITION
@@ -620,6 +620,38 @@ const defaultNodeDef = {
   }
 };
 
+const CUSTOM_NODE_TYPE_RE =
+  /^custom:[a-zA-Z0-9_-]{1,64}$/;
+
+const customNodeDef = {
+  name: '커스텀 노드',
+  desc: '사용자가 저장한 서브플로우입니다.',
+  llmdesc: '사용자가 직접 만든 불투명 서브플로우. 기존 custom id는 보존하고 새 id를 임의로 만들지 않음.',
+  tag: 'CUSTOM',
+  color: '#7C6CF2',
+  params: [],
+  inputs: [
+    {
+      id: 'in',
+      name: '입력',
+      type: 'any',
+      required: false,
+      multiple: true,
+      accepts: ['any']
+    }
+  ],
+  outputs: [
+    {
+      id: 'result',
+      name: '결과',
+      type: 'any',
+      required: false,
+      multiple: true,
+      accepts: ['any']
+    }
+  ]
+};
+
 /* =========================================================
    NODE DEFINITIONS
 ========================================================= */
@@ -635,7 +667,17 @@ const GENERATABLE_NODE_TYPES = Object.keys(
 );
 
 function getNodeDefinition(type) {
-  return defaultNodeDef[type] || null;
+  const key = String(type || '');
+
+  if (defaultNodeDef[key]) {
+    return defaultNodeDef[key];
+  }
+
+  if (CUSTOM_NODE_TYPE_RE.test(key)) {
+    return customNodeDef;
+  }
+
+  return null;
 }
 
 function getPortDefinition(type, direction, portId) {
@@ -775,6 +817,7 @@ NODE TYPES:
 The type field is an internal identifier. Never translate it.
 Allowed generated types: ${GENERATABLE_NODE_TYPES.join(', ')}
 Never generate start.
+Existing node types beginning with custom: are user-defined opaque functions. Preserve their exact type and connections when they already exist, but never invent, rename, or add a custom: id yourself.
 Use the canonical type identifiers exactly as listed above.
 
 NODE IDS:

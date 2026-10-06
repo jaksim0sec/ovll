@@ -13,6 +13,7 @@
   const API = global.AstraAPI;
   const Presence = global.OvllPresence;
   const WorkspaceStore = global.OvllWorkspaceStore;
+  const CustomNodes = global.OvllCustomNodes;
   const FileStore = global.OvllFileStore;
   const ArtifactVisuals = global.OvllArtifactVisuals;
   const PreviewSandbox = global.OvllPreviewSandbox;
@@ -45,6 +46,7 @@
     !API ||
     !Presence ||
     !WorkspaceStore ||
+    !CustomNodes ||
     !FileStore ||
     !ArtifactVisuals ||
     !PreviewSandbox ||
@@ -83,9 +85,11 @@
     canvas: null,
     workflow: null,
     workflowProposal: null,
+    baseNodeDefinitions: null,
     nodeDefinitions: null,
     conversationMemory: null,
     runtime: null,
+    runtimeProjection: null,
     runtimeConnections: new Set(),
     runtimeActivity: null,
     runGate: {
@@ -6619,6 +6623,29 @@
       return;
     }
 
+    if (
+      state.runtimeProjection &&
+      event.__ovllProjected !== true
+    ) {
+      const projected =
+        state.runtimeProjection
+          .project(event);
+
+      for (
+        const item of
+        Array.isArray(projected)
+          ? projected
+          : []
+      ) {
+        handleRuntimeEvent({
+          ...item,
+          __ovllProjected: true
+        });
+      }
+
+      return;
+    }
+
     if (event.type === "run:start") {
       clearRuntimeConnections();
 
@@ -6985,13 +7012,38 @@
     let started = false;
 
     try {
-      const workflow =
+      const visibleWorkflow =
         state.canvas.getWorkflow();
 
       const runMode =
         mode === "target"
           ? "target"
           : "spread";
+
+      const expansion =
+        CustomNodes.expandWorkflow(
+          visibleWorkflow,
+          nodeId,
+          {
+            mode: runMode,
+            definitions:
+              state.baseNodeDefinitions ||
+              state.nodeDefinitions ||
+              {}
+          }
+        );
+
+      const workflow =
+        expansion.workflow;
+
+      const runtimeNodeId =
+        expansion.pivotId;
+
+      state.runtimeProjection =
+        CustomNodes
+          .createRuntimeProjection(
+            expansion
+          );
 
       const readiness =
         typeof Execution
@@ -7000,7 +7052,7 @@
           ? Execution
               .validateExecutionReadiness(
                 workflow,
-                nodeId,
+                runtimeNodeId,
                 {
                   mode:
                     runMode,
@@ -7022,11 +7074,22 @@
         const invalid =
           readiness.emptyNodes?.[0];
 
+        const visibleInvalidId =
+          expansion
+            .visibleByRuntimeNode?.[
+              String(
+                invalid?.id || ""
+              )
+            ] ||
+          String(
+            invalid?.id || ""
+          );
+
         const invalidNode =
-          workflow.nodes.find(
+          visibleWorkflow.nodes.find(
             node =>
               node.id ===
-              invalid?.id
+              visibleInvalidId
           );
 
         if (invalidNode) {
@@ -7057,7 +7120,7 @@
         const runUserText =
           canvasRunUserText(
             nodeId,
-            workflow
+            visibleWorkflow
           );
 
         addUserMessage(
@@ -7072,7 +7135,7 @@
       const result =
         await state.runtime.run(
           workflow,
-          nodeId,
+          runtimeNodeId,
           {
             mode:
               runMode,
@@ -7156,6 +7219,8 @@
 
       return null;
     } finally {
+      state.runtimeProjection = null;
+
       setRunGate(
         false,
         started
@@ -7536,6 +7601,7 @@
         state.nodeDefinitions ||
         global.nodeDefinitions ||
         undefined,
+      refreshDefinitions: false,
       interactionEnabled: false
     });
 
@@ -8192,17 +8258,44 @@ listen(composerInput, "keydown", handleComposerKeydown);
     });
 
     try {
-      state.nodeDefinitions =
+      state.baseNodeDefinitions =
         await API.getNodeDefinitions();
+
+      state.nodeDefinitions =
+        CustomNodes.mergeDefinitions(
+          state.baseNodeDefinitions
+        );
     } catch (error) {
       console.error(
         "Node Definition Load Error:",
         error
       );
-      state.nodeDefinitions = null;
+      state.baseNodeDefinitions = null;
+      state.nodeDefinitions =
+        CustomNodes.mergeDefinitions({});
     }
 
     await initializeCanvas();
+
+    const unsubscribeCustomNodes =
+      CustomNodes.onChange(() => {
+        state.nodeDefinitions =
+          CustomNodes.mergeDefinitions(
+            state.baseNodeDefinitions ||
+            {}
+          );
+
+        state.canvas
+          ?.setNodeDefinitions?.(
+            state.nodeDefinitions
+          );
+
+        renderNodeBuilderOptions();
+      });
+
+    listeners.push(
+      unsubscribeCustomNodes
+    );
 
     renderNodeBuilderOptions();
 
@@ -8392,6 +8485,8 @@ listen(composerInput, "keydown", handleComposerKeydown);
       state.nodeBuilder.root?.remove();
       global.OvllLibraryPage
         ?.destroy?.();
+      global.OvllCustomNodePage
+        ?.destroy?.();
 
       dismissErrorNotice();
       Presence.destroy?.();
@@ -8404,7 +8499,9 @@ listen(composerInput, "keydown", handleComposerKeydown);
       state.nodeBuilder.open = false;
       state.workflow = null;
       state.workflowProposal = null;
+      state.baseNodeDefinitions = null;
       state.nodeDefinitions = null;
+      state.runtimeProjection = null;
       state.conversationMemory = null;
       state.ready = false;
     }
