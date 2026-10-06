@@ -335,7 +335,7 @@ test("frontend split and PWA shell include navigation infrastructure",()=>{
 
   assert.match(
     worker,
-    /ovll-shell-v52/
+    /ovll-shell-v53/
   );
   assert.match(
     worker,
