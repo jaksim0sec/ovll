@@ -317,10 +317,10 @@ function validateWorkflow(
     !Array.isArray(
       exitDefinition?.outputs
     )||
-    !exitDefinition.outputs.length
+    exitDefinition.outputs.length!==1
   ){
     throw new Error(
-      "마지막 노드는 다음 단계로 결과를 내보낼 수 있어야 해"
+      "마지막 노드는 결과 출구가 하나여야 해"
     );
   }
 
