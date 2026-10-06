@@ -717,6 +717,8 @@ CONVERSATION AND WORKFLOW:
 - Never answer a file-processing request with a future offer such as "tell me what the file is and I can help" when CURRENT WORKFLOW already contains authoritative file metadata. Build the needed Patch now.
 - In conversation mode, ops MUST be [].
 - MEMORY is persistent conversation state. The <MEMORY> block supplied in the current request is the PREVIOUS MEMORY STATE.
+- RECENT_CONVERSATION contains actual recent user/assistant turns. Use it to resolve follow-ups and prefer it over an older compressed memory when they conflict.
+- LATEST_USER_REQUEST remains authoritative for the current turn.
 - The returned memory is the NEXT MEMORY STATE.
 - Build NEXT MEMORY from PREVIOUS MEMORY + LATEST_USER_REQUEST + the actual user-facing response you generate in message/question.
 - Finish the user-facing message and question first, then construct memory from the completed turn. Never describe a response that has not been generated yet.
