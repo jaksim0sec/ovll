@@ -3954,7 +3954,7 @@
       event => {
         if (
           event.target.closest(
-            '.vc-node-action'
+            '[data-action]'
           ) ||
           event.target.closest(
             '.vc-slot-param'
@@ -3966,6 +3966,12 @@
             '.vc-file-download'
           )
         ) {
+          /*
+           * Node actions must keep native pointer/click semantics.
+           * Letting pointerdown bubble into the viewport starts a node drag
+           * and captures the mouse pointer, which can swallow the desktop
+           * click before the delegated action handler receives it.
+           */
           event.stopPropagation();
         }
       },

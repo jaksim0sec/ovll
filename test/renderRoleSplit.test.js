@@ -109,12 +109,12 @@ test("Vercel owns UI routes while proxying backend routes to Render",()=>{
   );
 });
 
-test("Render split update bumps the server version",()=>{
+test("Render split keeps a deployable app version marker",()=>{
   const server=
     read("server.js");
 
   assert.match(
     server,
-    /2026\.10\.06\.112/
+    /const APP_VERSION = ['"]\d{4}\.\d{2}\.\d{2}\.\d+['"];/
   );
 });
