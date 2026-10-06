@@ -96,6 +96,7 @@
     errorNotice: null,
     errorRetry: null,
     lastUserRequest: "",
+    workflowUserRequest: "",
     activeConversationId: null,
     messages: [],
     restoringConversation: false,
@@ -388,7 +389,9 @@
               canvasState
             ),
           lastUserRequest:
-            state.lastUserRequest
+            state.lastUserRequest,
+          workflowUserRequest:
+            state.workflowUserRequest
         },
         normalizeMemory(
           state.conversationMemory
@@ -4322,6 +4325,7 @@
             run,
             {
               userRequest:
+                state.workflowUserRequest ||
                 state.lastUserRequest,
               memory:
                 state.conversationMemory
@@ -5089,6 +5093,13 @@
         clone(
           result.workflow
         );
+    }
+
+    if (
+      result.mode === "workflow"
+    ) {
+      state.workflowUserRequest =
+        String(text || "").trim();
     }
 
     if (result.memory) {
@@ -5925,9 +5936,6 @@
         runUserText
       );
 
-      state.lastUserRequest =
-        runUserText;
-
       scheduleWorkspaceSave();
 
       started = true;
@@ -6166,6 +6174,13 @@
               conversation
                 .state
                 ?.lastUserRequest ||
+              ""
+            );
+          state.workflowUserRequest =
+            String(
+              conversation
+                .state
+                ?.workflowUserRequest ||
               ""
             );
 
