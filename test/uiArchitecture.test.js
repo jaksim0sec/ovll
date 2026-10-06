@@ -93,7 +93,7 @@ test("topbar has no empty left or right placeholder rails", () => {
   );
 });
 
-test("workspace control system does not re-patch responsive composer layout", () => {
+test("workspace control system does not re-patch composer ownership", () => {
   const css = read("front/css/ui.css");
   const start = css.indexOf("WORKSPACE CONTROL SYSTEM");
   const end = css.indexOf("NON-BLOCKING ERROR NOTICE", start);
@@ -101,7 +101,11 @@ test("workspace control system does not re-patch responsive composer layout", ()
 
   assert.doesNotMatch(
     section,
-    /@media\s*\(max-width:[\s\S]*?#composer-form\s*\{/
+    /#composer-(?:form|input|attach|submit)/
+  );
+  assert.match(
+    css,
+    /COMPOSER TOUCH TARGETS[\s\S]*?@media\s*\(hover:\s*none\)\s*and\s*\(pointer:\s*coarse\)/
   );
 });
 
@@ -320,11 +324,7 @@ test("microcopy uses a shared readable token", () => {
   );
   assert.match(
     uiCss,
-    /@media\s*\(hover:\s*none\)\s*and\s*\(pointer:\s*coarse\)[^{]*\{[\s\S]*?#composer-attach\s*\{[^}]*width:\s*2\.5rem[^}]*height:\s*2\.5rem/
-  );
-  assert.match(
-    uiCss,
-    /@media\s*\(hover:\s*none\)\s*and\s*\(pointer:\s*coarse\)[^{]*\{[\s\S]*?#composer-submit\s*\{[^}]*width:\s*2\.5rem[^}]*height:\s*2\.5rem/
+    /@media\s*\(hover:\s*none\)\s*and\s*\(pointer:\s*coarse\)[^{]*\{[\s\S]*?#composer-attach\s*,\s*#composer-submit\s*\{[^}]*width:\s*2\.5rem[^}]*height:\s*2\.5rem/
   );
 });
 

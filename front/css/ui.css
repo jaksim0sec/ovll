@@ -906,6 +906,24 @@
 }
 
 /* =========================================================
+   COMPOSER TOUCH TARGETS
+   ========================================================= */
+
+@media (hover: none) and (pointer: coarse) {
+  #composer-input {
+    font-size: 16px;
+  }
+
+  #composer-attach,
+  #composer-submit {
+    width: 2.5rem;
+    height: 2.5rem;
+    min-width: 2.5rem;
+    min-height: 2.5rem;
+  }
+}
+
+/* =========================================================
    CANVAS NODE BUILDER
    ========================================================= */
 
@@ -1272,47 +1290,6 @@
 .canvas-node-builder-option:hover {
   background: var(--panel-strong);
 }
-
-@media (max-width: 43.75rem) {
-  #composer-attach {
-    width: 2rem;
-    height: 2rem;
-    flex-basis: 2rem;
-    min-width: 2rem;
-    min-height: 2rem;
-  }
-}
-
-@media (max-width: 26.25rem) {
-  #composer-attach {
-    width: 1.9375rem;
-    height: 1.9375rem;
-    flex-basis: 1.9375rem;
-    min-width: 1.9375rem;
-    min-height: 1.9375rem;
-  }
-}
-
-@media (hover: none) and (pointer: coarse) {
-  #composer-input {
-    font-size: 16px;
-  }
-
-  #composer-attach {
-    width: 2.5rem;
-    height: 2.5rem;
-    min-width: 2.5rem;
-    min-height: 2.5rem;
-  }
-
-  #composer-submit {
-    width: 2.5rem;
-    height: 2.5rem;
-    min-width: 2.5rem;
-    min-height: 2.5rem;
-  }
-}
-
 
 /* =========================================================
    NON-BLOCKING ERROR NOTICE
