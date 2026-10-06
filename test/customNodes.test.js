@@ -238,8 +238,10 @@ test(
       );
 
     assert.deepEqual(
-      expanded.workflow.nodes
-        .map(node=>node.id),
+      Array.from(
+        expanded.workflow.nodes,
+        node=>node.id
+      ),
       [
         "p",
         "c~a",
@@ -264,7 +266,11 @@ test(
       );
 
     assert.deepEqual(
-      byId.get("outer-in")?.to,
+      JSON.parse(
+        JSON.stringify(
+          byId.get("outer-in")?.to
+        )
+      ),
       {
         node:"c~a",
         port:"in"
@@ -272,7 +278,11 @@ test(
     );
 
     assert.deepEqual(
-      byId.get("c~ab")?.from,
+      JSON.parse(
+        JSON.stringify(
+          byId.get("c~ab")?.from
+        )
+      ),
       {
         node:"c~a",
         port:"result"
@@ -280,7 +290,11 @@ test(
     );
 
     assert.deepEqual(
-      byId.get("outer-out")?.from,
+      JSON.parse(
+        JSON.stringify(
+          byId.get("outer-out")?.from
+        )
+      ),
       {
         node:"c~b",
         port:"result"
