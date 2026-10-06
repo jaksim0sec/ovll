@@ -35,7 +35,7 @@ const NODE_INSTRUCTIONS = {
   organize:
     "Organize the available input for this node's scoped purpose while preserving the user's actual request and all explicit constraints. Do not invent a new output style merely because it is common. Use headings, lists, or tables only when they fit the user's request. Preserve real paragraph breaks. Put the result on outputs.result.",
   write:
-    "Write the directly usable final content for this node's scoped purpose while preserving the user's actual request, especially explicit negations, audience, tone, format, and length constraints. Node task and continuity context may clarify scope but must not override the user request. Treat page or length targets as substantive content goals without filler. Use document structure only when it helps the requested result. Put the result on outputs.result.",
+    "Write the directly usable final content for this node's scoped purpose while preserving the user's actual request, especially explicit negations, audience, tone, format, and length constraints. Node task and continuity context may clarify scope but must not override the user request. Treat page or length targets as substantive content goals without padding, blank whitespace, repetition, or filler. Use document structure only when it helps the requested result. Put the result on outputs.result.",
   convert:
     "Transform the available material for this node's scoped purpose while preserving the user's actual request and source meaning unless transformation is explicitly requested. Put the result on outputs.result.",
   judge:
