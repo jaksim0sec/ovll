@@ -834,6 +834,95 @@
       .replace(/'/g, "&#39;");
   }
 
+  function renderChatMathExpression(
+    value
+  ) {
+    let math =
+      String(value ?? "")
+        .trim();
+
+    if (!math) {
+      return "";
+    }
+
+    const symbols = {
+      alpha: "α",
+      beta: "β",
+      gamma: "γ",
+      delta: "δ",
+      theta: "θ",
+      lambda: "λ",
+      mu: "μ",
+      pi: "π",
+      sigma: "σ",
+      phi: "φ",
+      omega: "ω",
+      Delta: "Δ",
+      Sigma: "Σ",
+      Omega: "Ω",
+      times: "×",
+      cdot: "·",
+      pm: "±",
+      neq: "≠",
+      leq: "≤",
+      geq: "≥",
+      to: "→",
+      rightarrow: "→",
+      leftarrow: "←",
+      infty: "∞"
+    };
+
+    math =
+      math
+        .replace(
+          /\\(?:left|right)\b/g,
+          ""
+        )
+        .replace(
+          /\\,/g,
+          " "
+        )
+        .replace(
+          /\\([A-Za-z]+)\b/g,
+          (
+            match,
+            name
+          ) =>
+            symbols[name] ??
+            match
+        )
+        .replace(
+          /\\(?:mathrm|text|operatorname)\{([^{}]{1,120})\}/g,
+          '<span class="astra-math-roman">$1</span>'
+        )
+        .replace(
+          /\\mathbf\{([^{}]{1,120})\}/g,
+          '<span class="astra-math-bold">$1</span>'
+        )
+        .replace(
+          /_\{([^{}]{1,80})\}/g,
+          "<sub>$1</sub>"
+        )
+        .replace(
+          /_([A-Za-z0-9+\-=])/g,
+          "<sub>$1</sub>"
+        )
+        .replace(
+          /\^\{([^{}]{1,80})\}/g,
+          "<sup>$1</sup>"
+        )
+        .replace(
+          /\^([A-Za-z0-9+\-=])/g,
+          "<sup>$1</sup>"
+        );
+
+    return (
+      '<span class="astra-inline-math">' +
+      math +
+      "</span>"
+    );
+  }
+
   function renderInlineChatMarkup(
     value
   ) {
@@ -843,6 +932,7 @@
       );
 
     const inlineCode = [];
+    const inlineMath = [];
 
     text = text.replace(
       /\`([^\`\n]+)\`/g,
@@ -857,6 +947,36 @@
         return token;
       }
     );
+
+    const protectMath =
+      expression => {
+        const token =
+          `@@OVLL_MATH_${inlineMath.length}@@`;
+
+        inlineMath.push(
+          renderChatMathExpression(
+            expression
+          )
+        );
+
+        return token;
+      };
+
+    text = text
+      .replace(
+        /\$([^$\n]{1,240})\$/g,
+        (_, expression) =>
+          protectMath(
+            expression
+          )
+      )
+      .replace(
+        /\\\(([^\n]{1,240})\\\)/g,
+        (_, expression) =>
+          protectMath(
+            expression
+          )
+      );
 
     text = text
       .replace(
@@ -875,6 +995,15 @@
         /(^|[^*])\*([^*\n]+)\*/g,
         "$1<em>$2</em>"
       );
+
+    inlineMath.forEach(
+      (html, index) => {
+        text = text.replaceAll(
+          `@@OVLL_MATH_${index}@@`,
+          html
+        );
+      }
+    );
 
     inlineCode.forEach(
       (html, index) => {

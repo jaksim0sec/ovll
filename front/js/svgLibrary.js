@@ -24,18 +24,20 @@ const ICONS=Object.freeze({
   `,
   messageCopy:`
     <svg viewBox="0 0 20 20" fill="none" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-      <rect x="7" y="7" width="8" height="8" rx="2.2"></rect><path d="M5.2 12.7H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.7a2 2 0 0 1 2 2v.2"></path>
+      <rect x="6.35" y="6.35" width="9.15" height="9.15" rx="2.45"></rect>
+      <path d="M12.7 6.35V5.4a1.9 1.9 0 0 0-1.9-1.9H5.4a1.9 1.9 0 0 0-1.9 1.9v5.4a1.9 1.9 0 0 0 1.9 1.9h.95"></path>
     </svg>
   `,
   messageRetry:`
     <svg viewBox="0 0 20 20" fill="none" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-      <path d="M15.1 7.2A6 6 0 1 0 15.5 12"></path><path d="M15.1 3.8v3.4h-3.4"></path>
+      <path d="M15.45 7.35A5.75 5.75 0 1 0 15.5 12.55"></path>
+      <path d="M15.45 3.9v3.45H12"></path>
     </svg>
   `,
   composerSend:`
     <svg viewBox="0 0 20 20" fill="none" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-      <path d="M6.35 8.75 10 5.1l3.65 3.65" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round"></path>
-      <path d="M10 5.35v9.55" stroke="currentColor" stroke-width="1.55" stroke-linecap="round"></path>
+      <path d="M10 15V5.35"></path>
+      <path d="m6.35 9 3.65-3.65L13.65 9"></path>
     </svg>
   `
 });

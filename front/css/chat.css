@@ -479,6 +479,40 @@ tr:last-child td {
   color: var(--sub);
 }
 
+.astra-inline-math {
+  display: inline;
+  font-family:
+    "STIX Two Math",
+    "Cambria Math",
+    "Times New Roman",
+    serif;
+  font-variant-numeric: lining-nums;
+  letter-spacing: .005em;
+  white-space: nowrap;
+}
+
+.astra-inline-math sub,
+.astra-inline-math sup {
+  font-size: .72em;
+  line-height: 0;
+}
+
+.astra-inline-math sub {
+  vertical-align: -.28em;
+}
+
+.astra-inline-math sup {
+  vertical-align: .52em;
+}
+
+.astra-inline-math .astra-math-bold {
+  font-weight: 700;
+}
+
+.astra-inline-math .astra-math-roman {
+  font-style: normal;
+}
+
 .astra-message-markup code {
   padding:
     .12rem
@@ -768,15 +802,19 @@ tr:last-child td {
 }
 
 .astra-message-actions {
+  width: fit-content;
   display: flex;
   align-items: center;
-  gap: .32rem;
+  gap: .18rem;
   margin-top: .42rem;
+  padding: .08rem;
+  border-radius: .7rem;
   opacity: .68;
   transform: translateY(-.08rem);
   transition:
-    opacity .15s ease,
-    transform .18s ease;
+    opacity var(--motion-fast) ease,
+    transform var(--motion-medium) var(--motion-ease-standard),
+    background-color var(--motion-fast) ease;
 }
 
 .astra-message-user
@@ -802,43 +840,49 @@ tr:last-child td {
 }
 
 .astra-message-action {
-  width: 1.82rem;
-  height: 1.82rem;
+  width: 1.72rem;
+  height: 1.72rem;
   padding: 0;
   display: grid;
   place-items: center;
   border: 0;
-  border-radius: 0;
+  border-radius: .52rem;
   background: transparent;
   color:
     color-mix(
       in srgb,
-      var(--text) 58%,
+      var(--text) 56%,
       transparent
     );
   font-size: 0;
   line-height: 1;
   cursor: pointer;
   transition:
-    color .14s ease,
-    background-color .14s ease,
-    transform .14s ease;
+    color var(--motion-fast) ease,
+    background-color var(--motion-fast) ease,
+    transform var(--motion-fast) var(--motion-ease-standard);
 }
 
 .astra-message-action:hover {
   color: var(--text);
+  background:
+    color-mix(
+      in srgb,
+      var(--text) 6%,
+      transparent
+    );
 }
 
 .astra-message-action:active {
-  transform: scale(.94);
+  transform: scale(.93);
 }
 
 .astra-message-action svg {
-  width: .95rem;
-  height: .95rem;
+  width: 1rem;
+  height: 1rem;
   fill: none;
   stroke: currentColor;
-  stroke-width: 1.6;
+  stroke-width: 1.55;
   stroke-linecap: round;
   stroke-linejoin: round;
 }

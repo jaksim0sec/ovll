@@ -706,11 +706,16 @@
 }
 
 #composer-submit svg {
-  width: 1.2rem;
-  height: 1.2rem;
+  width: 1.16rem;
+  height: 1.16rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.65;
+  stroke-linecap: round;
+  stroke-linejoin: round;
   transition:
-    transform .2s var(--ease),
-    opacity .2s ease;
+    transform var(--motion-medium) var(--motion-ease-standard),
+    opacity var(--motion-medium) ease;
 }
 
 #composer-form.is-busy
