@@ -242,9 +242,18 @@ test("composer uses a compact single-row state and a two-row expanded state", ()
     /#composer-form\.is-expanded\s*#composer-submit\s*\{[^}]*grid-row:\s*2/
   );
   assert.ok(
+    resize.indexOf('classList.remove') <
+      resize.indexOf("collapsedHeight"),
+    "collapsed width must be measured before expansion"
+  );
+  assert.ok(
     resize.indexOf("composerForm.classList.toggle") <
       resize.indexOf("getBoundingClientRect"),
     "expanded layout must settle before form height is measured"
+  );
+  assert.match(
+    resize,
+    /collapsedHeight[\s\S]*?classList\.toggle[\s\S]*?composerInput\.style\.height\s*=\s*"auto"[\s\S]*?composerInput\.scrollHeight/
   );
 });
 

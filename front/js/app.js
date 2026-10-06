@@ -4700,7 +4700,40 @@
      Composer
      ======================================================= */
   function resizeComposer() {
-    composerInput.style.height = "auto";
+    composerForm.classList.remove(
+      "is-expanded"
+    );
+
+    composerInput.style.height =
+      "auto";
+
+    const inputStyle =
+      getComputedStyle(
+        composerInput
+      );
+
+    const inputMinHeight =
+      parseFloat(
+        inputStyle.minHeight
+      ) || 34;
+
+    const collapsedHeight =
+      Math.min(
+        composerInput.scrollHeight,
+        136
+      );
+
+    const expanded =
+      collapsedHeight >
+      inputMinHeight + 1;
+
+    composerForm.classList.toggle(
+      "is-expanded",
+      expanded
+    );
+
+    composerInput.style.height =
+      "auto";
 
     const height =
       Math.min(
@@ -4714,29 +4747,10 @@
     const rootStyle =
       document.documentElement.style;
 
-    const inputStyle =
-      getComputedStyle(
-        composerInput
-      );
-
     const rootComputed =
       getComputedStyle(
         document.documentElement
       );
-
-    const inputMinHeight =
-      parseFloat(
-        inputStyle.minHeight
-      ) || 34;
-
-    const expanded =
-      height >
-      inputMinHeight + 1;
-
-    composerForm.classList.toggle(
-      "is-expanded",
-      expanded
-    );
 
     const composerHeightValue =
       rootComputed
@@ -4790,7 +4804,6 @@
       )}px`
     );
   }
-
   function setBusy(busy) {
     const previous =
       state.busy;
