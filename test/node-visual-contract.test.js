@@ -42,13 +42,13 @@ test("dark nodes keep the icon one-layer and use neutral request surfaces", () =
   assert.match(darkRequest, /var\(--text\)\s+4\.5%/);
 });
 
-test("light request surface is separated without adding a permanent border", () => {
+test("light request surface is separated with a low-contrast boundary", () => {
   const request = css.match(
     /\.vc-request-group\s*\{([\s\S]*?)\n\}/
   )?.[1] ?? "";
 
   assert.match(request, /var\(--bg\)\s+82%/);
-  assert.match(request, /border:[\s\S]*?transparent;/);
+  assert.match(request, /var\(--text\)\s+6%/);
   assert.match(request, /padding:[\s\S]*?\.54rem[\s\S]*?\.58rem/);
 });
 
@@ -93,7 +93,7 @@ test("file node follows the same compact one-layer identity hierarchy", () => {
   const type = cssBlock(".vc-file-type");
 
   assert.match(head, /min-height:\s*1\.9rem/);
-  assert.match(head, /gap:\s*\.42rem/);
+  assert.match(head, /gap:\s*\.28rem/);
   assert.match(icon, /background:\s*transparent/);
   assert.match(titleWrap, /flex:\s*1 1 auto/);
   assert.match(type, /border:\s*0/);
@@ -106,26 +106,38 @@ test("file node follows the same compact one-layer identity hierarchy", () => {
   );
 });
 
-test("node identity gap and action buttons stay visually quiet", () => {
+test("node identity gap and action buttons stay quiet but distinct", () => {
   assert.match(
     cssBlock(".vc-node-head"),
-    /gap:\s*\.42rem/
+    /gap:\s*\.28rem/
+  );
+
+  assert.match(
+    cssBlock(".vc-node-footer"),
+    /gap:\s*\.34rem/
   );
 
   const run = cssBlock(".vc-node-run");
   const del = cssBlock(".vc-node-delete");
 
-  assert.match(run, /border:\s*0/);
-  assert.doesNotMatch(run, /var\(--node-color\)/);
-  assert.match(del, /border:\s*0/);
+  assert.match(run, /var\(--text\)\s+5\.5%/);
+  assert.match(run, /border-radius:\s*\.72rem/);
+  assert.match(del, /var\(--text\)\s+5\.5%/);
+  assert.match(del, /border-radius:\s*\.72rem/);
 
   const runIcon =
     canvasNode.match(
       /run:\s*`([\s\S]*?)`,\n\s*stop:/
     )?.[1] ?? "";
 
-  assert.doesNotMatch(runIcon, /<circle/);
-  assert.match(runIcon, /M7\.1 5\.7 14\.2 10l-7\.1 4\.3V5\.7Z/);
+  const deleteIcon =
+    canvasNode.match(
+      /delete:\s*`([\s\S]*?)`,\n\s*run:/
+    )?.[1] ?? "";
+
+  assert.doesNotMatch(runIcon, /fill="currentColor"/);
+  assert.match(runIcon, /stroke-width="1\.55"/);
+  assert.match(deleteIcon, /stroke-width="1\.55"/);
 });
 
 test("write organize and file icons are closed semantic shapes", () => {
@@ -143,4 +155,23 @@ test("write organize and file icons are closed semantic shapes", () => {
     server,
     /file:\s*\{[\s\S]*?M5\.2 3\.35h6\.05l3\.55 3\.55v9\.75H5\.2V3\.35Z/
   );
+});
+
+
+test("ports stay subordinate until the user interacts", () => {
+  const port = cssBlock(".vc-port-pill");
+  const connection = cssBlock(".vc-connection");
+
+  assert.match(port, /width:\s*\.625rem/);
+  assert.match(port, /height:\s*\.625rem/);
+  assert.match(port, /opacity:\s*\.28/);
+  assert.match(port, /\.078125rem solid/);
+
+  assert.match(
+    css,
+    /\.vc-node\.vc-selected \.vc-port-pill,[\s\S]*?opacity:\s*\.56;/
+  );
+
+  assert.match(connection, /stroke-width:\s*\.1rem/);
+  assert.match(connection, /opacity:\s*\.14/);
 });

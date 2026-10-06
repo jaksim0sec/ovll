@@ -165,7 +165,7 @@
   min-height: 1.9rem;
   display: flex;
   align-items: center;
-  gap: .42rem;
+  gap: .28rem;
 }
 /* =========================================================
    ICON
@@ -278,7 +278,7 @@
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  gap: .22rem;
+  gap: .34rem;
   max-height: 0;
   margin-top: 0;
   overflow: hidden;
@@ -308,12 +308,18 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: .24rem;
+  gap: .26rem;
   margin: 0;
-  padding: 0 .52rem;
-  border: 0;
+  padding: 0 .5rem;
+  border:
+    .0625rem solid
+    color-mix(
+      in srgb,
+      var(--text) 5.5%,
+      transparent
+    );
   outline: 0;
-  border-radius: 999px;
+  border-radius: .72rem;
   color:
     color-mix(
       in srgb,
@@ -323,7 +329,7 @@
   background:
     color-mix(
       in srgb,
-      var(--text) 4.2%,
+      var(--text) 3.8%,
       transparent
     );
   cursor: pointer;
@@ -334,6 +340,7 @@
   transition:
     color .16s ease,
     background .16s ease,
+    border-color .16s ease,
     transform .14s ease;
 }
 
@@ -346,10 +353,16 @@
 
 .vc-node-run:hover {
   color: var(--text);
+  border-color:
+    color-mix(
+      in srgb,
+      var(--text) 9%,
+      transparent
+    );
   background:
     color-mix(
       in srgb,
-      var(--text) 7%,
+      var(--text) 6.4%,
       transparent
     );
 }
@@ -756,7 +769,7 @@
    ========================================================= */
 .vc-file-node .vc-node-head {
   min-height: 1.9rem;
-  gap: .42rem;
+  gap: .28rem;
 }
 
 .vc-file-node .vc-node-icon {
@@ -948,23 +961,29 @@
   min-width: 0;
   width: auto;
   min-height: 1.85rem;
-  padding: 0 .52rem;
+  padding: 0 .5rem;
   margin: 0;
   justify-content: center;
   align-items: center;
-  gap: .24rem;
-  border: 0;
-  border-radius: 999px;
+  gap: .26rem;
+  border:
+    .0625rem solid
+    color-mix(
+      in srgb,
+      var(--text) 5.5%,
+      transparent
+    );
+  border-radius: .72rem;
   color:
     color-mix(
       in srgb,
-      var(--sub) 90%,
-      var(--text)
+      var(--text) 72%,
+      var(--sub)
     );
   background:
     color-mix(
       in srgb,
-      var(--text) 3.4%,
+      var(--text) 3.8%,
       transparent
     );
   font-size: var(--font-micro);
@@ -974,10 +993,17 @@
   transition:
     color .16s ease,
     background .16s ease,
+    border-color .16s ease,
     transform .14s ease;
 }
 .vc-node-delete:hover {
   color: var(--text);
+  border-color:
+    color-mix(
+      in srgb,
+      var(--text) 9%,
+      transparent
+    );
   background:
     color-mix(
       in srgb,
@@ -1026,16 +1052,16 @@
    PORT PILL
    ========================================================= */
 .vc-port-pill {
-  width: .6875rem;
-  height: .6875rem;
+  width: .625rem;
+  height: .625rem;
   flex: none;
   border-radius: 50%;
   background:
     var(--canvas, var(--bg));
   border:
-    .09375rem solid
+    .078125rem solid
     var(--node-color);
-  opacity: .42;
+  opacity: .28;
   box-shadow: none;
   transition:
     opacity .15s ease,
@@ -1046,22 +1072,22 @@
 }
 .vc-node.vc-selected .vc-port-pill,
 .vc-node.vc-expanded .vc-port-pill {
-  opacity: .92;
+  opacity: .56;
   transform:
-    scale(1.05);
+    scale(1.02);
 }
 .vc-port-pill.vc-connected {
   background:
     var(--node-color);
   border-color:
     var(--node-color);
-  opacity: .5;
+  opacity: .38;
 }
 .vc-node.vc-selected
 .vc-port-pill.vc-connected,
 .vc-node.vc-expanded
 .vc-port-pill.vc-connected {
-  opacity: 1;
+  opacity: .72;
 }
 .vc-port-hit:hover .vc-port-pill {
   opacity: 1;
@@ -1184,11 +1210,11 @@
 .vc-connection {
   fill: none;
   stroke: var(--text);
-  stroke-width: .1125rem;
+  stroke-width: .1rem;
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-dasharray: .125rem .3125rem;
-  opacity: .2;
+  opacity: .14;
   pointer-events: none;
   vector-effect: non-scaling-stroke;
   transition:
@@ -1201,14 +1227,14 @@
   stroke: var(--accent);
   stroke-dasharray:
     624.9375rem 0;
-  opacity: .76;
+  opacity: .66;
   stroke-width: .1375rem;
 }
 
 .vc-connection.vc-runtime-active {
   stroke-dasharray:
     624.9375rem 0;
-  opacity: .92;
+  opacity: .82;
   stroke-width: .15rem;
 }
 
@@ -1379,7 +1405,11 @@
     .58rem;
   border:
     .0625rem solid
-    transparent;
+    color-mix(
+      in srgb,
+      var(--text) 6%,
+      transparent
+    );
   border-radius: .92rem;
   background:
     color-mix(
@@ -1397,7 +1427,7 @@
   border-color:
     color-mix(
       in srgb,
-      var(--text) 10%,
+      var(--text) 14%,
       transparent
     );
   background: var(--panel);

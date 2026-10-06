@@ -21,17 +21,17 @@
     `,
     delete: `
       <svg viewBox="0 0 20 20" fill="none" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-        <path d="M6.15 6.55h7.7M8.15 6.55V5.3h3.7v1.25M7.3 8.4v5.45h5.4V8.4" stroke="currentColor" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M6.3 6.65h7.4M8.15 6.65V5.35h3.7v1.3M7.35 8.45v5.05c0 .62.5 1.12 1.12 1.12h3.06c.62 0 1.12-.5 1.12-1.12V8.45" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
     `,
     run: `
       <svg viewBox="0 0 20 20" fill="none" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-        <path d="M7.1 5.7 14.2 10l-7.1 4.3V5.7Z" fill="currentColor"/>
+        <path d="M7.35 5.8 14.15 10l-6.8 4.2V5.8Z" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
     `,
     stop: `
       <svg viewBox="0 0 20 20" fill="none" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-        <rect x="6.3" y="6.3" width="7.4" height="7.4" rx="2.1" fill="currentColor"/>
+        <rect x="6.45" y="6.45" width="7.1" height="7.1" rx="1.85" stroke="currentColor" stroke-width="1.55"/>
       </svg>
     `,
     fileResult: `
