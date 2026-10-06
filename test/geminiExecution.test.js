@@ -388,7 +388,7 @@ test("semantic mismatch triggers one compact repair attempt", async () => {
   assert.equal(count, 2);
   assert.match(
     requests[1].input,
-    /REPAIR/
+    /repair_instruction/i
   );
   assert.equal(
     output.results[0].nodeId,
