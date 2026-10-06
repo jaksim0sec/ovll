@@ -3090,13 +3090,9 @@
       copyButton.title =
         "복사";
 
-      copyButton.innerHTML = `
-        <svg viewBox="0 0 16 16" fill="none" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-          <rect x="5" y="5" width="7" height="7" rx="1.35"></rect>
-          <path d="M3.5 9V4.75c0-.7.55-1.25 1.25-1.25H9"></path>
-        </svg>
-        <span>복사</span>
-      `;
+      copyButton.innerHTML =
+        global.OvllSvgLibrary?.get?.("messageCopy") +
+        "<span>복사</span>";
 
       actions.appendChild(
         copyButton
@@ -3127,13 +3123,9 @@
         retryButton.title =
           "재시도";
 
-        retryButton.innerHTML = `
-            <svg viewBox="0 0 16 16" fill="none" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-            <path d="M12.4 5.4A4.6 4.6 0 1 0 12.8 9.4"></path>
-            <path d="M12.4 2.6v2.8H9.6"></path>
-          </svg>
-          <span>재시도</span>
-        `;
+        retryButton.innerHTML =
+          global.OvllSvgLibrary?.get?.("messageRetry") +
+          "<span>재시도</span>";
 
         actions.appendChild(
           retryButton
@@ -6297,7 +6289,9 @@
 
     void runCanvasNode(
       nodeId,
-      "spread"
+      payload?.mode === "spread"
+        ? "spread"
+        : "target"
     );
   }
 
