@@ -3413,6 +3413,18 @@
 
     if (
       role === "assistant" &&
+      options.workflowProposalId &&
+      options.workflowExecution
+    ) {
+      appendWorkflowExecutionControl(
+        message,
+        options.workflowProposalId,
+        options.workflowExecution
+      );
+    }
+
+    if (
+      role === "assistant" &&
       options.showCanvasView &&
       artifactList.length === 0
     ) {
@@ -3464,18 +3476,6 @@
     ) {
       showWorkflowProposalDock(
         options.workflowProposalId
-      );
-    }
-
-    if (
-      role === "assistant" &&
-      options.workflowProposalId &&
-      options.workflowExecution
-    ) {
-      appendWorkflowExecutionControl(
-        message,
-        options.workflowProposalId,
-        options.workflowExecution
       );
     }
 
