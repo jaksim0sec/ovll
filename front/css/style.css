@@ -283,6 +283,7 @@ html.viewport-growing {
   opacity: 1;
   visibility: visible;
   transition:
+    left .28s cubic-bezier(.2,.82,.2,1),
     opacity .18s ease,
     visibility .18s ease,
     background-color .2s ease;

@@ -1269,21 +1269,52 @@ test("PDFKit fallback keeps flowing text cheap and table rows anchored", () => {
 });
 
 
-test("desktop fine-pointer layout opens the sidebar by default without changing mobile defaults", () => {
+test("desktop sidebar is a docked interactive layout while mobile keeps overlay behavior", () => {
   const js = read("front/js/shellMenu.js");
+  const css = compact(read("front/css/shellMenu.css"));
+  const style = compact(read("front/css/style.css"));
+  const library = compact(read("front/css/library.css"));
+  const ui = read("front/js/ui.js");
 
   assert.match(
     js,
-    /desktopSidebarDefault\s*=\s*[\s\S]*?min-width:\s*43\.76rem[\s\S]*?hover:\s*hover[\s\S]*?pointer:\s*fine/
+    /desktopSidebarMedia\s*=\s*[\s\S]*?min-width:\s*43\.76rem[\s\S]*?hover:\s*hover[\s\S]*?pointer:\s*fine/
+  );
+  assert.match(js, /function\s+usesDockedSidebar\s*\(/);
+  assert.match(
+    js,
+    /if\(usesDockedSidebar\(\)\)\{\s*setOpen\(true\);\s*\}/
+  );
+  assert.match(
+    css,
+    /@media\s*\(min-width:\s*43\.76rem\)\s*and\s*\(hover:\s*hover\)\s*and\s*\(pointer:\s*fine\)[\s\S]*?#ovll-shell-menu-backdrop\s*\{[^}]*display:\s*none/
+  );
+  assert.match(
+    css,
+    /:root\.shell-menu-open\s*#workspace-shell\s*,\s*:root\.shell-menu-open\s*#library-page\s*\{[^}]*left:\s*var\(--sidebar-width\)/
+  );
+  assert.match(css, /\.ovll-sidebar-dock-toggle\s*\{[^}]*display:\s*none/);
+  assert.match(
+    css,
+    /@media\s*\(min-width:\s*43\.76rem\)[\s\S]*?\.ovll-sidebar-dock-toggle\s*\{[^}]*display:\s*grid/
+  );
+  assert.match(js, /data-sidebar-action="close"/);
+  assert.match(
+    js,
+    /function\s+beginGesturePoint[\s\S]*?usesDockedSidebar\(\)[\s\S]*?return false/
   );
   assert.match(
     js,
-    /if\(desktopSidebarDefault\)\{\s*setOpen\(true\);\s*\}/
+    /listen\(\s*backdrop[\s\S]*?!usesDockedSidebar\(\)[\s\S]*?close\(\)/
   );
-  assert.doesNotMatch(
+  assert.match(
     js,
-    /max-width:\s*43\.75rem[\s\S]*?setOpen\(true\)/
+    /if\(action==="library"\)[\s\S]*?if\(!usesDockedSidebar\(\)\)\{\s*close/
   );
+  assert.match(style, /\.ovll-workspace-shell\s*\{[^}]*transition:\s*left\s+\.28s/);
+  assert.match(library, /#library-page\s*\{[^}]*transition:\s*left\s+\.28s/);
+  assert.match(ui, /workspace\.clientWidth/);
+  assert.match(ui, /new global\.ResizeObserver\([\s\S]*?scheduleViewportSync/);
 });
 
 test("mouse mode-switch click keeps its button target while drag still captures", () => {

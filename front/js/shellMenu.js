@@ -54,10 +54,15 @@ const state = {
   }
 };
 
-const desktopSidebarDefault =
+const desktopSidebarMedia =
   global.matchMedia?.(
     "(min-width: 43.76rem) and (hover: hover) and (pointer: fine)"
-  )?.matches === true;
+  ) || null;
+
+function usesDockedSidebar(){
+  return desktopSidebarMedia
+    ?.matches === true;
+}
 
 const listeners=[];
 const events=new Map();
@@ -228,6 +233,15 @@ root.innerHTML=`
           </span>
           <span class="ovll-sidebar-brand-name">ovll</span>
         </div>
+
+        <button
+          type="button"
+          class="ovll-sidebar-dock-toggle"
+          data-sidebar-action="close"
+          aria-label="사이드바 닫기"
+        >
+          ${icon("sidebar")}
+        </button>
       </header>
 
       <div class="ovll-sidebar-primary">
@@ -361,6 +375,10 @@ function activeConversation(){
 }
 
 function closeOnSmallScreen(){
+  if(usesDockedSidebar()){
+    return;
+  }
+
   if(
     !global.matchMedia?.(
       "(max-width: 60rem)"
@@ -1297,7 +1315,10 @@ function setOpen(open){
 
   backdrop.setAttribute(
     "aria-hidden",
-    String(!next)
+    String(
+      usesDockedSidebar() ||
+      !next
+    )
   );
 
   document.documentElement
@@ -1324,7 +1345,8 @@ function open(options={}){
   if(
     !state.open &&
     options.history !==
-      false
+      false &&
+    !usesDockedSidebar()
   ){
     Navigation.open(
       "sidebar"
@@ -1341,6 +1363,7 @@ function close(options={}){
     state.open &&
     options.history !==
       false &&
+    !usesDockedSidebar() &&
     Navigation.isCurrent(
       "sidebar"
     )
@@ -1477,9 +1500,11 @@ function handleClick(event){
           "replace"
       });
 
-    close({
-      history:false
-    });
+    if(!usesDockedSidebar()){
+      close({
+        history:false
+      });
+    }
     return;
   }
 
@@ -1549,6 +1574,7 @@ function beginGesturePoint(
   target
 ){
   if(
+    usesDockedSidebar() ||
     !state.open ||
     state.destroyed
   ){
@@ -1929,7 +1955,11 @@ listen(
 listen(
   backdrop,
   "click",
-  close
+  ()=>{
+    if(!usesDockedSidebar()){
+      close();
+    }
+  }
 );
 
 listen(
@@ -2162,10 +2192,13 @@ listen(
     ){
       if(state.searchOpen){
         setSearchOpen(false);
-      }else{
-        close();
+        return;
       }
-      return;
+
+      if(!usesDockedSidebar()){
+        close();
+        return;
+      }
     }
 
     if(
@@ -2176,6 +2209,14 @@ listen(
       event.key.toLowerCase()==="k"
     ){
       event.preventDefault();
+
+      if(
+        usesDockedSidebar() &&
+        !state.open
+      ){
+        return;
+      }
+
       open();
       setSearchOpen(true);
     }
@@ -2196,6 +2237,17 @@ listeners.push(
   }
 );
 
+if(desktopSidebarMedia){
+  listen(
+    desktopSidebarMedia,
+    "change",
+    event=>{
+      setSearchOpen(false,false);
+      setOpen(event.matches);
+    }
+  );
+}
+
 scheduleRender();
 
 listen(
@@ -2205,7 +2257,8 @@ listen(
     if(
       event.detail?.layer===
         "sidebar" &&
-      state.open
+      state.open &&
+      !usesDockedSidebar()
     ){
       close({
         history:false
@@ -2258,7 +2311,7 @@ const api={
   }
 };
 
-if(desktopSidebarDefault){
+if(usesDockedSidebar()){
   setOpen(true);
 }
 

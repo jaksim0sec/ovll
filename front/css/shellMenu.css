@@ -312,6 +312,44 @@
   letter-spacing: -.032em;
 }
 
+.ovll-sidebar-dock-toggle {
+  display: none;
+  width: 2.45rem;
+  height: 2.3rem;
+  flex: 0 0 2.45rem;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  color: var(--sidebar-text-soft);
+  background: transparent;
+  cursor: pointer;
+  transition:
+    color .14s ease,
+    background-color .14s ease,
+    transform .14s var(--ease);
+}
+
+.ovll-sidebar-dock-toggle:hover {
+  color: var(--text);
+  background:
+    color-mix(
+      in srgb,
+      var(--text) 5.5%,
+      transparent
+    );
+}
+
+.ovll-sidebar-dock-toggle:active {
+  transform: scale(.96);
+}
+
+.ovll-sidebar-dock-toggle svg {
+  width: 1.35rem;
+  height: 1.35rem;
+  max-width: none;
+}
+
 /* primary pills */
 
 .ovll-sidebar-primary {
@@ -906,6 +944,39 @@
       transparent
     );
   outline-offset: .08rem;
+}
+
+@media (min-width: 43.76rem) and (hover: hover) and (pointer: fine) {
+  #ovll-shell-menu-backdrop {
+    display: none;
+  }
+
+  #ovll-shell-menu-panel {
+    width: var(--sidebar-width);
+    touch-action: auto;
+    overscroll-behavior-x: auto;
+  }
+
+  .ovll-sidebar-inner {
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .ovll-sidebar-header {
+    justify-content: space-between;
+    gap: .7rem;
+  }
+
+  .ovll-sidebar-dock-toggle {
+    display: grid;
+  }
+
+  :root.shell-menu-open
+  #workspace-shell,
+  :root.shell-menu-open
+  #library-page {
+    left: var(--sidebar-width);
+  }
 }
 
 @media (max-width: 43.75rem) {

@@ -19,6 +19,7 @@
   pointer-events:none;
   transform:translateY(.2rem);
   transition:
+    left .28s cubic-bezier(.2,.82,.2,1),
     opacity .18s ease,
     visibility .18s ease,
     transform .2s var(--ease);

@@ -229,6 +229,7 @@
     return Math.max(
       1,
       Math.round(
+        workspace.clientWidth ||
         document.documentElement
           .clientWidth ||
         global.innerWidth ||
@@ -1796,6 +1797,27 @@
     "pageshow",
     scheduleViewportSync
   );
+
+  if(
+    typeof global.ResizeObserver ===
+      "function"
+  ) {
+    const workspaceResizeObserver =
+      new global.ResizeObserver(
+        scheduleViewportSync
+      );
+
+    workspaceResizeObserver
+      .observe(
+        workspace
+      );
+
+    listeners.push(
+      () =>
+        workspaceResizeObserver
+          .disconnect()
+    );
+  }
 
   listen(
     global,
