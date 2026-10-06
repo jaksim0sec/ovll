@@ -1817,3 +1817,40 @@ test("automatic runtime readiness receives the actual user request", () => {
     /validateExecutionReadiness\([\s\S]*?userRequest:\s*userText/
   );
 });
+
+test("custom nodes use the canvas plugin pipeline and node picker catalog", () => {
+  const canvas = read("front/js/canvasNode.js");
+  const custom = read("front/js/customNodes.js");
+  const app = read("front/js/app.js");
+  const css = compact(read("front/css/ui.css"));
+
+  assert.match(
+    canvas,
+    /global\.OvllCanvasPlugins/
+  );
+  assert.match(
+    canvas,
+    /prepareRuntime/
+  );
+  assert.match(
+    custom,
+    /CanvasPlugins\.register/
+  );
+  assert.match(
+    custom,
+    /group:"custom"/
+  );
+  assert.doesNotMatch(
+    app,
+    /CustomNodes\.expandWorkflow/
+  );
+  assert.match(
+    app,
+    /canvas-node-builder-group/
+  );
+  assert.match(
+    css,
+    /\.canvas-node-builder-options\s*\{[^}]*display:\s*grid/
+  );
+});
+

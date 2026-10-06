@@ -15,12 +15,28 @@ function loadCustomNodes(records){
   const listeners=
     new Set();
 
+  let registeredPlugin=null;
+  let invalidations=0;
+
   const window={
+    OvllCanvasPlugins:{
+      register(plugin){
+        registeredPlugin=plugin;
+        return ()=>{};
+      },
+      invalidate(){
+        invalidations++;
+        return true;
+      }
+    },
     OvllCustomNodeStore:{
       list(){
         return [
           ...byId.values()
-        ].map(structuredClone);
+        ].map(
+            value=>
+              structuredClone(value)
+          );
       },
       get(id){
         const record=
@@ -79,6 +95,15 @@ function loadCustomNodes(records){
       filename:"customNodes.js"
     }
   );
+
+  window.OvllCustomNodesTestState={
+    get plugin(){
+      return registeredPlugin;
+    },
+    get invalidations(){
+      return invalidations;
+    }
+  };
 
   return window.OvllCustomNodes;
 }
@@ -446,3 +471,189 @@ test(
     );
   }
 );
+
+test(
+  "custom nodes register through the canvas plugin contract",
+  ()=>{
+    const byId=
+      new Map([
+        [
+          "cw",
+          customRecord()
+        ]
+      ]);
+
+    let plugin=null;
+    let invalidations=0;
+    const listeners=new Set();
+
+    const window={
+      OvllCanvasPlugins:{
+        register(value){
+          plugin=value;
+          return ()=>{};
+        },
+        invalidate(){
+          invalidations++;
+          return true;
+        }
+      },
+      OvllCustomNodeStore:{
+        list(){
+          return [
+            ...byId.values()
+          ].map(
+            value=>
+              structuredClone(value)
+          );
+        },
+        get(id){
+          const value=
+            byId.get(
+              String(id)
+            );
+
+          return value
+            ?structuredClone(value)
+            :null;
+        },
+        save(value){
+          byId.set(
+            value.id,
+            structuredClone(value)
+          );
+
+          for(
+            const listener of
+            listeners
+          ){
+            listener({
+              type:"update",
+              id:value.id
+            });
+          }
+
+          return structuredClone(value);
+        },
+        remove(id){
+          return byId.delete(
+            String(id)
+          );
+        },
+        onChange(listener){
+          listeners.add(listener);
+          return ()=>listeners.delete(listener);
+        }
+      }
+    };
+
+    const source=
+      fs.readFileSync(
+        new URL(
+          "../front/js/customNodes.js",
+          import.meta.url
+        ),
+        "utf8"
+      );
+
+    vm.runInNewContext(
+      source,
+      {
+        window,
+        console,
+        Set,
+        Map,
+        JSON,
+        Array,
+        Object,
+        String,
+        Number,
+        Boolean,
+        Math
+      },
+      {
+        filename:"customNodes.js"
+      }
+    );
+
+    assert.equal(
+      plugin?.id,
+      "custom-nodes"
+    );
+
+    const workspaceDefinitions=
+      plugin.getDefinitions({
+        context:"workspace"
+      });
+
+    assert.equal(
+      workspaceDefinitions[
+        "custom:cw"
+      ]?.name,
+      "조사 후 작성"
+    );
+
+    assert.equal(
+      workspaceDefinitions[
+        "custom:cw"
+      ]?.catalog
+        ?.group,
+      "custom"
+    );
+
+    assert.deepEqual(
+      JSON.parse(
+        JSON.stringify(
+          plugin.getDefinitions({
+            context:
+              "custom-builder"
+          })
+        )
+      ),
+      {}
+    );
+
+    const prepared=
+      plugin.prepareRuntime({
+        workflow:{
+          nodes:[
+            {
+              id:"c",
+              type:"custom:cw",
+              data:{}
+            }
+          ],
+          connections:[]
+        },
+        pivotId:"c",
+        mode:"spread",
+        baseDefinitions:
+          definitions
+      });
+
+    assert.equal(
+      prepared.pivotId,
+      "c~a"
+    );
+
+    assert.equal(
+      prepared.runtimeToVisible[
+        "c~b"
+      ],
+      "c"
+    );
+
+    window
+      .OvllCustomNodeStore
+      .save({
+        ...customRecord(),
+        name:"갱신"
+      });
+
+    assert.equal(
+      invalidations,
+      1
+    );
+  }
+);
+

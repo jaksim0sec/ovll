@@ -13,7 +13,6 @@
   const API = global.AstraAPI;
   const Presence = global.OvllPresence;
   const WorkspaceStore = global.OvllWorkspaceStore;
-  const CustomNodes = global.OvllCustomNodes;
   const FileStore = global.OvllFileStore;
   const ArtifactVisuals = global.OvllArtifactVisuals;
   const PreviewSandbox = global.OvllPreviewSandbox;
@@ -46,7 +45,6 @@
     !API ||
     !Presence ||
     !WorkspaceStore ||
-    !CustomNodes ||
     !FileStore ||
     !ArtifactVisuals ||
     !PreviewSandbox ||
@@ -85,7 +83,6 @@
     canvas: null,
     workflow: null,
     workflowProposal: null,
-    baseNodeDefinitions: null,
     nodeDefinitions: null,
     conversationMemory: null,
     runtime: null,
@@ -7020,30 +7017,39 @@
           ? "target"
           : "spread";
 
-      const expansion =
-        CustomNodes.expandWorkflow(
-          visibleWorkflow,
-          nodeId,
-          {
-            mode: runMode,
-            definitions:
-              state.baseNodeDefinitions ||
-              state.nodeDefinitions ||
-              {}
-          }
-        );
+      const prepared =
+        typeof state.canvas
+          .prepareRuntime ===
+          "function"
+          ? state.canvas
+              .prepareRuntime(
+                nodeId,
+                {
+                  mode:
+                    runMode
+                }
+              )
+          : {
+              workflow:
+                visibleWorkflow,
+              pivotId:
+                nodeId,
+              visiblePivot:
+                nodeId,
+              resolveVisibleNodeId:
+                id=>String(id||""),
+              project:
+                event=>[event]
+            };
 
       const workflow =
-        expansion.workflow;
+        prepared.workflow;
 
       const runtimeNodeId =
-        expansion.pivotId;
+        prepared.pivotId;
 
       state.runtimeProjection =
-        CustomNodes
-          .createRuntimeProjection(
-            expansion
-          );
+        prepared;
 
       const readiness =
         typeof Execution
@@ -7075,12 +7081,10 @@
           readiness.emptyNodes?.[0];
 
         const visibleInvalidId =
-          expansion
-            .visibleByRuntimeNode?.[
-              String(
-                invalid?.id || ""
-              )
-            ] ||
+          prepared
+            .resolveVisibleNodeId?.(
+              invalid?.id
+            ) ||
           String(
             invalid?.id || ""
           );
@@ -7602,6 +7606,7 @@
         global.nodeDefinitions ||
         undefined,
       refreshDefinitions: false,
+      pluginContext: "workspace",
       interactionEnabled: false
     });
 
@@ -7864,6 +7869,12 @@
     UI.bindCanvas(canvas);
 
     canvas.on("change", handleCanvasChange);
+    canvas.on(
+      "definitionsChange",
+      ()=>{
+        renderNodeBuilderOptions();
+      }
+    );
     canvas.on("workflowApplied", handleCanvasWorkflowApplied);
     canvas.on("nodeRun", handleCanvasNodeRun);
     canvas.on(
@@ -7880,12 +7891,22 @@
      Canvas Node Builder
      ======================================================= */
   function getNodeDefinitionsForBuilder() {
-    if (state.nodeDefinitions && typeof state.nodeDefinitions === "object") {
-      return state.nodeDefinitions;
+    if (
+      state.canvas &&
+      typeof state.canvas
+        .getNodeDefinitions ===
+        "function"
+    ) {
+      return state.canvas
+        .getNodeDefinitions();
     }
 
-    if (state.canvas && typeof state.canvas.getNodeDefinitions === "function") {
-      return state.canvas.getNodeDefinitions();
+    if (
+      state.nodeDefinitions &&
+      typeof state.nodeDefinitions ===
+        "object"
+    ) {
+      return state.nodeDefinitions;
     }
 
     return {};
@@ -7900,31 +7921,181 @@
 
     list.textContent = "";
 
-    const definitions = getNodeDefinitionsForBuilder();
+    const definitions =
+      getNodeDefinitionsForBuilder();
 
-    for (const [type, definition] of Object.entries(definitions)) {
-      if (type === "start" || !definition) continue;
+    const groups =
+      new Map();
 
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "canvas-node-builder-option";
-      button.dataset.nodeType = type;
-      button.style.setProperty("--builder-node-color", definition.color || "var(--text)");
+    for (
+      const [type, definition] of
+      Object.entries(definitions)
+    ) {
+      if (
+        type === "start" ||
+        !definition
+      ) {
+        continue;
+      }
 
-      const icon = document.createElement("span");
-      icon.className = "canvas-node-builder-icon";
-      icon.innerHTML = definition.icon || "";
+      const catalog =
+        definition.catalog || {};
 
-      const name = document.createElement("span");
-      name.className = "canvas-node-builder-name";
-      name.textContent = definition.name || type;
+      const groupId =
+        String(
+          catalog.group ||
+          "builtin"
+        );
 
-      button.appendChild(icon);
-      button.appendChild(name);
-      list.appendChild(button);
+      if (!groups.has(groupId)) {
+        groups.set(
+          groupId,
+          {
+            id:groupId,
+            label:
+              String(
+                catalog.groupLabel ||
+                (
+                  groupId === "custom"
+                    ? "내 노드"
+                    : "기본 노드"
+                )
+              ),
+            custom:
+              groupId === "custom",
+            entries:[]
+          }
+        );
+      }
+
+      groups.get(groupId)
+        .entries.push({
+          type,
+          definition
+        });
     }
 
-    root.classList.toggle("is-empty", list.children.length === 0);
+    const orderedGroups =
+      [...groups.values()]
+        .sort(
+          (a,b)=>
+            Number(b.custom)-
+            Number(a.custom)
+        );
+
+    const showLabels =
+      orderedGroups.length > 1 ||
+      orderedGroups.some(
+        group=>group.custom
+      );
+
+    for(const group of orderedGroups){
+      const section =
+        document.createElement(
+          "section"
+        );
+
+      section.className =
+        "canvas-node-builder-group";
+
+      if(group.custom){
+        section.classList.add(
+          "is-custom"
+        );
+      }
+
+      if(showLabels){
+        const label =
+          document.createElement(
+            "div"
+          );
+
+        label.className =
+          "canvas-node-builder-group-title";
+
+        label.textContent =
+          group.label;
+
+        section.appendChild(
+          label
+        );
+      }
+
+      const options =
+        document.createElement(
+          "div"
+        );
+
+      options.className =
+        "canvas-node-builder-options";
+
+      for(
+        const {
+          type,
+          definition
+        } of group.entries
+      ){
+        const button =
+          document.createElement(
+            "button"
+          );
+
+        button.type = "button";
+        button.className =
+          "canvas-node-builder-option";
+        button.dataset.nodeType =
+          type;
+
+        if(group.custom){
+          button.classList.add(
+            "is-custom"
+          );
+        }
+
+        button.style.setProperty(
+          "--builder-node-color",
+          definition.color ||
+          "var(--text)"
+        );
+
+        const icon =
+          document.createElement(
+            "span"
+          );
+
+        icon.className =
+          "canvas-node-builder-icon";
+        icon.innerHTML =
+          definition.icon || "";
+
+        const name =
+          document.createElement(
+            "span"
+          );
+
+        name.className =
+          "canvas-node-builder-name";
+        name.textContent =
+          definition.name || type;
+
+        button.appendChild(icon);
+        button.appendChild(name);
+        options.appendChild(button);
+      }
+
+      section.appendChild(
+        options
+      );
+
+      list.appendChild(
+        section
+      );
+    }
+
+    root.classList.toggle(
+      "is-empty",
+      orderedGroups.length === 0
+    );
   }
 
   function setNodeBuilderOpen(
@@ -8258,44 +8429,17 @@ listen(composerInput, "keydown", handleComposerKeydown);
     });
 
     try {
-      state.baseNodeDefinitions =
-        await API.getNodeDefinitions();
-
       state.nodeDefinitions =
-        CustomNodes.mergeDefinitions(
-          state.baseNodeDefinitions
-        );
+        await API.getNodeDefinitions();
     } catch (error) {
       console.error(
         "Node Definition Load Error:",
         error
       );
-      state.baseNodeDefinitions = null;
-      state.nodeDefinitions =
-        CustomNodes.mergeDefinitions({});
+      state.nodeDefinitions = {};
     }
 
     await initializeCanvas();
-
-    const unsubscribeCustomNodes =
-      CustomNodes.onChange(() => {
-        state.nodeDefinitions =
-          CustomNodes.mergeDefinitions(
-            state.baseNodeDefinitions ||
-            {}
-          );
-
-        state.canvas
-          ?.setNodeDefinitions?.(
-            state.nodeDefinitions
-          );
-
-        renderNodeBuilderOptions();
-      });
-
-    listeners.push(
-      unsubscribeCustomNodes
-    );
 
     renderNodeBuilderOptions();
 
@@ -8499,7 +8643,6 @@ listen(composerInput, "keydown", handleComposerKeydown);
       state.nodeBuilder.open = false;
       state.workflow = null;
       state.workflowProposal = null;
-      state.baseNodeDefinitions = null;
       state.nodeDefinitions = null;
       state.runtimeProjection = null;
       state.conversationMemory = null;

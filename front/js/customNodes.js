@@ -4,6 +4,12 @@
 const Store=
   global.OvllCustomNodeStore;
 
+const CanvasPlugins=
+  global.OvllCanvasPlugins;
+
+const PLUGIN_ID=
+  "custom-nodes";
+
 if(!Store){
   return;
 }
@@ -82,17 +88,31 @@ function definitionFor(record){
       }
     ],
     customNodeId:
-      record.id
+      record.id,
+    catalog:{
+      group:"custom",
+      groupLabel:"내 노드",
+      pluginId:
+        PLUGIN_ID,
+      custom:true
+    }
   };
 }
 
-function mergeDefinitions(base){
-  const merged={
-    ...clone(base||{})
-  };
+function pluginDefinitions(
+  context={}
+){
+  if(
+    context.context===
+      "custom-builder"
+  ){
+    return {};
+  }
+
+  const definitions={};
 
   for(const record of Store.list()){
-    merged[
+    definitions[
       typeForRecord(
         record.id
       )
@@ -100,7 +120,16 @@ function mergeDefinitions(base){
       definitionFor(record);
   }
 
-  return merged;
+  return definitions;
+}
+
+function mergeDefinitions(base){
+  return {
+    ...clone(base||{}),
+    ...pluginDefinitions({
+      context:"workspace"
+    })
+  };
 }
 
 function adjacency(workflow){
@@ -945,8 +974,92 @@ function onChange(listener){
   );
 }
 
+function preparePluginRuntime(
+  input={}
+){
+  const workflow=
+    input.workflow||{
+      nodes:[],
+      connections:[]
+    };
+
+  const hasCustom=
+    Array.isArray(
+      workflow.nodes
+    )&&
+    workflow.nodes.some(
+      node=>
+        isCustomType(
+          node?.type
+        )
+    );
+
+  if(!hasCustom){
+    return null;
+  }
+
+  const expansion=
+    expandWorkflow(
+      workflow,
+      input.pivotId,
+      {
+        mode:
+          input.mode,
+        definitions:
+          input.baseDefinitions||
+          input.definitions||
+          {}
+      }
+    );
+
+  const projection=
+    createRuntimeProjection(
+      expansion
+    );
+
+  return {
+    workflow:
+      expansion.workflow,
+    pivotId:
+      expansion.pivotId,
+    runtimeToVisible:
+      expansion
+        .visibleByRuntimeNode,
+    projectEvent:
+      event=>
+        projection.project(
+          event
+        )
+  };
+}
+
+const canvasPlugin=
+  Object.freeze({
+    id:PLUGIN_ID,
+    getDefinitions:
+      pluginDefinitions,
+    prepareRuntime:
+      preparePluginRuntime
+  });
+
+if(CanvasPlugins){
+  CanvasPlugins.register(
+    canvasPlugin
+  );
+
+  Store.onChange(
+    ()=>{
+      CanvasPlugins.invalidate(
+        PLUGIN_ID
+      );
+    }
+  );
+}
+
 global.OvllCustomNodes=
   Object.freeze({
+    pluginId:
+      PLUGIN_ID,
     typePrefix:
       TYPE_PREFIX,
     isCustomType,

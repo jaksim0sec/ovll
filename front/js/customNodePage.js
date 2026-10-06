@@ -388,9 +388,6 @@ async function ensureCanvas(){
     await API
       .getNodeDefinitions();
 
-  state.definitions=
-    definitions;
-
   state.canvas=
     await mountCanvasNode(
       canvasHost,
@@ -398,11 +395,26 @@ async function ensureCanvas(){
         nodeDefinitions:
           definitions,
         refreshDefinitions:false,
+        pluginContext:
+          "custom-builder",
         interactionEnabled:true
       }
     );
 
+  state.definitions=
+    state.canvas
+      .getNodeDefinitions();
+
   renderPalette();
+
+  state.canvas.on(
+    "definitionsChange",
+    definitions=>{
+      state.definitions=
+        definitions;
+      renderPalette();
+    }
+  );
 
   state.canvas.on(
     "change",

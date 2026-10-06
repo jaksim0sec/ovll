@@ -67,12 +67,335 @@
     );
     return `M ${a.x} ${a.y} C ${a.x + bend} ${a.y}, ${b.x - bend} ${b.y}, ${b.x} ${b.y}`.replace(/\s+/g, ' ');
   }
+  const CanvasPlugins = (() => {
+    if (global.OvllCanvasPlugins) {
+      return global.OvllCanvasPlugins;
+    }
+
+    const plugins = new Map();
+    const subscribers = new Set();
+
+    function emit(detail = {}) {
+      const payload = {
+        ...detail,
+        plugins: [...plugins.keys()]
+      };
+
+      for (const listener of subscribers) {
+        try {
+          listener(payload);
+        } catch (error) {
+          console.warn(
+            'Canvas plugin listener failed:',
+            error
+          );
+        }
+      }
+    }
+
+    function register(plugin) {
+      const id =
+        String(plugin?.id || '')
+          .trim();
+
+      if (!id) {
+        throw new Error(
+          'Canvas plugin id가 필요합니다.'
+        );
+      }
+
+      if (
+        !plugin ||
+        typeof plugin !== 'object'
+      ) {
+        throw new TypeError(
+          'Canvas plugin이 올바르지 않습니다.'
+        );
+      }
+
+      plugins.set(id, plugin);
+      emit({
+        type: 'register',
+        pluginId: id
+      });
+
+      return () => {
+        if (
+          plugins.get(id) !==
+          plugin
+        ) {
+          return false;
+        }
+
+        plugins.delete(id);
+        emit({
+          type: 'unregister',
+          pluginId: id
+        });
+
+        return true;
+      };
+    }
+
+    function invalidate(pluginId) {
+      const id =
+        String(pluginId || '');
+
+      if (
+        id &&
+        !plugins.has(id)
+      ) {
+        return false;
+      }
+
+      emit({
+        type: 'invalidate',
+        pluginId: id || null
+      });
+
+      return true;
+    }
+
+    function onChange(listener) {
+      if (
+        typeof listener !==
+        'function'
+      ) {
+        return () => {};
+      }
+
+      subscribers.add(listener);
+
+      return () => {
+        subscribers.delete(listener);
+      };
+    }
+
+    function resolveDefinitions(
+      baseDefinitions = {},
+      context = {}
+    ) {
+      const base =
+        baseDefinitions &&
+        typeof baseDefinitions ===
+          'object' &&
+        !Array.isArray(
+          baseDefinitions
+        )
+          ? baseDefinitions
+          : {};
+
+      const merged = {
+        ...base
+      };
+
+      for (const plugin of plugins.values()) {
+        if (
+          typeof plugin
+            ?.getDefinitions !==
+          'function'
+        ) {
+          continue;
+        }
+
+        const contribution =
+          plugin.getDefinitions({
+            ...context,
+            baseDefinitions: base,
+            currentDefinitions: {
+              ...merged
+            }
+          });
+
+        if (
+          !contribution ||
+          typeof contribution !==
+            'object' ||
+          Array.isArray(
+            contribution
+          )
+        ) {
+          continue;
+        }
+
+        Object.assign(
+          merged,
+          contribution
+        );
+      }
+
+      return merged;
+    }
+
+    function prepareRuntime(input = {}) {
+      let workflow =
+        clone(
+          input.workflow || {
+            nodes: [],
+            connections: []
+          }
+        );
+
+      let pivotId =
+        String(
+          input.pivotId || ''
+        );
+
+      const visiblePivot =
+        String(
+          input.visiblePivot ||
+          input.pivotId ||
+          ''
+        );
+
+      const runtimeToVisible = {};
+      const projectors = [];
+
+      for (const plugin of plugins.values()) {
+        if (
+          typeof plugin
+            ?.prepareRuntime !==
+          'function'
+        ) {
+          continue;
+        }
+
+        const result =
+          plugin.prepareRuntime({
+            ...input,
+            workflow,
+            pivotId,
+            visiblePivot
+          });
+
+        if (!result) {
+          continue;
+        }
+
+        if (
+          result.workflow &&
+          typeof result.workflow ===
+            'object'
+        ) {
+          workflow =
+            clone(
+              result.workflow
+            );
+        }
+
+        if (
+          result.pivotId !==
+          undefined &&
+          result.pivotId !==
+          null
+        ) {
+          pivotId =
+            String(
+              result.pivotId
+            );
+        }
+
+        Object.assign(
+          runtimeToVisible,
+          result.runtimeToVisible ||
+          {}
+        );
+
+        if (
+          typeof result.projectEvent ===
+            'function'
+        ) {
+          projectors.push(
+            result.projectEvent
+          );
+        }
+      }
+
+      function project(event) {
+        let events = [event];
+
+        for (
+          let index =
+            projectors.length - 1;
+          index >= 0;
+          index--
+        ) {
+          const projector =
+            projectors[index];
+
+          events =
+            events.flatMap(
+              item => {
+                const projected =
+                  projector(item);
+
+                if (
+                  Array.isArray(
+                    projected
+                  )
+                ) {
+                  return projected;
+                }
+
+                return projected
+                  ? [projected]
+                  : [];
+              }
+            );
+        }
+
+        return events;
+      }
+
+      return {
+        workflow,
+        pivotId,
+        visiblePivot,
+        runtimeToVisible,
+        resolveVisibleNodeId(id) {
+          const key =
+            String(id || '');
+
+          return (
+            runtimeToVisible[key] ||
+            key
+          );
+        },
+        project
+      };
+    }
+
+    const api =
+      Object.freeze({
+        register,
+        invalidate,
+        onChange,
+        resolveDefinitions,
+        prepareRuntime,
+        list() {
+          return [
+            ...plugins.values()
+          ];
+        }
+      });
+
+    global.OvllCanvasPlugins =
+      api;
+
+    return api;
+  })();
+
   global.mountCanvasNode = async function(target, options = {}) {
     if (typeof target === 'string') target = document.querySelector(target);
     if (!(target instanceof Element)) throw new TypeError('target must be a DOM Element or selector');
     const previousState = target._canvasNode?.getState?.() || null;
     target._canvasNode?.destroy?.();
     let definitions = options.nodeDefinitions || {};
+    const pluginContext =
+      String(
+        options.pluginContext ||
+        'workspace'
+      );
     const getFreshNodeDefinitions =
       global.AstraAPI?.getNodeDefinitions;
     const canRefreshDefinitions =
@@ -153,12 +476,16 @@
       connectionRemovalTimers:
         new Set()
     };
-    const registry = new Map(
-      Object.entries(definitions).map(([type, def]) => [
-        type,
-        normalizeDefinition(type, def)
-      ])
-    );
+    let baseDefinitions =
+      definitions &&
+      typeof definitions ===
+        'object' &&
+      !Array.isArray(definitions)
+        ? definitions
+        : {};
+
+    const registry =
+      new Map();
     const events = new Map();
     const listeners = [];
     const observers = [];
@@ -359,6 +686,55 @@
     function getDefinition(type) {
       return registry.get(type) || null;
     }
+    function rebuildRegistry(
+      options = {}
+    ) {
+      const resolved =
+        CanvasPlugins
+          .resolveDefinitions(
+            baseDefinitions,
+            {
+              context:
+                pluginContext
+            }
+          );
+
+      registry.clear();
+
+      for (
+        const [
+          type,
+          definition
+        ] of Object.entries(
+          resolved
+        )
+      ) {
+        registry.set(
+          type,
+          normalizeDefinition(
+            type,
+            definition
+          )
+        );
+      }
+
+      if (
+        options.render !== false
+      ) {
+        render();
+      }
+
+      if (
+        options.emit !== false
+      ) {
+        emit(
+          'definitionsChange',
+          getNodeDefinitions()
+        );
+      }
+
+      return registry;
+    }
     function setNodeDefinitions(nextDefinitions = {}) {
       const source =
         nextDefinitions &&
@@ -367,20 +743,10 @@
           ? nextDefinitions
           : {};
 
-      registry.clear();
+      baseDefinitions =
+        source;
 
-      for (const [type, definition] of Object.entries(source)) {
-        registry.set(
-          type,
-          normalizeDefinition(type, definition)
-        );
-      }
-
-      render();
-      emit(
-        'definitionsChange',
-        getNodeDefinitions()
-      );
+      rebuildRegistry();
 
       return api;
     }
@@ -389,6 +755,62 @@
         registry.entries()
       );
     }
+    function getBaseNodeDefinitions() {
+      return {
+        ...baseDefinitions
+      };
+    }
+    function prepareRuntime(
+      pivotId,
+      options = {}
+    ) {
+      return CanvasPlugins
+        .prepareRuntime({
+          workflow:
+            getWorkflow(),
+          pivotId:
+            String(
+              pivotId || ''
+            ),
+          visiblePivot:
+            String(
+              pivotId || ''
+            ),
+          mode:
+            options.mode ===
+              'target'
+              ? 'target'
+              : 'spread',
+          context:
+            pluginContext,
+          definitions:
+            getNodeDefinitions(),
+          baseDefinitions:
+            getBaseNodeDefinitions()
+        });
+    }
+
+    rebuildRegistry({
+      render: false,
+      emit: false
+    });
+
+    const stopPluginUpdates =
+      CanvasPlugins.onChange(
+        () => {
+          if (
+            state.destroyed
+          ) {
+            return;
+          }
+
+          rebuildRegistry();
+        }
+      );
+
+    listeners.push(
+      stopPluginUpdates
+    );
     function getNode(id) {
       return state.nodes.find(node => node.id === id) || null;
     }
@@ -5048,7 +5470,10 @@
         type =>
           getDefinition(type),
       getNodeDefinitions,
+      getBaseNodeDefinitions,
       setNodeDefinitions,
+      prepareRuntime,
+      pluginContext,
       center() {
         centerWorkflow();
         return api;
