@@ -709,7 +709,7 @@ test("organize-only groups use low thinking", async () => {
   );
 });
 
-test("mixed node groups use the highest required thinking level without high", async () => {
+test("routine write groups stay on low thinking without high", async () => {
   const requests = [];
 
   const execution =
@@ -763,13 +763,48 @@ test("mixed node groups use the highest required thinking level without high", a
     requests[0]
       .generation_config
       .thinking_level,
-    "medium"
+    "low"
   );
   assert.notEqual(
     requests[0]
       .generation_config
       .thinking_level,
     "high"
+  );
+});
+
+test("research groups keep medium thinking for analytical work", async () => {
+  let request = null;
+
+  const execution =
+    createGeminiExecution({
+      apiKey: "test-key",
+      fetchImpl:
+        async (_url, options) => {
+          request =
+            JSON.parse(
+              options.body
+            );
+
+          return jsonResponse(
+            200,
+            interaction([
+              result("research")
+            ])
+          );
+        },
+      sleepImpl:
+        async () => {}
+    });
+
+  await execution.executeGroup(
+    group()
+  );
+
+  assert.equal(
+    request.generation_config
+      .thinking_level,
+    "medium"
   );
 });
 
