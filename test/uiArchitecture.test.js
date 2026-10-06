@@ -1714,3 +1714,36 @@ test("moderate workflow execution is confirmable directly from chat", () => {
     /\.astra-workflow-proposal\s*\{/
   );
 });
+
+
+test("explicit verification requests are promoted to workflow planning", () => {
+  const app =
+    read(
+      "front/js/app.js"
+    );
+  const server =
+    read(
+      "server.js"
+    );
+
+  assert.match(
+    app,
+    /const\s+verificationTask\s*=/
+  );
+  assert.match(
+    app,
+    /팩트\\s\*체크/
+  );
+  assert.match(
+    app,
+    /verificationTask\.test/
+  );
+  assert.match(
+    server,
+    /explicit verification, fact-checking, research, cross-checking/i
+  );
+  assert.match(
+    server,
+    /Prefer one research node for a focused check/i
+  );
+});
