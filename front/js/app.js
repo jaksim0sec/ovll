@@ -5224,10 +5224,138 @@
     }
   }
 
+  function recentAiConversation(
+    currentText
+  ) {
+    const items =
+      state.messages
+        .filter(
+          item =>
+            item &&
+            item.kind !==
+              "runtime" &&
+            (
+              item.role ===
+                "user" ||
+              item.role ===
+                "assistant"
+            ) &&
+            String(
+              item.text ||
+              ""
+            ).trim()
+        )
+        .map(
+          item => ({
+            role:
+              item.role,
+            text:
+              String(
+                item.text ||
+                ""
+              )
+          })
+        );
+
+    const current =
+      String(
+        currentText ||
+        ""
+      ).trim();
+
+    const last =
+      items[
+        items.length - 1
+      ];
+
+    if (
+      current &&
+      last?.role === "user" &&
+      String(
+        last.text ||
+        ""
+      ).trim() === current
+    ) {
+      items.pop();
+    }
+
+    return items.slice(-12);
+  }
+
+  function likelyWorkflowRequest(
+    text,
+    workflow
+  ) {
+    const value =
+      String(text || "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toLowerCase();
+
+    if (!value) {
+      return false;
+    }
+
+    const canvasAction =
+      /(?:노드|node|캔버스|canvas|워크플로우|workflow).{0,28}(?:추가|삭제|연결|끊|수정|바꿔|변경|초기화|재구성|실행|돌려|만들|생성|add|delete|remove|connect|disconnect|modify|change|reset|rebuild|run|execute)/i;
+
+    const actionCanvas =
+      /(?:추가|삭제|연결|끊|수정|바꿔|변경|초기화|재구성|실행|돌려|만들|생성|add|delete|remove|connect|disconnect|modify|change|reset|rebuild|run|execute).{0,28}(?:노드|node|캔버스|canvas|워크플로우|workflow)/i;
+
+    if (
+      canvasAction.test(value) ||
+      actionCanvas.test(value)
+    ) {
+      return true;
+    }
+
+    const nodes =
+      Array.isArray(
+        workflow?.nodes
+      )
+        ? workflow.nodes
+        : [];
+
+    const hasFile =
+      nodes.some(
+        node =>
+          node?.type ===
+            "file"
+      );
+
+    if (hasFile) {
+      const fileReference =
+        /(?:이\s*파일|그\s*파일|파일|첨부|업로드|문서|자료|pdf|docx|xlsx|pptx)/i;
+
+      const fileTask =
+        /(?:요약|정리|분석|작성|변환|번역|비교|판단|평가|보고서|내보내|파일로|pdf로|만들|생성|summari[sz]e|organize|analy[sz]e|write|convert|translate|compare|export|create)/i;
+
+      if (
+        fileReference.test(
+          value
+        ) &&
+        fileTask.test(
+          value
+        )
+      ) {
+        return true;
+      }
+    }
+
+    const explicitArtifact =
+      /(?:pdf|docx|xlsx|pptx|파일).{0,24}(?:만들|생성|변환|내보내|create|generate|convert|export)|(?:만들|생성|변환|내보내|create|generate|convert|export).{0,24}(?:pdf|docx|xlsx|pptx|파일)/i;
+
+    return explicitArtifact
+      .test(value);
+  }
+
   /* =======================================================
      Planner
      ======================================================= */
-  async function plan(text) {
+  async function plan(
+    text,
+    history = []
+  ) {
     const existingProposal =
       state.workflowProposal;
 
@@ -5248,7 +5376,10 @@
       await API.planWorkflow(
         text,
         workflow,
-        state.conversationMemory
+        state.conversationMemory,
+        {
+          history
+        }
       );
 
     if (!result || !result.workflow) {
@@ -5388,8 +5519,65 @@
       performance.now();
 
     try {
-      const result =
-        await plan(value);
+      const workflow =
+        syncWorkflow();
+
+      const history =
+        recentAiConversation(
+          value
+        );
+
+      let result;
+
+      if (
+        likelyWorkflowRequest(
+          value,
+          workflow
+        )
+      ) {
+        result =
+          await plan(
+            value,
+            history
+          );
+      } else {
+        const chat =
+          await API.chat(
+            value,
+            {
+              history,
+              workflow,
+              memory:
+                state.conversationMemory
+            }
+          );
+
+        if (
+          chat?.mode ===
+            "workflow"
+        ) {
+          result =
+            await plan(
+              value,
+              history
+            );
+        } else {
+          result = {
+            mode:
+              "conversation",
+            workflow:
+              clone(workflow),
+            message:
+              String(
+                chat?.message ||
+                ""
+              ),
+            blocks: [],
+            question: "",
+            memory: null
+          };
+        }
+      }
 
       const elapsed =
         performance.now() -
@@ -5464,7 +5652,7 @@
       Presence.settle();
 
       console.error(
-        "ovll Planner Error:",
+        "ovll Request Error:",
         error
       );
 
