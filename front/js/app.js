@@ -5750,6 +5750,17 @@
       return true;
     }
 
+    const verificationTask =
+      /(?:검증|팩트\s*체크|교차\s*(?:확인|검증)|사실인지\s*(?:확인|검증)|근거.{0,10}(?:찾|확인)|출처.{0,10}(?:찾|확인)|조사(?:해|해봐|해줘|해서)|verify|fact[- ]?check|cross[- ]?check|research\s+(?:this|that|it))/i;
+
+    if (
+      verificationTask.test(
+        value
+      )
+    ) {
+      return true;
+    }
+
     const nodes =
       Array.isArray(
         workflow?.nodes

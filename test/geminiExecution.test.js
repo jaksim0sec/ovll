@@ -121,6 +121,45 @@ test("conversation prompt identifies the assistant as ovll and preserves recent 
   );
 });
 
+
+
+test("chat prompt balances concise simple answers with node-assisted verification", () => {
+  const request =
+    buildChatRequest(
+      {
+        text:
+          "아까 네가 한 말 검증해줘",
+        history: [],
+        workflow: {
+          nodes: []
+        }
+      },
+      {
+        model:
+          DEFAULT_GEMINI_MODEL,
+        thinkingLevel:
+          "minimal"
+      }
+    );
+
+  assert.match(
+    request.system_instruction,
+    /simple questions, default to 1 to 3 short sentences/i
+  );
+  assert.match(
+    request.system_instruction,
+    /verification\/research\/cross-check/i
+  );
+  assert.match(
+    request.system_instruction,
+    /node result improves reliability/i
+  );
+  assert.match(
+    request.system_instruction,
+    /avoid repeating the premise/i
+  );
+});
+
 function jsonResponse(
   status,
   payload,

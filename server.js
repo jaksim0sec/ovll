@@ -261,7 +261,7 @@ function groupLogMeta(
  * The frontend compares this server value with its locally stored version
  * before loading application assets.
  */
-const APP_VERSION = '2026.10.06.120';
+const APP_VERSION = '2026.10.06.121';
 
 /* =========================================================
    CANONICAL NODE DEFINITION
@@ -759,6 +759,8 @@ DECISION PRIORITY:
 
 TASK MODE:
 - Workflow request: reconstruct the intended final workflow from all relevant context, then produce the smallest semantically necessary Patch that makes CURRENT_WORKFLOW match that result.
+- For explicit verification, fact-checking, research, cross-checking, or evidence-gathering requests, actively use a node when a separate execution result would improve reliability instead of merely replying from memory.
+- Keep verification workflows minimal. Prefer one research node for a focused check; add organize or judge only when a distinct downstream structure or decision is genuinely required.
 - Prefer fewer meaningful nodes. Do not add research or organize as habitual intermediate steps when write/convert can directly perform the requested task from supplied inputs.
 - Add a separate AI node only when it represents a real semantic stage whose output must exist independently for a downstream step.
 - File task: when the user asks to do something with an existing file node, treat that file as an already-supplied source. Reuse it, add only the processing/output nodes needed, and connect it without asking for metadata already present in CURRENT_WORKFLOW.
