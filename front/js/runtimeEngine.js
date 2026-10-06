@@ -605,7 +605,7 @@
         .test(text);
 
     const expectsResult =
-      /(?:조사|검색|찾|확인|검사|검증|분석|요약|정리|작성|써\s*줘|변환|번역|비교|평가|계산|추출|뽑|보고서|답해|알려|보여|실행|돌려)\s*(?:해|하|해서|해봐|해줘|줘|봐|라|주세요)?|(?:pdf|docx|xlsx|pptx|파일).{0,18}(?:만들|생성|변환|내보내)|(?:research|search|find|check|verify|analy[sz]e|summari[sz]e|write|convert|translate|compare|evaluate|calculate|extract|generate|create|run|execute)\b/i
+      /(?:조사|검색|찾|확인|검사|검증|분석|요약|정리|작성|써\s*줘|변환|번역|비교|평가|판단|계산|추출|뽑|보고서|답해|알려|보여|실행|돌려)\s*(?:해|하|해서|해봐|해줘|줘|봐|라|주세요)?|(?:pdf|docx|xlsx|pptx|파일).{0,18}(?:만들|생성|변환|내보내)|(?:research|search|find|check|verify|analy[sz]e|summari[sz]e|write|convert|translate|compare|evaluate|calculate|extract|generate|create|run|execute)\b/i
         .test(text);
 
     const structuralEdit =
@@ -613,7 +613,7 @@
         .test(text);
 
     const directTask =
-      /(?:조사해|검색해|찾아|확인해|검사해|검증해|분석해|요약해|정리해|작성해|써\s*줘|변환해|번역해|비교해|평가해|계산해|추출해|뽑아|보고서.{0,12}만들|알려\s*줘|보여\s*줘|실행해|돌려)|(?:research|search|find|check|verify|analy[sz]e|summari[sz]e|write|convert|translate|compare|evaluate|calculate|extract|generate|create|run|execute)\s+(?:it|this|that|the|my|these|those)/i
+      /(?:조사해|검색해|찾아|확인해|검사해|검증해|분석해|요약해|정리해|작성해|써\s*줘|변환해|번역해|비교해|평가해|판단해|계산해|추출해|뽑아|보고서.{0,12}만들|알려\s*줘|보여\s*줘|실행해|돌려)|(?:research|search|find|check|verify|analy[sz]e|summari[sz]e|write|convert|translate|compare|evaluate|calculate|extract|generate|create|run|execute)\s+(?:it|this|that|the|my|these|those)/i
         .test(text);
 
     return {
