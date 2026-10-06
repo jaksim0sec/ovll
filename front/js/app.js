@@ -334,6 +334,8 @@
       clearTimeout(
         state.composerDraftTimer
       );
+      state.composerDraftTimer =
+        null;
       state.workspaceSaveTimer =
         null;
     }
@@ -8351,6 +8353,12 @@ listen(composerInput, "keydown", handleComposerKeydown);
         state.workspaceSaveTimer
       );
       state.workspaceSaveTimer =
+        null;
+
+      clearTimeout(
+        state.composerDraftTimer
+      );
+      state.composerDraftTimer =
         null;
 
       clearTimeout(
