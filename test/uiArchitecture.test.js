@@ -1380,3 +1380,32 @@ test("desktop root type is slightly smaller without shrinking mobile type", () =
     /@media\s*\(max-width:\s*26\.25rem\)[^{]*\{[\s\S]*?html\s*\{[^}]*font-size:\s*15\.75px/
   );
 });
+
+
+test("composer send control has a smaller desktop circle with a fuller arrow", () => {
+  const css = compact(read("front/css/ui.css"));
+
+  assert.match(
+    css,
+    /#composer-submit\s*\{[^}]*width:\s*2\.2rem[^}]*height:\s*2\.2rem[^}]*min-width:\s*2\.2rem[^}]*min-height:\s*2\.2rem/
+  );
+  assert.match(
+    css,
+    /#composer-submit svg\s*\{[^}]*width:\s*1\.2rem[^}]*height:\s*1\.2rem/
+  );
+  assert.match(
+    css,
+    /@media\s*\(hover:\s*none\)\s*and\s*\(pointer:\s*coarse\)[^{]*\{[\s\S]*?#composer-attach\s*,\s*#composer-submit\s*\{[^}]*width:\s*2\.5rem[^}]*height:\s*2\.5rem/
+  );
+});
+
+test("sidebar library icon is a dedicated rounded folder glyph", () => {
+  const js = read("front/js/shellMenu.js");
+
+  assert.doesNotMatch(js, /const\s+ArtifactVisuals\s*=/);
+  assert.match(
+    js,
+    /library:\s*`[\s\S]*?<svg[\s\S]*?<path[\s\S]*?stroke-linecap="round"[\s\S]*?stroke-linejoin="round"/
+  );
+  assert.match(js, /a1\.8 1\.8 0 0 1/);
+});

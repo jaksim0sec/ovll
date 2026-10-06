@@ -7,9 +7,6 @@ const Store =
 const Navigation =
   global.OvllNavigation;
 
-const ArtifactVisuals =
-  global.OvllArtifactVisuals;
-
 const appStage =
   document.querySelector(
     "#app-stage"
@@ -18,8 +15,7 @@ const appStage =
 if(
   !appStage ||
   !Store ||
-  !Navigation ||
-  !ArtifactVisuals
+  !Navigation
 ){
   return;
 }
@@ -161,13 +157,17 @@ function icon(name){
         <path d="M4 5.1A2.1 2.1 0 0 1 6.1 3h7.8A2.1 2.1 0 0 1 16 5.1v6.1a2.1 2.1 0 0 1-2.1 2.1H8.2L4.35 16v-2.7A2.08 2.08 0 0 1 4 12.15V5.1Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
       </svg>
     `,
-    library:
-      ArtifactVisuals
-        .visual({
-          name:"library.file",
-          mime:"application/octet-stream"
-        })
-        .icon,
+    library:`
+      <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path
+          d="M4.1 7.15V6.3a1.8 1.8 0 0 1 1.8-1.8h2.15c.58 0 1.02.2 1.38.65l.7.85h3.97a1.8 1.8 0 0 1 1.8 1.8v5.9a1.8 1.8 0 0 1-1.8 1.8H5.9a1.8 1.8 0 0 1-1.8-1.8V7.15Z"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    `,
     user:`
       <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
         <circle cx="10" cy="7.05" r="3" stroke="currentColor" stroke-width="1.5"/>

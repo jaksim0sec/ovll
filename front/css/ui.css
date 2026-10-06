@@ -669,10 +669,10 @@
   z-index: 2;
   grid-column: 3;
   grid-row: 1;
-  width: 2.35rem;
-  height: 2.35rem;
-  min-width: 2.35rem;
-  min-height: 2.35rem;
+  width: 2.2rem;
+  height: 2.2rem;
+  min-width: 2.2rem;
+  min-height: 2.2rem;
   margin: 0;
   padding: 0;
   display: grid;
@@ -707,8 +707,8 @@
 }
 
 #composer-submit svg {
-  width: 1.14rem;
-  height: 1.14rem;
+  width: 1.2rem;
+  height: 1.2rem;
   transition:
     transform .2s var(--ease),
     opacity .2s ease;
