@@ -2,7 +2,7 @@
 "use strict";
 
 const STORAGE_KEY = "ovll:workspace:v1";
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
 const events = new Map();
 
 function clone(value){
@@ -136,7 +136,8 @@ function emptyConversationState(){
     mode:"chat",
     messages:[],
     canvas:emptyCanvas(),
-    lastUserRequest:""
+    lastUserRequest:"",
+    workflowUserRequest:""
   };
 }
 
@@ -397,6 +398,11 @@ function normalizeConversationState(value){
     lastUserRequest:
       String(
         source.lastUserRequest ||
+        ""
+      ).slice(0,12000),
+    workflowUserRequest:
+      String(
+        source.workflowUserRequest ||
         ""
       ).slice(0,12000)
   };
