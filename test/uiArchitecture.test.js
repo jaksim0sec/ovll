@@ -1747,3 +1747,48 @@ test("explicit verification requests are promoted to workflow planning", () => {
     /Prefer one research node for a focused check/i
   );
 });
+
+
+test("auto execution works without requiring a workflow proposal", () => {
+  const app =
+    read(
+      "front/js/app.js"
+    );
+
+  assert.match(
+    app,
+    /execution\?\.mode\s*===\s*"auto"\s*&&\s*execution\.pivot\s*\)\s*\{[\s\S]*?let\s+accepted\s*=\s*true/
+  );
+  assert.match(
+    app,
+    /const\s+runResult\s*=\s*await\s+runCanvasNode/
+  );
+  assert.match(
+    app,
+    /auto-run-not-started/
+  );
+  assert.match(
+    app,
+    /현재 워크플로우를 실행할 준비가 됐어/
+  );
+});
+
+test("unchanged workflows still receive an execution policy", () => {
+  const app =
+    read(
+      "front/js/app.js"
+    );
+
+  assert.match(
+    app,
+    /result\.workflowExecution\s*=\s*execution/
+  );
+  assert.match(
+    app,
+    /analyzeWorkflowExecutionDelta\([\s\S]*?beforeWorkflow,[\s\S]*?result\.workflow,[\s\S]*?state\.canvas/
+  );
+  assert.match(
+    app,
+    /options\.userRequest\s*\|\|\s*state\.workflowUserRequest/
+  );
+});

@@ -1801,3 +1801,189 @@ test("execution gate respects configuration-only and explicit no-run requests", 
     "user-disabled-execution"
   );
 });
+
+
+test("execution gate auto-runs a safe unchanged single-terminal workflow", () => {
+  const ir = {
+    nodes: [
+      {
+        id: "file",
+        type: "file",
+        params: {},
+        file: {
+          source: "upload",
+          name: "source.txt",
+          mime: "text/plain",
+          size: 12
+        }
+      },
+      {
+        id: "research",
+        type: "research",
+        params: {
+          request: "사실 여부 검증"
+        }
+      }
+    ],
+    links: [
+      [
+        "file.out",
+        "research.in"
+      ]
+    ],
+    data: []
+  };
+
+  const runtime =
+    workflow(
+      [
+        {
+          id: "file",
+          type: "file",
+          data: {
+            source: "upload",
+            name: "source.txt",
+            size: 12
+          }
+        },
+        node(
+          "research",
+          "research"
+        )
+      ],
+      [
+        edge(
+          "file-research",
+          "file",
+          "research"
+        )
+      ]
+    );
+
+  const result =
+    analyzeWorkflowExecutionDelta(
+      ir,
+      ir,
+      runtime,
+      "이거 검증해줘"
+    );
+
+  assert.equal(
+    result.mode,
+    "auto"
+  );
+  assert.equal(
+    result.reason,
+    "small-existing-scope"
+  );
+  assert.equal(
+    result.pivot,
+    "research"
+  );
+  assert.deepEqual(
+    new Set(result.scope),
+    new Set([
+      "file",
+      "research"
+    ])
+  );
+});
+
+test("execution gate keeps an unchanged ambiguous workflow manual", () => {
+  const ir = {
+    nodes: [
+      {
+        id: "left",
+        type: "research",
+        params: {
+          request: "왼쪽 조사"
+        }
+      },
+      {
+        id: "right",
+        type: "research",
+        params: {
+          request: "오른쪽 조사"
+        }
+      }
+    ],
+    links: [],
+    data: []
+  };
+
+  const runtime =
+    workflow(
+      [
+        node(
+          "left",
+          "research"
+        ),
+        node(
+          "right",
+          "research"
+        )
+      ],
+      []
+    );
+
+  const result =
+    analyzeWorkflowExecutionDelta(
+      ir,
+      ir,
+      runtime,
+      "검증해줘"
+    );
+
+  assert.equal(
+    result.mode,
+    "manual"
+  );
+  assert.equal(
+    result.reason,
+    "ambiguous-existing-terminal"
+  );
+});
+
+test("execution gate does not run an unchanged workflow without execution intent", () => {
+  const ir = {
+    nodes: [
+      {
+        id: "research",
+        type: "research",
+        params: {
+          request: "조사"
+        }
+      }
+    ],
+    links: [],
+    data: []
+  };
+
+  const runtime =
+    workflow(
+      [
+        node(
+          "research",
+          "research"
+        )
+      ],
+      []
+    );
+
+  const result =
+    analyzeWorkflowExecutionDelta(
+      ir,
+      ir,
+      runtime,
+      "이 노드 구성이 괜찮아?"
+    );
+
+  assert.equal(
+    result.mode,
+    "none"
+  );
+  assert.equal(
+    result.reason,
+    "no-execution-needed"
+  );
+});

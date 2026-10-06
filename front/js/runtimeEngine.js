@@ -816,7 +816,7 @@
       }
     }
 
-    const terminals =
+    let terminals =
       [...changedIds]
         .filter(
           id => {
@@ -868,20 +868,27 @@
       }
     };
 
-    if (
+    const unchanged =
       !added.length &&
       !modified.length &&
       !removed.length &&
       !addedEdges.length &&
-      !removedEdges.length
-    ) {
-      return base;
-    }
+      !removedEdges.length;
 
     if (
       intent.explicitNoRun ||
       !intent.expectsResult
     ) {
+      if (unchanged) {
+        return {
+          ...base,
+          reason:
+            intent.explicitNoRun
+              ? "user-disabled-execution"
+              : "no-execution-needed"
+        };
+      }
+
       return {
         ...base,
         reason:
@@ -889,6 +896,81 @@
             ? "user-disabled-execution"
             : "configuration-only"
       };
+    }
+
+    if (unchanged) {
+      const outgoing =
+        new Map(
+          [...afterNodes.keys()]
+            .map(
+              id => [
+                id,
+                0
+              ]
+            )
+        );
+
+      for (
+        const edge of
+          afterEdges.values()
+      ) {
+        if (
+          outgoing.has(
+            edge.from
+          )
+        ) {
+          outgoing.set(
+            edge.from,
+            (
+              outgoing.get(
+                edge.from
+              ) ||
+              0
+            ) + 1
+          );
+        }
+      }
+
+      terminals =
+        [...afterNodes]
+          .filter(
+            ([id, node]) =>
+              id &&
+              node &&
+              ![
+                "start",
+                "file"
+              ].includes(
+                String(
+                  node.type ||
+                  ""
+                )
+              ) &&
+              (
+                outgoing.get(id) ||
+                0
+              ) === 0
+          )
+          .map(
+            ([id]) =>
+              id
+          );
+
+      base.delta.terminals =
+        terminals;
+
+      if (
+        terminals.length !== 1
+      ) {
+        return {
+          ...base,
+          mode: "manual",
+          reason:
+            terminals.length
+              ? "ambiguous-existing-terminal"
+              : "no-executable-terminal"
+        };
+      }
     }
 
     if (
@@ -1115,7 +1197,9 @@
         ...details,
         mode: "auto",
         reason:
-          "small-isolated-delta"
+          unchanged
+            ? "small-existing-scope"
+            : "small-isolated-delta"
       };
     }
 
