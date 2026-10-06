@@ -8,7 +8,8 @@ const {
   RuntimeEngine,
   LocalNodeExecutor,
   normalizeWorkflow,
-  validateExecutionReadiness
+  validateExecutionReadiness,
+  analyzeWorkflowExecutionDelta
 } = globalThis.OvllExecutionEngine;
 
 const CONTENT_REQUIRED_TYPES =
@@ -1327,5 +1328,418 @@ test("oversized subgroup failure is attributed to the subgroup that actually fai
   assert.equal(
     output.nodes.C.status,
     "FAILED"
+  );
+});
+
+
+test("execution gate auto-runs a small added research node even beside a large unrelated workflow", () => {
+  const before = {
+    nodes: [
+      {
+        id: "file",
+        type: "file",
+        params: {},
+        file: {
+          source: "upload",
+          name: "source.txt",
+          mime: "text/plain",
+          size: 12
+        }
+      },
+      {
+        id: "old-a",
+        type: "research",
+        params: {
+          request: "old a"
+        }
+      },
+      {
+        id: "old-b",
+        type: "organize",
+        params: {
+          request: "old b"
+        }
+      },
+      {
+        id: "old-c",
+        type: "write",
+        params: {
+          request: "old c"
+        }
+      }
+    ],
+    links: [
+      ["old-a.result", "old-b.in"],
+      ["old-b.result", "old-c.in"]
+    ],
+    data: []
+  };
+
+  const after = {
+    nodes: [
+      ...before.nodes,
+      {
+        id: "check",
+        type: "research",
+        params: {
+          request:
+            "자료에 해당 항목이 있는지 조사"
+        }
+      }
+    ],
+    links: [
+      ...before.links,
+      ["file.out", "check.in"]
+    ],
+    data: []
+  };
+
+  const runtime =
+    workflow(
+      [
+        {
+          id: "file",
+          type: "file",
+          data: {
+            source: "upload",
+            name: "source.txt",
+            size: 12
+          }
+        },
+        node(
+          "old-a",
+          "research"
+        ),
+        node(
+          "old-b",
+          "organize"
+        ),
+        node(
+          "old-c",
+          "write"
+        ),
+        node(
+          "check",
+          "research"
+        )
+      ],
+      [
+        edge(
+          "old-a-old-b",
+          "old-a",
+          "old-b"
+        ),
+        edge(
+          "old-b-old-c",
+          "old-b",
+          "old-c"
+        ),
+        edge(
+          "file-check",
+          "file",
+          "check"
+        )
+      ]
+    );
+
+  const result =
+    analyzeWorkflowExecutionDelta(
+      before,
+      after,
+      runtime,
+      "이 자료에 그 내용이 있는지 조사해봐"
+    );
+
+  assert.equal(
+    result.mode,
+    "auto"
+  );
+  assert.equal(
+    result.pivot,
+    "check"
+  );
+  assert.deepEqual(
+    new Set(result.scope),
+    new Set([
+      "file",
+      "check"
+    ])
+  );
+});
+
+test("execution gate asks for confirmation when new work depends on a heavier existing chain", () => {
+  const before = {
+    nodes: [
+      {
+        id: "research",
+        type: "research",
+        params: {
+          request: "기존 조사"
+        }
+      },
+      {
+        id: "organize",
+        type: "organize",
+        params: {
+          request: "기존 정리"
+        }
+      },
+      {
+        id: "write",
+        type: "write",
+        params: {
+          request: "기존 작성"
+        }
+      }
+    ],
+    links: [
+      ["research.result", "organize.in"],
+      ["organize.result", "write.in"]
+    ],
+    data: []
+  };
+
+  const after = {
+    nodes: [
+      ...before.nodes,
+      {
+        id: "check",
+        type: "research",
+        params: {
+          request: "추가 검증"
+        }
+      }
+    ],
+    links: [
+      ...before.links,
+      ["write.result", "check.in"]
+    ],
+    data: []
+  };
+
+  const runtime =
+    workflow(
+      [
+        node(
+          "research",
+          "research"
+        ),
+        node(
+          "organize",
+          "organize"
+        ),
+        node(
+          "write",
+          "write"
+        ),
+        node(
+          "check",
+          "research"
+        )
+      ],
+      [
+        edge(
+          "research-organize",
+          "research",
+          "organize"
+        ),
+        edge(
+          "organize-write",
+          "organize",
+          "write"
+        ),
+        edge(
+          "write-check",
+          "write",
+          "check"
+        )
+      ]
+    );
+
+  const result =
+    analyzeWorkflowExecutionDelta(
+      before,
+      after,
+      runtime,
+      "이 결과까지 다시 검증해봐"
+    );
+
+  assert.equal(
+    result.mode,
+    "confirm"
+  );
+  assert.equal(
+    result.pivot,
+    "check"
+  );
+  assert.equal(
+    result.score,
+    10
+  );
+});
+
+test("execution gate never auto-runs decision nodes or ambiguous multiple terminals", () => {
+  const before = {
+    nodes: [],
+    links: [],
+    data: []
+  };
+
+  const judgeAfter = {
+    nodes: [
+      {
+        id: "judge",
+        type: "judge",
+        params: {
+          request: "판단"
+        }
+      }
+    ],
+    links: [],
+    data: []
+  };
+
+  const judgeRuntime =
+    workflow(
+      [
+        node(
+          "judge",
+          "judge"
+        )
+      ],
+      []
+    );
+
+  const judgeResult =
+    analyzeWorkflowExecutionDelta(
+      before,
+      judgeAfter,
+      judgeRuntime,
+      "판단해봐"
+    );
+
+  assert.equal(
+    judgeResult.mode,
+    "manual"
+  );
+
+  const multiAfter = {
+    nodes: [
+      {
+        id: "left",
+        type: "research",
+        params: {
+          request: "왼쪽 조사"
+        }
+      },
+      {
+        id: "right",
+        type: "research",
+        params: {
+          request: "오른쪽 조사"
+        }
+      }
+    ],
+    links: [],
+    data: []
+  };
+
+  const multiRuntime =
+    workflow(
+      [
+        node(
+          "left",
+          "research"
+        ),
+        node(
+          "right",
+          "research"
+        )
+      ],
+      []
+    );
+
+  const multiResult =
+    analyzeWorkflowExecutionDelta(
+      before,
+      multiAfter,
+      multiRuntime,
+      "둘 다 조사해봐"
+    );
+
+  assert.equal(
+    multiResult.mode,
+    "manual"
+  );
+  assert.equal(
+    multiResult.reason,
+    "ambiguous-terminal"
+  );
+});
+
+test("execution gate respects configuration-only and explicit no-run requests", () => {
+  const before = {
+    nodes: [],
+    links: [],
+    data: []
+  };
+
+  const after = {
+    nodes: [
+      {
+        id: "research",
+        type: "research",
+        params: {
+          request: "조사"
+        }
+      }
+    ],
+    links: [],
+    data: []
+  };
+
+  const runtime =
+    workflow(
+      [
+        node(
+          "research",
+          "research"
+        )
+      ],
+      []
+    );
+
+  const configOnly =
+    analyzeWorkflowExecutionDelta(
+      before,
+      after,
+      runtime,
+      "검색 노드 하나 추가해줘"
+    );
+
+  assert.equal(
+    configOnly.mode,
+    "none"
+  );
+  assert.equal(
+    configOnly.reason,
+    "configuration-only"
+  );
+
+  const noRun =
+    analyzeWorkflowExecutionDelta(
+      before,
+      after,
+      runtime,
+      "조사 노드는 추가하되 실행하지 마"
+    );
+
+  assert.equal(
+    noRun.mode,
+    "none"
+  );
+  assert.equal(
+    noRun.reason,
+    "user-disabled-execution"
   );
 });
