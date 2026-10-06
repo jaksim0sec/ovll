@@ -2042,10 +2042,13 @@ test("readiness still blocks an empty standalone AI node when no task context ex
   const runtime =
     workflow(
       [
-        node(
-          "research",
-          "research"
-        )
+        {
+          id: "research",
+          type: "research",
+          data: {
+            params: {}
+          }
+        }
       ],
       []
     );
