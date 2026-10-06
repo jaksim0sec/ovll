@@ -302,6 +302,28 @@ function validateWorkflow(
     );
   }
 
+  const exitNode=
+    source.nodes.find(node=>
+      String(node.id)===
+      String(boundary.exitNodeId)
+    );
+
+  const exitDefinition=
+    definitions?.[
+      String(exitNode?.type||"")
+    ];
+
+  if(
+    !Array.isArray(
+      exitDefinition?.outputs
+    )||
+    !exitDefinition.outputs.length
+  ){
+    throw new Error(
+      "마지막 노드는 다음 단계로 결과를 내보낼 수 있어야 해"
+    );
+  }
+
   return {
     workflow:clone(source),
     boundary:{
