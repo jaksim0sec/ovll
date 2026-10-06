@@ -86,7 +86,7 @@
   padding: .25rem;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  border: .0625rem solid var(--line);
+  border: .0625rem solid var(--ui-line);
   border-radius: 62.4375rem;
   background: var(--ui-control-surface);
   backdrop-filter: var(--ui-backdrop);
@@ -485,7 +485,7 @@
   align-items: center;
   column-gap: .28rem;
   row-gap: 0;
-  border: var(--ui-line-width) solid var(--ui-line);
+  border: var(--ui-line-width) solid transparent;
   border-radius: 1.16rem;
   background:
     color-mix(
@@ -520,7 +520,12 @@
 }
 
 :is(#composer-form,[data-ovll-composer-form]):focus-within {
-  border-color: var(--ui-line-strong);
+  border-color:
+    color-mix(
+      in srgb,
+      var(--ui-line-strong) 72%,
+      transparent
+    );
   background:
     color-mix(
       in srgb,

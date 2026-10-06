@@ -903,7 +903,7 @@
       meta.content =
         dark
           ? "#060606"
-          : "#f1f1ef";
+          : "#f5f6f8";
     }
 
     try {
