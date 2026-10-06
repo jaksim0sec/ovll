@@ -5600,12 +5600,7 @@
         }
 
         completeRuntimeStep(
-          event.nodeId,
-          {
-            detail:
-              event.report ||
-              ""
-          }
+          event.nodeId
         );
       } else if (
         event.status ===
