@@ -1395,7 +1395,7 @@ test("composer send control has a smaller desktop circle with a fuller arrow", (
   );
   assert.match(
     css,
-    /#composer-submit svg\s*\{[^}]*width:\s*1\.2rem[^}]*height:\s*1\.2rem/
+    /#composer-submit svg\s*\{[^}]*width:\s*1\.16rem[^}]*height:\s*1\.16rem[^}]*stroke-width:\s*1\.65/
   );
   assert.match(
     css,
@@ -1544,5 +1544,80 @@ test("ordinary conversation bypasses Groq planner and keeps raw history", () => 
   assert.match(
     store,
     /SCHEMA_VERSION\s*=\s*4/
+  );
+});
+
+
+test("chat controls share one rounded SVG language", () => {
+  const svg =
+    read(
+      "front/js/svgLibrary.js"
+    );
+  const css =
+    compact(
+      read(
+        "front/css/chat.css"
+      )
+    );
+
+  assert.match(
+    svg,
+    /messageCopy:[\s\S]*?<rect x="6\.35" y="6\.35"[\s\S]*?rx="2\.45"/
+  );
+  assert.match(
+    svg,
+    /messageRetry:[\s\S]*?M15\.45 7\.35A5\.75/
+  );
+  assert.match(
+    svg,
+    /composerSend:[\s\S]*?M10 15V5\.35[\s\S]*?m6\.35 9 3\.65-3\.65L13\.65 9/
+  );
+  assert.match(
+    css,
+    /\.astra-message-action\s*\{[^}]*border-radius:\s*\.52rem/
+  );
+  assert.match(
+    css,
+    /\.astra-message-action:hover\s*\{[^}]*background:/
+  );
+});
+
+test("chat markup recognizes lightweight inline math without touching inline code", () => {
+  const app =
+    read(
+      "front/js/app.js"
+    );
+  const css =
+    read(
+      "front/css/chat.css"
+    );
+
+  assert.match(
+    app,
+    /function\s+renderChatMathExpression\s*\(/
+  );
+  assert.match(
+    app,
+    /<sub>\$1<\/sub>/
+  );
+  assert.match(
+    app,
+    /<sup>\$1<\/sup>/
+  );
+  assert.match(
+    app,
+    /@@OVLL_MATH_/
+  );
+  assert.ok(
+    app.indexOf(
+      "const inlineCode = []"
+    ) <
+    app.indexOf(
+      "const protectMath"
+    )
+  );
+  assert.match(
+    css,
+    /\.astra-inline-math\s*\{/
   );
 });
