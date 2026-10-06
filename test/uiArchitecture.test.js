@@ -1755,9 +1755,9 @@ test("auto execution works without requiring a workflow proposal", () => {
       "front/js/app.js"
     );
 
-  assert.doesNotMatch(
+  assert.match(
     app,
-    /execution\?\.mode\s*===\s*"auto"[\s\S]{0,160}result\.workflowProposalId\s*\)/
+    /execution\?\.mode\s*===\s*"auto"\s*&&\s*execution\.pivot\s*\)\s*\{[\s\S]*?let\s+accepted\s*=\s*true/
   );
   assert.match(
     app,
