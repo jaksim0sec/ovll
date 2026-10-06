@@ -641,6 +641,64 @@
       ] || '실행';
     }
 
+    function compactRuntimeReport(
+      value,
+      max = 88
+    ) {
+      let raw = "";
+
+      if (
+        typeof value ===
+          'string'
+      ) {
+        raw = value;
+      } else if (
+        value &&
+        typeof value ===
+          'object'
+      ) {
+        raw =
+          value.summary ||
+          value.title ||
+          value.message ||
+          "";
+      }
+
+      raw =
+        String(raw || "")
+          .trim();
+
+      if (!raw) {
+        return "";
+      }
+
+      const documentLike =
+        /\r|\n/.test(raw) ||
+        /(^|\n)\s{0,3}#{1,6}\s/.test(raw) ||
+        /(^|\n)\s*(?:[-*+]\s|\d+[.)]\s)/.test(raw) ||
+        /```/.test(raw) ||
+        raw.length > max;
+
+      if (documentLike) {
+        return "";
+      }
+
+      return raw
+        .replace(
+          /[`*_#>~\[\]]/g,
+          ""
+        )
+        .replace(
+          /\s+/g,
+          " "
+        )
+        .trim()
+        .slice(
+          0,
+          max
+        );
+    }
+
     function runtimeSummary(
       runtimeState
     ) {
@@ -680,39 +738,22 @@
       const result =
         runtimeState.result || {};
 
-      const report =
-        result.report ??
-        runtimeState.report;
-
-      if (
-        typeof report ===
-          'string' &&
-        report.trim()
-      ) {
-        return report.trim();
-      }
-
-      if (
-        report &&
-        typeof report ===
-          'object'
-      ) {
-        const text =
-          report.summary ||
-          report.title ||
-          report.message;
-
-        if (text) {
-          return String(text);
-        }
-      }
-
       const artifact =
         result.artifact ||
         result.file;
 
       if (artifact?.name) {
         return `${artifact.name} 생성 완료`;
+      }
+
+      const report =
+        compactRuntimeReport(
+          result.report ??
+          runtimeState.report
+        );
+
+      if (report) {
+        return report;
       }
 
       return runtimeState.status ===
