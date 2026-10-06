@@ -533,9 +533,13 @@ test("canvas execution is mirrored into persisted user chat", () => {
     app,
     /addUserMessage\(\s*runUserText\s*\)/
   );
-  assert.match(
+  assert.doesNotMatch(
     app,
     /state\.lastUserRequest\s*=\s*runUserText/
+  );
+  assert.match(
+    app,
+    /state\.workflowUserRequest\s*\|\|\s*state\.lastUserRequest/
   );
 });
 
