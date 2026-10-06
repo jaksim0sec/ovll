@@ -1501,3 +1501,48 @@ test("chat markup renders markdown tables including bold-wrapped Gemini rows", (
     /\.astra-chat-table\s*\{[\s\S]*min-width:\s*30rem/
   );
 });
+
+
+test("ordinary conversation bypasses Groq planner and keeps raw history", () => {
+  const app =
+    read(
+      "front/js/app.js"
+    );
+  const api =
+    read(
+      "front/js/api.js"
+    );
+  const store =
+    read(
+      "front/js/workspaceStore.js"
+    );
+
+  assert.match(
+    app,
+    /function\s+recentAiConversation\s*\(/
+  );
+  assert.match(
+    app,
+    /function\s+likelyWorkflowRequest\s*\(/
+  );
+  assert.match(
+    app,
+    /await\s+API\.chat\s*\(/
+  );
+  assert.match(
+    app,
+    /chat\?\.mode\s*===\s*"workflow"/
+  );
+  assert.match(
+    api,
+    /async\s+function\s+chat\s*\(/
+  );
+  assert.match(
+    store,
+    /workflowUserRequest:/
+  );
+  assert.match(
+    store,
+    /SCHEMA_VERSION\s*=\s*4/
+  );
+});

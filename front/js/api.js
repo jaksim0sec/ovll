@@ -736,6 +736,109 @@
     };
   }
 
+  function compactConversationHistory(
+    history
+  ) {
+    const source =
+      Array.isArray(history)
+        ? history
+        : [];
+
+    const items = [];
+    let total = 0;
+
+    for (
+      let index =
+        source.length - 1;
+      index >= 0;
+      index--
+    ) {
+      const item =
+        source[index];
+
+      const role =
+        item?.role === "assistant"
+          ? "assistant"
+          : item?.role === "user"
+            ? "user"
+            : "";
+
+      const text =
+        clipStructuredText(
+          item?.text,
+          3200
+        );
+
+      if (
+        !role ||
+        !text
+      ) {
+        continue;
+      }
+
+      if (
+        items.length >= 12 ||
+        total + text.length >
+          14000
+      ) {
+        break;
+      }
+
+      items.unshift({
+        role,
+        text
+      });
+
+      total +=
+        text.length;
+    }
+
+    return items;
+  }
+
+  async function chat(
+    text,
+    context = {},
+    options = {}
+  ) {
+    const normalizedText =
+      clipStructuredText(
+        text,
+        6000
+      );
+
+    if (!normalizedText) {
+      throw new TypeError(
+        "대화 내용을 입력해주세요."
+      );
+    }
+
+    return request(
+      "chat",
+      {
+        method: "POST",
+        body: {
+          text:
+            normalizedText,
+          history:
+            compactConversationHistory(
+              context.history
+            ),
+          workflow:
+            compactWorkflowPayload(
+              context.workflow
+            ),
+          memory:
+            compactMemoryPayload(
+              context.memory
+            )
+        },
+        signal:
+          options.signal
+      }
+    );
+  }
+
   /* =======================================================
      Workflow
      ======================================================= */
@@ -771,6 +874,10 @@
           memory:
             compactMemoryPayload(
               memory
+            ),
+          history:
+            compactConversationHistory(
+              options.history
             )
         },
         signal:
@@ -1429,6 +1536,7 @@
      ======================================================= */
   const api = Object.freeze({
     request,
+    chat,
     planWorkflow,
     executeGroup,
     buildExecutionPayload,
