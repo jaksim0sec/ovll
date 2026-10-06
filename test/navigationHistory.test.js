@@ -335,11 +335,23 @@ test("frontend split and PWA shell include navigation infrastructure",()=>{
 
   assert.match(
     worker,
-    /ovll-shell-v57/
+    /ovll-shell-v\d+/
   );
   assert.match(
     worker,
     /\/js\/navigation\.js/
+  );
+  assert.match(
+    worker,
+    /pathname\.startsWith\(['"]\/css\/['"]\)/
+  );
+  assert.match(
+    worker,
+    /pathname\.startsWith\(['"]\/js\/['"]\)/
+  );
+  assert.match(
+    worker,
+    /cache:\s*['"]no-cache['"]/
   );
   assert.match(
     server,

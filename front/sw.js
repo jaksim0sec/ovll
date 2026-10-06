@@ -1,4 +1,4 @@
-const CACHE = 'ovll-shell-v57';
+const CACHE = 'ovll-shell-v58';
 
 const SHELL = [
   '/home',
@@ -34,6 +34,80 @@ const SHELL = [
   '/js/mascot.js'
 ];
 
+function isMutableAsset(url) {
+  return (
+    url.pathname === '/runtime-config.js' ||
+    url.pathname.startsWith('/css/') ||
+    url.pathname.startsWith('/js/')
+  );
+}
+
+async function cacheResponse(key, response) {
+  if (!response?.ok) return;
+
+  const cache =
+    await caches.open(CACHE);
+
+  await cache.put(
+    key,
+    response.clone()
+  );
+}
+
+async function networkFirst(
+  request,
+  cacheKey = request
+) {
+  try {
+    const response =
+      await fetch(
+        request,
+        {
+          cache: 'no-cache'
+        }
+      );
+
+    await cacheResponse(
+      cacheKey,
+      response
+    );
+
+    return response;
+  } catch (error) {
+    const cached =
+      await caches.match(
+        cacheKey
+      );
+
+    if (cached) {
+      return cached;
+    }
+
+    throw error;
+  }
+}
+
+async function cacheFirst(request) {
+  const cached =
+    await caches.match(
+      request
+    );
+
+  if (cached) {
+    return cached;
+  }
+
+  const response =
+    await fetch(request);
+
+  await cacheResponse(
+    request,
+    response
+  );
+
+  return response;
+}
+
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE)
@@ -66,25 +140,22 @@ self.addEventListener('fetch', event => {
 
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request)
-        .then(response => {
-          const copy = response.clone();
-          caches.open(CACHE).then(cache => cache.put('/home', copy));
-          return response;
-        })
-        .catch(() => caches.match('/home'))
+      networkFirst(
+        request,
+        '/home'
+      )
+    );
+    return;
+  }
+
+  if (isMutableAsset(url)) {
+    event.respondWith(
+      networkFirst(request)
     );
     return;
   }
 
   event.respondWith(
-    caches.match(request)
-      .then(cached => cached || fetch(request).then(response => {
-        if (response.ok) {
-          const copy = response.clone();
-          caches.open(CACHE).then(cache => cache.put(request, copy));
-        }
-        return response;
-      }))
+    cacheFirst(request)
   );
 });
