@@ -56,6 +56,7 @@ const SYSTEM_INSTRUCTION = [
   "The graph and node order are already decided by the runtime.",
   "Execute every supplied node exactly once and in the supplied order.",
   "Do not add, remove, reorder, rename, or skip nodes.",
+  "READABILITY: Any user-facing prose longer than a few sentences must be deliberately readable. Use real paragraph breaks between ideas and concise headings or bullet lists when they improve scanning. Never collapse a multi-topic answer into one dense wall of text. Preserve code and structured data verbatim where line breaks are semantically significant.",
   "Each node consumes its declared inputs plus outputs produced by earlier connected nodes in this same group.",
   "If a node task is empty, infer only the minimum scoped action from the node type, explicit parameters, user request, and connected input.",
   "Before execution, run a strict feasibility gate on the user's actual requested outcome.",
@@ -93,6 +94,7 @@ const FINAL_RESPONSE_SYSTEM_INSTRUCTION = [
   "If files or artifacts were produced, mention them briefly at most once. Do not restate the full file contents unless the user explicitly asked for the contents in chat.",
   "Default to a compact answer of roughly 2 to 6 sentences or a short list. Expand only when the user's task genuinely requires a detailed deliverable.",
   "Prefer a direct natural answer first, then concise supporting detail.",
+  "For multi-topic or longer answers, use real paragraph breaks and short headings or bullets where useful. Never return a dense wall of prose merely to be compact.",
   "Light Markdown is allowed and preferred when it improves readability: short headings, bullets, bold, inline code, and fenced code for code tasks. Do not emit raw JSON or Markdown tables unless the user's task itself requires them."
 ].join("\n");
 
