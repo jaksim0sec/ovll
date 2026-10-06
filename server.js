@@ -261,7 +261,7 @@ function groupLogMeta(
  * The frontend compares this server value with its locally stored version
  * before loading application assets.
  */
-const APP_VERSION = '2026.10.07.133';
+const APP_VERSION = '2026.10.07.134';
 
 /* =========================================================
    CANONICAL NODE DEFINITION
@@ -275,9 +275,9 @@ const defaultNodeDef = {
     tag: 'START',
     color: '#10B981',
     icon: `
-      <svg viewBox="0 0 20 20" fill="none">
-        <circle cx="10" cy="10" r="6.1" stroke="currentColor" stroke-width="1.6"/>
-        <path d="M8.35 7.45 12.45 10l-4.1 2.55v-5.1Z" fill="currentColor"/>
+      <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <circle cx="10" cy="10" r="6.2" stroke="currentColor" stroke-width="1.55"/>
+        <path d="M8.45 7.55c0-.58.64-.92 1.12-.6l3.38 2.22c.42.28.42.9 0 1.18l-3.38 2.22c-.48.32-1.12-.02-1.12-.6V7.55Z" fill="currentColor"/>
       </svg>
     `,
     inputs: [],
@@ -300,9 +300,9 @@ const defaultNodeDef = {
     tag: 'RESEARCH',
     color: '#4F8EF7',
     icon: `
-      <svg viewBox="0.2 0.2 19.6 19.6" fill="none">
-        <circle cx="10" cy="10" r="6.7" stroke="currentColor" stroke-width="1.55"/>
-        <path d="M3.3 10h13.4M10 3.3c-1.75 1.9-2.65 4.1-2.65 6.7s.9 4.8 2.65 6.7M10 3.3c1.75 1.9 2.65 4.1 2.65 6.7s-.9 4.8-2.65 6.7" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round"/>
+      <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <circle cx="10" cy="10" r="6.2" stroke="currentColor" stroke-width="1.55"/>
+        <path d="M4.2 10h11.6M10 3.8c1.48 1.72 2.25 3.79 2.25 6.2S11.48 14.48 10 16.2M10 3.8C8.52 5.52 7.75 7.59 7.75 10s.77 4.48 2.25 6.2" stroke="currentColor" stroke-width="1.42" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
     `,
     params: [
@@ -358,10 +358,11 @@ const defaultNodeDef = {
     tag: 'ORGANIZE',
     color: '#E9A63A',
     icon: `
-      <svg viewBox="0 0 20 20" fill="none">
-        <rect x="5.1" y="3.5" width="9.8" height="3.2" rx=".9" stroke="currentColor" stroke-width="1.45"/>
-        <rect x="3.8" y="8.4" width="12.4" height="3.2" rx=".9" stroke="currentColor" stroke-width="1.45"/>
-        <rect x="5.8" y="13.3" width="8.4" height="3.2" rx=".9" stroke="currentColor" stroke-width="1.45"/>
+      <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <rect x="3.7" y="3.7" width="12.6" height="12.6" rx="3" stroke="currentColor" stroke-width="1.5"/>
+        <rect x="6.05" y="6.15" width="7.9" height="1.8" rx=".9" fill="currentColor"/>
+        <rect x="6.05" y="9.1" width="5.4" height="1.8" rx=".9" fill="currentColor"/>
+        <rect x="6.05" y="12.05" width="6.65" height="1.8" rx=".9" fill="currentColor"/>
       </svg>
     `,
     params: [
@@ -417,9 +418,9 @@ const defaultNodeDef = {
     tag: 'JUDGE',
     color: '#8B6BE8',
     icon: `
-      <svg viewBox="0.2 0.2 19.6 19.6" fill="none">
-        <circle cx="10" cy="10" r="6.15" stroke="currentColor" stroke-width="1.6"/>
-        <path d="M7 10.1 9 12.05 13.1 7.95" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"/>
+      <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <circle cx="10" cy="10" r="6.2" stroke="currentColor" stroke-width="1.55"/>
+        <path d="M6.8 10.15 9 12.3l4.3-4.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
     `,
     params: [
@@ -484,10 +485,10 @@ const defaultNodeDef = {
     tag: 'WRITE',
     color: '#D96F83',
     icon: `
-      <svg viewBox="0 0 20 20" fill="none">
-        <path d="M5.3 3.4h6.1l3.3 3.3v9.8H5.3Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
-        <path d="M11.4 3.4v3.3h3.3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="m7.7 13.7.55-2.05 4.45-4.45 1.45 1.45-4.45 4.45-2 .6Z" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"/>
+      <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <rect x="4.15" y="3.8" width="9.2" height="12.4" rx="2.3" stroke="currentColor" stroke-width="1.45"/>
+        <path d="M7.7 14.15 13.9 7.95" stroke="currentColor" stroke-width="2.15" stroke-linecap="round"/>
+        <path d="m13.2 7.25 1.55 1.55" stroke="currentColor" stroke-width="2.15" stroke-linecap="round"/>
       </svg>
     `,
     params: [
@@ -558,9 +559,9 @@ const defaultNodeDef = {
     tag: 'INPUT',
     color: '#718096',
     icon: `
-      <svg viewBox="0 0 20 20" fill="none" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-        <path d="M5.2 3.35h6.05l3.55 3.55v9.75H5.2V3.35Z" stroke="currentColor" stroke-width="1.45" stroke-linejoin="round"/>
-        <path d="M11.25 3.35V6.9h3.55M7.5 10h4.8M7.5 12.65h3.65" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"/>
+      <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path d="M5.45 3.65h5.2l3.9 3.9v7.05a1.75 1.75 0 0 1-1.75 1.75H5.45A1.75 1.75 0 0 1 3.7 14.6V5.4a1.75 1.75 0 0 1 1.75-1.75Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+        <path d="M10.65 3.65v2.9a1 1 0 0 0 1 1h2.9M6.8 10.4h4.9M6.8 12.95h3.65" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
     `,
     inputs: [],
@@ -583,8 +584,8 @@ const defaultNodeDef = {
     tag: 'OUTPUT',
     color: '#0EA5A4',
     icon: `
-      <svg viewBox="0 0 20 20" fill="none">
-        <path d="M10 2.9c.45 4.45 2.65 6.65 7.1 7.1-4.45.45-6.65 2.65-7.1 7.1-.45-4.45-2.65-6.65-7.1-7.1 4.45-.45 6.65-2.65 7.1-7.1Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path d="M10 3.55c.43 3.2 2.65 5.42 5.85 5.85.75.1.75 1.1 0 1.2-3.2.43-5.42 2.65-5.85 5.85-.1.75-1.1.75-1.2 0-.43-3.2-2.65-5.42-5.85-5.85-.75-.1-.75-1.1 0-1.2 3.2-.43 5.42-2.65 5.85-5.85.1-.75 1.1-.75 1.2 0Z" stroke="currentColor" stroke-width="1.45" stroke-linejoin="round"/>
       </svg>
     `,
     params: [

@@ -20,24 +20,27 @@
       </svg>
     `,
     delete: `
-      <svg viewBox="0 0 20 20" fill="none" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-        <path d="M6.3 6.65h7.4M8.15 6.65V5.35h3.7v1.3M7.35 8.45v5.05c0 .62.5 1.12 1.12 1.12h3.06c.62 0 1.12-.5 1.12-1.12V8.45" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round"/>
+      <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <rect x="5.35" y="6.4" width="9.3" height="8.45" rx="2.15" stroke="currentColor" stroke-width="1.5"/>
+        <path d="M6.2 6.4h7.6M8.15 6.35V5.5c0-.55.45-1 1-1h1.7c.55 0 1 .45 1 1v.85" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
       </svg>
     `,
     run: `
-      <svg viewBox="0 0 20 20" fill="none" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-        <path d="M7.35 5.8 14.15 10l-6.8 4.2V5.8Z" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round"/>
+      <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <circle cx="10" cy="10" r="6.05" stroke="currentColor" stroke-width="1.5"/>
+        <path d="M8.35 7.6c0-.56.62-.9 1.1-.6l3.25 2.08c.43.28.43.91 0 1.18l-3.25 2.08c-.48.3-1.1-.04-1.1-.6V7.6Z" fill="currentColor"/>
       </svg>
     `,
     stop: `
-      <svg viewBox="0 0 20 20" fill="none" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-        <rect x="6.45" y="6.45" width="7.1" height="7.1" rx="1.85" stroke="currentColor" stroke-width="1.55"/>
+      <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <circle cx="10" cy="10" r="6.05" stroke="currentColor" stroke-width="1.5"/>
+        <rect x="7.55" y="7.55" width="4.9" height="4.9" rx="1.35" fill="currentColor"/>
       </svg>
     `,
     fileResult: `
-      <svg viewBox="0 0 20 20" fill="none" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-        <path d="M5.2 3.35h6.05l3.55 3.55v9.75H5.2V3.35Z" stroke="currentColor" stroke-width="1.45" stroke-linejoin="round"/>
-        <path d="M11.25 3.35V6.9h3.55M7.5 10h4.8M7.5 12.65h3.65" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"/>
+      <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path d="M5.45 3.65h5.2l3.9 3.9v7.05a1.75 1.75 0 0 1-1.75 1.75H5.45A1.75 1.75 0 0 1 3.7 14.6V5.4a1.75 1.75 0 0 1 1.75-1.75Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+        <path d="M10.65 3.65v2.9a1 1 0 0 0 1 1h2.9M6.8 10.4h4.9M6.8 12.95h3.65" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
     `
   };
@@ -1717,17 +1720,14 @@
           runtimeActive
         );
 
-        if (
-          active ||
-          runtimeActive
-        ) {
-          const definition = getDefinition(
-            getNode(connection.from.node)?.type
-          );
-          path.style.stroke = definition?.color || '';
-        } else {
-          path.style.stroke = '';
-        }
+        const definition = getDefinition(
+          getNode(connection.from.node)?.type
+        );
+
+        path.style.setProperty(
+          '--connection-color',
+          definition?.color || 'var(--text)'
+        );
       }
       for (const [id] of connectionElements) {
         if (!activeIds.has(id)) removeConnectionElement(id);
