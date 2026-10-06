@@ -175,3 +175,66 @@ test("executeGroup sends the canonical execution payload", async () => {
     JSON.stringify(expected).length
   );
 });
+
+
+test("chat request sends bounded recent conversation and workflow context", async () => {
+  let captured = null;
+
+  const api =
+    loadApi(
+      async (_url, options) => {
+        captured =
+          JSON.parse(
+            options.body
+          );
+
+        return {
+          ok: true,
+          status: 200,
+          async json() {
+            return {
+              ok: true,
+              mode:
+                "conversation",
+              message:
+                "나는 오블이야"
+            };
+          }
+        };
+      }
+    );
+
+  await api.chat(
+    "너 이름 뭐야?",
+    {
+      history: [
+        {
+          role: "user",
+          text: "앞 대화"
+        },
+        {
+          role: "assistant",
+          text: "앞 답변"
+        }
+      ],
+      workflow: {
+        nodes: [],
+        links: [],
+        data: []
+      }
+    }
+  );
+
+  assert.equal(
+    captured.text,
+    "너 이름 뭐야?"
+  );
+  assert.equal(
+    captured.history.length,
+    2
+  );
+  assert.equal(
+    captured.history[0].text,
+    "앞 대화"
+  );
+});
