@@ -66,8 +66,8 @@
   width: var(--node-width);
   min-height: 3.35rem;
   padding:
-    .68rem
-    .78rem;
+    .58rem
+    .68rem;
   border: .09375rem solid transparent;
   border-radius:
     var(--node-radius);
@@ -172,9 +172,9 @@
    ========================================================= */
 .vc-node-icon {
   position: relative;
-  width: 1.72rem;
-  height: 1.72rem;
-  flex: 0 0 1.72rem;
+  width: 1.84rem;
+  height: 1.84rem;
+  flex: 0 0 1.84rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -188,8 +188,8 @@
     transform .18s cubic-bezier(.22,.8,.25,1);
 }
 .vc-node-icon svg {
-  width: 1.42rem;
-  height: 1.42rem;
+  width: 1.5rem;
+  height: 1.5rem;
   display: block;
   max-width: none;
 }
@@ -208,8 +208,8 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--text);
-  font-size: .8rem;
-  font-weight: 740;
+  font-size: .86rem;
+  font-weight: 760;
   line-height: 1.2;
   letter-spacing: -.025em;
 }
@@ -272,6 +272,8 @@
 }
 
 .vc-node-footer {
+  width: 100%;
+  min-width: 0;
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -291,7 +293,7 @@
 .vc-node:not(.vc-start-node).vc-expanded
 .vc-node-footer {
   max-height: 2.4rem;
-  margin-top: .72rem;
+  margin-top: .52rem;
   opacity: 1;
   transform: translateY(0);
 }
@@ -299,8 +301,9 @@
 .vc-node-run {
   appearance: none;
   -webkit-appearance: none;
+  min-width: 0;
   min-height: 1.85rem;
-  flex: 0 0 auto;
+  flex: 1 1 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -916,8 +919,9 @@
 }
 .vc-node-delete {
   display: inline-flex;
-  flex-shrink: 0;
-  width: fit-content;
+  flex: 1 1 0;
+  min-width: 0;
+  width: auto;
   min-height: 1.85rem;
   padding: 0 .62rem;
   margin: 0;
@@ -1238,8 +1242,7 @@
     );
 }
 :root.dark .vc-node-icon {
-  background:
-    var(--node-icon-color);
+  background: transparent;
 }
 /* =========================================================
    MOBILE
@@ -1252,21 +1255,21 @@
     width: var(--node-width);
     min-height: 3rem;
     padding:
-      .625rem
-      .75rem;
+      .56rem
+      .64rem;
     border-radius: var(--node-radius);
   }
   .vc-node-title {
-    font-size: .71875rem;
+    font-size: .82rem;
   }
   .vc-node-icon {
-    width: 2rem;
-    height: 1.75rem;
-    flex-basis: 1.75rem;
+    width: 1.82rem;
+    height: 1.82rem;
+    flex-basis: 1.82rem;
   }
   .vc-node-icon svg {
-    width: 1.2rem;
-    height: 1.2rem;
+    width: 1.42rem;
+    height: 1.42rem;
   }
   .vc-slot-description {
     /* font-size: .65625rem; */
@@ -1441,7 +1444,7 @@
 
 .vc-node.vc-expanded
 .vc-node-body {
-  margin-top: .68rem;
+  margin-top: .5rem;
 }
 
 .vc-request-group {
@@ -1449,8 +1452,8 @@
   display: grid;
   gap: 0;
   padding:
-    .66rem
-    .68rem;
+    .54rem
+    .58rem;
   border:
     .0625rem solid
     transparent;
@@ -1458,7 +1461,7 @@
   background:
     color-mix(
       in srgb,
-      var(--bg) 58%,
+      var(--bg) 82%,
       var(--panel)
     );
   transition:
@@ -1471,15 +1474,15 @@
   border-color:
     color-mix(
       in srgb,
-      var(--node-color) 16%,
-      var(--line)
+      var(--text) 10%,
+      transparent
     );
   background: var(--panel);
   box-shadow: none;
 }
 
 .vc-request-input {
-  min-height: 2.7rem;
+  min-height: 2.5rem;
   max-height: 9rem;
   padding: 0;
   color: var(--text);
@@ -1510,7 +1513,17 @@
   background:
     color-mix(
       in srgb,
-      var(--node-color) 6%,
+      var(--text) 4.5%,
+      var(--panel)
+    );
+}
+
+:root.dark
+.vc-request-group:focus-within {
+  background:
+    color-mix(
+      in srgb,
+      var(--text) 7%,
       var(--panel)
     );
 }
@@ -1535,8 +1548,9 @@
     height: 2.5rem;
   }
 
-  .vc-node-run {
+  .vc-node-run,
+  .vc-node-delete {
     min-height: 2.5rem;
-    padding-inline: .75rem;
+    padding-inline: .55rem;
   }
 }
