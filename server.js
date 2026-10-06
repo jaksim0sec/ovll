@@ -261,7 +261,7 @@ function groupLogMeta(
  * The frontend compares this server value with its locally stored version
  * before loading application assets.
  */
-const APP_VERSION = '2026.10.07.131';
+const APP_VERSION = '2026.10.07.132';
 
 /* =========================================================
    CANONICAL NODE DEFINITION
@@ -359,7 +359,9 @@ const defaultNodeDef = {
     color: '#E9A63A',
     icon: `
       <svg viewBox="0 0 20 20" fill="none">
-        <path d="M4 5.25h12M4 10h12M4 14.75h8.25" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        <rect x="5.1" y="3.5" width="9.8" height="3.2" rx=".9" stroke="currentColor" stroke-width="1.45"/>
+        <rect x="3.8" y="8.4" width="12.4" height="3.2" rx=".9" stroke="currentColor" stroke-width="1.45"/>
+        <rect x="5.8" y="13.3" width="8.4" height="3.2" rx=".9" stroke="currentColor" stroke-width="1.45"/>
       </svg>
     `,
     params: [
@@ -483,7 +485,9 @@ const defaultNodeDef = {
     color: '#D96F83',
     icon: `
       <svg viewBox="0 0 20 20" fill="none">
-        <path d="m4.65 15.35 1.15-4.2 6.75-6.75a2 2 0 0 1 2.82 0l.23.23a2 2 0 0 1 0 2.82L8.85 14.2l-4.2 1.15Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M5.3 3.4h6.1l3.3 3.3v9.8H5.3Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+        <path d="M11.4 3.4v3.3h3.3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="m7.7 13.7.55-2.05 4.45-4.45 1.45 1.45-4.45 4.45-2 .6Z" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
     `,
     params: [
@@ -554,8 +558,9 @@ const defaultNodeDef = {
     tag: 'INPUT',
     color: '#718096',
     icon: `
-      <svg viewBox="0.2 0.2 19.6 19.6" fill="none" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-        <path d="M7.35 10.45 11.7 6.1a2.25 2.25 0 0 1 3.18 3.18l-5.45 5.45a3.2 3.2 0 0 1-4.53-4.53l5.2-5.2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <svg viewBox="0 0 20 20" fill="none" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+        <path d="M5.2 3.35h6.05l3.55 3.55v9.75H5.2V3.35Z" stroke="currentColor" stroke-width="1.45" stroke-linejoin="round"/>
+        <path d="M11.25 3.35V6.9h3.55M7.5 10h4.8M7.5 12.65h3.65" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
     `,
     inputs: [],

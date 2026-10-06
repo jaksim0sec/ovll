@@ -7,6 +7,27 @@ const css = fs.readFileSync(
   "utf8"
 );
 
+const canvasNode = fs.readFileSync(
+  new URL("../front/js/canvasNode.js", import.meta.url),
+  "utf8"
+);
+
+const server = fs.readFileSync(
+  new URL("../server.js", import.meta.url),
+  "utf8"
+);
+
+function cssBlock(selector) {
+  const marker = `${selector} {`;
+  const start = css.indexOf(marker);
+  assert.notEqual(start, -1, `missing selector: ${selector}`);
+
+  const open = css.indexOf("{", start);
+  const close = css.indexOf("}", open);
+
+  return css.slice(open + 1, close);
+}
+
 test("dark nodes keep the icon one-layer and use neutral request surfaces", () => {
   assert.match(
     css,
@@ -61,5 +82,65 @@ test("mobile keeps node identity legible and touch buttons compact", () => {
   assert.match(
     css,
     /@media \(hover: none\) and \(pointer: coarse\)[\s\S]*?\.vc-node-run,\s*\.vc-node-delete\s*\{[\s\S]*?padding-inline:\s*\.55rem;/
+  );
+});
+
+
+test("file node follows the same compact one-layer identity hierarchy", () => {
+  const head = cssBlock(".vc-file-node .vc-node-head");
+  const icon = cssBlock(".vc-file-node .vc-node-icon");
+  const titleWrap = cssBlock(".vc-file-title-wrap");
+  const type = cssBlock(".vc-file-type");
+
+  assert.match(head, /min-height:\s*1\.9rem/);
+  assert.match(head, /gap:\s*\.42rem/);
+  assert.match(icon, /background:\s*transparent/);
+  assert.match(titleWrap, /flex:\s*1 1 auto/);
+  assert.match(type, /border:\s*0/);
+  assert.match(type, /background:\s*transparent/);
+
+  assert.equal(
+    css.includes("FILE NODE DETAIL"),
+    false,
+    "file node styles must have one source of truth"
+  );
+});
+
+test("node identity gap and action buttons stay visually quiet", () => {
+  assert.match(
+    cssBlock(".vc-node-head"),
+    /gap:\s*\.42rem/
+  );
+
+  const run = cssBlock(".vc-node-run");
+  const del = cssBlock(".vc-node-delete");
+
+  assert.match(run, /border:\s*0/);
+  assert.doesNotMatch(run, /var\(--node-color\)/);
+  assert.match(del, /border:\s*0/);
+
+  const runIcon =
+    canvasNode.match(
+      /run:\s*`([\s\S]*?)`,\n\s*stop:/
+    )?.[1] ?? "";
+
+  assert.doesNotMatch(runIcon, /<circle/);
+  assert.match(runIcon, /M7\.1 5\.7 14\.2 10l-7\.1 4\.3V5\.7Z/);
+});
+
+test("write organize and file icons are closed semantic shapes", () => {
+  assert.match(
+    server,
+    /organize:\s*\{[\s\S]*?<rect x="5\.1" y="3\.5" width="9\.8" height="3\.2"/
+  );
+
+  assert.match(
+    server,
+    /write:\s*\{[\s\S]*?M5\.3 3\.4h6\.1l3\.3 3\.3v9\.8H5\.3Z/
+  );
+
+  assert.match(
+    server,
+    /file:\s*\{[\s\S]*?M5\.2 3\.35h6\.05l3\.55 3\.55v9\.75H5\.2V3\.35Z/
   );
 });

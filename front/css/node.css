@@ -165,7 +165,7 @@
   min-height: 1.9rem;
   display: flex;
   align-items: center;
-  gap: .6rem;
+  gap: .42rem;
 }
 /* =========================================================
    ICON
@@ -254,12 +254,13 @@
 }
 
 .vc-node-action:focus-visible,
-.vc-node-run:focus-visible {
+.vc-node-run:focus-visible,
+.vc-node-delete:focus-visible {
   outline:
     .125rem solid
     color-mix(
       in srgb,
-      var(--node-color) 32%,
+      var(--text) 16%,
       transparent
     );
   outline-offset: .1rem;
@@ -277,7 +278,7 @@
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  gap: .3rem;
+  gap: .22rem;
   max-height: 0;
   margin-top: 0;
   overflow: hidden;
@@ -307,28 +308,22 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: .28rem;
+  gap: .24rem;
   margin: 0;
-  padding: 0 .62rem;
-  border:
-    .0625rem solid
-    color-mix(
-      in srgb,
-      var(--node-color) 24%,
-      var(--line)
-    );
+  padding: 0 .52rem;
+  border: 0;
   outline: 0;
   border-radius: 999px;
   color:
     color-mix(
       in srgb,
-      var(--node-color) 84%,
-      var(--text)
+      var(--text) 74%,
+      var(--sub)
     );
   background:
     color-mix(
       in srgb,
-      var(--node-color) 8%,
+      var(--text) 4.2%,
       transparent
     );
   cursor: pointer;
@@ -338,30 +333,23 @@
   letter-spacing: -.012em;
   transition:
     color .16s ease,
-    border-color .16s ease,
     background .16s ease,
     transform .14s ease;
 }
 
 .vc-node-run svg {
-  width: .92rem;
-  height: .92rem;
-  flex: 0 0 .92rem;
+  width: .82rem;
+  height: .82rem;
+  flex: 0 0 .82rem;
   overflow: visible;
 }
 
 .vc-node-run:hover {
-  color: var(--node-color);
-  border-color:
-    color-mix(
-      in srgb,
-      var(--node-color) 38%,
-      var(--line)
-    );
+  color: var(--text);
   background:
     color-mix(
       in srgb,
-      var(--node-color) 13%,
+      var(--text) 7%,
       transparent
     );
 }
@@ -378,19 +366,13 @@
       var(--muted) 76%,
       transparent
     );
-  border-color:
-    color-mix(
-      in srgb,
-      var(--line) 86%,
-      transparent
-    );
   background:
     color-mix(
       in srgb,
-      var(--text) 1.5%,
+      var(--text) 2%,
       transparent
     );
-  opacity: .48;
+  opacity: .5;
   cursor: default;
   pointer-events: none;
   transform: none;
@@ -413,16 +395,10 @@
       var(--text) 76%,
       var(--sub)
     );
-  border-color:
-    color-mix(
-      in srgb,
-      var(--text) 14%,
-      var(--line)
-    );
   background:
     color-mix(
       in srgb,
-      var(--text) 5%,
+      var(--text) 6%,
       transparent
     );
 }
@@ -753,8 +729,7 @@
     );
 }
 .vc-start-node .vc-node-icon {
-  background:
-    var(--node-icon-color);
+  background: transparent;
 }
 .vc-start-badge {
   flex: none;
@@ -780,59 +755,100 @@
    FILE NODE
    ========================================================= */
 .vc-file-node .vc-node-head {
-  min-height: 3.625rem;
+  min-height: 1.9rem;
+  gap: .42rem;
 }
+
 .vc-file-node .vc-node-icon {
-  background:
-    var(--node-icon-color);
+  background: transparent;
 }
+
 .vc-file-title-wrap {
   min-width: 0;
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
-  gap: .125rem;
+  gap: .04rem;
 }
+
 .vc-file-title {
-  font-size: .68rem;
-  font-weight: 680;
-  line-height: 1.2;
-  white-space: nowrap;
+  max-width: 100%;
   overflow: hidden;
+  color: var(--text);
+  font-size: .79rem;
+  font-weight: 740;
+  line-height: 1.2;
+  letter-spacing: -.022em;
   text-overflow: ellipsis;
-  max-width: 11.875rem;
+  white-space: nowrap;
 }
+
 .vc-file-type {
-  font-size: var(--font-micro);
+  width: fit-content;
+  max-width: 7rem;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
   color: var(--muted);
-  font-weight: 650;
-  letter-spacing: .04em;
+  background: transparent;
+  font-size: .52rem;
+  font-weight: 760;
+  line-height: 1.15;
+  letter-spacing: .05em;
+  text-overflow: ellipsis;
   text-transform: uppercase;
+  white-space: nowrap;
 }
+
 .vc-file-meta {
+  min-width: 0;
   display: flex;
   align-items: center;
-  gap: .375rem;
-  margin-top: .625rem;
-  font-size: .6rem;
-  color: var(--sub);
+  gap: .26rem;
+  margin-top: .38rem;
+  padding-top: 0;
+  border: 0;
+  color: var(--muted);
+  font-size: var(--font-micro);
 }
+
+.vc-file-meta span {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+}
+
 .vc-file-meta span:first-child {
-  max-width: 9.375rem;
+  max-width: 8.5rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.vc-file-meta span:last-child {
+  flex: none;
+}
+
+.vc-file-meta span + span::before {
+  content: "·";
+  margin-right: .26rem;
+  opacity: .58;
+}
+
 .vc-file-image-preview {
   width: 100%;
   max-height: 8.5rem;
-  margin-top: .48rem;
+  margin-top: .42rem;
   overflow: hidden;
-  border: .0625rem solid
-    color-mix(in srgb, var(--line) 72%, transparent);
-  border-radius: .72rem;
+  border: 0;
+  border-radius: .76rem;
   background:
-    color-mix(in srgb, var(--text) 2.8%, transparent);
+    color-mix(
+      in srgb,
+      var(--bg) 78%,
+      var(--panel)
+    );
 }
 
 .vc-file-image-preview img {
@@ -844,72 +860,81 @@
 
 .vc-file-preview {
   max-height: 7.2rem;
-  margin-top: .48rem;
-  padding: .52rem .58rem;
+  margin-top: .42rem;
+  padding: .5rem .56rem;
   overflow: hidden;
-  border: .0625rem solid
-    color-mix(in srgb, var(--line) 72%, transparent);
-  border-radius: .72rem;
+  border: 0;
+  border-radius: .76rem;
   color:
-    color-mix(in srgb, var(--text) 76%, transparent);
+    color-mix(
+      in srgb,
+      var(--text) 76%,
+      transparent
+    );
   background:
-    color-mix(in srgb, var(--text) 2.8%, transparent);
+    color-mix(
+      in srgb,
+      var(--bg) 78%,
+      var(--panel)
+    );
   font-size: var(--font-micro);
   font-weight: 470;
   line-height: 1.52;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   mask-image:
-    linear-gradient(to bottom, #000 78%, transparent 100%);
+    linear-gradient(
+      to bottom,
+      #000 78%,
+      transparent 100%
+    );
   -webkit-mask-image:
-    linear-gradient(to bottom, #000 78%, transparent 100%);
+    linear-gradient(
+      to bottom,
+      #000 78%,
+      transparent 100%
+    );
 }
 
 .vc-file-download {
   width: fit-content;
-  min-height: 1.9rem;
+  min-height: 1.7rem;
   display: inline-flex;
   align-items: center;
-  gap: .32rem;
-  margin-top: .52rem;
-  padding:
-    .34rem
-    .58rem;
-  border:
-    .0625rem solid
-    var(--line);
-  border-radius: 999px;
+  gap: .26rem;
+  margin-top: .38rem;
+  padding: 0 .16rem;
+  border: 0;
+  border-radius: .42rem;
   color: var(--sub);
-  background:
-    color-mix(
-      in srgb,
-      var(--text) 4%,
-      transparent
-    );
+  background: transparent;
   text-decoration: none;
   font-size: var(--font-micro);
-  font-weight: 650;
+  font-weight: 680;
+  transition:
+    color .16s ease,
+    background .16s ease;
 }
 
 .vc-file-download svg {
-  width: .8rem;
-  height: .8rem;
+  width: .76rem;
+  height: .76rem;
 }
 
 .vc-file-download:hover {
   color: var(--text);
-  border-color:
-    var(--line-strong);
+  background: var(--surface-hover);
 }
 
 .vc-file-node[data-generated="true"]
 .vc-node-icon {
-  color: #64748b;
+  color: var(--node-color);
 }
 
 .vc-file-node .vc-slot-description {
   display: none;
 }
+
 /* =========================================================
    DELETE
    ========================================================= */
@@ -923,57 +948,46 @@
   min-width: 0;
   width: auto;
   min-height: 1.85rem;
-  padding: 0 .62rem;
+  padding: 0 .52rem;
   margin: 0;
   justify-content: center;
   align-items: center;
-  text-align: center;
-  gap: .28rem;
-  border:
-    .0625rem solid
-    color-mix(
-      in srgb,
-      var(--line) 93%,
-      var(--text) 7%
-    );
+  gap: .24rem;
+  border: 0;
   border-radius: 999px;
   color:
     color-mix(
       in srgb,
-      var(--muted) 88%,
+      var(--sub) 90%,
       var(--text)
     );
   background:
     color-mix(
       in srgb,
-      var(--text) 1.8%,
+      var(--text) 3.4%,
       transparent
     );
   font-size: var(--font-micro);
   font-weight: 660;
   line-height: 1;
   cursor: pointer;
-  opacity: .88;
   transition:
     color .16s ease,
     background .16s ease,
-    border-color .16s ease,
     transform .14s ease;
 }
 .vc-node-delete:hover {
   color: var(--text);
-  opacity: 1;
-  border-color: var(--line-strong);
   background:
     color-mix(
       in srgb,
-      var(--text) 5%,
+      var(--text) 6.4%,
       transparent
     );
 }
 .vc-node-delete svg {
-  width: .92rem;
-  height: .92rem;
+  width: .82rem;
+  height: .82rem;
   display: block;
   max-width: none;
 }
@@ -1285,97 +1299,6 @@
     height: 13.90625rem !important;
   }
 }
-
-/* =========================================================
-   FILE NODE DETAIL
-   ========================================================= */
-
-.vc-file-node .vc-node-head {
-  gap: .55rem;
-}
-
-.vc-file-node .vc-node-icon {
-  width: 2rem;
-  height: 2rem;
-  flex: 0 0 2rem;
-  border-radius: .7rem;
-}
-
-.vc-file-node .vc-file-title-wrap {
-  gap: .2rem;
-}
-
-.vc-file-title {
-  max-width: 10.5rem;
-  font-size: .72rem;
-  font-weight: 750;
-  line-height: 1.25;
-}
-
-.vc-file-type {
-  width: fit-content;
-  max-width: 7rem;
-  padding: .16rem .34rem;
-  border: .0625rem solid
-    color-mix(
-      in srgb,
-      var(--node-color) 18%,
-      var(--line)
-    );
-  border-radius: 62.4375rem;
-  background:
-    color-mix(
-      in srgb,
-      var(--node-color) 8%,
-      transparent
-    );
-  color:
-    color-mix(
-      in srgb,
-      var(--node-color) 78%,
-      var(--muted)
-    );
-  font-size: var(--font-micro);
-  font-weight: 800;
-  line-height: 1;
-  letter-spacing: .055em;
-}
-
-.vc-file-meta {
-  margin-top: .5rem;
-  padding-top: .45rem;
-  border-top: .0625rem solid
-    color-mix(
-      in srgb,
-      var(--line) 72%,
-      transparent
-    );
-  gap: .3rem;
-  font-size: var(--font-micro);
-}
-
-.vc-file-meta span {
-  display: inline-flex;
-  align-items: center;
-  min-width: 0;
-}
-
-.vc-file-meta span:first-child {
-  max-width: 8.5rem;
-}
-
-.vc-file-meta span:last-child {
-  flex: none;
-  padding-left: .3rem;
-  border-left: .0625rem solid
-    color-mix(
-      in srgb,
-      var(--line) 78%,
-      transparent
-    );
-}
-
-
 
 /* =========================================================
    Canvas motion polish
