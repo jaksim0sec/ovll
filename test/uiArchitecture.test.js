@@ -1792,3 +1792,28 @@ test("unchanged workflows still receive an execution policy", () => {
     /options\.userRequest\s*\|\|\s*state\.workflowUserRequest/
   );
 });
+
+
+test("automatic runtime readiness receives the actual user request", () => {
+  const app =
+    read(
+      "front/js/app.js"
+    );
+  const runtime =
+    read(
+      "front/js/runtimeEngine.js"
+    );
+
+  assert.match(
+    app,
+    /validateExecutionReadiness\([\s\S]*?userRequest:\s*String\(/
+  );
+  assert.match(
+    runtime,
+    /findUnreadyNodes\([\s\S]*?userRequest:\s*cacheContext\s*\?\.userRequest/
+  );
+  assert.match(
+    runtime,
+    /validateExecutionReadiness\([\s\S]*?userRequest:\s*userText/
+  );
+});
