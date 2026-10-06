@@ -1543,7 +1543,7 @@ test("ordinary conversation bypasses Groq planner and keeps raw history", () => 
   );
   assert.match(
     store,
-    /SCHEMA_VERSION\s*=\s*4/
+    /SCHEMA_VERSION\s*=\s*5/
   );
 });
 
