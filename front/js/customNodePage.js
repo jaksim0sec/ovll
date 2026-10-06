@@ -323,6 +323,7 @@ function renderPalette(){
       !definition||
       type==="start"||
       type==="file"||
+      type==="createFile"||
       CustomNodes
         .isCustomType(type)
     ){
