@@ -208,7 +208,10 @@
     );
   }
 
-  function isNodeReadyForExecution(node) {
+  function isNodeReadyForExecution(
+    node,
+    options = {}
+  ) {
     if (
       !node ||
       typeof node !== "object"
@@ -249,17 +252,44 @@
       return true;
     }
 
-    return Object.values(
-      nodeParams(node)
-    ).some(
-      value =>
-        hasMeaningfulValue(value)
-    );
+    const hasParams =
+      Object.values(
+        nodeParams(node)
+      ).some(
+        value =>
+          hasMeaningfulValue(value)
+      );
+
+    if (hasParams) {
+      return true;
+    }
+
+    const userRequest =
+      String(
+        options.userRequest ||
+        ""
+      ).trim();
+
+    if (
+      userRequest &&
+      (
+        GEMINI_NODE_TYPES.has(
+          type
+        ) ||
+        type === "createFile"
+      )
+    ) {
+      return true;
+    }
+
+    return options.hasIncoming ===
+      true;
   }
 
   function findUnreadyNodes(
     workflow,
-    scope
+    scope,
+    options = {}
   ) {
     const ids =
       new Set(
@@ -268,11 +298,46 @@
           : []
       );
 
+    const incoming =
+      new Set();
+
+    for (
+      const connection of
+        Array.isArray(
+          workflow?.connections
+        )
+          ? workflow.connections
+          : []
+    ) {
+      const to =
+        String(
+          connection?.to?.node ||
+          ""
+        );
+
+      if (
+        to &&
+        ids.has(to)
+      ) {
+        incoming.add(to);
+      }
+    }
+
     return workflow.nodes
       .filter(
         node =>
           ids.has(node.id) &&
-          !isNodeReadyForExecution(node)
+          !isNodeReadyForExecution(
+            node,
+            {
+              userRequest:
+                options.userRequest,
+              hasIncoming:
+                incoming.has(
+                  node.id
+                )
+            }
+          )
       )
       .map(
         node => ({
@@ -311,7 +376,11 @@
     const emptyNodes =
       findUnreadyNodes(
         workflow,
-        plan.scope
+        plan.scope,
+        {
+          userRequest:
+            options.userRequest
+        }
       );
 
     return {
@@ -998,7 +1067,9 @@
           runtimeWorkflow,
           pivot,
           {
-            mode: "target"
+            mode: "target",
+            userRequest:
+              userText
           }
         );
     } catch {
@@ -2027,10 +2098,15 @@
           executionPlan.scope
         );
 
-      const emptyNodes =
+        const emptyNodes =
         findUnreadyNodes(
           workflow,
-          executionPlan.scope
+          executionPlan.scope,
+          {
+            userRequest:
+              cacheContext
+                ?.userRequest
+          }
         );
 
       if (emptyNodes.length) {

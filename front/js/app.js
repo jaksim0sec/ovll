@@ -7003,7 +7003,14 @@
                 nodeId,
                 {
                   mode:
-                    runMode
+                    runMode,
+                  userRequest:
+                    String(
+                      options.userRequest ||
+                      state.workflowUserRequest ||
+                      state.lastUserRequest ||
+                      ""
+                    )
                 }
               )
           : {

@@ -1759,10 +1759,13 @@ test("execution gate respects configuration-only and explicit no-run requests", 
   const runtime =
     workflow(
       [
-        node(
-          "research",
-          "research"
-        )
+        {
+          id: "research",
+          type: "research",
+          data: {
+            params: {}
+          }
+        }
       ],
       []
     );
@@ -1985,5 +1988,87 @@ test("execution gate does not run an unchanged workflow without execution intent
   assert.equal(
     result.reason,
     "no-execution-needed"
+  );
+});
+
+
+test("readiness accepts empty AI params when the current user request supplies the task", () => {
+  const runtime =
+    workflow(
+      [
+        node(
+          "research",
+          "research"
+        ),
+        node(
+          "write",
+          "write"
+        )
+      ],
+      [
+        edge(
+          "research-write",
+          "research",
+          "write"
+        )
+      ]
+    );
+
+  const result =
+    validateExecutionReadiness(
+      runtime,
+      "write",
+      {
+        mode: "target",
+        userRequest:
+          "이 주장을 검증해서 짧게 정리해줘"
+      }
+    );
+
+  assert.equal(
+    result.ok,
+    true
+  );
+  assert.deepEqual(
+    new Set(result.scope),
+    new Set([
+      "research",
+      "write"
+    ])
+  );
+});
+
+test("readiness still blocks an empty standalone AI node when no task context exists", () => {
+  const runtime =
+    workflow(
+      [
+        {
+          id: "research",
+          type: "research",
+          data: {
+            params: {}
+          }
+        }
+      ],
+      []
+    );
+
+  const result =
+    validateExecutionReadiness(
+      runtime,
+      "research",
+      {
+        mode: "target"
+      }
+    );
+
+  assert.equal(
+    result.ok,
+    false
+  );
+  assert.equal(
+    result.emptyNodes[0]
+      .id,
+    "research"
   );
 });
