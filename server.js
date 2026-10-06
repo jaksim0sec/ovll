@@ -1,8 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
 import compression from 'compression';
-import path from 'path';
-import {fileURLToPath} from 'url';
 import {randomUUID} from 'crypto';
 import {
   createGeminiExecution,
@@ -20,12 +18,6 @@ import {
 } from './pdfRenderer.js';
 
 const app = express();
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const FRONT_DIR = path.join(__dirname, 'front');
-const HOME_FILE = path.join(FRONT_DIR, 'index.html');
-const CRON_FILE = path.join(__dirname, 'cron.txt');
 
 app.use(express.json({limit: '1mb'}));
 app.use(compression());
@@ -269,7 +261,7 @@ function groupLogMeta(
  * The frontend compares this server value with its locally stored version
  * before loading application assets.
  */
-const APP_VERSION = '2026.10.06.111';
+const APP_VERSION = '2026.10.06.112';
 
 /* =========================================================
    CANONICAL NODE DEFINITION
@@ -3530,95 +3522,24 @@ app.get(
   }
 );
 
-app.get(
-  ['/log', '/log/'],
-  (req, res, next) => {
-    res.sendFile(
-      path.join(
-        FRONT_DIR,
-        'log.html'
-      ),
-      error => {
-        if (error) {
-          next(error);
-        }
-      }
-    );
-  }
-);
-
 /* =========================================================
    CRON TEXT
 ========================================================= */
 
 app.get(
   '/cron.txt',
-  (req, res, next) => {
-    res.type('text/plain');
-
-    res.sendFile(
-      CRON_FILE,
-      error => {
-        if (!error) {
-          return;
-        }
-
-        if (
-          error.code === 'ENOENT' ||
-          error.status === 404
-        ) {
-          return res
-            .status(404)
-            .send('Not Found');
-        }
-
-        next(error);
-      }
-    );
-  }
-);
-
-/* =========================================================
-   HOME
-========================================================= */
-
-app.get(
-  ['/home', '/home/'],
-  (req, res, next) => {
-    res.sendFile(
-      HOME_FILE,
-      error => {
-        if (error) {
-          next(error);
-        }
-      }
-    );
-  }
-);
-
-/* =========================================================
-   ROOT
-========================================================= */
-
-app.get(
-  '/',
   (req, res) => {
-    res.redirect('/home');
+    res.set({
+      'Content-Type':
+        'text/plain; charset=utf-8',
+      'Cache-Control':
+        'no-store, max-age=0'
+    });
+
+    return res.send(
+      'nothingToSeeHere\n'
+    );
   }
-);
-
-/* =========================================================
-   FRONT STATIC
-========================================================= */
-
-app.use(
-  express.static(
-    FRONT_DIR,
-    {
-      index: false,
-      fallthrough: true
-    }
-  )
 );
 
 /* =========================================================
@@ -3667,9 +3588,6 @@ app.listen(
   () => {
     console.log(
       `Server running on http://localhost:${PORT}`
-    );
-    console.log(
-      `Home: ${HOME_FILE}`
     );
     console.log(
       `Version: ${APP_VERSION}`
