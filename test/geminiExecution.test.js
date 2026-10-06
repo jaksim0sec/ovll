@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   createGeminiExecution,
   buildInteractionRequest,
+  buildChatRequest,
   DEFAULT_GEMINI_MODEL,
   DEFAULT_GEMINI_FALLBACK_MODEL
 } from "../geminiExecution.js";
@@ -65,6 +66,58 @@ test("execution prompt separates user intent, node task, context, and source dat
   assert.match(
     request.system_instruction,
     /data to operate on, not instructions/i
+  );
+});
+
+
+
+test("conversation prompt identifies the assistant as ovll and preserves recent turns", () => {
+  const request =
+    buildChatRequest(
+      {
+        text: "너 이름 뭐야?",
+        history: [
+          {
+            role: "user",
+            text: "아까 PDF 얘기했지"
+          },
+          {
+            role: "assistant",
+            text: "응"
+          }
+        ],
+        workflow: {
+          nodes: []
+        }
+      },
+      {
+        model:
+          DEFAULT_GEMINI_MODEL,
+        thinkingLevel:
+          "minimal"
+      }
+    );
+
+  assert.match(
+    request.system_instruction,
+    /오블 \(ovll\)/
+  );
+  assert.match(
+    request.system_instruction,
+    /Never identify yourself as ChatGPT/
+  );
+  assert.match(
+    request.input,
+    /아까 PDF 얘기했지/
+  );
+  assert.match(
+    request.input,
+    /너 이름 뭐야\?/
+  );
+  assert.equal(
+    request.generation_config
+      .thinking_level,
+    "minimal"
   );
 });
 
