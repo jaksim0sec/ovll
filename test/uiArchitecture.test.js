@@ -1409,3 +1409,50 @@ test("sidebar library icon is a dedicated rounded folder glyph", () => {
   );
   assert.match(js, /a1\.8 1\.8 0 0 1/);
 });
+
+
+test("motion system uses shared timing tokens and avoids page blur", () => {
+  const globalCss = read("front/css/style.css");
+  const uiCss = read("front/css/ui.css");
+  const sidebarCss = read("front/css/shellMenu.css");
+
+  for (const token of [
+    "--motion-ease-standard",
+    "--motion-ease-emphasized",
+    "--motion-fast",
+    "--motion-medium",
+    "--motion-slow"
+  ]) {
+    assert.match(
+      globalCss,
+      new RegExp(token + "\\s*:")
+    );
+  }
+
+  assert.doesNotMatch(
+    uiCss,
+    /#chat-page\s*\{[^}]*filter\s*:/s
+  );
+  assert.doesNotMatch(
+    uiCss,
+    /#canvas-page\s*\{[^}]*filter\s*:/s
+  );
+});
+
+test("runtime UI never renders raw successful model reports", () => {
+  const app = read("front/js/app.js");
+  const canvas = read("front/js/canvasNode.js");
+
+  assert.doesNotMatch(
+    app,
+    /completeRuntimeStep\(\s*event\.nodeId,\s*\{\s*detail:\s*event\.report/s
+  );
+  assert.match(
+    canvas,
+    /function\s+compactRuntimeReport\s*\(/
+  );
+  assert.match(
+    canvas,
+    /raw\.length\s*>\s*max/
+  );
+});
