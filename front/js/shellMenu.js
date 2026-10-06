@@ -1525,7 +1525,9 @@ function handleClick(event){
     global.OvllLibraryPage
       ?.show?.({
         history:
-          "replace"
+          usesDockedSidebar()
+            ?true
+            :"replace"
       });
 
     if(!usesDockedSidebar()){
@@ -1545,7 +1547,9 @@ function handleClick(event){
     global.OvllCustomNodePage
       ?.show?.({
         history:
-          "replace"
+          usesDockedSidebar()
+            ?true
+            :"replace"
       });
 
     if(!usesDockedSidebar()){

@@ -134,6 +134,30 @@ function createOvllFunctionWorkspace(
     workspace.slots
       .overlay;
 
+  const backButton=
+    document.createElement(
+      "button"
+    );
+
+  backButton.type="button";
+  backButton.className=
+    "ovll-function-back";
+  backButton.dataset
+    .functionBack="";
+  backButton.setAttribute(
+    "aria-label",
+    "함수 만들기 닫기"
+  );
+  backButton.innerHTML=`
+    <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <path d="m12.4 5.5-4.5 4.5 4.5 4.5" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  `;
+
+  headerStart?.appendChild(
+    backButton
+  );
+
   const context=
     document.createElement(
       "div"
@@ -143,16 +167,6 @@ function createOvllFunctionWorkspace(
     "ovll-function-context";
 
   context.innerHTML=`
-    <button
-      class="ovll-function-back"
-      data-function-back
-      type="button"
-      aria-label="함수 만들기 닫기"
-    >
-      <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
-        <path d="m12.4 5.5-4.5 4.5 4.5 4.5" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-    </button>
     <button
       class="ovll-function-identity"
       data-function-inspector-toggle
@@ -167,7 +181,7 @@ function createOvllFunctionWorkspace(
     </button>
   `;
 
-  headerStart?.appendChild(
+  overlay?.appendChild(
     context
   );
 
@@ -884,21 +898,8 @@ function createOvllFunctionWorkspace(
       String(
         nameInput?.value||
         ""
-      ).trim();
-
-    if(!name){
-      setStatus(
-        "이름이 필요해",
-        "error"
-      );
-
-      setInspectorOpen(
-        true
-      );
-
-      nameInput?.focus?.();
-      return false;
-    }
+      ).trim()||
+      "새 함수";
 
     let validated;
 
@@ -938,34 +939,56 @@ function createOvllFunctionWorkspace(
       state.canvas
         .getState();
 
-    const saved=
-      Store.save({
-        id:
-          state.editingId||
-          undefined,
-        name,
-        description,
-        llmdesc:
-          description||
-          name+
-          " 작업을 수행하는 사용자 정의 함수.",
-        color:
-          state.color,
-        workflow:
-          validated.workflow,
-        boundary:
-          validated.boundary,
-        builder:{
-          messages:
-            state.messages,
-          viewport:
-            canvasState
-              .viewport
-        }
-      });
+    let saved;
+
+    try{
+      saved=
+        Store.save({
+          id:
+            state.editingId||
+            undefined,
+          name,
+          description,
+          llmdesc:
+            description||
+            name+
+            " 작업을 수행하는 사용자 정의 함수.",
+          color:
+            state.color,
+          workflow:
+            validated.workflow,
+          boundary:
+            validated.boundary,
+          builder:{
+            messages:
+              state.messages,
+            viewport:
+              canvasState
+                .viewport
+          }
+        });
+    }catch(error){
+      console.error(
+        "Function Workspace save error:",
+        error
+      );
+
+      setStatus(
+        error?.message||
+        "함수를 저장하지 못했어",
+        "error"
+      );
+
+      return false;
+    }
 
     state.editingId=
       saved.id;
+
+    if(nameInput){
+      nameInput.value=
+        saved.name;
+    }
     state.dirty=false;
 
     if(deleteButton){
@@ -1184,9 +1207,7 @@ function createOvllFunctionWorkspace(
   );
 
   listen(
-    context.querySelector(
-      "[data-function-back]"
-    ),
+    backButton,
     "click",
     ()=>{
       options.onClose?.();

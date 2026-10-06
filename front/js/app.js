@@ -7619,8 +7619,8 @@
             UI,
           presence:
             Presence,
-          mascot:
-            false,
+          exposeMascotGlobal:
+            true,
           history:
             true,
           navigation:
@@ -7909,10 +7909,7 @@
 
     ensureMainWorkspace()
       .bindCanvas(
-        canvas,
-        {
-          mascot:false
-        }
+        canvas
       );
 
     initializeNodeBuilder();

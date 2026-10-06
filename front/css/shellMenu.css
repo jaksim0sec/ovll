@@ -6,6 +6,14 @@
   --sidebar-width: 19.25rem;
   --sidebar-edge-gap: 3.75rem;
   --sidebar-radius: 1rem;
+  --global-nav-leading-end:
+    max(
+      4.15rem,
+      calc(
+        var(--safe-left) +
+        3.45rem
+      )
+    );
 }
 
 #ovll-shell-menu {

@@ -48,10 +48,21 @@
 }
 
 .ovll-function-context{
+  position:absolute;
+  z-index:calc(var(--layer-overlay) + 1);
+  top:
+    calc(
+      var(--safe-top) +
+      var(--topbar-height) +
+      .3rem
+    );
+  left:max(.72rem,var(--safe-left));
+  max-width:min(13rem,calc(100% - 1.44rem));
   display:flex;
   align-items:center;
   gap:.36rem;
   min-width:0;
+  pointer-events:auto;
 }
 
 .ovll-function-back,
@@ -182,14 +193,11 @@ small[data-tone="saved"]{
     calc(
       var(--safe-top) +
       var(--topbar-height) +
-      .45rem
+      var(--control-size) +
+      .75rem
     );
-  left:
-    max(
-      4.15rem,
-      calc(var(--safe-left) + 3.4rem)
-    );
-  width:min(20rem,calc(100% - 5.2rem));
+  left:max(.72rem,var(--safe-left));
+  width:min(20rem,calc(100% - 1.44rem));
   max-height:
     calc(
       100% -
@@ -440,9 +448,12 @@ small[data-tone="saved"]{
 #custom-node-page
 .ovll-workspace-slot-start{
   left:
-    max(
-      4.15rem,
-      calc(var(--safe-left) + 3.4rem)
+    var(
+      --global-nav-leading-end,
+      max(
+        4.15rem,
+        calc(var(--safe-left) + 3.45rem)
+      )
     );
 }
 
@@ -454,6 +465,17 @@ small[data-tone="saved"]{
 #custom-node-page
 .astra-message-body{
   white-space:pre-wrap;
+}
+
+#custom-node-page
+[data-ovll-chat-content]{
+  padding-top:
+    calc(
+      var(--safe-top) +
+      var(--topbar-height) +
+      var(--control-size) +
+      1.1rem
+    );
 }
 
 @media (min-width:43.76rem) and (hover:hover) and (pointer:fine){
@@ -481,17 +503,34 @@ small[data-tone="saved"]{
       calc(
         var(--safe-top) +
         var(--topbar-height) +
-        .4rem
+        var(--control-size) +
+        .7rem
       );
   }
 
   #custom-node-page
   .ovll-workspace-slot-start{
-    left:
-      max(
-        3.8rem,
-        calc(var(--safe-left) + 3.2rem)
+    top:
+      calc(
+        var(--safe-top) +
+        var(--topbar-height) +
+        .3rem
       );
+    left:max(.72rem,var(--safe-left));
+  }
+
+  .ovll-function-context{
+    left:
+      calc(
+        max(.72rem,var(--safe-left)) +
+        var(--control-size) +
+        .4rem
+      );
+  }
+
+  .ovll-function-save{
+    min-width:3.2rem;
+    padding:0 .55rem;
   }
 }
 

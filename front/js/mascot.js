@@ -3108,13 +3108,53 @@ function init(){
 
   let tries=0;
 
+  function adoptWorkspaceMascot(){
+    const workspace=
+      global.OvllMainWorkspace;
+
+    const owned=
+      workspace
+        ?.getMascot?.();
+
+    if(!owned){
+      return false;
+    }
+
+    global.ovllCanvasMascot=
+      owned;
+
+    global.createOvllCanvasMascot=
+      options=>
+        workspace
+          .attachMascot?.(
+            options||{}
+          )||
+        owned;
+
+    return true;
+  }
+
   function wait(){
+    if(
+      global.ovllCanvasMascot||
+      adoptWorkspaceMascot()
+    ){
+      return;
+    }
+
     const canvas=
       global.getMountedCanvasNode?.(
         viewport
       );
 
     if(!canvas){
+      if(tries++<360)
+        requestAnimationFrame(wait);
+
+      return;
+    }
+
+    if(global.OvllMainWorkspace){
       if(tries++<360)
         requestAnimationFrame(wait);
 
@@ -3144,7 +3184,6 @@ function init(){
       mascot,
       global.AstraUI
     );
-
   }
 
   wait();

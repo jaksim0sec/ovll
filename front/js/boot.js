@@ -104,8 +104,8 @@ const APP_SCRIPTS=[
   "./js/workspacePresence.js",
   "./js/ovllPresence.js",
   "./js/runtimeFinalization.js",
-  "./js/app.js",
-  "./js/mascot.js"
+  "./js/mascot.js",
+  "./js/app.js"
 ];
 
 async function getServerVersion(){

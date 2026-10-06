@@ -525,6 +525,17 @@ function createOvllWorkspace(host,options={}){
 
     presence.attachCanvasMascot(mascot);
 
+    if(options.exposeMascotGlobal===true){
+      global.ovllCanvasMascot=
+        mascot;
+
+      global.createOvllCanvasMascot=
+        nextOptions=>
+          attachMascot(
+            nextOptions||{}
+          );
+    }
+
     if(typeof global.bindOvllCanvasMascotUI==="function"){
       mascotUiCleanup=
         global.bindOvllCanvasMascotUI(
@@ -641,8 +652,20 @@ function createOvllWorkspace(host,options={}){
       mascotUiCleanup?.();
       mascotUiCleanup=null;
 
+      const ownedMascot=
+        mascot;
+
       mascot?.destroy?.();
       mascot=null;
+
+      if(
+        options.exposeMascotGlobal===true&&
+        global.ovllCanvasMascot===
+          ownedMascot
+      ){
+        global.ovllCanvasMascot=
+          null;
+      }
 
       listeners.splice(0).forEach(cleanup=>{
         try{cleanup();}catch{}

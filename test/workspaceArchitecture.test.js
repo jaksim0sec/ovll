@@ -137,3 +137,93 @@ test("reusable workspace controls do not expose dead or ambiguous controls", () 
   );
 });
 
+test("main workspace owns the interactive mascot lifecycle", () => {
+  const app =
+    read("front/js/app.js");
+  const boot =
+    read("front/js/boot.js");
+  const mascot =
+    read("front/js/mascot.js");
+
+  const ensureStart =
+    app.indexOf("function ensureMainWorkspace");
+  const canvasStart =
+    app.indexOf("async function initializeCanvas");
+  const mainWorkspace =
+    app.slice(ensureStart, canvasStart);
+  const bindStart =
+    app.indexOf(".bindCanvas(", canvasStart);
+  const bindCanvas =
+    app.slice(bindStart, bindStart + 220);
+
+  assert.doesNotMatch(
+    mainWorkspace,
+    /mascot:\s*false/
+  );
+  assert.doesNotMatch(
+    bindCanvas,
+    /mascot:\s*false/
+  );
+  assert.ok(
+    boot.indexOf("./js/mascot.js") <
+      boot.indexOf("./js/app.js"),
+    "mascot mount API must exist before app binds the main canvas"
+  );
+  assert.match(
+    mascot,
+    /OvllMainWorkspace[\s\S]*?getMascot/
+  );
+});
+
+test("function builder keeps contextual identity out of the global topbar lane", () => {
+  const feature =
+    read("front/js/functionWorkspace.js");
+  const css =
+    read("front/css/customNode.css");
+
+  assert.doesNotMatch(
+    feature,
+    /headerStart\?\.appendChild\(\s*context\s*\)/
+  );
+  assert.match(
+    feature,
+    /overlay\?\.appendChild\(\s*context\s*\)/
+  );
+  assert.match(
+    css,
+    /\.ovll-function-context\s*\{[^}]*position:\s*absolute[^}]*top:\s*calc\(/s
+  );
+  assert.match(
+    css,
+    /--global-nav-leading-end/
+  );
+});
+
+test("function builder can save a valid unnamed draft and reports storage failures", () => {
+  const feature =
+    read("front/js/functionWorkspace.js");
+
+  assert.doesNotMatch(
+    feature,
+    /if\(!name\)\{[\s\S]*?return false/
+  );
+  assert.match(
+    feature,
+    /\|\|\s*"새 함수"/
+  );
+  assert.match(
+    feature,
+    /try\{[\s\S]*?Store\.save\([\s\S]*?catch\(error\)/
+  );
+});
+
+test("standalone pages preserve a real back stack on docked desktop navigation", () => {
+  const menu =
+    read("front/js/shellMenu.js");
+
+  assert.match(
+    menu,
+    /history:\s*usesDockedSidebar\(\)\s*\?\s*true\s*:\s*"replace"/
+  );
+});
+
