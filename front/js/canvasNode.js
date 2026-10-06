@@ -76,6 +76,7 @@
     const getFreshNodeDefinitions =
       global.AstraAPI?.getNodeDefinitions;
     const canRefreshDefinitions =
+      options.refreshDefinitions !== false &&
       typeof getFreshNodeDefinitions === 'function' &&
       global.navigator?.onLine !== false;
 
@@ -102,13 +103,13 @@
         );
       }
     }
-    const viewport = target.matches('#canvas-viewport')
+    const viewport = target.matches('#canvas-viewport,[data-canvas-viewport]')
       ? target
-      : target.querySelector('#canvas-viewport');
-    if (!viewport) throw new Error('#canvas-viewport가 없습니다.');
-    const world = viewport.querySelector('#canvas-world');
-    const connectionSvg = viewport.querySelector('#canvas-connections');
-    const nodesLayer = viewport.querySelector('#canvas-nodes');
+      : target.querySelector('#canvas-viewport,[data-canvas-viewport]');
+    if (!viewport) throw new Error('canvas viewport가 없습니다.');
+    const world = viewport.querySelector('#canvas-world,[data-canvas-world]');
+    const connectionSvg = viewport.querySelector('#canvas-connections,[data-canvas-connections]');
+    const nodesLayer = viewport.querySelector('#canvas-nodes,[data-canvas-nodes]');
     if (!world || !connectionSvg || !nodesLayer) {
       throw new Error('Canvas DOM 구조가 올바르지 않습니다.');
     }
@@ -357,6 +358,36 @@
     }
     function getDefinition(type) {
       return registry.get(type) || null;
+    }
+    function setNodeDefinitions(nextDefinitions = {}) {
+      const source =
+        nextDefinitions &&
+        typeof nextDefinitions === 'object' &&
+        !Array.isArray(nextDefinitions)
+          ? nextDefinitions
+          : {};
+
+      registry.clear();
+
+      for (const [type, definition] of Object.entries(source)) {
+        registry.set(
+          type,
+          normalizeDefinition(type, definition)
+        );
+      }
+
+      render();
+      emit(
+        'definitionsChange',
+        getNodeDefinitions()
+      );
+
+      return api;
+    }
+    function getNodeDefinitions() {
+      return Object.fromEntries(
+        registry.entries()
+      );
     }
     function getNode(id) {
       return state.nodes.find(node => node.id === id) || null;
@@ -5016,11 +5047,8 @@
       getNodeDefinition:
         type =>
           getDefinition(type),
-      getNodeDefinitions:
-        () =>
-          Object.fromEntries(
-            registry.entries()
-          ),
+      getNodeDefinitions,
+      setNodeDefinitions,
       center() {
         centerWorkflow();
         return api;
