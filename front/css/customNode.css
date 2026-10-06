@@ -1,0 +1,445 @@
+.ovll-custom-node-page{
+  position:absolute;
+  inset:0;
+  z-index:38;
+  display:flex;
+  min-width:0;
+  min-height:0;
+  opacity:0;
+  transform:translateY(8px);
+  pointer-events:none;
+  transition:opacity .18s ease,transform .18s ease;
+  background:var(--surface,#f3f3f2);
+  color:var(--text,#171717);
+}
+
+.ovll-custom-node-page[hidden]{
+  display:none;
+}
+
+.ovll-custom-node-page.is-open{
+  opacity:1;
+  transform:none;
+  pointer-events:auto;
+}
+
+.ovll-custom-shell{
+  width:100%;
+  min-width:0;
+  min-height:0;
+  display:grid;
+  grid-template-columns:15rem minmax(0,1fr);
+  overflow:hidden;
+}
+
+.ovll-custom-sidebar{
+  min-width:0;
+  min-height:0;
+  display:flex;
+  flex-direction:column;
+  gap:.8rem;
+  padding:1rem .8rem;
+  border-right:1px solid color-mix(in srgb,currentColor 9%,transparent);
+}
+
+.ovll-custom-sidebar-head,
+.ovll-custom-header,
+.ovll-custom-meta-row,
+.ovll-custom-actions,
+.ovll-custom-colors{
+  display:flex;
+  align-items:center;
+}
+
+.ovll-custom-sidebar-head{
+  justify-content:space-between;
+  gap:.65rem;
+}
+
+.ovll-custom-sidebar-head h2{
+  margin:0;
+  font-size:.9rem;
+  font-weight:680;
+  letter-spacing:-.02em;
+}
+
+.ovll-custom-new,
+.ovll-custom-back,
+.ovll-custom-save,
+.ovll-custom-delete{
+  appearance:none;
+  border:0;
+  font:inherit;
+  cursor:pointer;
+}
+
+.ovll-custom-new,
+.ovll-custom-back{
+  width:2rem;
+  height:2rem;
+  display:grid;
+  place-items:center;
+  border-radius:.7rem;
+  background:transparent;
+  color:inherit;
+}
+
+.ovll-custom-new:hover,
+.ovll-custom-back:hover{
+  background:color-mix(in srgb,currentColor 7%,transparent);
+}
+
+.ovll-custom-list{
+  min-height:0;
+  overflow:auto;
+  display:flex;
+  flex-direction:column;
+  gap:.38rem;
+  padding:.1rem;
+}
+
+.ovll-custom-card{
+  appearance:none;
+  border:0;
+  width:100%;
+  min-width:0;
+  display:grid;
+  grid-template-columns:1.9rem minmax(0,1fr);
+  align-items:center;
+  gap:.65rem;
+  padding:.62rem .68rem;
+  border-radius:.82rem;
+  background:transparent;
+  color:inherit;
+  text-align:left;
+  cursor:pointer;
+}
+
+.ovll-custom-card:hover,
+.ovll-custom-card.is-active{
+  background:color-mix(in srgb,currentColor 6%,transparent);
+}
+
+.ovll-custom-card-orb{
+  width:1.8rem;
+  height:1.8rem;
+  border-radius:.62rem;
+  background:color-mix(in srgb,var(--custom-color) 18%,transparent);
+  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--custom-color) 45%,transparent);
+}
+
+.ovll-custom-card-copy{
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  gap:.16rem;
+}
+
+.ovll-custom-card-copy strong,
+.ovll-custom-card-copy small{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.ovll-custom-card-copy strong{
+  font-size:.82rem;
+  font-weight:620;
+}
+
+.ovll-custom-card-copy small{
+  font-size:.68rem;
+  opacity:.5;
+}
+
+.ovll-custom-empty{
+  padding:1rem .7rem;
+  font-size:.76rem;
+  opacity:.48;
+}
+
+.ovll-custom-editor{
+  min-width:0;
+  min-height:0;
+  display:grid;
+  grid-template-rows:auto auto minmax(0,1fr);
+}
+
+.ovll-custom-header{
+  min-height:3.6rem;
+  justify-content:space-between;
+  gap:1rem;
+  padding:.68rem 1rem .45rem;
+}
+
+.ovll-custom-header-title{
+  display:flex;
+  align-items:center;
+  gap:.55rem;
+  min-width:0;
+}
+
+.ovll-custom-header-title strong{
+  font-size:.88rem;
+  font-weight:680;
+}
+
+.ovll-custom-actions{
+  gap:.42rem;
+}
+
+.ovll-custom-save,
+.ovll-custom-delete{
+  min-height:2.05rem;
+  padding:0 .78rem;
+  border-radius:.7rem;
+  font-size:.74rem;
+  font-weight:630;
+}
+
+.ovll-custom-save{
+  background:currentColor;
+  color:var(--surface,#f3f3f2);
+}
+
+.ovll-custom-delete{
+  background:color-mix(in srgb,#d95d5d 11%,transparent);
+  color:#b34141;
+}
+
+.ovll-custom-meta{
+  display:grid;
+  gap:.58rem;
+  padding:.2rem 1rem .85rem;
+}
+
+.ovll-custom-meta-row{
+  gap:.58rem;
+  min-width:0;
+}
+
+.ovll-custom-name,
+.ovll-custom-description{
+  appearance:none;
+  width:100%;
+  min-width:0;
+  border:0;
+  outline:0;
+  background:transparent;
+  color:inherit;
+  font:inherit;
+}
+
+.ovll-custom-name{
+  font-size:1.36rem;
+  font-weight:720;
+  letter-spacing:-.04em;
+}
+
+.ovll-custom-description{
+  font-size:.78rem;
+  opacity:.68;
+}
+
+.ovll-custom-name::placeholder,
+.ovll-custom-description::placeholder{
+  color:inherit;
+  opacity:.3;
+}
+
+.ovll-custom-colors{
+  gap:.34rem;
+  flex:0 0 auto;
+}
+
+.ovll-custom-color{
+  appearance:none;
+  width:1rem;
+  height:1rem;
+  border:0;
+  padding:0;
+  border-radius:999px;
+  cursor:pointer;
+  background:var(--custom-color);
+  box-shadow:0 0 0 1px color-mix(in srgb,currentColor 12%,transparent);
+  transition:transform .15s ease,box-shadow .15s ease;
+}
+
+.ovll-custom-color.is-active{
+  transform:scale(1.16);
+  box-shadow:0 0 0 2px var(--surface,#f3f3f2),0 0 0 3px var(--custom-color);
+}
+
+.ovll-custom-status{
+  min-height:1em;
+  font-size:.68rem;
+  opacity:.48;
+}
+
+.ovll-custom-status[data-tone="error"]{
+  color:#b34141;
+  opacity:.9;
+}
+
+.ovll-custom-status[data-tone="saved"]{
+  color:#247f62;
+  opacity:.82;
+}
+
+.ovll-custom-status[data-tone="pending"]{
+  opacity:.62;
+}
+
+.ovll-custom-workbench{
+  position:relative;
+  min-width:0;
+  min-height:0;
+  margin:0 .8rem .8rem;
+  overflow:hidden;
+  border-radius:1.2rem;
+  background:color-mix(in srgb,currentColor 2.8%,transparent);
+  box-shadow:inset 0 0 0 1px color-mix(in srgb,currentColor 8%,transparent);
+}
+
+.ovll-custom-palette{
+  position:absolute;
+  z-index:8;
+  top:.72rem;
+  left:50%;
+  transform:translateX(-50%);
+  max-width:calc(100% - 1.5rem);
+  display:flex;
+  align-items:center;
+  gap:.32rem;
+  padding:.34rem;
+  overflow:auto hidden;
+  border-radius:.9rem;
+  background:color-mix(in srgb,var(--surface,#f3f3f2) 88%,transparent);
+  box-shadow:0 .35rem 1.4rem color-mix(in srgb,#000 8%,transparent),inset 0 0 0 1px color-mix(in srgb,currentColor 8%,transparent);
+  backdrop-filter:blur(18px);
+}
+
+.ovll-custom-palette-item{
+  appearance:none;
+  flex:0 0 auto;
+  display:flex;
+  align-items:center;
+  gap:.32rem;
+  height:2rem;
+  padding:0 .55rem;
+  border:0;
+  border-radius:.65rem;
+  background:transparent;
+  color:inherit;
+  font:inherit;
+  font-size:.7rem;
+  cursor:pointer;
+}
+
+.ovll-custom-palette-item:hover{
+  background:color-mix(in srgb,currentColor 7%,transparent);
+}
+
+.ovll-custom-palette-icon{
+  width:1rem;
+  height:1rem;
+  display:grid;
+  place-items:center;
+}
+
+.ovll-custom-palette-icon svg{
+  width:100%;
+  height:100%;
+}
+
+.ovll-custom-canvas{
+  position:absolute;
+  inset:0;
+}
+
+.ovll-custom-canvas [data-canvas-viewport]{
+  position:absolute;
+  inset:0;
+  overflow:hidden;
+  touch-action:none;
+}
+
+.ovll-custom-canvas [data-canvas-world]{
+  position:absolute;
+  inset:0;
+  transform-origin:0 0;
+}
+
+.ovll-custom-canvas [data-canvas-connections]{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  overflow:visible;
+  pointer-events:none;
+}
+
+.ovll-custom-canvas [data-canvas-nodes]{
+  position:absolute;
+  inset:0;
+}
+
+@media (max-width:43.75rem){
+  .ovll-custom-shell{
+    grid-template-columns:1fr;
+    grid-template-rows:auto minmax(0,1fr);
+  }
+
+  .ovll-custom-sidebar{
+    min-height:auto;
+    padding:.6rem .7rem .2rem;
+    border-right:0;
+    border-bottom:1px solid color-mix(in srgb,currentColor 8%,transparent);
+  }
+
+  .ovll-custom-sidebar-head{
+    display:none;
+  }
+
+  .ovll-custom-list{
+    flex-direction:row;
+    overflow:auto hidden;
+    padding:.2rem 0 .45rem;
+  }
+
+  .ovll-custom-card{
+    width:10rem;
+    flex:0 0 10rem;
+  }
+
+  .ovll-custom-empty{
+    padding:.5rem .2rem;
+  }
+
+  .ovll-custom-header{
+    padding:.52rem .65rem .25rem;
+  }
+
+  .ovll-custom-meta{
+    padding:.2rem .78rem .62rem;
+  }
+
+  .ovll-custom-workbench{
+    margin:0 .45rem .45rem;
+    border-radius:1rem;
+  }
+
+  .ovll-custom-name{
+    font-size:1.15rem;
+  }
+
+  .ovll-custom-description{
+    font-size:.75rem;
+  }
+}
+
+@media (prefers-reduced-motion:reduce){
+  .ovll-custom-node-page{
+    transition:none;
+  }
+}
