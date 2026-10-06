@@ -843,6 +843,8 @@
 /* footer */
 
 .ovll-sidebar-footer {
+  display: grid;
+  gap: .12rem;
   padding:
     .72rem
     .72rem
@@ -933,6 +935,175 @@
   font-weight: 470;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+
+.ovll-sidebar-theme {
+  width: 100%;
+  min-width: 0;
+  min-height: 3.2rem;
+  display: grid;
+  grid-template-columns:
+    1.5rem
+    minmax(0,1fr)
+    auto;
+  align-items: center;
+  gap: .7rem;
+  padding:
+    .44rem
+    .7rem;
+  border-radius: .86rem;
+  color: var(--sidebar-text);
+  cursor: pointer;
+  transition:
+    color .14s ease,
+    background-color .14s ease;
+}
+
+.ovll-sidebar-theme:hover {
+  color: var(--text);
+  background:
+    color-mix(
+      in srgb,
+      var(--text) 5.5%,
+      transparent
+    );
+}
+
+.ovll-sidebar-theme-icon {
+  width: 1.5rem;
+  height: 1.5rem;
+  display: grid;
+  place-items: center;
+  color: var(--sub);
+}
+
+.ovll-sidebar-theme-icon svg {
+  width: 1.22rem;
+  height: 1.22rem;
+  max-width: none;
+}
+
+.ovll-sidebar-theme-copy {
+  min-width: 0;
+  display: grid;
+}
+
+.ovll-sidebar-theme-copy strong {
+  overflow: hidden;
+  font-size: .94rem;
+  font-weight: 620;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ovll-sidebar-theme-switch {
+  position: relative;
+  width: 2.52rem;
+  height: 1.5rem;
+  display: grid;
+  place-items: center;
+}
+
+.ovll-sidebar-theme-switch input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.ovll-sidebar-theme-track {
+  position: relative;
+  width: 2.34rem;
+  height: 1.34rem;
+  display: block;
+  border:
+    .0625rem solid
+    var(--line-strong);
+  border-radius: 999px;
+  background:
+    color-mix(
+      in srgb,
+      var(--text) 7%,
+      var(--panel)
+    );
+  transition:
+    background-color .18s ease,
+    border-color .18s ease;
+}
+
+.ovll-sidebar-theme-track::after {
+  content: "";
+  position: absolute;
+  top: .16rem;
+  left: .16rem;
+  width: .9rem;
+  height: .9rem;
+  border-radius: 50%;
+  background: var(--panel);
+  border:
+    .0625rem solid
+    color-mix(
+      in srgb,
+      var(--line-strong) 78%,
+      transparent
+    );
+  box-shadow:
+    0 .0625rem .16rem
+    rgba(0,0,0,.12);
+  transition:
+    transform .2s
+    var(--motion-ease-emphasized),
+    background-color .18s ease;
+}
+
+.ovll-sidebar-theme-switch input:checked
++ .ovll-sidebar-theme-track {
+  border-color:
+    color-mix(
+      in srgb,
+      var(--text) 72%,
+      var(--line)
+    );
+  background: var(--text);
+}
+
+.ovll-sidebar-theme-switch input:checked
++ .ovll-sidebar-theme-track::after {
+  transform: translateX(1rem);
+  background: var(--bg);
+}
+
+.ovll-sidebar-theme-switch input:focus-visible
++ .ovll-sidebar-theme-track {
+  outline:
+    .125rem solid
+    color-mix(
+      in srgb,
+      var(--text) 17%,
+      transparent
+    );
+  outline-offset: .12rem;
+}
+
+:root:not(.dark)
+#ovll-shell-menu-panel {
+  --sidebar-text:
+    color-mix(
+      in srgb,
+      var(--text) 94%,
+      var(--sub)
+    );
+  --sidebar-text-soft:
+    color-mix(
+      in srgb,
+      var(--text) 78%,
+      var(--sub)
+    );
 }
 
 /* focus */

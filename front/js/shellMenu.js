@@ -181,6 +181,11 @@ function icon(name){
         <path d="M4.8 16c.45-2.8 2.2-4.2 5.2-4.2s4.75 1.4 5.2 4.2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
       </svg>
     `,
+    moon:`
+      <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path d="M14.95 12.85A6.35 6.35 0 0 1 7.15 5.05 6.55 6.55 0 1 0 14.95 12.85Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    `,
     dots:`
       <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
         <circle cx="5.2" cy="10" r="1.2" fill="currentColor"/>
@@ -335,6 +340,26 @@ root.innerHTML=`
       </div>
 
       <footer class="ovll-sidebar-footer">
+        <label class="ovll-sidebar-theme">
+          <span class="ovll-sidebar-theme-icon" aria-hidden="true">
+            ${icon("moon")}
+          </span>
+          <span class="ovll-sidebar-theme-copy">
+            <strong>다크 모드</strong>
+          </span>
+          <span class="ovll-sidebar-theme-switch">
+            <input
+              type="checkbox"
+              data-sidebar-theme-toggle
+              aria-label="다크 모드"
+            >
+            <span
+              class="ovll-sidebar-theme-track"
+              aria-hidden="true"
+            ></span>
+          </span>
+        </label>
+
         <button
           type="button"
           class="ovll-sidebar-account"
@@ -386,6 +411,46 @@ const searchInput=
   searchBox?.querySelector(
     "input"
   );
+
+const themeToggle=
+  root.querySelector(
+    "[data-sidebar-theme-toggle]"
+  );
+
+function syncThemeToggle(){
+  if(!themeToggle){
+    return;
+  }
+
+  themeToggle.checked=
+    document.documentElement
+      .classList
+      .contains(
+        "dark"
+      );
+}
+
+syncThemeToggle();
+
+const themeObserver=
+  new MutationObserver(
+    syncThemeToggle
+  );
+
+themeObserver.observe(
+  document.documentElement,
+  {
+    attributes:true,
+    attributeFilter:[
+      "class",
+      "data-theme"
+    ]
+  }
+);
+
+listeners.push(
+  ()=>themeObserver.disconnect()
+);
 
 function activeConversation(){
   return Store
@@ -1997,6 +2062,38 @@ function endTouchGesture(event){
 
   finishGestureState();
 }
+
+listen(
+  themeToggle,
+  "change",
+  ()=>{
+    const enabled=
+      !!themeToggle.checked;
+
+    if(
+      typeof global.AstraUI
+        ?.setDarkMode ===
+        "function"
+    ){
+      global.AstraUI
+        .setDarkMode(
+          enabled
+        );
+    }
+
+    syncThemeToggle();
+
+    emit(
+      "themechange",
+      {
+        theme:
+          enabled
+            ?"dark"
+            :"light"
+      }
+    );
+  }
+);
 
 listen(
   trigger,

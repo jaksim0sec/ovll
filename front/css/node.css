@@ -78,15 +78,7 @@
       var(--node)
     );
   color: var(--text);
-  box-shadow:
-    0
-    .45rem
-    1.5rem
-    color-mix(
-      in srgb,
-      #000 5%,
-      transparent
-    );
+  box-shadow: var(--shadow-soft);
   cursor: grab;
   overflow: visible;
   user-select: none;

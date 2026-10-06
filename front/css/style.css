@@ -5,19 +5,21 @@
 
 :root {
   color-scheme: light;
-  --bg: #f3f3f2;
+  --bg: #f1f1ef;
   --panel: #ffffff;
-  --panel-soft: rgba(255, 255, 255, 0.72);
-  --panel-strong: rgba(255, 255, 255, 0.92);
+  --panel-soft: rgba(255, 255, 255, 0.9);
+  --panel-strong: rgba(255, 255, 255, 0.985);
   --text: #171717;
-  --sub: #656565;
-  --muted: #989898;
-  --line: rgba(0, 0, 0, 0.075);
-  --line-strong: rgba(0, 0, 0, 0.12);
+  --sub: #5b5d5a;
+  --muted: #81837f;
+  --line: rgba(22, 24, 22, 0.105);
+  --line-strong: rgba(22, 24, 22, 0.17);
   --shadow:
-    0 .5rem 1.625rem rgba(0, 0, 0, 0.045);
+    0 .0625rem .125rem rgba(16, 20, 18, .075),
+    0 .55rem 1.45rem rgba(16, 20, 18, .065);
   --shadow-soft:
-    0 .1875rem .75rem rgba(0, 0, 0, 0.035);
+    0 .0625rem .125rem rgba(16, 20, 18, .06),
+    0 .22rem .68rem rgba(16, 20, 18, .045);
   --topbar-height: 4.25rem;
   --top-control-height: 2.75rem;
   --top-control-top: .6875rem;
@@ -51,10 +53,12 @@
   --ui-radius-item: 1rem;
   --ui-glass: var(--panel-soft);
   --ui-glass-strong: var(--panel-strong);
-  --ui-control-surface: rgba(255, 255, 255, .86);
-  --ui-control-surface-strong: rgba(255, 255, 255, .94);
-  --ui-control-shadow: 0 .32rem 1.05rem rgba(0, 0, 0, .065);
-  --ui-backdrop: blur(1.45rem) saturate(1.1);
+  --ui-control-surface: rgba(255, 255, 255, .94);
+  --ui-control-surface-strong: rgba(255, 255, 255, .995);
+  --ui-control-shadow:
+    0 .0625rem .125rem rgba(16, 20, 18, .07),
+    0 .28rem .82rem rgba(16, 20, 18, .055);
+  --ui-backdrop: blur(1.2rem) saturate(1.04);
 
   --app-resize-duration: .14s;
   --app-resize-ease: cubic-bezier(.2,.82,.2,1);

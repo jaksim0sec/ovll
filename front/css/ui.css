@@ -91,13 +91,7 @@
   background: var(--ui-control-surface);
   backdrop-filter: var(--ui-backdrop);
   -webkit-backdrop-filter: var(--ui-backdrop);
-  box-shadow:
-    0 .18rem .7rem
-    color-mix(
-      in srgb,
-      #000 16%,
-      transparent
-    );
+  box-shadow: var(--ui-control-shadow);
   overflow: hidden;
   pointer-events: none;
   touch-action: none;
@@ -116,7 +110,9 @@
   border: .0625rem solid var(--line);
   border-radius: 62.4375rem;
   background: var(--ui-control-surface-strong);
-  box-shadow: 0 .1rem .4rem rgba(0, 0, 0, .035);
+  box-shadow:
+    0 .0625rem .125rem rgba(0, 0, 0, .065),
+    0 .16rem .42rem rgba(0, 0, 0, .04);
   transform: translate3d(calc(var(--page-progress) * 100%), 0, 0);
   transition: transform var(--motion-slow) var(--motion-ease-emphasized);
   pointer-events: none;
@@ -499,13 +495,7 @@
     );
   backdrop-filter: var(--ui-backdrop);
   -webkit-backdrop-filter: var(--ui-backdrop);
-  box-shadow:
-    0 .2rem .8rem
-      color-mix(
-        in srgb,
-        #000 8%,
-        transparent
-      );
+  box-shadow: var(--ui-control-shadow);
   pointer-events: auto;
   overflow: visible;
   box-sizing: border-box;
@@ -537,13 +527,7 @@
       var(--ui-glass-strong) 95%,
       var(--bg)
     );
-  box-shadow:
-    0 .24rem .95rem
-      color-mix(
-        in srgb,
-        #000 10%,
-        transparent
-      );
+  box-shadow: var(--ui-control-shadow);
 }
 
 :is(#composer-input,[data-ovll-composer-input]) {
