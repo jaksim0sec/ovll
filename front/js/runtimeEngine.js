@@ -323,6 +323,814 @@
     };
   }
 
+  const AUTO_EXECUTION_NODE_COST =
+    Object.freeze({
+      start: 0,
+      file: 0,
+      convert: 1,
+      organize: 2,
+      write: 2,
+      createFile: 2,
+      research: 3,
+      judge: 5
+    });
+
+  function irNodeParams(
+    node
+  ) {
+    if (
+      node?.params &&
+      typeof node.params ===
+        "object" &&
+      !Array.isArray(
+        node.params
+      )
+    ) {
+      return node.params;
+    }
+
+    if (
+      node?.data?.params &&
+      typeof node.data.params ===
+        "object" &&
+      !Array.isArray(
+        node.data.params
+      )
+    ) {
+      return node.data.params;
+    }
+
+    return {};
+  }
+
+  function stableExecutionValue(
+    value
+  ) {
+    if (
+      value === null ||
+      typeof value ===
+        "string" ||
+      typeof value ===
+        "number" ||
+      typeof value ===
+        "boolean"
+    ) {
+      return value;
+    }
+
+    if (
+      Array.isArray(value)
+    ) {
+      return value.map(
+        stableExecutionValue
+      );
+    }
+
+    if (
+      value &&
+      typeof value ===
+        "object"
+    ) {
+      return Object.fromEntries(
+        Object.keys(value)
+          .sort()
+          .filter(
+            key =>
+              value[key] !==
+                undefined
+          )
+          .map(
+            key => [
+              key,
+              stableExecutionValue(
+                value[key]
+              )
+            ]
+          )
+      );
+    }
+
+    return String(
+      value ?? ""
+    );
+  }
+
+  function executionNodeSignature(
+    node
+  ) {
+    const type =
+      String(
+        node?.type ||
+        ""
+      );
+
+    const file =
+      type === "file"
+        ? (
+            node?.file &&
+            typeof node.file ===
+              "object"
+              ? node.file
+              : {
+                  source:
+                    node?.data
+                      ?.generated
+                      ? "generated"
+                      : node?.data
+                          ?.source ||
+                        "",
+                  name:
+                    node?.data?.name ||
+                    "",
+                  mime:
+                    node?.data?.mime ||
+                    "",
+                  size:
+                    Number(
+                      node?.data?.size ||
+                      0
+                    ),
+                  lastModified:
+                    Number(
+                      node?.data
+                        ?.lastModified ||
+                      0
+                    ),
+                  textPreview:
+                    node?.data
+                      ?.textPreview ||
+                    ""
+                }
+          )
+        : null;
+
+    return JSON.stringify(
+      stableExecutionValue({
+        type,
+        params:
+          irNodeParams(
+            node
+          ),
+        file
+      })
+    );
+  }
+
+  function executionIrEdges(
+    workflow
+  ) {
+    if (
+      Array.isArray(
+        workflow?.connections
+      )
+    ) {
+      return workflow
+        .connections
+        .map(
+          connection => ({
+            kind:
+              connection?.data
+                ?.kind === "data"
+                ? "data"
+                : "flow",
+            from:
+              String(
+                connection?.from
+                  ?.node ||
+                ""
+              ),
+            to:
+              String(
+                connection?.to
+                  ?.node ||
+                ""
+              )
+          })
+        )
+        .filter(
+          edge =>
+            edge.from &&
+            edge.to
+        );
+    }
+
+    const result = [];
+
+    for (
+      const [
+        kind,
+        edges
+      ] of [
+        [
+          "flow",
+          workflow?.links
+        ],
+        [
+          "data",
+          workflow?.data
+        ]
+      ]
+    ) {
+      for (
+        const edge of
+          Array.isArray(edges)
+            ? edges
+            : []
+      ) {
+        if (
+          !Array.isArray(edge) ||
+          edge.length !== 2
+        ) {
+          continue;
+        }
+
+        const from =
+          String(
+            edge[0] ||
+            ""
+          ).split(".")[0];
+
+        const to =
+          String(
+            edge[1] ||
+            ""
+          ).split(".")[0];
+
+        if (
+          from &&
+          to
+        ) {
+          result.push({
+            kind,
+            from,
+            to
+          });
+        }
+      }
+    }
+
+    return result;
+  }
+
+  function executionEdgeKey(
+    edge
+  ) {
+    return [
+      edge.kind,
+      edge.from,
+      edge.to
+    ].join(":");
+  }
+
+  function userExecutionIntent(
+    value
+  ) {
+    const text =
+      String(value || "")
+        .replace(
+          /\s+/g,
+          " "
+        )
+        .trim();
+
+    if (!text) {
+      return {
+        expectsResult: false,
+        explicitNoRun: false
+      };
+    }
+
+    const explicitNoRun =
+      /(?:실행|돌리|run|execute).{0,16}(?:하지\s*마|말고|안\s*해|no|not)|(?:추가|구성|연결|수정|변경|만들기)\s*만|without\s+(?:running|executing)|do\s+not\s+(?:run|execute)|don't\s+(?:run|execute)/i
+        .test(text);
+
+    const expectsResult =
+      /(?:조사|검색|찾|확인|검사|검증|분석|요약|정리|작성|써\s*줘|변환|번역|비교|평가|판단|계산|추출|뽑|보고서|답해|알려|보여|실행|돌려)\s*(?:해|하|해서|해봐|해줘|줘|봐|라|주세요)?|(?:pdf|docx|xlsx|pptx|파일).{0,18}(?:만들|생성|변환|내보내)|(?:research|search|find|check|verify|analy[sz]e|summari[sz]e|write|convert|translate|compare|evaluate|calculate|extract|generate|create|run|execute)\b/i
+        .test(text);
+
+    const structuralEdit =
+      /(?:노드|node|캔버스|canvas|워크플로우|workflow).{0,28}(?:추가|삭제|연결|수정|변경|바꿔|add|delete|remove|connect|modify|change)|(?:추가|삭제|연결|수정|변경|바꿔|add|delete|remove|connect|modify|change).{0,28}(?:노드|node|캔버스|canvas|워크플로우|workflow)/i
+        .test(text);
+
+    const directTask =
+      /(?:조사해|검색해|찾아|확인해|검사해|검증해|분석해|요약해|정리해|작성해|써\s*줘|변환해|번역해|비교해|평가해|판단해|계산해|추출해|뽑아|보고서.{0,12}만들|알려\s*줘|보여\s*줘|실행해|돌려)|(?:research|search|find|check|verify|analy[sz]e|summari[sz]e|write|convert|translate|compare|evaluate|calculate|extract|generate|create|run|execute)\s+(?:it|this|that|the|my|these|those)/i
+        .test(text);
+
+    return {
+      expectsResult:
+        !explicitNoRun &&
+        expectsResult &&
+        (
+          !structuralEdit ||
+          directTask
+        ),
+      explicitNoRun
+    };
+  }
+
+  function analyzeWorkflowExecutionDelta(
+    beforeWorkflow,
+    afterWorkflow,
+    runtimeWorkflow,
+    userText
+  ) {
+    const beforeNodes =
+      new Map(
+        (
+          Array.isArray(
+            beforeWorkflow
+              ?.nodes
+          )
+            ? beforeWorkflow
+                .nodes
+            : []
+        ).map(
+          node => [
+            String(
+              node?.id ||
+              ""
+            ),
+            node
+          ]
+        )
+      );
+
+    const afterNodes =
+      new Map(
+        (
+          Array.isArray(
+            afterWorkflow
+              ?.nodes
+          )
+            ? afterWorkflow
+                .nodes
+            : []
+        ).map(
+          node => [
+            String(
+              node?.id ||
+              ""
+            ),
+            node
+          ]
+        )
+      );
+
+    const added = [];
+    const removed = [];
+    const modified = [];
+
+    for (
+      const [
+        id,
+        node
+      ] of afterNodes
+    ) {
+      if (!id) {
+        continue;
+      }
+
+      const previous =
+        beforeNodes.get(id);
+
+      if (!previous) {
+        added.push(id);
+        continue;
+      }
+
+      if (
+        executionNodeSignature(
+          previous
+        ) !==
+        executionNodeSignature(
+          node
+        )
+      ) {
+        modified.push(id);
+      }
+    }
+
+    for (
+      const id of
+        beforeNodes.keys()
+    ) {
+      if (
+        id &&
+        !afterNodes.has(id)
+      ) {
+        removed.push(id);
+      }
+    }
+
+    const beforeEdges =
+      new Map(
+        executionIrEdges(
+          beforeWorkflow
+        ).map(
+          edge => [
+            executionEdgeKey(
+              edge
+            ),
+            edge
+          ]
+        )
+      );
+
+    const afterEdges =
+      new Map(
+        executionIrEdges(
+          afterWorkflow
+        ).map(
+          edge => [
+            executionEdgeKey(
+              edge
+            ),
+            edge
+          ]
+        )
+      );
+
+    const addedEdges =
+      [...afterEdges]
+        .filter(
+          ([key]) =>
+            !beforeEdges.has(
+              key
+            )
+        )
+        .map(
+          ([, edge]) =>
+            edge
+        );
+
+    const removedEdges =
+      [...beforeEdges]
+        .filter(
+          ([key]) =>
+            !afterEdges.has(
+              key
+            )
+        )
+        .map(
+          ([, edge]) =>
+            edge
+        );
+
+    const changedIds =
+      new Set([
+        ...added,
+        ...modified
+      ]);
+
+    const deltaOutgoing =
+      new Map(
+        [...changedIds].map(
+          id => [
+            id,
+            0
+          ]
+        )
+      );
+
+    for (
+      const edge of
+        afterEdges.values()
+    ) {
+      if (
+        changedIds.has(
+          edge.from
+        ) &&
+        changedIds.has(
+          edge.to
+        )
+      ) {
+        deltaOutgoing.set(
+          edge.from,
+          (
+            deltaOutgoing.get(
+              edge.from
+            ) ||
+            0
+          ) + 1
+        );
+      }
+    }
+
+    const terminals =
+      [...changedIds]
+        .filter(
+          id => {
+            const node =
+              afterNodes.get(id);
+
+            return (
+              node &&
+              ![
+                "start",
+                "file"
+              ].includes(
+                String(
+                  node.type ||
+                  ""
+                )
+              ) &&
+              (
+                deltaOutgoing.get(
+                  id
+                ) ||
+                0
+              ) === 0
+            );
+          }
+        );
+
+    const intent =
+      userExecutionIntent(
+        userText
+      );
+
+    const base = {
+      mode: "none",
+      reason:
+        "no-execution-needed",
+      pivot: "",
+      score: 0,
+      scope: [],
+      delta: {
+        added,
+        modified,
+        removed,
+        addedEdges:
+          addedEdges.length,
+        removedEdges:
+          removedEdges.length,
+        terminals
+      }
+    };
+
+    if (
+      !added.length &&
+      !modified.length &&
+      !removed.length &&
+      !addedEdges.length &&
+      !removedEdges.length
+    ) {
+      return base;
+    }
+
+    if (
+      intent.explicitNoRun ||
+      !intent.expectsResult
+    ) {
+      return {
+        ...base,
+        reason:
+          intent.explicitNoRun
+            ? "user-disabled-execution"
+            : "configuration-only"
+      };
+    }
+
+    if (
+      removed.length ||
+      terminals.length !== 1
+    ) {
+      return {
+        ...base,
+        mode: "manual",
+        reason:
+          removed.length
+            ? "destructive-delta"
+            : "ambiguous-terminal"
+      };
+    }
+
+    const pivot =
+      terminals[0];
+
+    let readiness;
+
+    try {
+      readiness =
+        validateExecutionReadiness(
+          runtimeWorkflow,
+          pivot,
+          {
+            mode: "target"
+          }
+        );
+    } catch {
+      readiness = {
+        ok: false,
+        scope: [],
+        emptyNodes: []
+      };
+    }
+
+    if (!readiness.ok) {
+      return {
+        ...base,
+        mode: "manual",
+        reason:
+          "not-ready",
+        pivot,
+        scope:
+          readiness.scope ||
+          []
+      };
+    }
+
+    const runtimeNodes =
+      new Map(
+        (
+          Array.isArray(
+            runtimeWorkflow
+              ?.nodes
+          )
+            ? runtimeWorkflow
+                .nodes
+            : []
+        ).map(
+          node => [
+            String(
+              node?.id ||
+              ""
+            ),
+            node
+          ]
+        )
+      );
+
+    let score = 0;
+    let activeNodes = 0;
+    let hasJudge = false;
+
+    for (
+      const id of
+        readiness.scope ||
+        []
+    ) {
+      const type =
+        String(
+          runtimeNodes
+            .get(id)
+            ?.type ||
+          ""
+        );
+
+      const cost =
+        AUTO_EXECUTION_NODE_COST[
+          type
+        ] ?? 3;
+
+      score += cost;
+
+      if (cost > 0) {
+        activeNodes++;
+      }
+
+      if (
+        type === "judge"
+      ) {
+        hasJudge = true;
+      }
+    }
+
+    const scopeSet =
+      new Set(
+        readiness.scope ||
+        []
+      );
+
+    const degree =
+      new Map(
+        [...scopeSet].map(
+          id => [
+            id,
+            {
+              incoming: 0,
+              outgoing: 0
+            }
+          ]
+        )
+      );
+
+    for (
+      const connection of
+        Array.isArray(
+          runtimeWorkflow
+            ?.connections
+        )
+          ? runtimeWorkflow
+              .connections
+          : []
+    ) {
+      const from =
+        String(
+          connection?.from
+            ?.node ||
+          ""
+        );
+
+      const to =
+        String(
+          connection?.to
+            ?.node ||
+          ""
+        );
+
+      if (
+        !scopeSet.has(from) ||
+        !scopeSet.has(to)
+      ) {
+        continue;
+      }
+
+      degree.get(from)
+        .outgoing++;
+      degree.get(to)
+        .incoming++;
+    }
+
+    const hasBranch =
+      [...degree.values()]
+        .some(
+          item =>
+            item.incoming > 1 ||
+            item.outgoing > 1
+        );
+
+    const oldIds =
+      new Set(
+        beforeNodes.keys()
+      );
+
+    const rewiresExisting =
+      removedEdges.length > 0 ||
+      addedEdges.some(
+        edge =>
+          oldIds.has(
+            edge.from
+          ) &&
+          oldIds.has(
+            edge.to
+          )
+      );
+
+    const touchesExisting =
+      modified.length > 0 ||
+      rewiresExisting;
+
+    const details = {
+      ...base,
+      pivot,
+      score,
+      scope:
+        readiness.scope ||
+        []
+    };
+
+    if (
+      hasJudge ||
+      score > 8 ||
+      activeNodes > 5
+    ) {
+      return {
+        ...details,
+        mode: "manual",
+        reason:
+          hasJudge
+            ? "decision-node"
+            : "heavy-scope"
+      };
+    }
+
+    if (
+      !touchesExisting &&
+      !hasBranch &&
+      score <= 5 &&
+      activeNodes <= 3
+    ) {
+      return {
+        ...details,
+        mode: "auto",
+        reason:
+          "small-isolated-delta"
+      };
+    }
+
+    return {
+      ...details,
+      mode: "confirm",
+      reason:
+        touchesExisting
+          ? "existing-workflow-touched"
+          : hasBranch
+            ? "branched-scope"
+            : "moderate-scope"
+    };
+  }
+
   function stableCacheValue(value) {
     if (
       value === null ||
@@ -2924,6 +3732,7 @@
     normalizeWorkflow,
     planExecutionGroups,
     validateExecutionReadiness,
+    analyzeWorkflowExecutionDelta,
     isNodeReadyForExecution
   };
 })(window);
