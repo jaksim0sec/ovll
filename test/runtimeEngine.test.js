@@ -1467,7 +1467,7 @@ test("execution gate auto-runs a small added research node even beside a large u
   );
 });
 
-test("execution gate asks for confirmation when new work depends on a heavier existing chain", () => {
+test("execution gate keeps a heavier inherited chain manual", () => {
   const before = {
     nodes: [
       {
@@ -1566,7 +1566,7 @@ test("execution gate asks for confirmation when new work depends on a heavier ex
 
   assert.equal(
     result.mode,
-    "confirm"
+    "manual"
   );
   assert.equal(
     result.pivot,
@@ -1575,6 +1575,64 @@ test("execution gate asks for confirmation when new work depends on a heavier ex
   assert.equal(
     result.score,
     10
+  );
+});
+
+test("execution gate asks for confirmation when an existing node meaningfully changes", () => {
+  const before = {
+    nodes: [
+      {
+        id: "write",
+        type: "write",
+        params: {
+          request: "짧게 작성"
+        }
+      }
+    ],
+    links: [],
+    data: []
+  };
+
+  const after = {
+    nodes: [
+      {
+        id: "write",
+        type: "write",
+        params: {
+          request: "근거를 추가해서 다시 작성"
+        }
+      }
+    ],
+    links: [],
+    data: []
+  };
+
+  const runtime =
+    workflow(
+      [
+        node(
+          "write",
+          "write"
+        )
+      ],
+      []
+    );
+
+  const result =
+    analyzeWorkflowExecutionDelta(
+      before,
+      after,
+      runtime,
+      "근거를 추가해서 다시 작성해줘"
+    );
+
+  assert.equal(
+    result.mode,
+    "confirm"
+  );
+  assert.equal(
+    result.pivot,
+    "write"
   );
 });
 
