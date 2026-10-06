@@ -185,6 +185,21 @@ function recordInUse(recordId){
         recordId
       );
 
+  const activeWorkflow=
+    global.AstraApp
+      ?.getWorkflow?.();
+
+  if(
+    activeWorkflow
+      ?.nodes
+      ?.some(
+        node=>
+          node?.type===type
+      )
+  ){
+    return true;
+  }
+
   const snapshot=
     WorkspaceStore
       ?.getSnapshot?.();
