@@ -5946,6 +5946,7 @@
               conversationId:
                 currentConversationId(),
               userRequest:
+                state.workflowUserRequest ||
                 state.lastUserRequest,
               memory:
                 state.conversationMemory
@@ -6602,6 +6603,9 @@
               group,
               {
                 userRequest:
+                  context?.cacheContext
+                    ?.userRequest ||
+                  state.workflowUserRequest ||
                   state.lastUserRequest,
                 memory:
                   state.conversationMemory
