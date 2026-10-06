@@ -3123,12 +3123,20 @@
     const proposal =
       state.workflowProposal;
 
+    const hasProposal =
+      !!String(
+        proposalId || ""
+      );
+
     if (
-      !proposal ||
-      proposal.id !==
-        String(
-          proposalId || ""
-        )
+      hasProposal &&
+      (
+        !proposal ||
+        proposal.id !==
+          String(
+            proposalId || ""
+          )
+      )
     ) {
       settleWorkflowExecutionControls(
         proposalId,
@@ -3164,14 +3172,16 @@
     setBusy(true);
 
     const accepted =
-      acceptWorkflowProposal(
-        proposalId,
-        {
-          silent: true,
-          preserveExecutionUi:
-            true
-        }
-      );
+      hasProposal
+        ? acceptWorkflowProposal(
+            proposalId,
+            {
+              silent: true,
+              preserveExecutionUi:
+                true
+            }
+          )
+        : true;
 
     if (!accepted) {
       setBusy(false);
@@ -3238,8 +3248,7 @@
       !message ||
       execution?.mode !==
         "confirm" ||
-      !execution?.pivot ||
-      !proposalId
+      !execution?.pivot
     ) {
       return;
     }
@@ -3252,9 +3261,11 @@
     control.className =
       "astra-workflow-proposal";
 
-    control.dataset
-      .workflowProposalId =
-      String(proposalId);
+    if (proposalId) {
+      control.dataset
+        .workflowProposalId =
+        String(proposalId);
+    }
 
     const label =
       document.createElement(
@@ -3413,7 +3424,6 @@
 
     if (
       role === "assistant" &&
-      options.workflowProposalId &&
       options.workflowExecution
     ) {
       appendWorkflowExecutionControl(
@@ -5960,6 +5970,47 @@
           clone(
             result.workflow
           );
+
+        const execution =
+          typeof Execution
+            .analyzeWorkflowExecutionDelta ===
+            "function"
+            ? Execution
+                .analyzeWorkflowExecutionDelta(
+                  beforeWorkflow,
+                  result.workflow,
+                  state.canvas
+                    ?.getWorkflow?.() ||
+                    state.workflow,
+                  text
+                )
+            : {
+                mode: "manual",
+                reason:
+                  "policy-unavailable",
+                pivot: ""
+              };
+
+        if (
+          result.question &&
+          execution.mode ===
+            "auto"
+        ) {
+          execution.mode =
+            "confirm";
+          execution.reason =
+            "planner-question";
+        }
+
+        result.workflowExecution =
+          execution;
+
+        if (existingProposal) {
+          result.workflowProposalId =
+            existingProposal.id;
+          existingProposal.execution =
+            clone(execution);
+        }
       }
     } else {
       state.workflow =
@@ -6097,62 +6148,78 @@
       if (
         execution?.mode ===
           "auto" &&
-        execution.pivot &&
-        result.workflowProposalId
+        execution.pivot
       ) {
-        const accepted =
-          acceptWorkflowProposal(
-            result.workflowProposalId,
-            {
-              silent: true
-            }
-          );
+        let accepted = true;
 
-        if (accepted) {
-          await runCanvasNode(
-            execution.pivot,
-            "target",
-            {
-              addUserMessage:
-                false,
-              userRequest:
-                value,
-              source:
-                "workflow-auto"
-            }
-          );
-
-          syncWorkflow();
-          return;
+        if (
+          result.workflowProposalId
+        ) {
+          accepted =
+            acceptWorkflowProposal(
+              result.workflowProposalId,
+              {
+                silent: true
+              }
+            );
         }
 
-        execution.mode =
-          "confirm";
-        execution.reason =
-          "proposal-not-available";
+        if (accepted) {
+          const runResult =
+            await runCanvasNode(
+              execution.pivot,
+              "target",
+              {
+                addUserMessage:
+                  false,
+                userRequest:
+                  value,
+                source:
+                  "workflow-auto"
+              }
+            );
+
+          if (runResult) {
+            syncWorkflow();
+            return;
+          }
+
+          execution.mode =
+            "confirm";
+          execution.reason =
+            "auto-run-not-started";
+        } else {
+          execution.mode =
+            "confirm";
+          execution.reason =
+            "proposal-not-available";
+        }
       }
 
       if (
         result.message ||
         result.question ||
-        result.workflowProposalId
+        result.workflowProposalId ||
+        result.workflowExecution
       ) {
         const assistantText =
           result.message ||
           (
-            result.workflowProposalId
-              ? result
+            result
+              .workflowExecution
+              ?.mode ===
+              "confirm"
+              ? result.workflowProposalId
+                ? "바뀐 부분만 실행할 준비가 됐어."
+                : "현재 워크플로우를 실행할 준비가 됐어."
+              : result
                   .workflowExecution
                   ?.mode ===
-                  "confirm"
-                ? "바뀐 부분만 실행할 준비가 됐어."
-                : result
-                    .workflowExecution
-                    ?.mode ===
-                    "manual"
-                  ? "실행 범위가 커서 먼저 확인해줘."
-                  : "노드 구성을 바꿔봤어."
-              : ""
+                  "manual"
+                ? "실행 범위가 커서 먼저 확인해줘."
+                : result.workflowProposalId
+                  ? "노드 구성을 바꿔봤어."
+                  : ""
           );
 
         const message =
@@ -6935,8 +7002,12 @@
               conversationId:
                 currentConversationId(),
               userRequest:
-                state.workflowUserRequest ||
-                state.lastUserRequest,
+                String(
+                  options.userRequest ||
+                  state.workflowUserRequest ||
+                  state.lastUserRequest ||
+                  ""
+                ),
               memory:
                 state.conversationMemory
                   ? clone(
