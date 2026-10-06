@@ -2,7 +2,7 @@
 "use strict";
 
 const STORAGE_KEY = "ovll:workspace:v1";
-const SCHEMA_VERSION = 4;
+const SCHEMA_VERSION = 5;
 const events = new Map();
 
 function clone(value){
@@ -136,6 +136,7 @@ function emptyConversationState(){
     mode:"chat",
     messages:[],
     canvas:emptyCanvas(),
+    composerDraft:"",
     lastUserRequest:"",
     workflowUserRequest:""
   };
@@ -395,6 +396,11 @@ function normalizeConversationState(value){
             .filter(Boolean)
         : [],
     canvas,
+    composerDraft:
+      String(
+        source.composerDraft ||
+        ""
+      ).slice(0,24000),
     lastUserRequest:
       String(
         source.lastUserRequest ||
@@ -1246,6 +1252,44 @@ function updateConversationState(
   return clone(conversation);
 }
 
+function updateConversationDraft(
+  conversationId,
+  draft
+){
+  const conversation =
+    getConversation(
+      conversationId
+    );
+
+  if(!conversation){
+    return null;
+  }
+
+  const value =
+    String(draft || "")
+      .slice(0,24000);
+
+  if(
+    conversation.state
+      ?.composerDraft === value
+  ){
+    return clone(conversation);
+  }
+
+  conversation.state = {
+    ...conversation.state,
+    composerDraft:value
+  };
+  conversation.updatedAt =
+    now();
+
+  persist(
+    "conversation:draft"
+  );
+
+  return clone(conversation);
+}
+
 function deleteConversation(
   conversationId
 ){
@@ -1460,6 +1504,7 @@ const api = {
   moveConversation,
   assignContextBundle,
   updateConversationState,
+  updateConversationDraft,
   deleteConversation,
   search,
   exportJSON,
