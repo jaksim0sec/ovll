@@ -118,7 +118,7 @@
   background: var(--ui-control-surface-strong);
   box-shadow: 0 .1rem .4rem rgba(0, 0, 0, .035);
   transform: translate3d(calc(var(--page-progress) * 100%), 0, 0);
-  transition: transform .52s var(--ease);
+  transition: transform var(--motion-slow) var(--motion-ease-emphasized);
   pointer-events: none;
 }
 
@@ -185,11 +185,13 @@
   contain: layout paint;
   backface-visibility: hidden;
   background: var(--bg);
-  transition: transform .52s var(--ease), opacity .22s ease, filter .22s ease;
+  transition:
+    transform var(--motion-slow) var(--motion-ease-emphasized),
+    opacity var(--motion-medium) var(--motion-ease-standard);
 }
 
 #workspace.is-dragging > .page {
-  will-change: transform, opacity, filter;
+  will-change: transform, opacity;
 }
 
 #workspace[data-mode="chat"]:not(.is-dragging)
@@ -220,19 +222,16 @@
    ========================================================= */
 
 #chat-page {
-  opacity: calc(1 - (var(--page-progress) * .14));
-  filter: blur(calc(var(--page-progress) * .125rem));
+  opacity: calc(1 - (var(--page-progress) * .08));
 }
 
 #canvas-page {
-  opacity: calc(.86 + (var(--page-progress) * .14));
-  filter: blur(calc((1 - var(--page-progress)) * .125rem));
+  opacity: calc(.92 + (var(--page-progress) * .08));
 }
 
 #workspace[data-mode="chat"] #chat-page,
 #workspace[data-mode="canvas"] #canvas-page {
   opacity: 1;
-  filter: none;
 }
 
 #workspace[data-mode="chat"] #canvas-page {
