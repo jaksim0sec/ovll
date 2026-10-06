@@ -295,6 +295,14 @@ function validateWorkflow(
     deriveBoundary(source);
 
   if(
+    boundary.entryNodeIds.length!==1
+  ){
+    throw new Error(
+      "시작되는 첫 노드는 하나만 남겨줘"
+    );
+  }
+
+  if(
     boundary.exitNodeIds.length!==1
   ){
     throw new Error(
