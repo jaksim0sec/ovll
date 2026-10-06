@@ -261,7 +261,7 @@ function groupLogMeta(
  * The frontend compares this server value with its locally stored version
  * before loading application assets.
  */
-const APP_VERSION = '2026.10.06.126';
+const APP_VERSION = '2026.10.06.127';
 
 /* =========================================================
    CANONICAL NODE DEFINITION
@@ -951,6 +951,20 @@ memory.flow, memory.recent, and memory.detail must always be strings.
 
 NODE DEFINITIONS:
 ${NODE_DEFINITION_PROMPT}
+`;
+
+const FUNCTION_BUILDER_PROMPT = `
+FUNCTION BUILDER CONTEXT:
+- You are editing the reusable implementation of one user-defined function node.
+- CURRENT_WORKFLOW is the function body, not a one-off task canvas.
+- Use mode="workflow" whenever the user asks to create, revise, simplify, reorder, connect, or remove steps in this function body.
+- Use mode="conversation" only for explanation or discussion that does not change the function body.
+- Never add or preserve start, file, createFile, or custom:* nodes in a function body.
+- Build only from reusable processing nodes available in NODE TYPES.
+- Requests stored in node params must describe reusable behavior relative to the function input. Do not hard-code incidental details from the current chat unless the user explicitly wants them as permanent behavior.
+- Prefer a compact graph with one reusable entry path and one final result path. Branching is allowed only when it reconverges to a reusable result.
+- Do not claim that the function was executed. This context edits the function definition only.
+- If the user asks to run/test the function, explain briefly that this builder edits the function and return ops=[] unless they also asked to change its design.
 `;
 
 /* =========================================================
@@ -2495,17 +2509,39 @@ function buildUserPrompt(
   ].join('\n');
 }
 
+function normalizePlannerPurpose(
+  value
+) {
+  return value ===
+    'function-builder'
+    ? 'function-builder'
+    : 'default';
+}
+
 function buildPlannerMessages(
   text,
   workflow,
   memory,
-  history
+  history,
+  purpose = 'default'
 ) {
+  const normalizedPurpose =
+    normalizePlannerPurpose(
+      purpose
+    );
+
   return [
     {
       role: 'system',
       content:
-        SYSTEM_PROMPT
+        normalizedPurpose ===
+          'function-builder'
+          ? (
+              SYSTEM_PROMPT +
+              '\n\n' +
+              FUNCTION_BUILDER_PROMPT
+            )
+          : SYSTEM_PROMPT
     },
     {
       role: 'user',
@@ -2818,12 +2854,53 @@ async function requestPlanner(messages) {
    PLANNER + ATOMIC VALIDATION
 ========================================================= */
 
+function validateFunctionBuilderWorkflow(
+  workflow
+) {
+  const forbidden =
+    new Set([
+      'start',
+      'file',
+      'createFile'
+    ]);
+
+  for (
+    const node of
+    workflow?.nodes || []
+  ) {
+    const type =
+      String(
+        node?.type || ''
+      );
+
+    if (
+      forbidden.has(type) ||
+      CUSTOM_NODE_TYPE_RE.test(
+        type
+      )
+    ) {
+      throw new Error(
+        '함수 본문에서 사용할 수 없는 노드 타입: ' +
+        type
+      );
+    }
+  }
+
+  return workflow;
+}
+
 async function planWorkflow(
   text,
   workflow,
   memory,
-  history
+  history,
+  options = {}
 ) {
+  const purpose =
+    normalizePlannerPurpose(
+      options.purpose
+    );
+
   const compact =
     buildPlannerWorkflow(
       workflow
@@ -2834,7 +2911,8 @@ async function planWorkflow(
       text,
       compact.workflow,
       memory,
-      history
+      history,
+      purpose
     );
 
   let planner = null;
@@ -2888,6 +2966,15 @@ async function planWorkflow(
       validateWorkflow(
         result
       );
+
+      if (
+        purpose ===
+          'function-builder'
+      ) {
+        validateFunctionBuilderWorkflow(
+          result
+        );
+      }
 
       return {
         planner,
@@ -3689,6 +3776,11 @@ app.post(
           6000
         );
 
+      const purpose =
+        normalizePlannerPurpose(
+          req.body?.purpose
+        );
+
       const currentWorkflow =
         cloneWorkflow(
           req.body?.workflow
@@ -3718,7 +3810,10 @@ if (!text) {
           memory,
           normalizeConversationHistory(
             req.body?.history
-          )
+          ),
+          {
+            purpose
+          }
         );
 
       return res.json({

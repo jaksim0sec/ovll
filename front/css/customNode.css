@@ -1,478 +1,514 @@
-.ovll-custom-node-page{
+/* =========================================================
+   Function builder page
+   ========================================================= */
+
+#custom-node-page{
+  position:absolute;
+  z-index:var(--layer-page);
+  inset:0;
+  overflow:hidden;
+  background:var(--bg);
+  opacity:0;
+  visibility:hidden;
+  pointer-events:none;
+  transform:translateY(.2rem);
+  transition:
+    left .28s cubic-bezier(.2,.82,.2,1),
+    opacity .18s ease,
+    visibility .18s ease,
+    transform .2s var(--ease),
+    background-color .2s ease;
+}
+
+#custom-node-page[hidden]{
+  display:block;
+}
+
+#custom-node-page.is-open{
+  opacity:1;
+  visibility:visible;
+  pointer-events:auto;
+  transform:none;
+}
+
+:root[data-app-page="custom-nodes"]
+#workspace-shell{
+  opacity:0;
+  visibility:hidden;
+  pointer-events:none;
+}
+
+[data-function-workspace-host]{
   position:absolute;
   inset:0;
-  z-index:38;
-  display:flex;
   min-width:0;
   min-height:0;
-  opacity:0;
-  transform:translateY(8px);
-  pointer-events:none;
-  transition:opacity .18s ease,transform .18s ease;
-  background:var(--surface,#f3f3f2);
-  color:var(--text,#171717);
-}
-
-.ovll-custom-node-page[hidden]{
-  display:none;
-}
-
-.ovll-custom-node-page.is-open{
-  opacity:1;
-  transform:none;
-  pointer-events:auto;
-}
-
-.ovll-custom-shell{
-  width:100%;
-  min-width:0;
-  min-height:0;
-  display:grid;
-  grid-template-columns:15rem minmax(0,1fr);
   overflow:hidden;
+  background:var(--bg);
 }
 
-.ovll-custom-sidebar{
-  min-width:0;
-  min-height:0;
-  display:flex;
-  flex-direction:column;
-  gap:.8rem;
-  padding:1rem .8rem;
-  border-right:1px solid color-mix(in srgb,currentColor 9%,transparent);
-}
-
-.ovll-custom-sidebar-head,
-.ovll-custom-header,
-.ovll-custom-meta-row,
-.ovll-custom-actions,
-.ovll-custom-colors{
+.ovll-function-context{
   display:flex;
   align-items:center;
+  gap:.36rem;
+  min-width:0;
 }
 
-.ovll-custom-sidebar-head{
-  justify-content:space-between;
-  gap:.65rem;
-}
-
-.ovll-custom-sidebar-head h2{
-  margin:0;
-  font-size:.9rem;
-  font-weight:680;
-  letter-spacing:-.02em;
-}
-
-.ovll-custom-new,
-.ovll-custom-back,
-.ovll-custom-save,
-.ovll-custom-delete{
+.ovll-function-back,
+.ovll-function-identity,
+.ovll-function-save,
+.ovll-function-inspector button,
+.ovll-function-color{
   appearance:none;
   border:0;
   font:inherit;
+  color:inherit;
   cursor:pointer;
 }
 
-.ovll-custom-new,
-.ovll-custom-back{
-  width:2rem;
-  height:2rem;
+.ovll-function-back{
+  width:var(--control-size);
+  height:var(--control-size);
   display:grid;
   place-items:center;
-  border-radius:.7rem;
-  background:transparent;
-  color:inherit;
+  padding:0;
+  border:.0625rem solid var(--line);
+  border-radius:999px;
+  background:var(--ui-control-surface);
+  backdrop-filter:var(--ui-backdrop);
+  -webkit-backdrop-filter:var(--ui-backdrop);
+  box-shadow:var(--ui-control-shadow);
 }
 
-.ovll-custom-new:hover,
-.ovll-custom-back:hover{
-  background:color-mix(in srgb,currentColor 7%,transparent);
+.ovll-function-back svg{
+  width:1.08rem;
+  height:1.08rem;
 }
 
-.ovll-custom-list{
-  min-height:0;
-  overflow:auto;
-  display:flex;
-  flex-direction:column;
-  gap:.38rem;
-  padding:.1rem;
-}
-
-.ovll-custom-card{
-  appearance:none;
-  border:0;
-  width:100%;
+.ovll-function-identity{
   min-width:0;
-  display:grid;
-  grid-template-columns:1.9rem minmax(0,1fr);
+  max-width:11.5rem;
+  height:var(--control-size);
+  display:flex;
   align-items:center;
-  gap:.65rem;
-  padding:.62rem .68rem;
-  border-radius:.82rem;
-  background:transparent;
-  color:inherit;
-  text-align:left;
-  cursor:pointer;
+  gap:.48rem;
+  padding:0 .72rem 0 .56rem;
+  border:.0625rem solid var(--line);
+  border-radius:999px;
+  background:var(--ui-control-surface);
+  backdrop-filter:var(--ui-backdrop);
+  -webkit-backdrop-filter:var(--ui-backdrop);
+  box-shadow:var(--ui-control-shadow);
 }
 
-.ovll-custom-card:hover,
-.ovll-custom-card.is-active{
-  background:color-mix(in srgb,currentColor 6%,transparent);
+.ovll-function-color-dot{
+  width:.62rem;
+  height:.62rem;
+  flex:0 0 .62rem;
+  border-radius:999px;
+  background:var(--function-color,#7c6cf2);
+  box-shadow:
+    0 0 0 .0625rem
+    color-mix(
+      in srgb,
+      var(--function-color,#7c6cf2) 58%,
+      var(--line)
+    );
 }
 
-.ovll-custom-card-orb{
-  width:1.8rem;
-  height:1.8rem;
-  border-radius:.62rem;
-  background:color-mix(in srgb,var(--custom-color) 18%,transparent);
-  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--custom-color) 45%,transparent);
-}
-
-.ovll-custom-card-copy{
+.ovll-function-identity-copy{
   min-width:0;
   display:flex;
   flex-direction:column;
-  gap:.16rem;
+  align-items:flex-start;
+  gap:.02rem;
+  line-height:1.05;
 }
 
-.ovll-custom-card-copy strong,
-.ovll-custom-card-copy small{
+.ovll-function-identity-copy strong,
+.ovll-function-identity-copy small{
+  max-width:100%;
   overflow:hidden;
   text-overflow:ellipsis;
   white-space:nowrap;
 }
 
-.ovll-custom-card-copy strong{
-  font-size:.82rem;
-  font-weight:620;
+.ovll-function-identity-copy strong{
+  color:var(--text);
+  font-size:.7rem;
+  font-weight:720;
 }
 
-.ovll-custom-card-copy small{
+.ovll-function-identity-copy small{
+  color:var(--muted);
+  font-size:.52rem;
+  font-weight:580;
+}
+
+.ovll-function-identity-copy
+small[data-tone="error"]{
+  color:var(--danger,#c65353);
+}
+
+.ovll-function-identity-copy
+small[data-tone="saved"]{
+  color:var(--success,#2c8467);
+}
+
+.ovll-function-save{
+  min-width:3.7rem;
+  height:var(--control-size);
+  padding:0 .8rem;
+  border:.0625rem solid var(--line);
+  border-radius:999px;
+  background:var(--ui-control-surface-strong);
+  color:var(--text);
   font-size:.68rem;
-  opacity:.5;
+  font-weight:720;
+  box-shadow:var(--ui-control-shadow);
+  backdrop-filter:var(--ui-backdrop);
+  -webkit-backdrop-filter:var(--ui-backdrop);
 }
 
-.ovll-custom-empty{
-  padding:1rem .7rem;
-  font-size:.76rem;
-  opacity:.48;
+.ovll-function-save:disabled{
+  opacity:.46;
+  cursor:default;
 }
 
-.ovll-custom-editor{
-  min-width:0;
-  min-height:0;
-  display:grid;
-  grid-template-rows:auto auto minmax(0,1fr);
+.ovll-function-inspector{
+  position:absolute;
+  z-index:calc(var(--layer-overlay) + 2);
+  top:
+    calc(
+      var(--safe-top) +
+      var(--topbar-height) +
+      .45rem
+    );
+  left:
+    max(
+      4.15rem,
+      calc(var(--safe-left) + 3.4rem)
+    );
+  width:min(20rem,calc(100% - 5.2rem));
+  max-height:
+    calc(
+      100% -
+      var(--safe-top) -
+      var(--safe-bottom) -
+      var(--topbar-height) -
+      1.4rem
+    );
+  overflow:auto;
+  padding:.68rem;
+  border:.0625rem solid var(--line);
+  border-radius:1.05rem;
+  background:
+    color-mix(
+      in srgb,
+      var(--panel-strong) 94%,
+      transparent
+    );
+  color:var(--text);
+  box-shadow:
+    0 .65rem 2rem
+    color-mix(
+      in srgb,
+      #000 16%,
+      transparent
+    );
+  backdrop-filter:var(--ui-backdrop);
+  -webkit-backdrop-filter:var(--ui-backdrop);
+  scrollbar-width:none;
 }
 
-.ovll-custom-header{
-  min-height:3.6rem;
-  justify-content:space-between;
-  gap:1rem;
-  padding:.68rem 1rem .45rem;
+.ovll-function-inspector[hidden]{
+  display:none;
 }
 
-.ovll-custom-header-title{
+.ovll-function-inspector::-webkit-scrollbar{
+  display:none;
+}
+
+.ovll-function-inspector-head{
   display:flex;
   align-items:center;
-  gap:.55rem;
-  min-width:0;
+  justify-content:space-between;
+  gap:.7rem;
+  margin-bottom:.72rem;
 }
 
-.ovll-custom-header-title strong{
-  font-size:.88rem;
-  font-weight:680;
+.ovll-function-inspector-head strong{
+  font-size:.8rem;
+  font-weight:740;
 }
 
-.ovll-custom-actions{
-  gap:.42rem;
+.ovll-function-inspector-head button{
+  min-height:1.8rem;
+  padding:0 .58rem;
+  border-radius:.62rem;
+  background:
+    color-mix(
+      in srgb,
+      var(--text) 6%,
+      transparent
+    );
+  color:var(--sub);
+  font-size:.64rem;
+  font-weight:650;
 }
 
-.ovll-custom-save,
-.ovll-custom-delete{
-  min-height:2.05rem;
-  padding:0 .78rem;
-  border-radius:.7rem;
-  font-size:.74rem;
-  font-weight:630;
-}
-
-.ovll-custom-save{
-  background:currentColor;
-  color:var(--surface,#f3f3f2);
-}
-
-.ovll-custom-delete{
-  background:color-mix(in srgb,#d95d5d 11%,transparent);
-  color:#b34141;
-}
-
-.ovll-custom-meta{
+.ovll-function-field{
   display:grid;
-  gap:.58rem;
-  padding:.2rem 1rem .85rem;
+  gap:.32rem;
+  margin-top:.58rem;
 }
 
-.ovll-custom-meta-row{
-  gap:.58rem;
-  min-width:0;
+.ovll-function-field>span,
+.ovll-function-library-title{
+  color:var(--muted);
+  font-size:.56rem;
+  font-weight:690;
+  letter-spacing:.01em;
 }
 
-.ovll-custom-name,
-.ovll-custom-description{
-  appearance:none;
+.ovll-function-field input,
+.ovll-function-field textarea{
   width:100%;
   min-width:0;
-  border:0;
+  border:.0625rem solid var(--line);
   outline:0;
-  background:transparent;
-  color:inherit;
+  border-radius:.72rem;
+  background:
+    color-mix(
+      in srgb,
+      var(--panel) 86%,
+      var(--bg)
+    );
+  color:var(--text);
   font:inherit;
+  font-size:.72rem;
+  line-height:1.45;
 }
 
-.ovll-custom-name{
-  font-size:1.36rem;
-  font-weight:720;
-  letter-spacing:-.04em;
+.ovll-function-field input{
+  min-height:2.35rem;
+  padding:0 .68rem;
 }
 
-.ovll-custom-description{
-  font-size:.78rem;
-  opacity:.68;
+.ovll-function-field textarea{
+  min-height:3.9rem;
+  padding:.58rem .68rem;
+  resize:vertical;
 }
 
-.ovll-custom-name::placeholder,
-.ovll-custom-description::placeholder{
-  color:inherit;
-  opacity:.3;
+.ovll-function-field input:focus,
+.ovll-function-field textarea:focus{
+  border-color:var(--line-strong);
+  background:var(--panel-strong);
 }
 
-.ovll-custom-colors{
-  gap:.34rem;
-  flex:0 0 auto;
+.ovll-function-colors{
+  display:flex;
+  align-items:center;
+  gap:.42rem;
+  min-height:1.4rem;
 }
 
-.ovll-custom-color{
-  appearance:none;
+.ovll-function-color{
   width:1rem;
   height:1rem;
-  border:0;
   padding:0;
   border-radius:999px;
-  cursor:pointer;
-  background:var(--custom-color);
-  box-shadow:0 0 0 1px color-mix(in srgb,currentColor 12%,transparent);
-  transition:transform .15s ease,box-shadow .15s ease;
+  background:var(--function-color);
+  box-shadow:
+    0 0 0 .0625rem
+    color-mix(
+      in srgb,
+      var(--text) 12%,
+      transparent
+    );
 }
 
-.ovll-custom-color.is-active{
-  transform:scale(1.16);
-  box-shadow:0 0 0 2px var(--surface,#f3f3f2),0 0 0 3px var(--custom-color);
+.ovll-function-color.is-active{
+  box-shadow:
+    0 0 0 .125rem var(--panel-strong),
+    0 0 0 .2rem var(--function-color);
 }
 
-.ovll-custom-status{
-  min-height:1em;
-  font-size:.68rem;
-  opacity:.48;
+.ovll-function-library{
+  margin-top:.78rem;
+  padding-top:.68rem;
+  border-top:.0625rem solid var(--line);
 }
 
-.ovll-custom-status[data-tone="error"]{
-  color:#b34141;
-  opacity:.9;
-}
-
-.ovll-custom-status[data-tone="saved"]{
-  color:#247f62;
-  opacity:.82;
-}
-
-.ovll-custom-status[data-tone="pending"]{
-  opacity:.62;
-}
-
-.ovll-custom-workbench{
-  position:relative;
-  min-width:0;
-  min-height:0;
-  margin:0 .8rem .8rem;
-  overflow:hidden;
-  border-radius:1.2rem;
-  background:color-mix(in srgb,currentColor 2.8%,transparent);
-  box-shadow:inset 0 0 0 1px color-mix(in srgb,currentColor 8%,transparent);
-}
-
-.ovll-custom-palette{
-  position:absolute;
-  z-index:8;
-  top:.72rem;
-  left:50%;
-  transform:translateX(-50%);
-  max-width:calc(100% - 1.5rem);
-  display:flex;
-  align-items:center;
-  gap:.32rem;
-  padding:.34rem;
-  overflow:auto hidden;
-  border-radius:.9rem;
-  background:color-mix(in srgb,var(--surface,#f3f3f2) 88%,transparent);
-  box-shadow:0 .35rem 1.4rem color-mix(in srgb,#000 8%,transparent),inset 0 0 0 1px color-mix(in srgb,currentColor 8%,transparent);
-  backdrop-filter:blur(18px);
-}
-
-.ovll-custom-palette-item{
-  appearance:none;
-  flex:0 0 auto;
-  display:flex;
-  align-items:center;
-  gap:.32rem;
-  height:2rem;
-  padding:0 .55rem;
-  border:0;
-  border-radius:.65rem;
-  background:transparent;
-  color:inherit;
-  font:inherit;
-  font-size:.7rem;
-  cursor:pointer;
-}
-
-.ovll-custom-palette-item:hover{
-  background:color-mix(in srgb,currentColor 7%,transparent);
-}
-
-.ovll-custom-palette-icon{
-  width:1rem;
-  height:1rem;
+.ovll-function-list{
   display:grid;
-  place-items:center;
+  gap:.22rem;
+  margin-top:.36rem;
 }
 
-.ovll-custom-palette-icon svg{
+.ovll-function-list-item{
   width:100%;
-  height:100%;
+  min-width:0;
+  display:grid;
+  grid-template-columns:1rem minmax(0,1fr);
+  align-items:center;
+  gap:.52rem;
+  min-height:2.7rem;
+  padding:.4rem .48rem;
+  border:0;
+  border-radius:.72rem;
+  background:transparent;
+  color:var(--text);
+  text-align:left;
+  cursor:pointer;
 }
 
-.ovll-custom-canvas{
-  position:absolute;
-  inset:0;
+.ovll-function-list-item:hover,
+.ovll-function-list-item.is-active{
+  background:
+    color-mix(
+      in srgb,
+      var(--text) 6%,
+      transparent
+    );
 }
 
-.ovll-custom-canvas [data-canvas-viewport]{
-  position:absolute;
-  inset:0;
+.ovll-function-list-dot{
+  width:.72rem;
+  height:.72rem;
+  border-radius:.28rem;
+  background:
+    color-mix(
+      in srgb,
+      var(--function-color) 22%,
+      transparent
+    );
+  box-shadow:
+    inset 0 0 0 .0625rem
+    color-mix(
+      in srgb,
+      var(--function-color) 60%,
+      transparent
+    );
+}
+
+.ovll-function-list-copy{
+  min-width:0;
+  display:grid;
+  gap:.08rem;
+}
+
+.ovll-function-list-copy strong,
+.ovll-function-list-copy small{
   overflow:hidden;
-  touch-action:none;
+  text-overflow:ellipsis;
+  white-space:nowrap;
 }
 
-.ovll-custom-canvas [data-canvas-viewport]{
-  cursor:grab;
+.ovll-function-list-copy strong{
+  font-size:.7rem;
+  font-weight:650;
 }
 
-.ovll-custom-canvas [data-canvas-viewport].vc-panning{
-  cursor:grabbing;
+.ovll-function-list-copy small,
+.ovll-function-list-empty{
+  color:var(--muted);
+  font-size:.56rem;
 }
 
-.ovll-custom-canvas [data-canvas-world]{
-  position:absolute;
-  inset:0;
+.ovll-function-list-empty{
+  padding:.65rem .45rem;
+}
+
+.ovll-function-delete{
   width:100%;
-  height:100%;
-  transform-origin:0 0;
-  touch-action:none;
-  user-select:none;
-  -webkit-user-select:none;
+  min-height:2.1rem;
+  margin-top:.65rem;
+  border-radius:.7rem;
+  background:
+    color-mix(
+      in srgb,
+      var(--danger,#c65353) 11%,
+      transparent
+    );
+  color:var(--danger,#c65353);
+  font-size:.64rem;
+  font-weight:670;
 }
 
-.ovll-custom-canvas [data-canvas-connections]{
-  position:absolute;
-  inset:0;
-  width:100%;
-  height:100%;
-  display:block;
-  overflow:visible;
-  max-width:none;
-  z-index:1;
-  pointer-events:none;
+#custom-node-page
+.ovll-workspace-slot-start{
+  left:
+    max(
+      4.15rem,
+      calc(var(--safe-left) + 3.4rem)
+    );
 }
 
-.ovll-custom-canvas [data-canvas-nodes]{
-  --node-width:12.25rem;
-  --node-radius:1.3rem;
-  --node:var(--panel);
-  --node-soft:var(--panel);
-  position:absolute;
-  inset:0;
-  width:100%;
-  height:100%;
-  z-index:10;
-  overflow:visible;
-  pointer-events:none;
+#custom-node-page
+.ovll-workspace-slot-end{
+  right:max(.72rem,var(--safe-right));
 }
 
-.ovll-custom-canvas [data-canvas-nodes] .vc-node{
-  pointer-events:auto;
+#custom-node-page
+.astra-message-body{
+  white-space:pre-wrap;
+}
+
+@media (min-width:43.76rem) and (hover:hover) and (pointer:fine){
+  :root.shell-menu-open
+  #custom-node-page{
+    left:var(--sidebar-width);
+  }
 }
 
 @media (max-width:43.75rem){
-  .ovll-custom-shell{
-    grid-template-columns:1fr;
-    grid-template-rows:auto minmax(0,1fr);
+  .ovll-function-identity{
+    max-width:6.4rem;
+    padding-right:.58rem;
   }
 
-  .ovll-custom-sidebar{
-    min-height:auto;
-    padding:.6rem .7rem .2rem;
-    border-right:0;
-    border-bottom:1px solid color-mix(in srgb,currentColor 8%,transparent);
-  }
-
-  .ovll-custom-sidebar-head{
+  .ovll-function-identity-copy small{
     display:none;
   }
 
-  .ovll-custom-list{
-    flex-direction:row;
-    overflow:auto hidden;
-    padding:.2rem 0 .45rem;
+  .ovll-function-inspector{
+    left:.55rem;
+    right:.55rem;
+    width:auto;
+    top:
+      calc(
+        var(--safe-top) +
+        var(--topbar-height) +
+        .4rem
+      );
   }
 
-  .ovll-custom-card{
-    width:10rem;
-    flex:0 0 10rem;
+  #custom-node-page
+  .ovll-workspace-slot-start{
+    left:
+      max(
+        3.8rem,
+        calc(var(--safe-left) + 3.2rem)
+      );
+  }
+}
+
+@media (max-width:24rem){
+  .ovll-function-identity-copy{
+    display:none;
   }
 
-  .ovll-custom-empty{
-    padding:.5rem .2rem;
-  }
-
-  .ovll-custom-header{
-    padding:.52rem .65rem .25rem;
-  }
-
-  .ovll-custom-meta{
-    padding:.2rem .78rem .62rem;
-  }
-
-  .ovll-custom-workbench{
-    margin:0 .45rem .45rem;
-    border-radius:1rem;
-  }
-
-  .ovll-custom-name{
-    font-size:1.15rem;
-  }
-
-  .ovll-custom-description{
-    font-size:.75rem;
-  }
-
-  .ovll-custom-canvas [data-canvas-nodes]{
-    --node-width:11.125rem;
+  .ovll-function-identity{
+    width:var(--control-size);
+    padding:0;
+    justify-content:center;
   }
 }
 
 @media (prefers-reduced-motion:reduce){
-  .ovll-custom-node-page{
+  #custom-node-page{
     transition:none;
   }
 }

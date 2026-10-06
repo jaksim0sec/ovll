@@ -509,10 +509,38 @@ function installStyle(){
 function mount(world,canvas,options={}){
   installStyle();
 
+  const documentRef=
+    options.document||
+    global.document;
+
+  const UI=
+    options.ui||
+    UI;
+
+  const App=
+    options.app||
+    App;
+
+  const busyTarget=
+    options.busyTarget||
+    global;
+
+  const composerElement=
+    options.composer||
+    documentRef.querySelector(
+      "#composer-form"
+    );
+
+  const topbarElement=
+    options.topbar||
+    documentRef.querySelector(
+      "#topbar"
+    );
+
   const viewport=canvas.root;
-  const orb=document.createElement("button");
+  const orb=documentRef.createElement("button");
   const satellite=
-    document.createElement("span");
+    documentRef.createElement("span");
 
   orb.type="button";
   orb.className="ovll-mascot";
@@ -945,14 +973,10 @@ function mount(world,canvas,options={}){
       viewport.getBoundingClientRect();
 
     const composer=
-      document.querySelector(
-        "#composer-form"
-      )?.getBoundingClientRect();
+      composerElement?.getBoundingClientRect();
 
     const topbar=
-      document.querySelector(
-        "#topbar"
-      )?.getBoundingClientRect();
+      topbarElement?.getBoundingClientRect();
 
     const rect=
       node.getBoundingClientRect();
@@ -1053,7 +1077,7 @@ function mount(world,canvas,options={}){
             !drag&&
             !motion&&
             !connectionClose&&
-            !global.AstraApp?.isBusy?.()&&
+            !App?.isBusy?.()&&
             performance.now()>=attentionUntil
           ){
             restoreGaze();
@@ -1643,14 +1667,10 @@ function mount(world,canvas,options={}){
       viewport.getBoundingClientRect();
 
     const composer=
-      document.querySelector(
-        "#composer-form"
-      )?.getBoundingClientRect();
+      composerElement?.getBoundingClientRect();
 
     const topbar=
-      document.querySelector(
-        "#topbar"
-      )?.getBoundingClientRect();
+      topbarElement?.getBoundingClientRect();
 
     const rect=
       orb.getBoundingClientRect();
@@ -2074,7 +2094,7 @@ function mount(world,canvas,options={}){
         drag||
         motion||
         connectionClose||
-        global.AstraApp?.isBusy?.()||
+        App?.isBusy?.()||
         now<attentionUntil||
         now-lastActivity<9000
       ){
@@ -2086,7 +2106,7 @@ function mount(world,canvas,options={}){
 
       setTimeout(()=>{
         if(
-          !global.AstraApp?.isBusy?.()&&
+          !App?.isBusy?.()&&
           !drag&&
           !motion&&
           !connectionClose
@@ -2105,7 +2125,7 @@ function mount(world,canvas,options={}){
 
     if(
       orb.dataset.mood==="thinking"&&
-      !global.AstraApp?.isBusy?.()
+      !App?.isBusy?.()
     ){
       setEffectMode(
         "idle"
@@ -2802,7 +2822,7 @@ function mount(world,canvas,options={}){
   );
 
   const offUiViewport=
-    global.AstraUI?.on?.(
+    UI?.on?.(
       "viewport",
       scheduleVisible
     );
@@ -2832,7 +2852,7 @@ function mount(world,canvas,options={}){
   scheduleThinking();
 
   let wasBusy=
-    !!global.AstraApp?.isBusy?.();
+    !!App?.isBusy?.();
 
   function syncBusy(
     busy
@@ -2860,7 +2880,7 @@ function mount(world,canvas,options={}){
   }
 
   listen(
-    global,
+    busyTarget,
     "ovll:busychange",
     event=>
       syncBusy(
@@ -2972,6 +2992,101 @@ function mount(world,canvas,options={}){
   };
 }
 
+function bindMascotUI(
+  mascot,
+  UI
+){
+  if(!mascot||!UI){
+    return ()=>{};
+  }
+
+  let shownOnCanvas=false;
+
+  const revealFirstCanvas=()=>{
+    if(shownOnCanvas)
+      return;
+
+    shownOnCanvas=true;
+
+    requestAnimationFrame(()=>{
+      mascot.centerInViewport?.();
+      mascot.element.hidden=false;
+      mascot.satellite.hidden=false;
+    });
+  };
+
+  const sync=()=>{
+    const isCanvas=
+      UI?.getMode?.()==="canvas";
+
+    if(!isCanvas){
+      mascot.element.hidden=true;
+      mascot.satellite.hidden=true;
+      return;
+    }
+
+    const settled=
+      (UI?.getProgress?.()??0)>=.999;
+
+    if(!shownOnCanvas&&!settled){
+      mascot.element.hidden=true;
+      mascot.satellite.hidden=true;
+      return;
+    }
+
+    if(!shownOnCanvas){
+      revealFirstCanvas();
+      return;
+    }
+
+    mascot.element.hidden=false;
+    mascot.satellite.hidden=false;
+  };
+
+  const cleanups=[];
+
+  const offMode=
+    UI?.on?.(
+      "modechange",
+      sync
+    );
+
+  if(typeof offMode==="function"){
+    cleanups.push(offMode);
+  }
+
+  const offSnap=
+    UI?.on?.(
+      "snap",
+      event=>{
+        if(event?.mode==="canvas"){
+          revealFirstCanvas();
+        }
+      }
+    );
+
+  if(typeof offSnap==="function"){
+    cleanups.push(offSnap);
+  }
+
+  sync();
+
+  return ()=>{
+    cleanups
+      .splice(0)
+      .forEach(fn=>{
+        try{fn();}catch{}
+      });
+  };
+}
+
+global.mountOvllCanvasMascot=
+  mount;
+
+global.bindOvllCanvasMascotUI=
+  bindMascotUI;
+
+
 function init(){
   const viewport=
     document.querySelector(
@@ -3025,64 +3140,11 @@ function init(){
       mascot
     );
 
-    let shownOnCanvas=false;
-
-    const revealFirstCanvas=()=>{
-      if(shownOnCanvas)
-        return;
-
-      shownOnCanvas=true;
-
-      requestAnimationFrame(()=>{
-        mascot.centerInViewport?.();
-        mascot.element.hidden=false;
-        mascot.satellite.hidden=false;
-      });
-    };
-
-    const sync=()=>{
-      const isCanvas=
-        global.AstraUI?.getMode?.()==="canvas";
-
-      if(!isCanvas){
-        mascot.element.hidden=true;
-        mascot.satellite.hidden=true;
-        return;
-      }
-
-      const settled=
-        (global.AstraUI?.getProgress?.()??0)>=.999;
-
-      if(!shownOnCanvas&&!settled){
-        mascot.element.hidden=true;
-        mascot.satellite.hidden=true;
-        return;
-      }
-
-      if(!shownOnCanvas){
-        revealFirstCanvas();
-        return;
-      }
-
-      mascot.element.hidden=false;
-      mascot.satellite.hidden=false;
-    };
-
-    global.AstraUI?.on?.(
-      "modechange",
-      sync
+    bindMascotUI(
+      mascot,
+      global.AstraUI
     );
 
-    global.AstraUI?.on?.(
-      "snap",
-      event=>{
-        if(event?.mode==="canvas"){
-          revealFirstCanvas();
-        }
-      }
-    );
-
-    sync();
   }
 
   wait();

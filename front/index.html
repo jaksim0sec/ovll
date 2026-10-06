@@ -541,86 +541,14 @@
       </div>
     </section>
 
-    <!-- Custom node builder -->
+    <!-- Function builder workspace -->
     <section
       id="custom-node-page"
       class="ovll-custom-node-page"
-      aria-label="커스텀 노드 만들기"
+      aria-label="함수 만들기"
       hidden
     >
-      <div class="ovll-custom-shell">
-        <aside class="ovll-custom-sidebar">
-          <div class="ovll-custom-sidebar-head">
-            <h2>내 노드</h2>
-            <button
-              class="ovll-custom-new"
-              data-custom-node-new
-              type="button"
-              aria-label="새 커스텀 노드"
-            >
-              <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                <path d="M10 5v10M5 10h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-              </svg>
-            </button>
-          </div>
-          <div class="ovll-custom-list" data-custom-node-list></div>
-        </aside>
-
-        <div class="ovll-custom-editor">
-          <header class="ovll-custom-header">
-            <div class="ovll-custom-header-title">
-              <button
-                class="ovll-custom-back"
-                data-custom-node-back
-                type="button"
-                aria-label="뒤로"
-              >
-                <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                  <path d="m12.5 5.5-4.5 4.5 4.5 4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </button>
-              <strong>만들기</strong>
-            </div>
-            <div class="ovll-custom-actions">
-              <button class="ovll-custom-delete" data-custom-node-delete type="button" hidden>삭제</button>
-              <button class="ovll-custom-save" data-custom-node-save type="button">저장</button>
-            </div>
-          </header>
-
-          <div class="ovll-custom-meta">
-            <div class="ovll-custom-meta-row">
-              <input
-                class="ovll-custom-name"
-                data-custom-node-name
-                maxlength="50"
-                placeholder="이 노드의 이름"
-                autocomplete="off"
-              >
-              <div class="ovll-custom-colors" data-custom-node-colors aria-label="노드 색상"></div>
-            </div>
-            <input
-              class="ovll-custom-description"
-              data-custom-node-description
-              maxlength="220"
-              placeholder="무슨 일을 하는 흐름인지 짧게 적어줘"
-              autocomplete="off"
-            >
-            <div class="ovll-custom-status" data-custom-node-status></div>
-          </div>
-
-          <div class="ovll-custom-workbench">
-            <div class="ovll-custom-palette" data-custom-node-palette></div>
-            <div class="ovll-custom-canvas" data-custom-node-canvas>
-              <div data-canvas-viewport>
-                <div data-canvas-world>
-                  <svg data-canvas-connections aria-hidden="true"></svg>
-                  <div data-canvas-nodes></div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <div data-function-workspace-host></div>
     </section>
 
 

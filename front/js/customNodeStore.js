@@ -2,7 +2,7 @@
 "use strict";
 
 const STORAGE_KEY="ovll:custom-nodes:v1";
-const SCHEMA_VERSION=1;
+const SCHEMA_VERSION=2;
 const listeners=new Set();
 
 function clone(value){
@@ -119,6 +119,62 @@ function normalizeBoundary(value){
   };
 }
 
+function normalizeBuilder(value){
+  const source=
+    value&&
+    typeof value==="object"&&
+    !Array.isArray(value)
+      ?value
+      :{};
+
+  const viewport=
+    source.viewport&&
+    typeof source.viewport==="object"&&
+    !Array.isArray(source.viewport)
+      ?source.viewport
+      :{};
+
+  return {
+    messages:
+      Array.isArray(source.messages)
+        ?source.messages
+          .filter(item=>
+            item&&
+            typeof item==="object"&&
+            (
+              item.role==="user"||
+              item.role==="assistant"
+            )
+          )
+          .slice(-48)
+          .map(item=>({
+            role:item.role,
+            text:
+              String(item.text||"")
+                .trim()
+                .slice(0,6000)
+          }))
+          .filter(item=>
+            item.text
+          )
+        :[],
+    viewport:{
+      scale:
+        Number(viewport.scale)||1,
+      offset:{
+        x:
+          Number(
+            viewport.offset?.x
+          )||0,
+        y:
+          Number(
+            viewport.offset?.y
+          )||0
+      }
+    }
+  };
+}
+
 function normalizeRecord(value){
   const source=
     value&&
@@ -142,6 +198,14 @@ function normalizeRecord(value){
       String(source.description||"")
         .trim()
         .slice(0,220),
+    llmdesc:
+      String(
+        source.llmdesc||
+        source.description||
+        ""
+      )
+        .trim()
+        .slice(0,500),
     color:
       /^#[0-9a-f]{6}$/i.test(
         String(source.color||"")
@@ -155,6 +219,10 @@ function normalizeRecord(value){
     boundary:
       normalizeBoundary(
         source.boundary
+      ),
+    builder:
+      normalizeBuilder(
+        source.builder
       ),
     revision:
       Math.max(

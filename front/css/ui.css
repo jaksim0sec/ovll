@@ -14,7 +14,7 @@
    TOPBAR
    ========================================================= */
 
-#topbar {
+:is(#topbar,[data-ovll-topbar]) {
   position: absolute;
   z-index: var(--layer-topbar);
   top: 0;
@@ -29,7 +29,7 @@
   pointer-events: none;
 }
 
-#topbar::before {
+:is(#topbar,[data-ovll-topbar])::before {
   content: "";
   position: absolute;
   z-index: 0;
@@ -67,7 +67,7 @@
   pointer-events: none;
 }
 
-#mode-switch {
+:is(#mode-switch,[data-ovll-mode-switch]) {
   z-index: 1;
 }
 
@@ -75,7 +75,7 @@
    MODE SWITCH
    ========================================================= */
 
-#mode-switch {
+:is(#mode-switch,[data-ovll-mode-switch]) {
   position: absolute;
   z-index: 2;
   top: calc(var(--safe-top) + var(--top-control-top));
@@ -105,7 +105,7 @@
   -webkit-user-select: none;
 }
 
-#mode-switch::before {
+:is(#mode-switch,[data-ovll-mode-switch])::before {
   content: "";
   position: absolute;
   z-index: 1;
@@ -122,15 +122,15 @@
   pointer-events: none;
 }
 
-:root.dark #mode-switch::before {
+:root.dark :is(#mode-switch,[data-ovll-mode-switch])::before {
   box-shadow: 0 .125rem .5625rem rgba(0, 0, 0, .12);
 }
 
-#mode-switch.is-dragging::before {
+:is(#mode-switch,[data-ovll-mode-switch]).is-dragging::before {
   transition: none;
 }
 
-#mode-switch button {
+:is(#mode-switch,[data-ovll-mode-switch]) button {
   position: relative;
   z-index: 2;
   pointer-events: auto;
@@ -147,15 +147,15 @@
   touch-action: manipulation;
 }
 
-#mode-switch button[aria-selected="true"] {
+:is(#mode-switch,[data-ovll-mode-switch]) button[aria-selected="true"] {
   color: var(--text);
 }
 
-#mode-switch button[aria-selected="false"] {
+:is(#mode-switch,[data-ovll-mode-switch]) button[aria-selected="false"] {
   color: var(--muted);
 }
 
-#mode-switch button:active {
+:is(#mode-switch,[data-ovll-mode-switch]) button:active {
   opacity: .68;
 }
 
@@ -163,7 +163,7 @@
    WORKSPACE
    ========================================================= */
 
-#workspace {
+:is(#workspace,[data-ovll-workspace]) {
   position: absolute;
   inset: 0;
   overflow: hidden;
@@ -176,7 +176,7 @@
    PAGES
    ========================================================= */
 
-#workspace > .page {
+:is(#workspace,[data-ovll-workspace]) > .page {
   position: absolute;
   top: 0;
   bottom: 0;
@@ -190,30 +190,30 @@
     opacity var(--motion-medium) var(--motion-ease-standard);
 }
 
-#workspace.is-dragging > .page {
+:is(#workspace,[data-ovll-workspace]).is-dragging > .page {
   will-change: transform, opacity;
 }
 
-#workspace[data-mode="chat"]:not(.is-dragging)
-#canvas-page,
-#workspace[data-mode="canvas"]:not(.is-dragging)
-#chat-page {
+:is(#workspace,[data-ovll-workspace])[data-mode="chat"]:not(.is-dragging)
+:is(#canvas-page,[data-ovll-canvas-page]),
+:is(#workspace,[data-ovll-workspace])[data-mode="canvas"]:not(.is-dragging)
+:is(#chat-page,[data-ovll-chat-page]) {
   visibility: hidden;
 }
 
-#chat-page {
+:is(#chat-page,[data-ovll-chat-page]) {
   left: 0;
   transform: translate3d(calc(var(--page-progress) * -100%), 0, 0);
   touch-action: pan-y;
 }
 
-#canvas-page {
+:is(#canvas-page,[data-ovll-canvas-page]) {
   left: 100%;
   transform: translate3d(calc(var(--page-progress) * -100%), 0, 0);
   touch-action: none;
 }
 
-#workspace.is-dragging > .page {
+:is(#workspace,[data-ovll-workspace]).is-dragging > .page {
   transition: none !important;
 }
 
@@ -221,24 +221,24 @@
    PAGE DEPTH
    ========================================================= */
 
-#chat-page {
+:is(#chat-page,[data-ovll-chat-page]) {
   opacity: calc(1 - (var(--page-progress) * .08));
 }
 
-#canvas-page {
+:is(#canvas-page,[data-ovll-canvas-page]) {
   opacity: calc(.92 + (var(--page-progress) * .08));
 }
 
-#workspace[data-mode="chat"] #chat-page,
-#workspace[data-mode="canvas"] #canvas-page {
+:is(#workspace,[data-ovll-workspace])[data-mode="chat"] :is(#chat-page,[data-ovll-chat-page]),
+:is(#workspace,[data-ovll-workspace])[data-mode="canvas"] :is(#canvas-page,[data-ovll-canvas-page]) {
   opacity: 1;
 }
 
-#workspace[data-mode="chat"] #canvas-page {
+:is(#workspace,[data-ovll-workspace])[data-mode="chat"] :is(#canvas-page,[data-ovll-canvas-page]) {
   pointer-events: none;
 }
 
-#workspace[data-mode="canvas"] #chat-page {
+:is(#workspace,[data-ovll-workspace])[data-mode="canvas"] :is(#chat-page,[data-ovll-chat-page]) {
   pointer-events: none;
 }
 
@@ -246,13 +246,13 @@
    CHAT PAGE
    ========================================================= */
 
-#chat-page {
+:is(#chat-page,[data-ovll-chat-page]) {
   display: flex;
   flex-direction: column;
   background: var(--bg);
 }
 
-#chat-content {
+:is(#chat-content,[data-ovll-chat-content]) {
   width: 100%;
   height: 100%;
   min-height: 0;
@@ -275,11 +275,11 @@
   -webkit-overflow-scrolling: touch;
 }
 
-#chat-content::-webkit-scrollbar {
+:is(#chat-content,[data-ovll-chat-content])::-webkit-scrollbar {
   display: none;
 }
 
-#chat-messages {
+:is(#chat-messages,[data-ovll-chat-messages]) {
   width: min(47.5rem, 100%);
   min-height: 100%;
   margin: 0 auto;
@@ -291,7 +291,7 @@
    CANVAS PAGE
    ========================================================= */
 
-#canvas-page {
+:is(#canvas-page,[data-ovll-canvas-page]) {
   background: var(--bg);
 }
 
@@ -411,7 +411,7 @@
   }
 }
 
-#canvas-viewport {
+:is(#canvas-viewport,[data-ovll-canvas-viewport]) {
   position: relative;
   width: 100%;
   height: 100%;
@@ -423,7 +423,7 @@
   -webkit-user-select: none;
 }
 
-#canvas-world {
+:is(#canvas-world,[data-ovll-canvas-world]) {
   position: absolute;
   inset: 0;
   transform-origin: 0 0;
@@ -436,7 +436,7 @@
    COMPOSER
    ========================================================= */
 
-#composer {
+:is(#composer,[data-ovll-composer]) {
   position: absolute;
   z-index: var(--layer-composer);
   right: 0;
@@ -453,7 +453,7 @@
   pointer-events: none;
 }
 
-#composer::before {
+:is(#composer,[data-ovll-composer])::before {
   content: "";
   position: absolute;
   z-index: 0;
@@ -473,7 +473,7 @@
   pointer-events: none;
 }
 
-#composer-form {
+:is(#composer-form,[data-ovll-composer-form]) {
   position: relative;
   z-index: 1;
   width: min(39rem, calc(100% - 1.5rem));
@@ -517,7 +517,7 @@
     padding .18s ease;
 }
 
-#composer-form.is-expanded {
+:is(#composer-form,[data-ovll-composer-form]).is-expanded {
   grid-template-rows:
     minmax(0,auto)
     auto;
@@ -529,7 +529,7 @@
   border-radius: 1.3rem;
 }
 
-#composer-form:focus-within {
+:is(#composer-form,[data-ovll-composer-form]):focus-within {
   border-color: var(--ui-line-strong);
   background:
     color-mix(
@@ -546,7 +546,7 @@
       );
 }
 
-#composer-input {
+:is(#composer-input,[data-ovll-composer-input]) {
   grid-column: 2;
   grid-row: 1;
   width: 100%;
@@ -572,8 +572,8 @@
     opacity .16s ease;
 }
 
-#composer-form.is-expanded
-#composer-input {
+:is(#composer-form,[data-ovll-composer-form]).is-expanded
+:is(#composer-input,[data-ovll-composer-input]) {
   grid-column: 1 / -1;
   grid-row: 1;
   padding:
@@ -582,11 +582,11 @@
     .26rem;
 }
 
-#composer-input::-webkit-scrollbar {
+:is(#composer-input,[data-ovll-composer-input])::-webkit-scrollbar {
   display: none;
 }
 
-#composer-input::placeholder {
+:is(#composer-input,[data-ovll-composer-input])::placeholder {
   color:
     color-mix(
       in srgb,
@@ -598,12 +598,12 @@
     opacity .16s ease;
 }
 
-#composer-form.is-busy
-#composer-input::placeholder {
+:is(#composer-form,[data-ovll-composer-form]).is-busy
+:is(#composer-input,[data-ovll-composer-input])::placeholder {
   opacity: .72;
 }
 
-#composer-attach {
+:is(#composer-attach,[data-ovll-composer-attach]) {
   position: relative;
   z-index: 2;
   grid-column: 1;
@@ -634,22 +634,22 @@
     transform .12s ease;
 }
 
-#composer-form.is-expanded
-#composer-attach {
+:is(#composer-form,[data-ovll-composer-form]).is-expanded
+:is(#composer-attach,[data-ovll-composer-attach]) {
   grid-row: 2;
   align-self: end;
 }
 
-#composer-attach:hover {
+:is(#composer-attach,[data-ovll-composer-attach]):hover {
   color: var(--text);
   background: var(--surface-hover);
 }
 
-#composer-attach:active {
+:is(#composer-attach,[data-ovll-composer-attach]):active {
   transform: scale(.95);
 }
 
-#composer-attach svg {
+:is(#composer-attach,[data-ovll-composer-attach]) svg {
   width: 1.18rem;
   height: 1.18rem;
   fill: none;
@@ -659,11 +659,11 @@
   stroke-linejoin: round;
 }
 
-#composer-file-input {
+:is(#composer-file-input,[data-ovll-composer-file-input]) {
   display: none !important;
 }
 
-#composer-submit {
+:is(#composer-submit,[data-ovll-composer-submit]) {
   position: relative;
   z-index: 2;
   grid-column: 3;
@@ -699,13 +699,13 @@
     background-color .18s ease;
 }
 
-#composer-form.is-expanded
-#composer-submit {
+:is(#composer-form,[data-ovll-composer-form]).is-expanded
+:is(#composer-submit,[data-ovll-composer-submit]) {
   grid-row: 2;
   align-self: end;
 }
 
-#composer-submit svg {
+:is(#composer-submit,[data-ovll-composer-submit]) svg {
   width: 1.16rem;
   height: 1.16rem;
   fill: none;
@@ -718,13 +718,13 @@
     opacity var(--motion-medium) ease;
 }
 
-#composer-form.is-busy
-#composer-submit {
+:is(#composer-form,[data-ovll-composer-form]).is-busy
+:is(#composer-submit,[data-ovll-composer-submit]) {
   opacity: .72;
 }
 
-#composer-form.is-busy
-#composer-submit svg {
+:is(#composer-form,[data-ovll-composer-form]).is-busy
+:is(#composer-submit,[data-ovll-composer-submit]) svg {
   animation:
     astra-composer-pulse
     1.55s
@@ -745,15 +745,15 @@
   }
 }
 
-#composer-submit:hover {
+:is(#composer-submit,[data-ovll-composer-submit]):hover {
   opacity: .9;
 }
 
-#composer-submit:active {
+:is(#composer-submit,[data-ovll-composer-submit]):active {
   transform: scale(.92);
 }
 
-#composer-submit:disabled {
+:is(#composer-submit,[data-ovll-composer-submit]):disabled {
   cursor: default;
 }
 
@@ -767,25 +767,25 @@
     --composer-input-height: 2.3125rem;
   }
 
-  #topbar {
+  :is(#topbar,[data-ovll-topbar]) {
     padding-left: .625rem;
     padding-right: .625rem;
   }
 
-  #mode-switch {
+  :is(#mode-switch,[data-ovll-mode-switch]) {
     width: 9rem;
     height: var(--top-control-height);
   }
 
-  #mode-switch::before {
+  :is(#mode-switch,[data-ovll-mode-switch])::before {
     height: var(--top-control-inner-height);
   }
 
-  #mode-switch button {
+  :is(#mode-switch,[data-ovll-mode-switch]) button {
     height: var(--top-control-inner-height);
   }
 
-  #chat-content {
+  :is(#chat-content,[data-ovll-chat-content]) {
     padding:
       calc(var(--safe-top) + var(--topbar-height) + 1rem)
       max(1.15rem, var(--safe-right))
@@ -798,12 +798,12 @@
       max(.875rem, var(--safe-left));
   }
 
-  #composer {
+  :is(#composer,[data-ovll-composer]) {
     padding-left: .625rem;
     padding-right: .625rem;
   }
 
-  #composer-form {
+  :is(#composer-form,[data-ovll-composer-form]) {
     width: calc(100% - 1rem);
     min-height: 3.4rem;
     padding: .4rem .44rem;
@@ -811,7 +811,7 @@
     border-radius: 1.2rem;
   }
 
-  #composer-form.is-expanded {
+  :is(#composer-form,[data-ovll-composer-form]).is-expanded {
     padding:
       .64rem
       .54rem
@@ -820,14 +820,14 @@
     border-radius: 1.28rem;
   }
 
-  #composer-input {
+  :is(#composer-input,[data-ovll-composer-input]) {
     height: 2.4rem;
     min-height: 2.4rem;
     font-size: 1rem;
     line-height: 1.42rem;
   }
 
-  #composer-submit {
+  :is(#composer-submit,[data-ovll-composer-submit]) {
     width: 2.5rem;
     height: 2.5rem;
     min-width: 2.5rem;
@@ -845,33 +845,33 @@
     --composer-input-height: 2.25rem;
   }
 
-  #mode-switch {
+  :is(#mode-switch,[data-ovll-mode-switch]) {
     width: 8.75rem;
   }
 
-  #mode-switch button {
+  :is(#mode-switch,[data-ovll-mode-switch]) button {
     font-size: .875rem;
   }
 
-  #composer {
+  :is(#composer,[data-ovll-composer]) {
     padding-left: .5rem;
     padding-right: .5rem;
   }
 
-  #composer-form {
+  :is(#composer-form,[data-ovll-composer-form]) {
     width: calc(100% - .5rem);
     min-height: 3.15rem;
     padding: .32rem .36rem;
     column-gap: .2rem;
   }
 
-  #composer-input {
+  :is(#composer-input,[data-ovll-composer-input]) {
     height: 2.35rem;
     min-height: 2.35rem;
     font-size: 1rem;
   }
 
-  #composer-form.is-expanded {
+  :is(#composer-form,[data-ovll-composer-form]).is-expanded {
     padding:
       .56rem
       .46rem
@@ -890,17 +890,17 @@
     --composer-input-height: 1.9375rem;
   }
 
-  html.physical-landscape #composer-form {
+  html.physical-landscape :is(#composer-form,[data-ovll-composer-form]) {
     min-height: 2.75rem;
     padding: .3rem .34rem;
   }
 
-  html.physical-landscape #composer-input {
+  html.physical-landscape :is(#composer-input,[data-ovll-composer-input]) {
     height: 2rem;
     min-height: 2rem;
   }
 
-  html.physical-landscape #composer-form.is-expanded {
+  html.physical-landscape :is(#composer-form,[data-ovll-composer-form]).is-expanded {
     padding:
       .46rem
       .42rem
@@ -914,12 +914,12 @@
    ========================================================= */
 
 @media (hover: none) and (pointer: coarse) {
-  #composer-input {
+  :is(#composer-input,[data-ovll-composer-input]) {
     font-size: 16px;
   }
 
-  #composer-attach,
-  #composer-submit {
+  :is(#composer-attach,[data-ovll-composer-attach]),
+  :is(#composer-submit,[data-ovll-composer-submit]) {
     width: 2.5rem;
     height: 2.5rem;
     min-width: 2.5rem;
@@ -931,7 +931,7 @@
    CANVAS NODE BUILDER
    ========================================================= */
 
-#canvas-node-builder {
+:is(#canvas-node-builder,[data-canvas-node-builder]) {
   position: absolute;
   z-index: calc(var(--layer-composer) + 1);
   left: max(max(.625rem, var(--safe-left)), calc((100% - var(--content-rail)) / 2));
@@ -951,9 +951,9 @@
   pointer-events: none;
 }
 
-#canvas-node-builder-layout,
-#canvas-node-builder-reset,
-#canvas-node-builder-toggle {
+:is(#canvas-node-builder-layout,[data-canvas-node-builder-layout]),
+:is(#canvas-node-builder-reset,[data-canvas-node-builder-reset]),
+:is(#canvas-node-builder-toggle,[data-canvas-node-builder-toggle]) {
   min-width: 0;
   height: 2.625rem;
   padding: 0 .875rem;
@@ -976,16 +976,16 @@
   transition: background .18s ease, border-color .18s ease, transform .16s ease;
 }
 
-#canvas-node-builder-layout:hover,
-#canvas-node-builder-reset:hover,
-#canvas-node-builder-toggle:hover {
+:is(#canvas-node-builder-layout,[data-canvas-node-builder-layout]):hover,
+:is(#canvas-node-builder-reset,[data-canvas-node-builder-reset]):hover,
+:is(#canvas-node-builder-toggle,[data-canvas-node-builder-toggle]):hover {
   border-color: var(--line-strong);
   background: var(--panel-strong);
 }
 
-#canvas-node-builder-layout:active,
-#canvas-node-builder-reset:active,
-#canvas-node-builder-toggle:active {
+:is(#canvas-node-builder-layout,[data-canvas-node-builder-layout]):active,
+:is(#canvas-node-builder-reset,[data-canvas-node-builder-reset]):active,
+:is(#canvas-node-builder-toggle,[data-canvas-node-builder-toggle]):active {
   transform: scale(.95);
 }
 
@@ -1011,7 +1011,7 @@
   stroke-linejoin: round;
 }
 
-#canvas-node-builder-reset.is-confirming {
+:is(#canvas-node-builder-reset,[data-canvas-node-builder-reset]).is-confirming {
   border-color:
     color-mix(
       in srgb,
@@ -1021,7 +1021,7 @@
   color: #d65f5f;
 }
 
-#canvas-node-builder-panel {
+:is(#canvas-node-builder-panel,[data-canvas-node-builder-panel]) {
   position: absolute;
   left: 0;
   bottom: calc(100% + .625rem);
@@ -1045,7 +1045,7 @@
   transition: opacity .18s ease, transform .22s var(--ease), visibility .18s ease;
 }
 
-#canvas-node-builder.is-open #canvas-node-builder-panel {
+:is(#canvas-node-builder,[data-canvas-node-builder]).is-open :is(#canvas-node-builder-panel,[data-canvas-node-builder-panel]) {
   opacity: 1;
   visibility: visible;
   transform: translateY(0) scale(1);
@@ -1158,12 +1158,12 @@
   font-weight: 700;
 }
 
-#canvas-node-builder.is-empty {
+:is(#canvas-node-builder,[data-canvas-node-builder]).is-empty {
   display: none;
 }
 
 @media (max-width: 26.25rem) {
-  #canvas-node-builder {
+  :is(#canvas-node-builder,[data-canvas-node-builder]) {
     left: calc(max(.5rem, var(--safe-left)) + .375rem);
     bottom: calc(
       var(--safe-bottom) +
@@ -1173,7 +1173,7 @@
     );
   }
 
-  #canvas-node-builder-panel {
+  :is(#canvas-node-builder-panel,[data-canvas-node-builder-panel]) {
     width: min(19.375rem, calc(100vw - 1.25rem));
     padding: .625rem;
     border-radius: var(--radius-md);
@@ -1243,13 +1243,13 @@
    ========================================================= */
 
 @media (max-width: 43.75rem) {
-  #canvas-node-builder {
+  :is(#canvas-node-builder,[data-canvas-node-builder]) {
     left: calc(max(.625rem, var(--safe-left)) + .5rem);
   }
 }
 
 @media (max-width: 26.25rem) {
-  #canvas-node-builder {
+  :is(#canvas-node-builder,[data-canvas-node-builder]) {
     left: calc(max(.5rem, var(--safe-left)) + .375rem);
     bottom: calc(
       var(--safe-bottom) +
@@ -1264,10 +1264,10 @@
    WORKSPACE CONTROL SYSTEM
    ========================================================= */
 
-#mode-switch,
-#canvas-node-builder-layout,
-#canvas-node-builder-reset,
-#canvas-node-builder-toggle {
+:is(#mode-switch,[data-ovll-mode-switch]),
+:is(#canvas-node-builder-layout,[data-canvas-node-builder-layout]),
+:is(#canvas-node-builder-reset,[data-canvas-node-builder-reset]),
+:is(#canvas-node-builder-toggle,[data-canvas-node-builder-toggle]) {
   border: var(--ui-line-width) solid var(--ui-line);
   background: var(--ui-glass);
   backdrop-filter: var(--ui-backdrop);
@@ -1275,38 +1275,38 @@
   box-shadow: var(--ui-control-shadow);
 }
 
-#mode-switch,
-#mode-switch::before,
-#canvas-node-builder-layout,
-#canvas-node-builder-reset,
-#canvas-node-builder-toggle {
+:is(#mode-switch,[data-ovll-mode-switch]),
+:is(#mode-switch,[data-ovll-mode-switch])::before,
+:is(#canvas-node-builder-layout,[data-canvas-node-builder-layout]),
+:is(#canvas-node-builder-reset,[data-canvas-node-builder-reset]),
+:is(#canvas-node-builder-toggle,[data-canvas-node-builder-toggle]) {
   border-radius: var(--ui-radius-pill);
 }
 
-#mode-switch::before {
+:is(#mode-switch,[data-ovll-mode-switch])::before {
   border: var(--ui-line-width) solid var(--ui-line);
   background: var(--ui-glass-strong);
   box-shadow: 0 .0625rem .25rem rgba(0, 0, 0, .055);
 }
 
-:root.dark #mode-switch::before {
+:root.dark :is(#mode-switch,[data-ovll-mode-switch])::before {
   box-shadow: 0 .0625rem .3125rem rgba(0, 0, 0, .14);
 }
 
-#mode-switch:hover,
-#canvas-node-builder-layout:hover,
-#canvas-node-builder-reset:hover,
-#canvas-node-builder-toggle:hover {
+:is(#mode-switch,[data-ovll-mode-switch]):hover,
+:is(#canvas-node-builder-layout,[data-canvas-node-builder-layout]):hover,
+:is(#canvas-node-builder-reset,[data-canvas-node-builder-reset]):hover,
+:is(#canvas-node-builder-toggle,[data-canvas-node-builder-toggle]):hover {
   border-color: var(--ui-line-strong);
 }
 
-#canvas-node-builder-layout:hover,
-#canvas-node-builder-reset:hover,
-#canvas-node-builder-toggle:hover {
+:is(#canvas-node-builder-layout,[data-canvas-node-builder-layout]):hover,
+:is(#canvas-node-builder-reset,[data-canvas-node-builder-reset]):hover,
+:is(#canvas-node-builder-toggle,[data-canvas-node-builder-toggle]):hover {
   background: var(--ui-glass-strong);
 }
 
-#canvas-node-builder-panel {
+:is(#canvas-node-builder-panel,[data-canvas-node-builder-panel]) {
   border: var(--ui-line-width) solid var(--ui-line);
   border-radius: var(--ui-radius-panel);
   background: var(--ui-glass);
@@ -1677,4 +1677,50 @@
   .astra-canvas-workflow-proposal-copy span {
     display: none;
   }
+}
+
+
+/* =========================================================
+   INSERTABLE WORKSPACE
+   ========================================================= */
+
+.ovll-workspace-instance{
+  --page-progress:0;
+}
+
+.ovll-workspace-slot{
+  position:absolute;
+  z-index:3;
+  top:calc(var(--safe-top) + var(--top-control-top));
+  min-height:var(--control-size);
+  display:flex;
+  align-items:center;
+  gap:.4rem;
+  pointer-events:auto;
+}
+
+.ovll-workspace-slot:empty,
+.ovll-workspace-overlay-slot:empty,
+[data-ovll-slot="composerBefore"]:empty,
+[data-ovll-slot="composerAfter"]:empty{
+  display:none;
+}
+
+.ovll-workspace-slot-start{
+  left:max(.8125rem,var(--safe-left));
+}
+
+.ovll-workspace-slot-end{
+  right:max(.8125rem,var(--safe-right));
+}
+
+.ovll-workspace-overlay-slot{
+  position:absolute;
+  z-index:var(--layer-overlay);
+  inset:0;
+  pointer-events:none;
+}
+
+.ovll-workspace-overlay-slot>*{
+  pointer-events:auto;
 }

@@ -878,7 +878,16 @@
           history:
             compactConversationHistory(
               options.history
-            )
+            ),
+          ...(
+            options.purpose===
+              "function-builder"
+              ?{
+                purpose:
+                  "function-builder"
+              }
+              :{}
+          )
         },
         signal:
           options.signal

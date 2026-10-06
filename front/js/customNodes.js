@@ -60,7 +60,9 @@ function definitionFor(record){
       record.description||
       "저장한 흐름을 하나의 노드로 실행합니다.",
     llmdesc:
-      "사용자가 만든 저장형 서브플로우. 기존 노드만 보존하며 새 custom id를 임의 생성하지 않음.",
+      record.llmdesc||
+      record.description||
+      "사용자가 만든 저장형 서브플로우.",
     tag:"CUSTOM",
     color:
       record.color||

@@ -2,7 +2,7 @@
    Astra
    Canvas / Node
    ========================================================= */
-#canvas-world {
+:is(#canvas-world,[data-ovll-canvas-world]) {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -12,7 +12,7 @@
   user-select: none;
   -webkit-user-select: none;
 }
-#canvas-connections {
+:is(#canvas-connections,[data-ovll-canvas-connections]) {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -23,7 +23,7 @@
   z-index: 1;
   pointer-events: none;
 }
-#canvas-nodes {
+:is(#canvas-nodes,[data-ovll-canvas-nodes]) {
   --node-width: 12.25rem;
   --node-radius: 1.3rem;
   --node: var(--panel);
@@ -36,7 +36,7 @@
   overflow: visible;
   pointer-events: none;
 }
-#canvas-nodes .vc-node {
+:is(#canvas-nodes,[data-ovll-canvas-nodes]) .vc-node {
   pointer-events: auto;
 }
 /* =========================================================
@@ -1259,7 +1259,7 @@
    MOBILE
    ========================================================= */
 @media (max-width: 37.5rem) {
-  #canvas-nodes {
+  :is(#canvas-nodes,[data-ovll-canvas-nodes]) {
     --node-width: 11.125rem;
   }
   .vc-node {
@@ -1392,11 +1392,11 @@
    Canvas motion polish
    ========================================================= */
 
-#canvas-viewport {
+:is(#canvas-viewport,[data-ovll-canvas-viewport]) {
   cursor: grab;
 }
 
-#canvas-viewport.vc-panning {
+:is(#canvas-viewport,[data-ovll-canvas-viewport]).vc-panning {
   cursor: grabbing;
 }
 

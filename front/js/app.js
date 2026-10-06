@@ -20,10 +20,16 @@
   const SvgLibrary = global.OvllSvgLibrary;
   const Execution = global.OvllExecutionEngine;
   const mountCanvasNode = global.mountCanvasNode;
+  const createWorkspace =
+    global.createOvllWorkspace;
 
   /* =======================================================
      DOM
      ======================================================= */
+  const workspaceShell =
+    document.querySelector(
+      "#workspace-shell"
+    );
   const workspace = document.querySelector("#workspace");
   const chatPage = document.querySelector("#chat-page");
   const canvasPage = document.querySelector("#canvas-page");
@@ -52,7 +58,9 @@
     !SvgLibrary ||
     !Execution ||
     typeof Execution.RuntimeEngine !== "function" ||
-    typeof mountCanvasNode !== "function"
+    typeof mountCanvasNode !== "function" ||
+    typeof createWorkspace !== "function" ||
+    !workspaceShell
   ) {
     throw new Error("ovll Application dependency가 준비되지 않았습니다.");
   }
@@ -103,11 +111,8 @@
     restoringConversation: false,
     workspaceSaveTimer: null,
     composerDraftTimer: null,
-    nodeBuilder: {
-      root: null,
-      open: false,
-      resetTimer: null
-    },
+    workspaceController: null,
+    nodeBuilder: null,
     messageCount: 0
   };
 
@@ -7596,6 +7601,43 @@
     );
   }
 
+  function ensureMainWorkspace() {
+    if (state.workspaceController) {
+      return state.workspaceController;
+    }
+
+    state.workspaceController =
+      createWorkspace(
+        workspaceShell,
+        {
+          document,
+          elements: {
+            shell:
+              workspaceShell
+          },
+          ui:
+            UI,
+          presence:
+            Presence,
+          mascot:
+            false,
+          history:
+            true,
+          navigation:
+            Navigation,
+          navigationEvents:
+            true,
+          busyTarget:
+            global
+        }
+      );
+
+    global.OvllMainWorkspace =
+      state.workspaceController;
+
+    return state.workspaceController;
+  }
+
   /* =======================================================
      Canvas
      ======================================================= */
@@ -7865,8 +7907,15 @@
               )
       });
 
+    ensureMainWorkspace()
+      .bindCanvas(
+        canvas,
+        {
+          mascot:false
+        }
+      );
+
     initializeNodeBuilder();
-    UI.bindCanvas(canvas);
 
     canvas.on("change", handleCanvasChange);
     canvas.on(
@@ -7890,447 +7939,58 @@
   /* =======================================================
      Canvas Node Builder
      ======================================================= */
-  function getNodeDefinitionsForBuilder() {
-    if (
-      state.canvas &&
-      typeof state.canvas
-        .getNodeDefinitions ===
-        "function"
-    ) {
-      return state.canvas
-        .getNodeDefinitions();
-    }
-
-    if (
-      state.nodeDefinitions &&
-      typeof state.nodeDefinitions ===
-        "object"
-    ) {
-      return state.nodeDefinitions;
-    }
-
-    return {};
-  }
-
   function renderNodeBuilderOptions() {
-    const root = state.nodeBuilder.root;
-    if (!root) return;
-
-    const list = root.querySelector("#canvas-node-builder-list");
-    if (!list) return;
-
-    list.textContent = "";
-
-    const definitions =
-      getNodeDefinitionsForBuilder();
-
-    const groups =
-      new Map();
-
-    for (
-      const [type, definition] of
-      Object.entries(definitions)
-    ) {
-      if (
-        type === "start" ||
-        !definition
-      ) {
-        continue;
-      }
-
-      const catalog =
-        definition.catalog || {};
-
-      const groupId =
-        String(
-          catalog.group ||
-          "builtin"
-        );
-
-      if (!groups.has(groupId)) {
-        groups.set(
-          groupId,
-          {
-            id:groupId,
-            label:
-              String(
-                catalog.groupLabel ||
-                (
-                  groupId === "custom"
-                    ? "내 노드"
-                    : "기본 노드"
-                )
-              ),
-            custom:
-              groupId === "custom",
-            entries:[]
-          }
-        );
-      }
-
-      groups.get(groupId)
-        .entries.push({
-          type,
-          definition
-        });
-    }
-
-    const orderedGroups =
-      [...groups.values()]
-        .sort(
-          (a,b)=>
-            Number(b.custom)-
-            Number(a.custom)
-        );
-
-    const showLabels =
-      orderedGroups.length > 1 ||
-      orderedGroups.some(
-        group=>group.custom
-      );
-
-    for(const group of orderedGroups){
-      const section =
-        document.createElement(
-          "section"
-        );
-
-      section.className =
-        "canvas-node-builder-group";
-
-      if(group.custom){
-        section.classList.add(
-          "is-custom"
-        );
-      }
-
-      if(showLabels){
-        const label =
-          document.createElement(
-            "div"
-          );
-
-        label.className =
-          "canvas-node-builder-group-title";
-
-        label.textContent =
-          group.label;
-
-        section.appendChild(
-          label
-        );
-      }
-
-      const options =
-        document.createElement(
-          "div"
-        );
-
-      options.className =
-        "canvas-node-builder-options";
-
-      for(
-        const {
-          type,
-          definition
-        } of group.entries
-      ){
-        const button =
-          document.createElement(
-            "button"
-          );
-
-        button.type = "button";
-        button.className =
-          "canvas-node-builder-option";
-        button.dataset.nodeType =
-          type;
-
-        if(group.custom){
-          button.classList.add(
-            "is-custom"
-          );
-        }
-
-        button.style.setProperty(
-          "--builder-node-color",
-          definition.color ||
-          "var(--text)"
-        );
-
-        const icon =
-          document.createElement(
-            "span"
-          );
-
-        icon.className =
-          "canvas-node-builder-icon";
-        icon.innerHTML =
-          definition.icon || "";
-
-        const name =
-          document.createElement(
-            "span"
-          );
-
-        name.className =
-          "canvas-node-builder-name";
-        name.textContent =
-          definition.name || type;
-
-        button.appendChild(icon);
-        button.appendChild(name);
-        options.appendChild(button);
-      }
-
-      section.appendChild(
-        options
-      );
-
-      list.appendChild(
-        section
-      );
-    }
-
-    root.classList.toggle(
-      "is-empty",
-      orderedGroups.length === 0
-    );
+    state.nodeBuilder
+      ?.render?.();
   }
 
   function setNodeBuilderOpen(
     open,
     options = {}
   ) {
-    if (!state.nodeBuilder.root) return;
-
-    const next =
-      !!open;
-
-    if (
-      next ===
-      state.nodeBuilder.open
-    ) {
-      return;
-    }
-
-    if (
-      next &&
-      options.history !==
-        false
-    ) {
-      Navigation.open(
-        "node-builder"
+    return state.nodeBuilder
+      ?.setOpen?.(
+        open,
+        options
       );
-    }
-
-    if (
-      !next &&
-      options.history !==
-        false &&
-      Navigation.isCurrent(
-        "node-builder"
-      )
-    ) {
-      Navigation.close(
-        "node-builder",
-        () => setNodeBuilderOpen(
-          false,
-          {
-            history:false
-          }
-        )
-      );
-      return;
-    }
-
-    state.nodeBuilder.open =
-      next;
-
-    state.nodeBuilder.root.classList.toggle(
-      "is-open",
-      state.nodeBuilder.open
-    );
-
-    const toggle =
-      state.nodeBuilder.root.querySelector(
-        "#canvas-node-builder-toggle"
-      );
-
-    toggle?.setAttribute(
-      "aria-expanded",
-      String(
-        state.nodeBuilder.open
-      )
-    );
   }
 
   function initializeNodeBuilder() {
-    if (state.nodeBuilder.root) {
+    if (state.nodeBuilder) {
       renderNodeBuilderOptions();
-      return;
+      return state.nodeBuilder;
     }
 
-    const root = document.createElement("div");
-    root.id = "canvas-node-builder";
+    const workspaceController =
+      ensureMainWorkspace();
 
-    root.innerHTML = `
-      <div id="canvas-node-builder-panel" role="dialog" aria-label="노드 추가">
-        <div class="canvas-node-builder-header">
-          <span>노드 추가</span>
-          <span class="canvas-node-builder-hint">워크플로우를 직접 조립해봐요</span>
-        </div>
-        <div id="canvas-node-builder-list" class="canvas-node-builder-list"></div>
-      </div>
-      <div class="canvas-node-builder-actions">
-        <button id="canvas-node-builder-toggle" type="button" aria-expanded="false" aria-controls="canvas-node-builder-panel">
-          <span class="canvas-node-builder-action-icon" aria-hidden="true">${SvgLibrary.get("nodeAdd")}</span>
-          <span>노드</span>
-        </button>
-        <button id="canvas-node-builder-reset" type="button" aria-label="캔버스 초기화" title="캔버스 초기화">
-          <span class="canvas-node-builder-action-icon" aria-hidden="true">${SvgLibrary.get("canvasReset")}</span>
-          <span class="canvas-node-builder-reset-label">초기화</span>
-        </button>
-        <button id="canvas-node-builder-layout" type="button" aria-label="노드 정리하기" title="노드 정리하기">
-          <span class="canvas-node-builder-action-icon" aria-hidden="true">${SvgLibrary.get("canvasLayout")}</span>
-          <span>정리하기</span>
-        </button>
-      </div>
-    `;
+    state.nodeBuilder =
+      workspaceController
+        .mountNodeBuilder({
+          navigation:
+            Navigation,
+          history:true,
+          svgLibrary:
+            SvgLibrary,
+          beforeReset() {
+            clearRuntimeConnections();
 
-    document.querySelector("#canvas-page")?.appendChild(root);
-    state.nodeBuilder.root = root;
+            state.canvas
+              ?.clearRuntimeNodeStates
+              ?.();
 
-    listen(root, "click", event => {
-      const layout = event.target.closest("#canvas-node-builder-layout");
+            finishRuntimeActivity({
+              removeImmediately:
+                true
+            });
 
-      if (layout) {
-        event.preventDefault();
-
-        if (
-          state.canvas &&
-          typeof state.canvas.layout === "function"
-        ) {
-          state.canvas.layout();
-        }
-
-        return;
-      }
-
-      const reset = event.target.closest("#canvas-node-builder-reset");
-
-      if (reset) {
-        event.preventDefault();
-
-        if (
-          !state.canvas ||
-          typeof state.canvas.setState !== "function"
-        ) {
-          return;
-        }
-
-        const workflow =
-          state.canvas.getWorkflow?.() || {
-            nodes: [],
-            connections: []
-          };
-
-        const hasContent =
-          (workflow.nodes?.length || 0) > 0 ||
-          (workflow.connections?.length || 0) > 0;
-
-        if (
-          hasContent &&
-          !reset.classList.contains("is-confirming")
-        ) {
-          reset.classList.add("is-confirming");
-          reset.querySelector(
-            ".canvas-node-builder-reset-label"
-          ).textContent = "한번 더";
-
-          clearTimeout(
-            state.nodeBuilder.resetTimer
-          );
-
-          state.nodeBuilder.resetTimer =
-            setTimeout(() => {
-              reset.classList.remove("is-confirming");
-              reset.querySelector(
-                ".canvas-node-builder-reset-label"
-              ).textContent = "초기화";
-              state.nodeBuilder.resetTimer = null;
-            }, 1800);
-
-          return;
-        }
-
-        clearTimeout(
-          state.nodeBuilder.resetTimer
-        );
-        state.nodeBuilder.resetTimer = null;
-        reset.classList.remove("is-confirming");
-        reset.querySelector(
-          ".canvas-node-builder-reset-label"
-        ).textContent = "초기화";
-
-        clearRuntimeConnections();
-        state.canvas.clearRuntimeNodeStates?.();
-        finishRuntimeActivity({
-          removeImmediately: true
-        });
-        Presence.hideCanvasSpeech?.();
-
-        state.canvas.setState({
-          workflow: {
-            nodes: [],
-            connections: []
-          },
-          viewport: {
-            scale: 1,
-            offset: {
-              x: 0,
-              y: 0
-            }
+            Presence
+              .hideCanvasSpeech
+              ?.();
           }
         });
 
-        setNodeBuilderOpen(false);
-        return;
-      }
-
-      const toggle = event.target.closest("#canvas-node-builder-toggle");
-
-      if (toggle) {
-        event.preventDefault();
-        setNodeBuilderOpen(!state.nodeBuilder.open);
-        return;
-      }
-
-      const option = event.target.closest(".canvas-node-builder-option");
-
-      if (!option || !root.contains(option)) return;
-
-      const type = option.dataset.nodeType;
-
-      if (!type || !state.canvas || typeof state.canvas.addNode !== "function") return;
-
-      state.canvas.addNode(type);
-      setNodeBuilderOpen(false);
-    });
-
-    listen(document, "pointerdown", event => {
-      if (state.nodeBuilder.open && !root.contains(event.target)) {
-        setNodeBuilderOpen(false);
-      }
-    });
-
-    listen(document, "keydown", event => {
-      if (event.key === "Escape" && state.nodeBuilder.open) {
-        setNodeBuilderOpen(false);
-      }
-    });
-
-    renderNodeBuilderOptions();
+    return state.nodeBuilder;
   }
 
   /* =======================================================
@@ -8398,25 +8058,6 @@ listen(composerInput, "keydown", handleComposerKeydown);
         resizeComposer();
       });
     }
-
-    listen(
-      global,
-      "ovll:navigation-back",
-      event => {
-        if (
-          event.detail?.layer ===
-            "node-builder" &&
-          state.nodeBuilder.open
-        ) {
-          setNodeBuilderOpen(
-            false,
-            {
-              history:false
-            }
-          );
-        }
-      }
-    );
 
     UI.on("modechange", ({ mode }) => {
       if (mode === "canvas") {
@@ -8606,12 +8247,6 @@ listen(composerInput, "keydown", handleComposerKeydown);
         null;
 
       clearTimeout(
-        state.nodeBuilder.resetTimer
-      );
-      state.nodeBuilder.resetTimer =
-        null;
-
-      clearTimeout(
         state.runGate.releaseTimer
       );
       state.runGate.releaseTimer =
@@ -8626,7 +8261,9 @@ listen(composerInput, "keydown", handleComposerKeydown);
       });
 
       state.canvas?.destroy?.();
-      state.nodeBuilder.root?.remove();
+
+      state.workspaceController
+        ?.destroy?.();
       global.OvllLibraryPage
         ?.destroy?.();
       global.OvllCustomNodePage
@@ -8639,8 +8276,9 @@ listen(composerInput, "keydown", handleComposerKeydown);
 
       state.canvas = null;
       state.runtime = null;
-      state.nodeBuilder.root = null;
-      state.nodeBuilder.open = false;
+      state.nodeBuilder = null;
+      state.workspaceController = null;
+      global.OvllMainWorkspace = null;
       state.workflow = null;
       state.workflowProposal = null;
       state.nodeDefinitions = null;

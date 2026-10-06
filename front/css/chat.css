@@ -3,7 +3,7 @@
    Chat Message UI
    ========================================================= */
 
-#chat-messages {
+:is(#chat-messages,[data-ovll-chat-messages]) {
   width: min(42.5rem, 100%);
   margin: 0 auto;
   padding: 1.35rem 0 1.85rem;
@@ -1647,7 +1647,7 @@ tr:last-child td {
       );
   }
 
-  #chat-messages {
+  :is(#chat-messages,[data-ovll-chat-messages]) {
     padding: .72rem 0 1.25rem;
     gap: .92rem;
   }

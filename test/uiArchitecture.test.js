@@ -12,7 +12,12 @@ function read(relativePath) {
 }
 
 function compact(value) {
-  return String(value).replace(/\s+/g, " ");
+  return String(value)
+    .replace(
+      /:is\((#[a-z0-9_-]+),\[[^\]]+\]\)/gi,
+      "$1"
+    )
+    .replace(/\s+/g, " ");
 }
 
 test("workspace shell owns workspace chrome and library is a sibling page", () => {
@@ -362,7 +367,7 @@ test("workspace hierarchy favors content over decorative surfaces", () => {
 test("settled workspace clips inactive page compositing artifacts", () => {
   const style = compact(read("front/css/style.css"));
   const ui = compact(read("front/css/ui.css"));
-  const js = read("front/js/ui.js");
+  const js = read("front/js/workspaceUi.js");
 
   assert.match(style, /#app-stage\s*\{[^}]*overflow:\s*hidden[^}]*isolation:\s*isolate/);
   assert.match(ui, /#workspace\s*\{[^}]*overflow:\s*hidden[^}]*isolation:\s*isolate/);
@@ -546,7 +551,7 @@ test("canvas execution is mirrored into persisted user chat", () => {
 test("new chat waiting state uses neutral polite copy only", () => {
   const presence =
     read(
-      "front/js/ovllPresence.js"
+      "front/js/workspacePresence.js"
     );
   const css =
     read(
@@ -1306,7 +1311,7 @@ test("desktop sidebar is a docked interactive layout while mobile keeps overlay 
   const css = compact(read("front/css/shellMenu.css"));
   const style = compact(read("front/css/style.css"));
   const library = compact(read("front/css/library.css"));
-  const ui = read("front/js/ui.js");
+  const ui = read("front/js/workspaceUi.js");
 
   assert.match(
     js,
@@ -1350,7 +1355,7 @@ test("desktop sidebar is a docked interactive layout while mobile keeps overlay 
 });
 
 test("mouse mode-switch click keeps its button target while drag still captures", () => {
-  const js = read("front/js/ui.js");
+  const js = read("front/js/workspaceUi.js");
   const begin = js.slice(
     js.indexOf("function beginPillGesture"),
     js.indexOf("function updatePillGesture")
@@ -1822,6 +1827,7 @@ test("custom nodes use the canvas plugin pipeline and node picker catalog", () =
   const canvas = read("front/js/canvasNode.js");
   const custom = read("front/js/customNodes.js");
   const app = read("front/js/app.js");
+  const builder = read("front/js/canvasNodeBuilder.js");
   const css = compact(read("front/css/ui.css"));
 
   assert.match(
@@ -1845,8 +1851,12 @@ test("custom nodes use the canvas plugin pipeline and node picker catalog", () =
     /CustomNodes\.expandWorkflow/
   );
   assert.match(
-    app,
+    builder,
     /canvas-node-builder-group/
+  );
+  assert.match(
+    app,
+    /\.mountNodeBuilder\(/
   );
   assert.match(
     css,
