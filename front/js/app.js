@@ -101,6 +101,7 @@
     messages: [],
     restoringConversation: false,
     workspaceSaveTimer: null,
+    composerDraftTimer: null,
     nodeBuilder: {
       root: null,
       open: false,
@@ -330,6 +331,9 @@
       clearTimeout(
         state.workspaceSaveTimer
       );
+      clearTimeout(
+        state.composerDraftTimer
+      );
       state.workspaceSaveTimer =
         null;
     }
@@ -388,6 +392,11 @@
             storageSafe(
               canvasState
             ),
+          composerDraft:
+            String(
+              composerInput.value ||
+              ""
+            ).slice(0,24000),
           lastUserRequest:
             state.lastUserRequest,
           workflowUserRequest:
@@ -425,6 +434,49 @@
             null;
 
           void saveActiveConversation();
+        },
+        delay
+      );
+  }
+
+  function scheduleComposerDraftSave(
+    delay = 220
+  ) {
+    if (
+      state.destroyed ||
+      state.restoringConversation ||
+      !state.ready
+    ) {
+      return;
+    }
+
+    clearTimeout(
+      state.composerDraftTimer
+    );
+
+    const conversationId =
+      currentConversationId();
+    const draft =
+      String(
+        composerInput.value ||
+        ""
+      ).slice(0,24000);
+
+    if (!conversationId) {
+      return;
+    }
+
+    state.composerDraftTimer =
+      setTimeout(
+        () => {
+          state.composerDraftTimer =
+            null;
+
+          WorkspaceStore
+            .updateConversationDraft?.(
+              conversationId,
+              draft
+            );
         },
         delay
       );
@@ -5088,6 +5140,21 @@
         )
       );
     }
+
+    const shouldReturnToChat =
+      run?.status === "SUCCESS" &&
+      decision.reason !==
+        "artifact-only" &&
+      UI.getMode?.() ===
+        "canvas";
+
+    if (
+      shouldReturnToChat &&
+      typeof UI.setMode ===
+        "function"
+    ) {
+      UI.setMode("chat");
+    }
   }
 
   function addSystemMessage(text) {
@@ -6051,6 +6118,7 @@
 
       composerInput.value = "";
       resizeComposer();
+      scheduleComposerDraftSave(0);
     }
 
     setBusy(true);
@@ -6307,6 +6375,7 @@
 
   function handleComposerInput() {
     resizeComposer();
+    scheduleComposerDraftSave();
   }
 
   function isTextLikeUpload(
@@ -7242,6 +7311,15 @@
                 ?.workflowUserRequest ||
               ""
             );
+
+          composerInput.value =
+            String(
+              conversation
+                .state
+                ?.composerDraft ||
+              ""
+            ).slice(0,24000);
+          resizeComposer();
 
           const memory =
             WorkspaceStore
