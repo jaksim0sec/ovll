@@ -1621,3 +1621,96 @@ test("chat markup recognizes lightweight inline math without touching inline cod
     /\.astra-inline-math\s*\{/
   );
 });
+
+
+test("workflow requests use deterministic delta execution gates", () => {
+  const app =
+    read(
+      "front/js/app.js"
+    );
+  const runtime =
+    read(
+      "front/js/runtimeEngine.js"
+    );
+
+  assert.match(
+    runtime,
+    /function\s+analyzeWorkflowExecutionDelta\s*\(/
+  );
+  assert.match(
+    runtime,
+    /small-isolated-delta/
+  );
+  assert.match(
+    runtime,
+    /decision-node/
+  );
+  assert.match(
+    app,
+    /Execution\s*\.analyzeWorkflowExecutionDelta/
+  );
+  assert.match(
+    app,
+    /execution\?\.mode\s*===\s*"auto"/
+  );
+  assert.match(
+    app,
+    /execution\.pivot,[\s\S]*?"target"/
+  );
+});
+
+test("automatic and confirmed workflow runs do not fabricate extra user messages", () => {
+  const app =
+    read(
+      "front/js/app.js"
+    );
+
+  assert.match(
+    app,
+    /options\.addUserMessage\s*!==\s*false/
+  );
+  assert.match(
+    app,
+    /source:\s*"workflow-auto"/
+  );
+  assert.match(
+    app,
+    /source:\s*"workflow-confirm"/
+  );
+  assert.match(
+    app,
+    /addUserMessage:\s*false/
+  );
+});
+
+test("moderate workflow execution is confirmable directly from chat", () => {
+  const app =
+    read(
+      "front/js/app.js"
+    );
+  const css =
+    read(
+      "front/css/chat.css"
+    );
+
+  assert.match(
+    app,
+    /function\s+appendWorkflowExecutionControl\s*\(/
+  );
+  assert.match(
+    app,
+    /data-workflow-execution-action/
+  );
+  assert.match(
+    app,
+    /바뀐 부분만 실행/
+  );
+  assert.match(
+    app,
+    /executeWorkflowProposal\s*\(/
+  );
+  assert.match(
+    css,
+    /\.astra-workflow-proposal\s*\{/
+  );
+});
