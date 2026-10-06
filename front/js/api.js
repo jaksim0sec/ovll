@@ -746,7 +746,7 @@
     options = {}
   ) {
     const normalizedText =
-      clipPayloadText(
+      clipStructuredText(
         text,
         6000
       );
@@ -1166,7 +1166,7 @@
           ),
       context: {
         userRequest:
-          clipPayloadText(
+          clipStructuredText(
             context.userRequest,
             6000
           ),

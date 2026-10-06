@@ -19,8 +19,8 @@
 
   animation:
     astra-message-in
-    .2s
-    cubic-bezier(.2, .82, .2, 1)
+    var(--motion-medium)
+    var(--motion-ease-emphasized)
     both;
 }
 

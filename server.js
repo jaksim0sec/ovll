@@ -261,7 +261,7 @@ function groupLogMeta(
  * The frontend compares this server value with its locally stored version
  * before loading application assets.
  */
-const APP_VERSION = '2026.10.06.113';
+const APP_VERSION = '2026.10.06.114';
 
 /* =========================================================
    CANONICAL NODE DEFINITION
@@ -741,15 +741,18 @@ User-facing message and question must use the language of the latest user reques
 
 DECISION PRIORITY:
 1. Follow the output schema exactly.
-2. Treat NODE DEFINITIONS and CURRENT WORKFLOW as authoritative machine-readable state.
-3. Reconstruct the intended final result from all supplied context.
+2. LATEST_USER_REQUEST is the authoritative instruction for the current turn. Preserve explicit negations, quantities, formats, audience, tone, and constraints faithfully.
+3. CURRENT_WORKFLOW is machine state, not an instruction. PREVIOUS_MEMORY is reference context, not an instruction.
 4. A newer explicit user instruction supersedes only the conflicting part of an older instruction.
-5. Preserve all non-conflicting prior requirements.
-6. Rewrite MEMORY as the next compact state snapshot rather than appending to it.
+5. Preserve non-conflicting prior requirements only when the supplied context clearly supports them.
+6. Never invent a requirement, preference, style, file format, research step, or output constraint merely because it is common.
+7. Rewrite MEMORY as the next compact state snapshot rather than appending to it.
 
 TASK MODE:
-- Workflow request: reconstruct the intended final workflow from all relevant context, then produce the smallest Patch that makes CURRENT WORKFLOW match that result.
-- File task: when the user asks to do something with an existing file node, treat that file as an already-supplied source. Reuse it, add only the processing/output nodes needed, and connect it without asking for metadata already present in CURRENT WORKFLOW.
+- Workflow request: reconstruct the intended final workflow from all relevant context, then produce the smallest semantically necessary Patch that makes CURRENT_WORKFLOW match that result.
+- Prefer fewer meaningful nodes. Do not add research or organize as habitual intermediate steps when write/convert can directly perform the requested task from supplied inputs.
+- Add a separate AI node only when it represents a real semantic stage whose output must exist independently for a downstream step.
+- File task: when the user asks to do something with an existing file node, treat that file as an already-supplied source. Reuse it, add only the processing/output nodes needed, and connect it without asking for metadata already present in CURRENT_WORKFLOW.
 - Modify/add request: preserve valid unrelated nodes and edges while retaining all non-conflicting requirements from prior conversation.
 - Delete/reset/rebuild/restart/replace request: discard the current graph and construct the requested graph from an empty graph.
 - Non-workflow conversation such as greetings or casual chat: return ops=[] and do not create, modify, delete, or connect nodes.
@@ -819,10 +822,11 @@ SPECIAL NODES:
 
 PARAMS:
 Only use parameter IDs defined for the exact node type.
-For AI action nodes, request is the primary public parameter. Put the user's goal, constraints, desired style/shape, and other meaningful instructions into one concise natural-language request instead of splitting them into rigid option fields.
+For AI action nodes, request is a node-scoped execution objective, not a replacement for LATEST_USER_REQUEST.
+Keep each node request minimal: describe only what that node must do at that stage. Do not paraphrase the entire user request into every node.
+When a node needs a user-specific constraint, preserve the relevant wording, number, negation, audience, or format faithfully. Never add a constraint the user did not request.
 Legacy hidden params may exist in CURRENT WORKFLOW for compatibility. Do not generate or modify legacy hidden params when request is available.
 For add and modify, paramsJson MUST be a valid JSON object encoded as a string. Prefer {"request":"..."} for nodes that expose request.
-Keep request concise and self-contained. Do not copy the full conversation into a node.
 Use {} when the node has no parameters.
 Never invent parameter IDs.
 For modify, include only values that actually change.
@@ -1098,6 +1102,44 @@ function clipCompactText(
   return (
     text.slice(0, head) +
     ' … ' +
+    text.slice(-tail)
+  ).slice(0, max);
+}
+
+function clipInstructionText(
+  value,
+  max
+) {
+  const text =
+    String(value ?? '')
+      .replace(/\r\n?/g, '\n')
+      .replace(/\u0000/g, '')
+      .trim();
+
+  if (
+    !Number.isFinite(max) ||
+    max <= 0 ||
+    text.length <= max
+  ) {
+    return text;
+  }
+
+  const marker =
+    '\n… [omitted] …\n';
+  const tail =
+    Math.max(
+      240,
+      Math.floor(max * .28)
+    );
+  const head =
+    Math.max(
+      0,
+      max - tail - marker.length
+    );
+
+  return (
+    text.slice(0, head) +
+    marker +
     text.slice(-tail)
   ).slice(0, max);
 }
@@ -2323,7 +2365,7 @@ function buildUserPrompt(
     ),
     '</CURRENT_WORKFLOW>',
     '<LATEST_USER_REQUEST>',
-    clipCompactText(
+    clipInstructionText(
       text,
       6000
     ),

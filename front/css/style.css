@@ -32,6 +32,11 @@
   --viewport-height: 100dvh;
   --real-vh-unit: 1vh;
   --ease: cubic-bezier(.2, .82, .2, 1);
+  --motion-ease-standard: cubic-bezier(.2,.72,.2,1);
+  --motion-ease-emphasized: cubic-bezier(.16,1,.3,1);
+  --motion-fast: .14s;
+  --motion-medium: .24s;
+  --motion-slow: .38s;
   --radius-sm: .875rem;
   --radius-md: 1.0625rem;
   --radius-lg: 1.375rem;

@@ -2151,6 +2151,11 @@
                             mode,
                             groupId:
                               group.id,
+                            cacheContext:
+                              clone(
+                                cacheContext ||
+                                {}
+                              ),
                             signal
                           }
                         );

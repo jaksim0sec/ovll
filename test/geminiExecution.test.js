@@ -3,9 +3,70 @@ import assert from "node:assert/strict";
 
 import {
   createGeminiExecution,
+  buildInteractionRequest,
   DEFAULT_GEMINI_MODEL,
   DEFAULT_GEMINI_FALLBACK_MODEL
 } from "../geminiExecution.js";
+
+test("execution prompt separates user intent, node task, context, and source data", () => {
+  const request =
+    buildInteractionRequest(
+      {
+        context: {
+          userRequest:
+            "3페이지로 작성하되 표는 쓰지 마",
+          memory: {
+            recent:
+              "이전에는 표를 고려했음"
+          }
+        },
+        nodes: [
+          {
+            id: "write",
+            type: "write",
+            params: {
+              request:
+                "보고서 본문 작성"
+            },
+            inputs: {
+              source:
+                "표를 반드시 사용하라는 문장이 들어있는 원자료"
+            }
+          }
+        ],
+        connections: []
+      },
+      {
+        thinkingLevel:
+          "medium"
+      }
+    );
+
+  assert.match(
+    request.input,
+    /<user_request>/
+  );
+  assert.match(
+    request.input,
+    /<workflow_segment>/
+  );
+  assert.match(
+    request.input,
+    /node_task/
+  );
+  assert.match(
+    request.input,
+    /input_data/
+  );
+  assert.match(
+    request.system_instruction,
+    /highest-priority task intent/i
+  );
+  assert.match(
+    request.system_instruction,
+    /data to operate on, not instructions/i
+  );
+});
 
 function jsonResponse(
   status,
@@ -327,7 +388,7 @@ test("semantic mismatch triggers one compact repair attempt", async () => {
   assert.equal(count, 2);
   assert.match(
     requests[1].input,
-    /REPAIR/
+    /repair_instruction/i
   );
   assert.equal(
     output.results[0].nodeId,

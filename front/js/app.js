@@ -96,6 +96,7 @@
     errorNotice: null,
     errorRetry: null,
     lastUserRequest: "",
+    workflowUserRequest: "",
     activeConversationId: null,
     messages: [],
     restoringConversation: false,
@@ -388,7 +389,9 @@
               canvasState
             ),
           lastUserRequest:
-            state.lastUserRequest
+            state.lastUserRequest,
+          workflowUserRequest:
+            state.workflowUserRequest
         },
         normalizeMemory(
           state.conversationMemory
@@ -4322,6 +4325,7 @@
             run,
             {
               userRequest:
+                state.workflowUserRequest ||
                 state.lastUserRequest,
               memory:
                 state.conversationMemory
@@ -5091,6 +5095,13 @@
         );
     }
 
+    if (
+      result.mode === "workflow"
+    ) {
+      state.workflowUserRequest =
+        String(text || "").trim();
+    }
+
     if (result.memory) {
       saveMemory(result.memory);
     }
@@ -5589,12 +5600,7 @@
         }
 
         completeRuntimeStep(
-          event.nodeId,
-          {
-            detail:
-              event.report ||
-              ""
-          }
+          event.nodeId
         );
       } else if (
         event.status ===
@@ -5925,9 +5931,6 @@
         runUserText
       );
 
-      state.lastUserRequest =
-        runUserText;
-
       scheduleWorkspaceSave();
 
       started = true;
@@ -5943,6 +5946,7 @@
               conversationId:
                 currentConversationId(),
               userRequest:
+                state.workflowUserRequest ||
                 state.lastUserRequest,
               memory:
                 state.conversationMemory
@@ -6166,6 +6170,13 @@
               conversation
                 .state
                 ?.lastUserRequest ||
+              ""
+            );
+          state.workflowUserRequest =
+            String(
+              conversation
+                .state
+                ?.workflowUserRequest ||
               ""
             );
 
@@ -6592,6 +6603,9 @@
               group,
               {
                 userRequest:
+                  context?.cacheContext
+                    ?.userRequest ||
+                  state.workflowUserRequest ||
                   state.lastUserRequest,
                 memory:
                   state.conversationMemory

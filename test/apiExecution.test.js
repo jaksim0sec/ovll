@@ -62,7 +62,7 @@ test("execution payload preserves markdown line structure", () => {
   const payload = api.buildExecutionPayload(
     groupWithText(text),
     {
-      userRequest: "  이걸   정리해  ",
+      userRequest: "  이걸 정리해\n\n표는 쓰지 마  ",
       memory: {
         flow: "  앞 흐름  ",
         recent: "  최근   내용  ",
@@ -75,7 +75,10 @@ test("execution payload preserves markdown line structure", () => {
     payload.nodes[0].inputs.source.value.file.text,
     "## 제목\n\n- 하나\n- 둘"
   );
-  assert.equal(payload.context.userRequest, "이걸 정리해");
+  assert.equal(
+    payload.context.userRequest,
+    "이걸 정리해\n\n표는 쓰지 마"
+  );
   assert.equal(payload.context.memory.recent, "최근 내용");
 });
 

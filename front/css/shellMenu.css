@@ -124,7 +124,7 @@
   opacity: 0;
   pointer-events: none;
   transition:
-    opacity .22s ease;
+    opacity var(--motion-medium) var(--motion-ease-standard);
 }
 
 #ovll-shell-menu.is-open
@@ -178,13 +178,8 @@
   overscroll-behavior-x: none;
   transition:
     transform
-    .28s
-    cubic-bezier(
-      .2,
-      .82,
-      .2,
-      1
-    );
+    var(--motion-slow)
+    var(--motion-ease-emphasized);
   will-change: transform;
 }
 
@@ -1012,11 +1007,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   #ovll-shell-menu-panel,
-  #ovll-shell-menu-backdrop,
-  #ovll-shell-menu-trigger,
-  .ovll-sidebar-section-chevron {
-    transition: none !important;
-  }
 }
 
 
