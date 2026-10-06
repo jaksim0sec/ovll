@@ -4702,30 +4702,93 @@
   function resizeComposer() {
     composerInput.style.height = "auto";
 
-    const height = Math.min(composerInput.scrollHeight, 120);
-    composerInput.style.height = `${height}px`;
+    const height =
+      Math.min(
+        composerInput.scrollHeight,
+        136
+      );
 
-    const rootStyle = document.documentElement.style;
-    const inputStyle = getComputedStyle(composerInput);
-    const rootComputed = getComputedStyle(document.documentElement);
-    const inputMinHeight = parseFloat(inputStyle.minHeight) || 38;
-    const composerHeightValue = rootComputed
-      .getPropertyValue("--composer-height")
-      .trim();
-    const composerHeightNumber = parseFloat(composerHeightValue);
-    const rootFontSize = parseFloat(rootComputed.fontSize) || 16;
-    const baseComposerHeight = Number.isFinite(composerHeightNumber)
-      ? composerHeightValue.endsWith("rem")
-        ? composerHeightNumber * rootFontSize
-        : composerHeightNumber
-      : 88;
-    const formHeight = composerForm.getBoundingClientRect().height;
+    composerInput.style.height =
+      `${height}px`;
 
-    rootStyle.setProperty("--composer-input-height", `${height}px`);
-    rootStyle.setProperty("--composer-form-height", `${formHeight}px`);
-    rootStyle.setProperty("--composer-live-height", `${Math.max(baseComposerHeight, formHeight)}px`);
+    const rootStyle =
+      document.documentElement.style;
 
-    composerForm.classList.toggle("is-expanded", height > inputMinHeight + 1);
+    const inputStyle =
+      getComputedStyle(
+        composerInput
+      );
+
+    const rootComputed =
+      getComputedStyle(
+        document.documentElement
+      );
+
+    const inputMinHeight =
+      parseFloat(
+        inputStyle.minHeight
+      ) || 34;
+
+    const expanded =
+      height >
+      inputMinHeight + 1;
+
+    composerForm.classList.toggle(
+      "is-expanded",
+      expanded
+    );
+
+    const composerHeightValue =
+      rootComputed
+        .getPropertyValue(
+          "--composer-height"
+        )
+        .trim();
+
+    const composerHeightNumber =
+      parseFloat(
+        composerHeightValue
+      );
+
+    const rootFontSize =
+      parseFloat(
+        rootComputed.fontSize
+      ) || 16;
+
+    const baseComposerHeight =
+      Number.isFinite(
+        composerHeightNumber
+      )
+        ? composerHeightValue.endsWith(
+            "rem"
+          )
+          ? composerHeightNumber *
+            rootFontSize
+          : composerHeightNumber
+        : 88;
+
+    const formHeight =
+      composerForm
+        .getBoundingClientRect()
+        .height;
+
+    rootStyle.setProperty(
+      "--composer-input-height",
+      `${height}px`
+    );
+
+    rootStyle.setProperty(
+      "--composer-form-height",
+      `${formHeight}px`
+    );
+
+    rootStyle.setProperty(
+      "--composer-live-height",
+      `${Math.max(
+        baseComposerHeight,
+        formHeight
+      )}px`
+    );
   }
 
   function setBusy(busy) {

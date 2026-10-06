@@ -212,20 +212,39 @@ test("mobile library remains a compact list under the global chrome", () => {
   assert.doesNotMatch(css, /has-selection/);
   assert.doesNotMatch(js, /selectedId/);
   assert.match(js, /previewFile/);
-});test("composer keeps submit button in the flex rail", () => {
+});
+
+test("composer uses a compact single-row state and a two-row expanded state", () => {
   const css = compact(read("front/css/ui.css"));
+  const js = read("front/js/app.js");
+  const resizeStart = js.indexOf("function resizeComposer");
+  const resizeEnd = js.indexOf("function setBusy", resizeStart);
+  const resize = js.slice(resizeStart, resizeEnd);
 
   assert.match(
     css,
-    /#composer-input\s*\{[^}]*flex:\s*1\s+1\s+0[^}]*width:\s*auto/
+    /#composer-form\s*\{[^}]*width:\s*min\(39rem,\s*calc\(100% - 1\.5rem\)\)[^}]*min-height:\s*3\.25rem[^}]*display:\s*grid[^}]*grid-template-columns:\s*auto\s+minmax\(0,1fr\)\s+auto/
   );
   assert.match(
     css,
-    /#composer-submit\s*\{[^}]*min-width:\s*2\.5rem[^}]*min-height:\s*2\.5rem[^}]*visibility:\s*visible/
+    /#composer-form\.is-expanded\s*\{[^}]*grid-template-rows:\s*minmax\(0,auto\)\s+auto/
   );
   assert.match(
     css,
-    /#composer-form\s*\{[^}]*overflow:\s*visible/
+    /#composer-form\.is-expanded\s*#composer-input\s*\{[^}]*grid-column:\s*1\s*\/\s*-1[^}]*grid-row:\s*1/
+  );
+  assert.match(
+    css,
+    /#composer-form\.is-expanded\s*#composer-attach\s*\{[^}]*grid-row:\s*2/
+  );
+  assert.match(
+    css,
+    /#composer-form\.is-expanded\s*#composer-submit\s*\{[^}]*grid-row:\s*2/
+  );
+  assert.ok(
+    resize.indexOf("composerForm.classList.toggle") <
+      resize.indexOf("getBoundingClientRect"),
+    "expanded layout must settle before form height is measured"
   );
 });
 
@@ -326,8 +345,8 @@ test("workspace hierarchy favors content over decorative surfaces", () => {
   assert.match(chat, /#chat-messages\s*\{[^}]*width:\s*min\(42\.5rem,\s*100%\)/);
   assert.match(chat, /\.astra-message-user\s*\.astra-message-body\s*\{[^}]*border:\s*0[^}]*font-size:\s*\.98rem/);
   assert.match(chat, /\.astra-message-assistant\s*\.astra-message-body\s*\{[^}]*max-width:\s*42\.5rem[^}]*font-size:\s*1\.06rem/);
-  assert.match(ui, /#composer-form\s*\{[^}]*width:\s*min\(40rem,\s*calc\(100% - 1\.5rem\)\)[^}]*min-height:\s*3\.65rem/);
-  assert.match(ui, /#composer-input\s*\{[^}]*font-size:\s*\.96rem/);
+  assert.match(ui, /#composer-form\s*\{[^}]*width:\s*min\(39rem,\s*calc\(100% - 1\.5rem\)\)[^}]*min-height:\s*3\.25rem/);
+  assert.match(ui, /#composer-input\s*\{[^}]*font-size:\s*\.93rem/);
   assert.match(html, /name="theme-color"[^>]*content="#060606"/s);
 });
 
@@ -1335,5 +1354,20 @@ test("mouse mode-switch click keeps its button target while drag still captures"
   assert.match(
     update,
     /pillGesture\.moved\s*=\s*true;[\s\S]*?event\.pointerType\s*===\s*"mouse"[\s\S]*?setPointerCapture/
+  );
+});
+
+
+test("desktop root type is slightly smaller without shrinking mobile type", () => {
+  const css = compact(read("front/css/style.css"));
+
+  assert.match(css, /html\s*\{[^}]*font-size:\s*16\.75px/);
+  assert.match(
+    css,
+    /@media\s*\(max-width:\s*43\.75rem\)[^{]*\{[\s\S]*?html\s*\{[^}]*font-size:\s*16\.25px/
+  );
+  assert.match(
+    css,
+    /@media\s*\(max-width:\s*26\.25rem\)[^{]*\{[\s\S]*?html\s*\{[^}]*font-size:\s*15\.75px/
   );
 });
