@@ -1759,10 +1759,13 @@ test("execution gate respects configuration-only and explicit no-run requests", 
   const runtime =
     workflow(
       [
-        node(
-          "research",
-          "research"
-        )
+        {
+          id: "research",
+          type: "research",
+          data: {
+            params: {}
+          }
+        }
       ],
       []
     );
