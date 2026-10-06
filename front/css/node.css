@@ -288,8 +288,8 @@
 .vc-node-footer {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: .45rem;
+  justify-content: flex-start;
+  gap: .3rem;
   max-height: 0;
   margin-top: 0;
   overflow: hidden;
