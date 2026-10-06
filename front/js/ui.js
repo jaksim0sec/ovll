@@ -1432,12 +1432,17 @@
         "is-dragging"
       );
 
-    try {
-      modeSwitch
-        .setPointerCapture(
-          event.pointerId
-        );
-    } catch {}
+    if (
+      event.pointerType !==
+        "mouse"
+    ) {
+      try {
+        modeSwitch
+          .setPointerCapture(
+            event.pointerId
+          );
+      } catch {}
+    }
   }
 
   function updatePillGesture(
@@ -1461,6 +1466,18 @@
     ) {
       pillGesture.moved =
         true;
+
+      if (
+        event.pointerType ===
+          "mouse"
+      ) {
+        try {
+          modeSwitch
+            .setPointerCapture(
+              event.pointerId
+            );
+        } catch {}
+      }
     }
 
     if (

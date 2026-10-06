@@ -54,6 +54,11 @@ const state = {
   }
 };
 
+const desktopSidebarDefault =
+  global.matchMedia?.(
+    "(min-width: 43.76rem) and (hover: hover) and (pointer: fine)"
+  )?.matches === true;
+
 const listeners=[];
 const events=new Map();
 
@@ -2252,6 +2257,10 @@ const api={
     root.remove();
   }
 };
+
+if(desktopSidebarDefault){
+  setOpen(true);
+}
 
 global.OvllShellMenu=
   Object.freeze(api);

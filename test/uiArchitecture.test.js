@@ -1267,3 +1267,42 @@ test("PDFKit fallback keeps flowing text cheap and table rows anchored", () => {
     /measuredHeight:\s*rowHeight/
   );
 });
+
+
+test("desktop fine-pointer layout opens the sidebar by default without changing mobile defaults", () => {
+  const js = read("front/js/shellMenu.js");
+
+  assert.match(
+    js,
+    /desktopSidebarDefault\s*=\s*[\s\S]*?min-width:\s*43\.76rem[\s\S]*?hover:\s*hover[\s\S]*?pointer:\s*fine/
+  );
+  assert.match(
+    js,
+    /if\(desktopSidebarDefault\)\{\s*setOpen\(true\);\s*\}/
+  );
+  assert.doesNotMatch(
+    js,
+    /max-width:\s*43\.75rem[\s\S]*?setOpen\(true\)/
+  );
+});
+
+test("mouse mode-switch click keeps its button target while drag still captures", () => {
+  const js = read("front/js/ui.js");
+  const begin = js.slice(
+    js.indexOf("function beginPillGesture"),
+    js.indexOf("function updatePillGesture")
+  );
+  const update = js.slice(
+    js.indexOf("function updatePillGesture"),
+    js.indexOf("function finishPillGesture")
+  );
+
+  assert.match(
+    begin,
+    /event\.pointerType\s*!==\s*"mouse"[\s\S]*?setPointerCapture/
+  );
+  assert.match(
+    update,
+    /pillGesture\.moved\s*=\s*true;[\s\S]*?event\.pointerType\s*===\s*"mouse"[\s\S]*?setPointerCapture/
+  );
+});
