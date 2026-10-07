@@ -1066,7 +1066,7 @@
     .0625rem solid
     color-mix(
       in srgb,
-      var(--text) 18%,
+      var(--text) var(--port-contrast, 18%),
       var(--node)
     );
   border-radius: 50%;
@@ -1287,12 +1287,8 @@
    DARK MODE
    ========================================================= */
 :root.dark .vc-port-pill {
-  background:
-    color-mix(
-      in srgb,
-      var(--text) 22%,
-      var(--node)
-    );
+  --port-contrast: 22%;
+  background: var(--node);
 }
 :root.dark .vc-node-icon {
   background: transparent;
@@ -1316,13 +1312,13 @@
     font-size: .82rem;
   }
   .vc-node-icon {
-    width: 1.42rem;
+    width: 1.704rem;
     height: 1.82rem;
-    flex-basis: 1.42rem;
+    flex-basis: 1.704rem;
   }
   .vc-node-icon svg {
-    width: 1.42rem;
-    height: 1.42rem;
+    width: 1.704rem;
+    height: 1.704rem;
   }
   .vc-slot-description {
     /* font-size: .65625rem; */
