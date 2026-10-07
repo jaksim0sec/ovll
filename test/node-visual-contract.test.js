@@ -22,10 +22,15 @@ test("dark nodes keep the icon one-layer and use neutral request surfaces", () =
   assert.match(darkRequest, /var\(--text\)\s+4\.5%/);
 });
 
-test("light request surface keeps a low-contrast boundary", () => {
+test("request panels keep the node body visually compact", () => {
   const request = css.match(/\.vc-request-group\s*\{([\s\S]*?)\n\}/)?.[1] ?? "";
+  const expandedBody = css.match(/\.vc-node\.vc-expanded\s*\n\.vc-node-body\s*\{([\s\S]*?)\n\}/)?.[1] ?? "";
+
+  assert.match(request, /padding:\s*\.46rem\s*\.5rem/);
+  assert.match(request, /border-radius:\s*\.8rem/);
   assert.match(request, /var\(--bg\)\s+82%/);
-  assert.match(request, /var\(--text\)\s+6%/);
+  assert.match(expandedBody, /margin-top:\s*\.38rem/);
+  assert.match(css, /\.vc-request-input\s*\{[\s\S]*?min-height:\s*2\.3rem/);
 });
 
 test("expanded footer buttons share width", () => {
@@ -43,13 +48,32 @@ test("file node follows the same compact one-line identity hierarchy", () => {
   assert.match(type, /border-radius:\s*999px/);
 });
 
-test("action icons share the rounded closed visual language", () => {
+test("node action icons are semantic rounded stroke glyphs with balanced text hierarchy", () => {
   const runCss = cssBlock(".vc-node-run svg");
   const deleteCss = cssBlock(".vc-node-delete svg");
-  assert.match(runCss, /width:\s*1\.02rem/);
-  assert.match(deleteCss, /width:\s*1\.02rem/);
-  assert.match(canvasNode, /run:\s*`[\s\S]*?<circle cx="10" cy="10" r="6\.05"/);
-  assert.match(canvasNode, /delete:\s*`[\s\S]*?<rect x="5\.35" y="6\.4" width="9\.3" height="8\.45" rx="2\.15"/);
+  const runButton = cssBlock(".vc-node-run");
+  const deleteButton = cssBlock(".vc-node-delete");
+
+  assert.match(runCss, /width:\s*\.92rem/);
+  assert.match(deleteCss, /width:\s*\.92rem/);
+  assert.match(runButton, /gap:\s*\.3rem/);
+  assert.match(deleteButton, /gap:\s*\.3rem/);
+  assert.match(runButton, /font-size:\s*\.66rem/);
+  assert.match(deleteButton, /font-size:\s*\.66rem/);
+
+  const runStart = canvasNode.indexOf("run: \`");
+  const runEnd = canvasNode.indexOf("stop: \`", runStart);
+  const runIcon = canvasNode.slice(runStart, runEnd);
+  assert.match(runIcon, /<rect x="3\.85" y="4\.65" width="12\.3" height="10\.7" rx="3\.2"/);
+  assert.doesNotMatch(runIcon, /<circle/);
+  assert.match(runIcon, /stroke-linejoin="round"/);
+
+  const deleteStart = canvasNode.indexOf("delete: \`");
+  const deleteEnd = canvasNode.indexOf("run: \`", deleteStart);
+  const deleteIcon = canvasNode.slice(deleteStart, deleteEnd);
+  assert.match(deleteIcon, /M5\.95 7\.15h8\.1/);
+  assert.match(deleteIcon, /M7\.15 7\.2l\.48 7\.05/);
+  assert.match(deleteIcon, /M8\.05 5\.4/);
 });
 
 test("all default node icons are balanced rounded closed shapes", () => {
@@ -60,15 +84,31 @@ test("all default node icons are balanced rounded closed shapes", () => {
   assert.match(svgLibrary, /createFile:\s*`[\s\S]*?M10 3\.55c\.43 3\.2/);
 });
 
-test("ports and connection lines use pale real colors instead of opacity dimming", () => {
+test("ports and connection lines are neutral borderless geometry", () => {
   const port = cssBlock(".vc-port-pill");
   const connection = cssBlock(".vc-connection");
-  assert.match(port, /var\(--node-color\)\s+34%/);
-  assert.match(port, /opacity:\s*1/);
-  assert.doesNotMatch(port, /opacity:\s*\.[0-9]/);
-  assert.match(connection, /var\(--connection-color, var\(--text\)\)\s+34%/);
-  assert.match(connection, /opacity:\s*1/);
-  assert.match(canvasNode, /path\.style\.setProperty\(\s*'--connection-color'/);
+  const dragConnection = cssBlock(".vc-drag-connection");
+
+  assert.match(port, /border:\s*0/);
+  assert.match(port, /var\(--text\)\s+18%/);
+  assert.doesNotMatch(port, /var\(--node-color\)/);
+
+  assert.match(connection, /var\(--text\)\s+18%/);
+  assert.doesNotMatch(connection, /--connection-color/);
+  assert.match(dragConnection, /var\(--text\)\s+42%/);
+
+  assert.doesNotMatch(
+    canvasNode,
+    /path\.style\.setProperty\(\s*['"]--connection-color/
+  );
+  assert.doesNotMatch(
+    canvasNode,
+    /path\.style\.stroke\s*=\s*definition\.color/
+  );
+  assert.doesNotMatch(
+    canvasNode,
+    /dot\.style\.fill\s*=\s*definition\.color/
+  );
 });
 
 test("mobile keeps node identity legible and actions touchable", () => {
