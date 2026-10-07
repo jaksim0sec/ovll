@@ -261,7 +261,7 @@ function groupLogMeta(
  * The frontend compares this server value with its locally stored version
  * before loading application assets.
  */
-const APP_VERSION = '2026.10.07.142';
+const APP_VERSION = '2026.10.07.143';
 
 /* =========================================================
    CANONICAL NODE DEFINITION
@@ -358,9 +358,8 @@ const defaultNodeDef = {
     color: '#E9A63A',
     icon: `
       <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M9.75 4.25c-.58-.72-1.5-1.1-2.42-.93-1.22.22-2.05 1.37-1.88 2.6-1.5.1-2.65 1.35-2.65 2.86 0 1.12.65 2.14 1.65 2.61-.58 1.67.4 3.48 2.08 3.86.35 1.05 1.35 1.78 2.5 1.78.28 0 .53-.04.77-.11V4.25Z"/>
-        <path d="M10.25 4.25c.58-.72 1.5-1.1 2.42-.93 1.22.22 2.05 1.37 1.88 2.6 1.5.1 2.65 1.35 2.65 2.86 0 1.12-.65 2.14-1.65 2.61.58 1.67-.4 3.48-2.08 3.86-.35 1.05-1.35 1.78-2.5 1.78-.28 0-.53-.04-.77-.11V4.25Z"/>
-        <path d="M6.25 8c1.2 0 1.95.68 1.95 1.7M13.75 8c-1.2 0-1.95.68-1.95 1.7"/>
+        <path d="M5.2 4.15h8.55c.72 0 1.3.58 1.3 1.3v9.2H6.65a1.55 1.55 0 0 0 0 3.1h8.4"/>
+        <path d="M5.2 4.15v12.05M6.65 14.65h8.4"/>
       </svg>
     `,
     params: [
@@ -417,9 +416,10 @@ const defaultNodeDef = {
     color: '#8B6BE8',
     icon: `
       <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M4.15 6.2h11.7M10 3.95v11.9M7.05 15.85h5.9"/>
-        <path d="M3.25 9.45h3.6M5.05 6.2 3.25 9.45M5.05 6.2l1.8 3.25M3.25 9.45c.22 1.45.82 2.18 1.8 2.18s1.58-.73 1.8-2.18"/>
-        <path d="M13.15 9.45h3.6M14.95 6.2l-1.8 3.25M14.95 6.2l1.8 3.25M13.15 9.45c.22 1.45.82 2.18 1.8 2.18s1.58-.73 1.8-2.18"/>
+        <circle cx="10" cy="4.35" r=".8"/>
+        <path d="M4.2 6.1h11.6M10 5.15v9.55M7.25 15.45h5.5"/>
+        <path d="M5.45 6.1 3.55 9.35M5.45 6.1l1.9 3.25M3.45 9.55c.2 1.65.92 2.5 2 2.5s1.8-.85 2-2.5"/>
+        <path d="M14.55 6.1l-1.9 3.25M14.55 6.1l1.9 3.25M12.55 9.55c.2 1.65.92 2.5 2 2.5s1.8-.85 2-2.5"/>
       </svg>
     `,
     params: [
@@ -485,9 +485,9 @@ const defaultNodeDef = {
     color: '#D96F83',
     icon: `
       <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M4.15 13.75 6.45 5.6c.2-.72.86-1.22 1.61-1.22h3.88c.75 0 1.41.5 1.61 1.22L15.85 13.75 10 15.8l-5.85-2.05Z"/>
-        <path d="M10 4.38v5.15M10 9.53 7.7 14.98M10 9.53l2.3 5.45"/>
-        <circle cx="10" cy="9.53" r=".82"/>
+        <path d="M4.35 15.65 6.15 7.15q.14-.66.8-.94l3.7-1.58q.7-.3 1.3.18l3.15 2.45q.62.48.37 1.22l-1.55 4.25q-.22.62-.86.8L4.35 15.65Z"/>
+        <circle cx="10.45" cy="9.35" r="1.02"/>
+        <path d="m9.72 10.08-5.18 5.35"/>
       </svg>
     `,
     params: [
