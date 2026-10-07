@@ -244,16 +244,29 @@ test("server-owned node icons share one rounded monoline visual contract", () =>
   );
 
   assert.match(
+    icons.organize,
+    /M5\.2 4\.15h8\.55/
+  );
+  assert.match(
+    icons.organize,
+    /M5\.2 4\.15v12\.05/
+  );
+
+  assert.match(
     icons.judge,
-    /M4\.15 6\.2h11\.7/
+    /<circle cx="10" cy="4\.35" r="\.8"/
   );
   assert.match(
     icons.judge,
-    /M3\.25 9\.45h3\.6/
+    /M4\.2 6\.1h11\.6/
   );
   assert.match(
     icons.judge,
-    /M13\.15 9\.45h3\.6/
+    /M3\.45 9\.55c\.2 1\.65/
+  );
+  assert.match(
+    icons.judge,
+    /M12\.55 9\.55c\.2 1\.65/
   );
 
   assert.match(
@@ -268,15 +281,19 @@ test("server-owned node icons share one rounded monoline visual contract", () =>
 
   assert.match(
     icons.write,
-    /M4\.15 13\.75 6\.45 5\.6/
+    /M4\.35 15\.65 6\.15 7\.15/
   );
   assert.match(
     icons.write,
-    /15\.85 13\.75/
+    /<circle cx="10\.45" cy="9\.35" r="1\.02"/
+  );
+  assert.match(
+    icons.write,
+    /m9\.72 10\.08-5\.18 5\.35/
   );
   assert.doesNotMatch(
     icons.write,
-    /M10 2\.9/
+    /M4\.15 13\.75/
   );
 });
 
