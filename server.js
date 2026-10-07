@@ -261,7 +261,7 @@ function groupLogMeta(
  * The frontend compares this server value with its locally stored version
  * before loading application assets.
  */
-const APP_VERSION = '2026.10.07.147';
+const APP_VERSION = '2026.10.07.148';
 
 /* =========================================================
    CANONICAL NODE DEFINITION
@@ -418,8 +418,8 @@ const defaultNodeDef = {
       <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.28" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <circle cx="10" cy="4.25" r=".82"/>
         <path d="M4.05 6.25h11.9M10 5.1v10.25M7.3 15.65h5.4"/>
-        <path d="M5.15 7.05Q6.9 7.05 7.3 9.2Q6.9 11.35 5.15 11.35Q3.4 11.35 3 9.2Q3.4 7.05 5.15 7.05Z"/>
-        <path d="M14.85 7.05Q16.6 7.05 17 9.2Q16.6 11.35 14.85 11.35Q13.1 11.35 12.7 9.2Q13.1 7.05 14.85 7.05Z"/>
+        <path d="M5.15 7.8C6 7.8 7.3 9.1 7.3 9.95S6 12.1 5.15 12.1S3 10.8 3 9.95S4.3 7.8 5.15 7.8Z"/>
+        <path d="M14.85 7.8C15.7 7.8 17 9.1 17 9.95S15.7 12.1 14.85 12.1S12.7 10.8 12.7 9.95S14 7.8 14.85 7.8Z"/>
       </svg>
     `,
     params: [
@@ -485,9 +485,9 @@ const defaultNodeDef = {
     color: '#D96F83',
     icon: `
       <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.28" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M3.8 16.2C4.4 13.2 4.65 9.1 5.3 6.7C8.4 6.3 11.1 4.9 13.7 3.3L16.7 6.3C15.1 8.9 13.7 11.6 13.3 14.7C10.9 15.35 6.8 15.6 3.8 16.2Z"/>
+        <path d="M3.8 16.2C4.05 12.7 3.7 9.05 3.95 6.15Q4 5.1 5.05 5.05C8.25 4.9 11.15 4.65 13.7 3.3L16.7 6.3C15.35 8.85 15.1 11.75 14.95 14.95Q14.9 16 13.85 16.05C10.95 16.3 7.3 15.95 3.8 16.2Z"/>
         <circle cx="10" cy="10" r=".82"/>
-        <path d="m9.42 10.58-3.5 3.5"/>
+        <path d="M3.8 16.2l5.62-5.62"/>
       </svg>
     `,
     params: [
