@@ -485,7 +485,7 @@ const defaultNodeDef = {
     color: '#D96F83',
     icon: `
       <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M4.15 13.75 6.45 5.6c.2-.72.86-1.22 1.61-1.22h3.88c.75 0 1.41.5 1.61 1.22l2.3 8.15-5.85 2.05-5.85-2.05Z"/>
+        <path d="M4.15 13.75 6.45 5.6c.2-.72.86-1.22 1.61-1.22h3.88c.75 0 1.41.5 1.61 1.22L15.85 13.75 10 15.8l-5.85-2.05Z"/>
         <path d="M10 4.38v5.15M10 9.53 7.7 14.98M10 9.53l2.3 5.45"/>
         <circle cx="10" cy="9.53" r=".82"/>
       </svg>
