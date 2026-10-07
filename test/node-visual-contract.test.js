@@ -85,12 +85,15 @@ test("node action icons are semantic rounded stroke glyphs with balanced text hi
   assert.match(deleteIcon, /stroke-width="1\.34"/);
 });
 
-test("all default node icons are balanced rounded closed shapes", () => {
+test("default node icons use compact filled silhouettes with minimal inner detail", () => {
   assert.equal((svgLibrary.match(/^  (?:start|research|organize|judge|write|file|createFile):`/gm) || []).length, 7);
-  assert.match(svgLibrary, /organize:\s*`[\s\S]*?<rect x="3\.7" y="3\.7" width="12\.6" height="12\.6" rx="3"/);
-  assert.match(svgLibrary, /write:\s*`[\s\S]*?stroke-width="1\.95" stroke-linecap="round"/);
-  assert.match(svgLibrary, /file:\s*`[\s\S]*?M5\.45 3\.65h5\.2l3\.9 3\.9v7\.05a1\.75 1\.75/);
-  assert.match(svgLibrary, /createFile:\s*`[\s\S]*?M10 3\.55c\.43 3\.2/);
+  assert.match(svgLibrary, /research:\s*`[\s\S]*?fill-rule="evenodd"/);
+  assert.match(svgLibrary, /organize:\s*`[\s\S]*?<rect x="3\.7" y="4\.1" width="12\.6" height="3\.05" rx="1\.525" fill="currentColor"/);
+  assert.match(svgLibrary, /write:\s*`[\s\S]*?M10 2\.9c\.44 0 \.85 \.21 1\.12 \.56/);
+  assert.match(svgLibrary, /write:\s*`[\s\S]*?fill-rule="evenodd"/);
+  assert.doesNotMatch(svgLibrary, /write:\s*`[\s\S]*?<rect x="4\.15" y="3\.8"/);
+  assert.match(svgLibrary, /file:\s*`[\s\S]*?fill="currentColor"/);
+  assert.match(svgLibrary, /createFile:\s*`[\s\S]*?fill="currentColor"/);
 });
 
 test("ports and connection lines are neutral borderless geometry", () => {
