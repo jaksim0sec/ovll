@@ -5462,6 +5462,38 @@
   /* =======================================================
      Composer
      ======================================================= */
+  function shouldAutoFocusComposer() {
+    return (
+      global
+        .matchMedia?.(
+          "(hover: hover) and (pointer: fine)"
+        )
+        ?.matches === true
+    );
+  }
+
+  function focusComposerForDesktop() {
+    if (
+      !shouldAutoFocusComposer() ||
+      UI.getMode?.() !==
+        "chat" ||
+      state.destroyed ||
+      composerInput.disabled
+    ) {
+      return false;
+    }
+
+    try {
+      composerInput.focus({
+        preventScroll: true
+      });
+    } catch {
+      composerInput.focus();
+    }
+
+    return true;
+  }
+
   function resizeComposer() {
     composerForm.classList.remove(
       "is-expanded"
@@ -6365,6 +6397,7 @@
     } finally {
       setBusy(false);
       resizeComposer();
+      focusComposerForDesktop();
     }
   }
 
@@ -8063,6 +8096,12 @@ listen(composerInput, "keydown", handleComposerKeydown);
         });
       }
 
+      if (mode === "chat") {
+        requestAnimationFrame(() => {
+          focusComposerForDesktop();
+        });
+      }
+
       scheduleWorkspaceSave();
     });
 
@@ -8100,6 +8139,7 @@ listen(composerInput, "keydown", handleComposerKeydown);
 
     resizeComposer();
     scrollChatToBottom(true);
+    focusComposerForDesktop();
 
     global.dispatchEvent(
       new CustomEvent(

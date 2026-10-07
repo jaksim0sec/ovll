@@ -76,8 +76,8 @@
   background:
     color-mix(
       in srgb,
-      var(--panel) 94%,
-      var(--text) 6%
+      var(--bg) 48%,
+      var(--panel) 52%
     );
   color: var(--text);
   font-size: .98rem;
