@@ -3402,6 +3402,11 @@
           )
         );
 
+      topologicalOrder =
+        state.nodes.map(
+          node => node.id
+        );
+
       const positioned =
         new Set(
           state.nodes
