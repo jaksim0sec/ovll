@@ -67,8 +67,14 @@
   min-height: 3.35rem;
   padding:
     .58rem
-    .68rem;
-  border: .09375rem solid transparent;
+    .82rem;
+  border:
+    .0625rem solid
+    color-mix(
+      in srgb,
+      var(--text) 13%,
+      var(--node)
+    );
   border-radius:
     var(--node-radius);
   background: var(--node);
@@ -97,54 +103,46 @@
    HOVER
    ========================================================= */
 .vc-node:hover {
-  border-color: transparent;
-  box-shadow:
-    var(--shadow-soft),
-    0 0 0 .0625rem
+  border-color:
     color-mix(
       in srgb,
-      var(--text) 5%,
-      transparent
+      var(--text) 16%,
+      var(--node)
     );
+  box-shadow: var(--shadow-soft);
 }
 /* =========================================================
    SELECTED / EXPANDED
    ========================================================= */
 .vc-node.vc-expanded {
-  border-color: transparent;
-  box-shadow:
-    var(--shadow-soft),
-    0 0 0 .0625rem
+  border-color:
     color-mix(
       in srgb,
-      var(--text) 5%,
-      transparent
+      var(--text) 16%,
+      var(--node)
     );
+  box-shadow: var(--shadow-soft);
   transform: none;
 }
 .vc-node.vc-selected {
-  border-color: transparent;
-  box-shadow:
-    var(--shadow-soft),
-    0 0 0 .0625rem
+  border-color:
     color-mix(
       in srgb,
-      var(--text) 12%,
-      transparent
+      var(--text) 22%,
+      var(--node)
     );
+  box-shadow: var(--shadow-soft);
   transform:
     translateY(-.03rem);
 }
 .vc-node.vc-selected.vc-expanded {
-  border-color: transparent;
-  box-shadow:
-    var(--shadow-soft),
-    0 0 0 .0625rem
+  border-color:
     color-mix(
       in srgb,
-      var(--text) 12%,
-      transparent
+      var(--text) 22%,
+      var(--node)
     );
+  box-shadow: var(--shadow-soft);
   transform:
     translateY(-.03rem);
 }
@@ -191,7 +189,7 @@
   flex: 0 0 1.84rem;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   border: 0;
   border-radius: 0;
   color:
@@ -325,7 +323,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: .3rem;
+  gap: .22rem;
   margin: 0;
   padding: 0 .5rem;
   border: 0;
@@ -362,11 +360,17 @@
 }
 
 .vc-node-run svg {
-  width: .92rem;
-  height: .92rem;
-  flex: 0 0 .92rem;
+  width: .86rem;
+  height: .86rem;
+  flex: 0 0 .86rem;
   overflow: visible;
-  opacity: .78;
+  opacity: .72;
+}
+.vc-node-run span,
+.vc-node-delete span {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
 }
 
 .vc-node-run:hover {
@@ -980,7 +984,7 @@
   margin: 0;
   justify-content: center;
   align-items: center;
-  gap: .3rem;
+  gap: .22rem;
   border: 0;
   border-radius: .72rem;
   color:
@@ -1021,12 +1025,12 @@
     );
 }
 .vc-node-delete svg {
-  width: .92rem;
-  height: .92rem;
+  width: .86rem;
+  height: .86rem;
   display: block;
   max-width: none;
-  flex: 0 0 .92rem;
-  opacity: .78;
+  flex: 0 0 .86rem;
+  opacity: .72;
 }
 /* =========================================================
    PORT HIT AREA
@@ -1331,7 +1335,7 @@
     min-height: 3rem;
     padding:
       .56rem
-      .64rem;
+      .76rem;
     border-radius: var(--node-radius);
   }
   .vc-node-title {
