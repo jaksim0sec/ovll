@@ -63,6 +63,7 @@
       var(--node)
     );
   position: absolute;
+  isolation: isolate;
   width: var(--node-width);
   min-height: 3.35rem;
   padding:
@@ -86,6 +87,27 @@
     background .18s ease,
     transform .18s cubic-bezier(.22,.8,.25,1);
 }
+
+.vc-node::before {
+  content: "";
+  position: absolute;
+  inset: -.0625rem;
+  z-index: 1;
+  box-sizing: border-box;
+  border: .0625rem solid;
+  border-color: inherit;
+  border-radius: inherit;
+  background: var(--node);
+  pointer-events: none;
+}
+
+.vc-node-head,
+.vc-node-body,
+.vc-node-footer {
+  position: relative;
+  z-index: 2;
+}
+
 /* =========================================================
    HOVER
    ========================================================= */
@@ -1052,7 +1074,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 40;
+  z-index: 0;
   cursor: crosshair;
   touch-action: none;
   user-select: none;
@@ -1092,21 +1114,14 @@
   opacity: 1;
   box-shadow: none;
   transition:
-    transform .15s cubic-bezier(.22,.8,.25,1),
-    border-color .15s ease,
-    box-shadow .15s ease;
-}
-.vc-port-hit.vc-input .vc-port-pill {
-  -webkit-clip-path: inset(0 50% 0 0);
-  clip-path: inset(0 50% 0 0);
-}
-.vc-port-hit.vc-output .vc-port-pill {
-  -webkit-clip-path: inset(0 0 0 50%);
-  clip-path: inset(0 0 0 50%);
+    transform .28s cubic-bezier(.22,.72,.18,1),
+    border-color .24s ease,
+    background .24s ease,
+    box-shadow .3s ease;
 }
 .vc-node.vc-selected .vc-port-pill,
 .vc-node.vc-expanded .vc-port-pill {
-  transform: scale(1.04);
+  transform: scale(1.025);
   border-color:
     color-mix(
       in srgb,
@@ -1115,79 +1130,74 @@
     );
 }
 .vc-port-hit:hover .vc-port-pill {
-  transform: scale(1.16);
+  transform: scale(1.09);
   border-color:
     color-mix(
       in srgb,
-      var(--text) 46%,
+      var(--text) 38%,
+      var(--node)
+    );
+  background:
+    color-mix(
+      in srgb,
+      var(--text) 4%,
       var(--node)
     );
   box-shadow:
-    0 0 0 .17rem
+    0 0 0 .12rem
     color-mix(
       in srgb,
-      var(--text) 7%,
+      var(--text) 4%,
       transparent
     );
 }
 
 .vc-port-hit.vc-port-pickup-hover
 .vc-port-pill {
-  transform: scale(1.24);
+  transform: scale(1.14);
   border-color:
     color-mix(
       in srgb,
-      var(--text) 54%,
+      var(--node-color) 24%,
+      var(--line-strong)
+    );
+  background:
+    color-mix(
+      in srgb,
+      var(--node-color) 5%,
       var(--node)
     );
   box-shadow:
-    0 0 0 .22rem
+    0 0 0 .15rem
     color-mix(
       in srgb,
-      var(--text) 9%,
+      var(--node-color) 4%,
       transparent
     );
-  animation: vc-port-pickup-hold .5s linear both;
 }
 
 .vc-port-hit.vc-port-picked
 .vc-port-pill {
-  transform: scale(1.18);
+  transform: scale(1.12);
   border-color:
     color-mix(
       in srgb,
-      var(--text) 58%,
+      var(--node-color) 28%,
+      var(--line-strong)
+    );
+  background:
+    color-mix(
+      in srgb,
+      var(--node-color) 6%,
       var(--node)
     );
   box-shadow:
-    0 0 0 .2rem
+    0 0 0 .14rem
     color-mix(
       in srgb,
-      var(--text) 8%,
+      var(--node-color) 5%,
       transparent
     );
-}
-
-@keyframes vc-port-pickup-hold {
-  from {
-    box-shadow:
-      0 0 0 .07rem
-      color-mix(
-        in srgb,
-        var(--text) 5%,
-        transparent
-      );
-  }
-
-  to {
-    box-shadow:
-      0 0 0 .24rem
-      color-mix(
-        in srgb,
-        var(--text) 10%,
-        transparent
-      );
-  }
 }
 /* =========================================================
    PORT LABEL

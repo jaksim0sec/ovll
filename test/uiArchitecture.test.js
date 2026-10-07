@@ -1923,6 +1923,46 @@ test("runtime activity uses ovll naming and keeps a definite chat width", () => 
 });
 
 
+test("node ports are softly interactive and visually tucked behind the node shell", () => {
+  const css =
+    compact(
+      read("front/css/node.css")
+    );
+
+  assert.match(
+    css,
+    /\.vc-node\s*\{[^}]*isolation:\s*isolate/
+  );
+  assert.match(
+    css,
+    /\.vc-node::before\s*\{[^}]*z-index:\s*1[^}]*border-color:\s*inherit[^}]*background:\s*var\(--node\)[^}]*pointer-events:\s*none/
+  );
+  assert.match(
+    css,
+    /\.vc-node-head\s*,\s*\.vc-node-body\s*,\s*\.vc-node-footer\s*\{[^}]*z-index:\s*2/
+  );
+  assert.match(
+    css,
+    /\.vc-port-hit\s*\{[^}]*z-index:\s*0/
+  );
+  assert.doesNotMatch(
+    css,
+    /\.vc-port-hit\.vc-(?:input|output) \.vc-port-pill\s*\{[^}]*clip-path/
+  );
+  assert.match(
+    css,
+    /\.vc-port-pill\s*\{[^}]*width:\s*\.75rem[^}]*height:\s*\.75rem[^}]*transform\s+\.28s\s+cubic-bezier\(\.22,\.72,\.18,1\)/
+  );
+  assert.match(
+    css,
+    /\.vc-port-hit:hover \.vc-port-pill\s*\{[^}]*transform:\s*scale\(1\.09\)[^}]*background:\s*color-mix/
+  );
+  assert.doesNotMatch(
+    css,
+    /@keyframes\s+vc-port-pickup-hold/
+  );
+});
+
 test("node connection handles stay hollow while title controls gain hierarchy", () => {
   const css =
     compact(
