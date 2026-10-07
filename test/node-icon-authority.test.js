@@ -192,6 +192,42 @@ test(
 );
 
 test(
+  "stored node definitions refresh from the server when online",
+  async () => {
+    const cached =
+      serverDefinitions(
+        "cached"
+      );
+    const fresh =
+      serverDefinitions(
+        "fresh"
+      );
+    const browser =
+      createBrowser({
+        storedDefinitions:
+          cached,
+        fetchDefinitions:
+          fresh
+      });
+
+    const definitions =
+      await browser.window
+        .AstraAPI
+        .getNodeDefinitions();
+
+    for (
+      const type of BUILTIN_TYPES
+    ) {
+      assert.equal(
+        definitions[type].icon,
+        fresh[type].icon,
+        `${type} must refresh stale stored icon`
+      );
+    }
+  }
+);
+
+test(
   "stored server node icons survive offline without frontend normalization",
   async () => {
     const expected =
