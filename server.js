@@ -357,9 +357,9 @@ const defaultNodeDef = {
     tag: 'ORGANIZE',
     color: '#E9A63A',
     icon: `
-      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M5.2 4.15h8.55c.72 0 1.3.58 1.3 1.3v9.2H6.65a1.55 1.55 0 0 0 0 3.1h8.4"/>
-        <path d="M5.2 4.15v12.05M6.65 14.65h8.4"/>
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M6.15 3.9h7.2c1.02 0 1.85.83 1.85 1.85v8.5c0 1.02-.83 1.85-1.85 1.85H6.3a1.7 1.7 0 0 1-1.7-1.7V5.6a1.7 1.7 0 0 1 1.55-1.7Z"/>
+        <path d="M6.7 3.9v12.2M6.7 13.75h8.5"/>
       </svg>
     `,
     params: [
@@ -484,10 +484,12 @@ const defaultNodeDef = {
     tag: 'WRITE',
     color: '#D96F83',
     icon: `
-      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M4.35 15.65 6.15 7.15q.14-.66.8-.94l3.7-1.58q.7-.3 1.3.18l3.15 2.45q.62.48.37 1.22l-1.55 4.25q-.22.62-.86.8L4.35 15.65Z"/>
-        <circle cx="10.45" cy="9.35" r="1.02"/>
-        <path d="m9.72 10.08-5.18 5.35"/>
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <g transform="rotate(-38 10 10)">
+          <path d="M10 3.25c.42 0 .81.11 1.16.31l3.02 1.72c.68.39 1.03 1.17.86 1.94l-1.73 7.82c-.12.56-.5 1.02-1.02 1.26L10 17.35l-2.29-1.05a1.92 1.92 0 0 1-1.02-1.26L4.96 7.22c-.17-.77.18-1.55.86-1.94l3.02-1.72A2.34 2.34 0 0 1 10 3.25Z"/>
+          <circle cx="10" cy="8.25" r="1.05"/>
+          <path d="M10 9.3v7.45"/>
+        </g>
       </svg>
     `,
     params: [
