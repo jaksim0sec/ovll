@@ -8,6 +8,7 @@ const {
   RuntimeEngine,
   LocalNodeExecutor,
   normalizeWorkflow,
+  normalizeExecutionMode,
   validateExecutionReadiness,
   analyzeWorkflowExecutionDelta
 } = globalThis.OvllExecutionEngine;
@@ -165,6 +166,111 @@ test("empty configured nodes are rejected before executor or API work", async ()
   assert.deepEqual(
     calls,
     []
+  );
+});
+
+test("closed dam is the default execution scope", async () => {
+  const log = [];
+  const engine =
+    new RuntimeEngine({
+      executor:
+        executor(log)
+    });
+
+  const graph =
+    workflow(
+      [
+        node("parent"),
+        node("pivot"),
+        {
+          id: "child",
+          type: "research",
+          data: {
+            params: {
+              request: "   "
+            }
+          }
+        }
+      ],
+      [
+        edge(
+          "parent-pivot",
+          "parent",
+          "pivot"
+        ),
+        edge(
+          "pivot-child",
+          "pivot",
+          "child"
+        )
+      ]
+    );
+
+  const readiness =
+    validateExecutionReadiness(
+      graph,
+      "pivot"
+    );
+
+  assert.equal(
+    normalizeExecutionMode(),
+    "target"
+  );
+  assert.equal(
+    readiness.ok,
+    true
+  );
+  assert.deepEqual(
+    readiness.scope,
+    [
+      "parent",
+      "pivot"
+    ]
+  );
+
+  const result =
+    await engine.run(
+      graph,
+      "pivot"
+    );
+
+  assert.deepEqual(
+    new Set(log),
+    new Set([
+      "parent",
+      "pivot"
+    ])
+  );
+  assert.equal(
+    result.nodes.child.status,
+    "IDLE"
+  );
+});
+
+test("open and closed dam aliases preserve spread and target behavior", () => {
+  assert.equal(
+    normalizeExecutionMode(
+      "closed"
+    ),
+    "target"
+  );
+  assert.equal(
+    normalizeExecutionMode(
+      "target"
+    ),
+    "target"
+  );
+  assert.equal(
+    normalizeExecutionMode(
+      "open"
+    ),
+    "spread"
+  );
+  assert.equal(
+    normalizeExecutionMode(
+      "spread"
+    ),
+    "spread"
   );
 });
 

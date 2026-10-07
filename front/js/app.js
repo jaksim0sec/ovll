@@ -7042,7 +7042,7 @@
 
   async function runCanvasNode(
     nodeId,
-    mode = "spread",
+    mode = "closed",
     options = {}
   ) {
     if (
@@ -7067,9 +7067,19 @@
         state.canvas.getWorkflow();
 
       const runMode =
-        mode === "target"
-          ? "target"
-          : "spread";
+        typeof Execution
+          .normalizeExecutionMode ===
+          "function"
+          ? Execution
+              .normalizeExecutionMode(
+                mode
+              )
+          : (
+              mode === "open" ||
+              mode === "spread"
+                ? "spread"
+                : "target"
+            );
 
       const prepared =
         typeof state.canvas
@@ -7300,9 +7310,7 @@
 
     void runCanvasNode(
       nodeId,
-      payload?.mode === "spread"
-        ? "spread"
-        : "target"
+      payload?.mode || "closed"
     );
   }
 
@@ -8186,11 +8194,25 @@ listen(composerInput, "keydown", handleComposerKeydown);
 
     runNode(
       nodeId,
-      mode = "spread"
+      mode = "closed"
     ) {
       return runCanvasNode(
         String(nodeId || ""),
         mode
+      );
+    },
+
+    runClosed(nodeId) {
+      return runCanvasNode(
+        String(nodeId || ""),
+        "closed"
+      );
+    },
+
+    runOpen(nodeId) {
+      return runCanvasNode(
+        String(nodeId || ""),
+        "open"
       );
     },
 

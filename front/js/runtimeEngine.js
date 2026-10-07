@@ -361,9 +361,9 @@
       String(pivotId || "");
 
     const mode =
-      options.mode === "target"
-        ? "target"
-        : "spread";
+      normalizeExecutionMode(
+        options.mode
+      );
 
     const plan =
       planExecutionGroups(
@@ -1407,12 +1407,32 @@
     return error;
   }
 
+  function normalizeExecutionMode(
+    mode
+  ) {
+    const value =
+      String(mode || "")
+        .trim()
+        .toLowerCase();
+
+    return (
+      value === "spread" ||
+      value === "open"
+    )
+      ? "spread"
+      : "target";
+  }
+
   function planExecutionGroups(
     workflow,
     pivotId,
-    mode = "spread",
+    mode = "target",
     maxGroupNodes = 6
   ) {
+    mode =
+      normalizeExecutionMode(
+        mode
+      );
     const nodes =
       new Map(
         workflow.nodes.map(
@@ -2060,9 +2080,9 @@
         String(pivotId || "");
 
       const mode =
-        options.mode === "target"
-          ? "target"
-          : "spread";
+        normalizeExecutionMode(
+          options.mode
+        );
 
       const cacheContext =
         options.cacheContext ||
@@ -3911,6 +3931,7 @@
     RuntimeEngine,
     LocalNodeExecutor,
     normalizeWorkflow,
+    normalizeExecutionMode,
     planExecutionGroups,
     validateExecutionReadiness,
     analyzeWorkflowExecutionDelta,

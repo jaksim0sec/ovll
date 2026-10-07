@@ -1278,7 +1278,10 @@
       scheduleConnectionRender();
     });
     observers.push(() => nodeResizeObserver.disconnect());
-    function nodeReadyForExecution(node) {
+    function nodeReadyForExecution(
+      node,
+      options = {}
+    ) {
       const runtimeCheck =
         global.OvllExecutionEngine
           ?.isNodeReadyForExecution;
@@ -1287,7 +1290,10 @@
         typeof runtimeCheck ===
           'function'
       ) {
-        return !!runtimeCheck(node);
+        return !!runtimeCheck(
+          node,
+          options
+        );
       }
 
       if (!node) {
@@ -1311,19 +1317,65 @@
         );
       }
 
-      return Object.values(
-        node.data?.params || {}
-      ).some(value =>
-        String(value ?? '').trim()
+      const hasParams =
+        Object.values(
+          node.data?.params || {}
+        ).some(value =>
+          String(value ?? '').trim()
+        );
+
+      return (
+        hasParams ||
+        options.hasIncoming === true
       );
     }
 
-    function runScopeReady(nodeId) {
+    function runScopeReady(
+      nodeId,
+      mode = 'closed'
+    ) {
       const startId =
         String(nodeId || '');
 
       if (!startId) {
         return false;
+      }
+
+      const runtime =
+        global.OvllExecutionEngine;
+
+      const executionMode =
+        typeof runtime
+          ?.normalizeExecutionMode ===
+          'function'
+          ? runtime
+              .normalizeExecutionMode(
+                mode
+              )
+          : (
+              mode === 'open' ||
+              mode === 'spread'
+                ? 'spread'
+                : 'target'
+            );
+
+      if (
+        typeof runtime
+          ?.validateExecutionReadiness ===
+          'function'
+      ) {
+        try {
+          return !!runtime
+            .validateExecutionReadiness(
+              getWorkflow(),
+              startId,
+              {
+                mode:
+                  executionMode
+              }
+            )
+            .ok;
+        } catch {}
       }
 
       const scope = new Set();
@@ -1347,15 +1399,6 @@
           of state.connections
         ) {
           if (
-            connection.from.node ===
-              current
-          ) {
-            queue.push(
-              connection.to.node
-            );
-          }
-
-          if (
             connection.to.node ===
               current
           ) {
@@ -1363,13 +1406,37 @@
               connection.from.node
             );
           }
+
+          if (
+            executionMode ===
+              'spread' &&
+            connection.from.node ===
+              current
+          ) {
+            queue.push(
+              connection.to.node
+            );
+          }
         }
       }
 
       for (const id of scope) {
+        const hasIncoming =
+          state.connections.some(
+            connection =>
+              connection.to.node ===
+                id &&
+              scope.has(
+                connection.from.node
+              )
+          );
+
         if (
           !nodeReadyForExecution(
-            getNode(id)
+            getNode(id),
+            {
+              hasIncoming
+            }
           )
         ) {
           return false;
