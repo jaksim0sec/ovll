@@ -261,7 +261,7 @@ function groupLogMeta(
  * The frontend compares this server value with its locally stored version
  * before loading application assets.
  */
-const APP_VERSION = '2026.10.07.144';
+const APP_VERSION = '2026.10.07.145';
 
 /* =========================================================
    CANONICAL NODE DEFINITION
@@ -276,7 +276,7 @@ const defaultNodeDef = {
     color: '#10B981',
     icon: `
       <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.28" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M6.05 5.15c0-.98 1.08-1.58 1.91-1.05l6.55 4.16c.78.5.78 1.64 0 2.14l-6.55 4.16c-.83.53-1.91-.07-1.91-1.05V5.15Z"/>
+        <path d="M6.2 5.55c0-1.02 1.12-1.66 2.01-1.15l5.74 3.27c.52.3.84.86.84 1.46s-.32 1.16-.84 1.46l-5.74 3.27c-.89.51-2.01-.13-2.01-1.15V5.55Z"/>
       </svg>
     `,
     inputs: [],
@@ -358,8 +358,8 @@ const defaultNodeDef = {
     color: '#E9A63A',
     icon: `
       <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.28" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M5.55 3.85h8.25c.82 0 1.48.66 1.48 1.48v9.35c0 .82-.66 1.48-1.48 1.48H5.9c-.94 0-1.7-.76-1.7-1.7V5.35c0-.8.58-1.42 1.35-1.5Z"/>
-        <path d="M4.2 13.15h11.08"/>
+        <path d="M5.6 3.9h8.1c.95 0 1.7.75 1.7 1.7v8.8c0 .95-.75 1.7-1.7 1.7H5.85c-1.05 0-1.9-.85-1.9-1.9V5.55c0-.9.7-1.58 1.65-1.65Z"/>
+        <path d="M4.1 13h11.3"/>
       </svg>
     `,
     params: [
@@ -416,10 +416,10 @@ const defaultNodeDef = {
     color: '#8B6BE8',
     icon: `
       <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.28" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <circle cx="10" cy="4.15" r=".85"/>
-        <path d="M3.9 6.15h12.2M10 5v10.15M7.2 15.65h5.6"/>
-        <path d="M5.15 6.15 3.5 9.4h3.3L5.15 6.15ZM3.5 9.4c.23 1.5.8 2.25 1.65 2.25S6.57 10.9 6.8 9.4"/>
-        <path d="M14.85 6.15 13.2 9.4h3.3l-1.65-3.25ZM13.2 9.4c.23 1.5.8 2.25 1.65 2.25s1.42-.75 1.65-2.25"/>
+        <circle cx="10" cy="4.25" r=".82"/>
+        <path d="M4.05 6.25h11.9M10 5.1v10.25M7.3 15.65h5.4"/>
+        <path d="M5.2 6.25v2.1M3.6 9c.35 1.55.85 2.25 1.6 2.25S6.45 10.55 6.8 9c-.95.28-2.25.28-3.2 0Z"/>
+        <path d="M14.8 6.25v2.1M13.2 9c.35 1.55.85 2.25 1.6 2.25s1.25-.7 1.6-2.25c-.95.28-2.25.28-3.2 0Z"/>
       </svg>
     `,
     params: [
@@ -485,9 +485,9 @@ const defaultNodeDef = {
     color: '#D96F83',
     icon: `
       <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.28" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M4.25 15.75 5.75 8.2 6.45 6.85 12.65 3.5 15.8 4.2 16.5 7.35 13.15 13.55 11.8 14.25 4.25 15.75Z"/>
-        <circle cx="10.3" cy="9.7" r="1.02"/>
-        <path d="m9.58 10.42-5.03 5.03"/>
+        <path d="M4.15 15.85C4.55 13.95 4.95 10.25 5.55 7.55C5.75 6.65 6.45 5.95 7.35 5.75C10.05 5.15 13.75 4.75 15.65 4.35C15.25 6.25 14.85 9.95 14.25 12.65C14.05 13.55 13.35 14.25 12.45 14.45C9.75 15.05 6.05 15.45 4.15 15.85Z"/>
+        <circle cx="10" cy="10" r=".88"/>
+        <path d="m9.38 10.62-4.18 4.18"/>
       </svg>
     `,
     params: [
@@ -559,8 +559,8 @@ const defaultNodeDef = {
     color: '#718096',
     icon: `
       <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.28" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M3.65 6.35c0-1.08.87-1.95 1.95-1.95h2.72l1.65 1.7h4.43c1.08 0 1.95.87 1.95 1.95v5.95c0 1.08-.87 1.95-1.95 1.95H5.6A1.95 1.95 0 0 1 3.65 14V6.35Z"/>
-        <path d="M3.8 8h12.35"/>
+        <path d="M3.6 6.6c0-1.15.93-2.08 2.08-2.08h2.28c.5 0 .98.2 1.33.55l.97.98h4.08c1.14 0 2.06.92 2.06 2.06v5.73c0 1.14-.92 2.06-2.06 2.06H5.66c-1.14 0-2.06-.92-2.06-2.06V6.6Z"/>
+        <path d="M3.85 8.15h12.3"/>
       </svg>
     `,
     inputs: [],
@@ -584,7 +584,7 @@ const defaultNodeDef = {
     color: '#0EA5A4',
     icon: `
       <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.28" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M10 3.4C10.28 6.85 13.15 9.72 16.6 10C13.15 10.28 10.28 13.15 10 16.6C9.72 13.15 6.85 10.28 3.4 10C6.85 9.72 9.72 6.85 10 3.4Z"/>
+        <path d="M9.65 3.6Q10 3.35 10.35 3.6C10.8 6.55 13.45 9.2 16.4 9.65Q16.65 10 16.4 10.35C13.45 10.8 10.8 13.45 10.35 16.4Q10 16.65 9.65 16.4C9.2 13.45 6.55 10.8 3.6 10.35Q3.35 10 3.6 9.65C6.55 9.2 9.2 6.55 9.65 3.6Z"/>
       </svg>
     `,
     params: [
