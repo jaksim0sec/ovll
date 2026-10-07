@@ -177,8 +177,8 @@
     transform .18s cubic-bezier(.22,.8,.25,1);
 }
 .vc-node-icon svg {
-  width: 1.575rem;
-  height: 1.575rem;
+  width: 1.455rem;
+  height: 1.455rem;
   display: block;
   max-width: none;
   stroke-width: 1.152;
@@ -307,12 +307,7 @@
   border: 0;
   outline: 0;
   border-radius: .72rem;
-  color:
-    color-mix(
-      in srgb,
-      var(--text) 64%,
-      var(--sub)
-    );
+  color: var(--text);
   background:
     color-mix(
       in srgb,
@@ -323,7 +318,7 @@
     inset 0 0 0 .0625rem
     color-mix(
       in srgb,
-      var(--text) 5%,
+      var(--node-color) 12%,
       transparent
     );
   cursor: pointer;
@@ -334,6 +329,7 @@
   transition:
     color .16s ease,
     background .16s ease,
+    box-shadow .16s ease,
     transform .14s ease;
 }
 
@@ -342,7 +338,8 @@
   height: .94rem;
   flex: 0 0 .94rem;
   overflow: visible;
-  opacity: .84;
+  color: var(--node-color);
+  opacity: .9;
 }
 .vc-node-run span,
 .vc-node-delete span {
@@ -357,6 +354,13 @@
     color-mix(
       in srgb,
       var(--node-color) 10%,
+      transparent
+    );
+  box-shadow:
+    inset 0 0 0 .0625rem
+    color-mix(
+      in srgb,
+      var(--node-color) 15%,
       transparent
     );
 }
@@ -379,6 +383,13 @@
       var(--text) 2%,
       transparent
     );
+  box-shadow:
+    inset 0 0 0 .0625rem
+    color-mix(
+      in srgb,
+      var(--text) 4%,
+      transparent
+    );
   opacity: .5;
   cursor: default;
   pointer-events: none;
@@ -387,6 +398,7 @@
 
 .vc-node-run.is-disabled svg,
 .vc-node-run:disabled:not(.is-cancel) svg {
+  color: currentColor;
   opacity: .72;
 }
 
@@ -408,6 +420,16 @@
       var(--text) 6%,
       transparent
     );
+  box-shadow:
+    inset 0 0 0 .0625rem
+    color-mix(
+      in srgb,
+      var(--text) 5%,
+      transparent
+    );
+}
+.vc-node-run.is-cancel svg {
+  color: currentColor;
 }
 
 .vc-node-run.is-running svg {
@@ -978,12 +1000,7 @@
   gap: .24rem;
   border: 0;
   border-radius: .72rem;
-  color:
-    color-mix(
-      in srgb,
-      var(--text) 62%,
-      var(--sub)
-    );
+  color: var(--text);
   background:
     color-mix(
       in srgb,
@@ -1317,8 +1334,8 @@
     flex-basis: 1.704rem;
   }
   .vc-node-icon svg {
-    width: 1.5336rem;
-    height: 1.5336rem;
+    width: 1.455rem;
+    height: 1.455rem;
   }
   .vc-slot-description {
     /* font-size: .65625rem; */
