@@ -4,7 +4,7 @@ import fs from "node:fs";
 
 const css = fs.readFileSync(new URL("../front/css/node.css", import.meta.url), "utf8");
 const canvasNode = fs.readFileSync(new URL("../front/js/canvasNode.js", import.meta.url), "utf8");
-const svgLibrary = fs.readFileSync(new URL("../front/js/svgLibrary.js", import.meta.url), "utf8");
+const server = fs.readFileSync(new URL("../server.js", import.meta.url), "utf8");
 
 function cssBlock(selector) {
   const marker = `${selector} {`;
@@ -105,15 +105,41 @@ test("node action icons are semantic rounded stroke glyphs with balanced text hi
   assert.match(deleteIcon, /stroke-width="1\.38"/);
 });
 
-test("default node icons use compact filled silhouettes with minimal inner detail", () => {
-  assert.equal((svgLibrary.match(/^  (?:start|research|organize|judge|write|file|createFile):`/gm) || []).length, 7);
-  assert.match(svgLibrary, /research:\s*`[\s\S]*?fill-rule="evenodd"/);
-  assert.match(svgLibrary, /organize:\s*`[\s\S]*?<rect x="3\.7" y="4\.1" width="12\.6" height="3\.05" rx="1\.525" fill="currentColor"/);
-  assert.match(svgLibrary, /write:\s*`[\s\S]*?M10 2\.9c\.44 0 \.85\.21 1\.12\.56/);
-  assert.match(svgLibrary, /write:\s*`[\s\S]*?fill-rule="evenodd"/);
-  assert.doesNotMatch(svgLibrary, /write:\s*`[\s\S]*?<rect x="4\.15" y="3\.8"/);
-  assert.match(svgLibrary, /file:\s*`[\s\S]*?fill="currentColor"/);
-  assert.match(svgLibrary, /createFile:\s*`[\s\S]*?fill="currentColor"/);
+test("server keeps built-in node icons in canonical definitions", () => {
+  const definitionStart =
+    server.indexOf(
+      "const defaultNodeDef = {"
+    );
+  const definitionEnd =
+    server.indexOf(
+      "const CUSTOM_NODE_TYPE_RE",
+      definitionStart
+    );
+  const definitions =
+    server.slice(
+      definitionStart,
+      definitionEnd
+    );
+
+  for (
+    const type of [
+      "start",
+      "research",
+      "organize",
+      "judge",
+      "write",
+      "file",
+      "createFile"
+    ]
+  ) {
+    assert.match(
+      definitions,
+      new RegExp(
+        `\\n  ${type}: \\{[\\s\\S]*?icon: \\`[\\s\\S]*?<svg`
+      ),
+      `missing server icon for ${type}`
+    );
+  }
 });
 
 test("ports and connection lines are neutral borderless geometry", () => {
