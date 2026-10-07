@@ -275,8 +275,8 @@ const defaultNodeDef = {
     tag: 'START',
     color: '#10B981',
     icon: `
-      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M6.05 5.05c0-.95 1.04-1.53 1.84-1.03l6.65 4.13c.8.5.8 1.66 0 2.16l-6.65 4.13c-.8.5-1.84-.08-1.84-1.03V5.05Z"/>
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M6.05 5.15c0-.98 1.08-1.58 1.91-1.05l6.55 4.16c.78.5.78 1.64 0 2.14l-6.55 4.16c-.83.53-1.91-.07-1.91-1.05V5.15Z"/>
       </svg>
     `,
     inputs: [],
@@ -299,9 +299,9 @@ const defaultNodeDef = {
     tag: 'RESEARCH',
     color: '#4F8EF7',
     icon: `
-      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <circle cx="10" cy="10" r="6.15"/>
-        <path d="M3.85 10h12.3M10 3.85c1.65 1.7 2.5 3.75 2.5 6.15S11.65 14.45 10 16.15M10 3.85C8.35 5.55 7.5 7.6 7.5 10s.85 4.45 2.5 6.15"/>
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="10" cy="10" r="6.2"/>
+        <path d="M3.8 10h12.4M10 3.8c1.72 1.82 2.55 3.88 2.55 6.2S11.72 14.38 10 16.2M10 3.8C8.28 5.62 7.45 7.68 7.45 10S8.28 14.38 10 16.2"/>
       </svg>
     `,
     params: [
@@ -357,9 +357,9 @@ const defaultNodeDef = {
     tag: 'ORGANIZE',
     color: '#E9A63A',
     icon: `
-      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M6.15 3.9h7.2c1.02 0 1.85.83 1.85 1.85v8.5c0 1.02-.83 1.85-1.85 1.85H6.3a1.7 1.7 0 0 1-1.7-1.7V5.6a1.7 1.7 0 0 1 1.55-1.7Z"/>
-        <path d="M6.7 3.9v12.2M6.7 13.75h8.5"/>
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M6 3.75h7.2c1.08 0 1.95.87 1.95 1.95v8.45c0 1.08-.87 1.95-1.95 1.95H6.3a1.75 1.75 0 0 1-1.75-1.75V5.5c0-.93.72-1.7 1.45-1.75Z"/>
+        <path d="M6.8 3.75V16.1M6.8 13.65h8.35M9.05 7.15h3.65"/>
       </svg>
     `,
     params: [
@@ -415,11 +415,11 @@ const defaultNodeDef = {
     tag: 'JUDGE',
     color: '#8B6BE8',
     icon: `
-      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <circle cx="10" cy="4.35" r=".8"/>
-        <path d="M4.2 6.1h11.6M10 5.15v9.55M7.25 15.45h5.5"/>
-        <path d="M5.45 6.1 3.55 9.35M5.45 6.1l1.9 3.25M3.45 9.55c.2 1.65.92 2.5 2 2.5s1.8-.85 2-2.5"/>
-        <path d="M14.55 6.1l-1.9 3.25M14.55 6.1l1.9 3.25M12.55 9.55c.2 1.65.92 2.5 2 2.5s1.8-.85 2-2.5"/>
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="10" cy="4.15" r=".85"/>
+        <path d="M3.9 6.15h12.2M10 5v10.15M7.2 15.65h5.6"/>
+        <path d="M5.15 6.15 3.5 9.4h3.3L5.15 6.15ZM3.5 9.4c.23 1.5.8 2.25 1.65 2.25S6.57 10.9 6.8 9.4"/>
+        <path d="M14.85 6.15 13.2 9.4h3.3l-1.65-3.25ZM13.2 9.4c.23 1.5.8 2.25 1.65 2.25s1.42-.75 1.65-2.25"/>
       </svg>
     `,
     params: [
@@ -486,9 +486,9 @@ const defaultNodeDef = {
     icon: `
       <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <g transform="rotate(-38 10 10)">
-          <path d="M10 3.25c.42 0 .81.11 1.16.31l3.02 1.72c.68.39 1.03 1.17.86 1.94l-1.73 7.82c-.12.56-.5 1.02-1.02 1.26L10 17.35l-2.29-1.05a1.92 1.92 0 0 1-1.02-1.26L4.96 7.22c-.17-.77.18-1.55.86-1.94l3.02-1.72A2.34 2.34 0 0 1 10 3.25Z"/>
-          <circle cx="10" cy="8.25" r="1.05"/>
-          <path d="M10 9.3v7.45"/>
+          <path d="M10 3.2c.46 0 .88.16 1.22.46l3.5 3.12c.55.49.75 1.27.5 1.97l-2.28 6.47c-.2.58-.68 1-1.28 1.13L10 16.72l-1.66-.37a1.9 1.9 0 0 1-1.28-1.13L4.78 8.75c-.25-.7-.05-1.48.5-1.97l3.5-3.12c.34-.3.76-.46 1.22-.46Z"/>
+          <circle cx="10" cy="8.35" r="1.08"/>
+          <path d="M10 9.43v6.95"/>
         </g>
       </svg>
     `,
@@ -560,8 +560,9 @@ const defaultNodeDef = {
     tag: 'INPUT',
     color: '#718096',
     icon: `
-      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M3.7 6.35c0-1.05.85-1.9 1.9-1.9h2.8l1.55 1.65h4.45c1.05 0 1.9.85 1.9 1.9v6.05c0 1.05-.85 1.9-1.9 1.9H5.6c-1.05 0-1.9-.85-1.9-1.9v-7.7Z"/>
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M3.65 6.35c0-1.08.87-1.95 1.95-1.95h2.72l1.65 1.7h4.43c1.08 0 1.95.87 1.95 1.95v5.95c0 1.08-.87 1.95-1.95 1.95H5.6A1.95 1.95 0 0 1 3.65 14V6.35Z"/>
+        <path d="M3.8 8h12.35"/>
       </svg>
     `,
     inputs: [],
@@ -584,8 +585,8 @@ const defaultNodeDef = {
     tag: 'OUTPUT',
     color: '#0EA5A4',
     icon: `
-      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M10 3.55c.42 3.18 2.67 5.43 5.85 5.85.78.1.78 1.1 0 1.2-3.18.42-5.43 2.67-5.85 5.85-.1.78-1.1.78-1.2 0-.42-3.18-2.67-5.43-5.85-5.85-.78-.1-.78-1.1 0-1.2 3.18-.42 5.43-2.67 5.85-5.85.1-.78 1.1-.78 1.2 0Z"/>
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M10 3.2c.34 0 .55.25.63.6l.71 3.05 2.45-1.95c.3-.24.7-.22.95.03l.32.32c.25.25.27.65.03.95l-1.95 2.45 3.05.72c.35.08.6.28.6.63s-.25.55-.6.63l-3.05.71 1.95 2.45c.24.3.22.7-.03.95l-.32.32c-.25.25-.65.27-.95.03l-2.45-1.95-.71 3.05c-.08.35-.29.6-.63.6s-.55-.25-.63-.6l-.71-3.05-2.45 1.95c-.3.24-.7.22-.95-.03l-.32-.32a.68.68 0 0 1-.03-.95l1.95-2.45-3.05-.71c-.35-.08-.6-.29-.6-.63s.25-.55.6-.63l3.05-.72L4.91 6.2a.68.68 0 0 1 .03-.95l.32-.32c.25-.25.65-.27.95-.03l2.45 1.95.71-3.05c.08-.35.29-.6.63-.6Z"/>
       </svg>
     `,
     params: [
