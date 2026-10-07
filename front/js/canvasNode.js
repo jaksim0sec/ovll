@@ -4620,6 +4620,9 @@
         if (!body) return;
 
         body.style.height =
+          'auto';
+
+        body.style.height =
           `${body.scrollHeight}px`;
 
         positionPorts(

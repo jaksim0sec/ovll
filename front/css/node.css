@@ -161,9 +161,9 @@
    ========================================================= */
 .vc-node-icon {
   position: relative;
-  width: 1.46rem;
+  width: 1.75rem;
   height: 1.84rem;
-  flex: 0 0 1.46rem;
+  flex: 0 0 1.75rem;
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -177,10 +177,13 @@
     transform .18s cubic-bezier(.22,.8,.25,1);
 }
 .vc-node-icon svg {
-  width: 1.46rem;
-  height: 1.46rem;
+  width: 1.75rem;
+  height: 1.75rem;
   display: block;
   max-width: none;
+}
+.vc-node-icon svg [stroke] {
+  stroke-width: 1.152;
 }
 .vc-node:hover .vc-node-icon,
 .vc-node.vc-selected .vc-node-icon,
@@ -198,7 +201,7 @@
   white-space: nowrap;
   color: var(--text);
   font-size: .86rem;
-  font-weight: 650;
+  font-weight: 630;
   line-height: 1.2;
   letter-spacing: -.025em;
 }
@@ -433,7 +436,15 @@
    TOGGLE
    ========================================================= */
 .vc-node-toggle {
-  color: var(--sub);
+  width: 1.9rem;
+  height: 1.9rem;
+  margin-right: -.22rem;
+  color:
+    color-mix(
+      in srgb,
+      var(--text) 74%,
+      var(--sub)
+    );
   background: transparent;
 }
 .vc-node.vc-expanded .vc-node-toggle {
@@ -441,8 +452,13 @@
   background: var(--soft);
 }
 .vc-node-toggle svg {
+  width: 1.18rem;
+  height: 1.18rem;
   transition:
     transform .32s cubic-bezier(.22,.8,.25,1);
+}
+.vc-node-toggle path {
+  stroke-width: 1.68;
 }
 .vc-node.vc-expanded .vc-node-toggle svg {
   transform:
@@ -781,7 +797,7 @@
   overflow: hidden;
   color: var(--text);
   font-size: .84rem;
-  font-weight: 650;
+  font-weight: 630;
   line-height: 1.2;
   letter-spacing: -.024em;
   text-overflow: ellipsis;
@@ -1044,53 +1060,36 @@
   width: .6rem;
   height: .6rem;
   flex: none;
-  border: 0;
-  border-radius: 50%;
-  background:
+  box-sizing: border-box;
+  border:
+    .0625rem solid
     color-mix(
       in srgb,
       var(--text) 18%,
       var(--node)
     );
+  border-radius: 50%;
+  background: var(--node);
   opacity: 1;
   box-shadow: none;
   transition:
     transform .15s cubic-bezier(.22,.8,.25,1),
-    background .15s ease,
+    border-color .15s ease,
     box-shadow .15s ease;
 }
 .vc-node.vc-selected .vc-port-pill,
 .vc-node.vc-expanded .vc-port-pill {
   transform: scale(1.04);
-  background:
+  border-color:
     color-mix(
       in srgb,
       var(--text) 24%,
       var(--node)
     );
 }
-.vc-port-pill.vc-connected {
-  background:
-    color-mix(
-      in srgb,
-      var(--text) 30%,
-      var(--node)
-    );
-}
-.vc-node.vc-selected
-.vc-port-pill.vc-connected,
-.vc-node.vc-expanded
-.vc-port-pill.vc-connected {
-  background:
-    color-mix(
-      in srgb,
-      var(--text) 38%,
-      var(--node)
-    );
-}
 .vc-port-hit:hover .vc-port-pill {
   transform: scale(1.16);
-  background:
+  border-color:
     color-mix(
       in srgb,
       var(--text) 46%,
@@ -1108,7 +1107,7 @@
 .vc-port-hit.vc-port-pickup-hover
 .vc-port-pill {
   transform: scale(1.24);
-  background:
+  border-color:
     color-mix(
       in srgb,
       var(--text) 54%,
@@ -1127,7 +1126,7 @@
 .vc-port-hit.vc-port-picked
 .vc-port-pill {
   transform: scale(1.18);
-  background:
+  border-color:
     color-mix(
       in srgb,
       var(--text) 58%,
@@ -1410,9 +1409,8 @@
   gap: 0;
   padding:
     .1rem
-    .08rem
     .18rem
-    0;
+    .18rem;
   border: 0;
   border-radius: 0;
   background: transparent;

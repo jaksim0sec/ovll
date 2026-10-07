@@ -1921,3 +1921,94 @@ test("runtime activity uses ovll naming and keeps a definite chat width", () => 
     /\.ovll-runtime-step-content\s*\{[^}]*width:\s*100%[^}]*min-width:\s*0/
   );
 });
+
+
+test("node connection handles stay hollow while title controls gain hierarchy", () => {
+  const css =
+    compact(
+      read("front/css/node.css")
+    );
+
+  assert.match(
+    css,
+    /\.vc-port-pill\s*\{[^}]*box-sizing:\s*border-box[^}]*border:[^}]*\.0625rem solid[^}]*background:\s*var\(--node\)/
+  );
+  assert.doesNotMatch(
+    css,
+    /\.vc-port-pill\.vc-connected/
+  );
+  assert.match(
+    css,
+    /\.vc-node-icon\s*\{[^}]*width:\s*1\.75rem[^}]*flex:\s*0 0 1\.75rem/
+  );
+  assert.match(
+    css,
+    /\.vc-node-icon svg\s*\{[^}]*width:\s*1\.75rem[^}]*height:\s*1\.75rem/
+  );
+  assert.match(
+    css,
+    /\.vc-node-icon svg \[stroke\]\s*\{[^}]*stroke-width:\s*1\.152/
+  );
+  assert.match(
+    css,
+    /\.vc-node-title\s*\{[^}]*font-weight:\s*630/
+  );
+  assert.match(
+    css,
+    /\.vc-file-title\s*\{[^}]*font-weight:\s*630/
+  );
+  assert.match(
+    css,
+    /\.vc-node-toggle\s*\{[^}]*width:\s*1\.9rem[^}]*height:\s*1\.9rem[^}]*margin-right:\s*-\.22rem/
+  );
+  assert.match(
+    css,
+    /\.vc-node-toggle svg\s*\{[^}]*width:\s*1\.18rem[^}]*height:\s*1\.18rem/
+  );
+  assert.match(
+    css,
+    /\.vc-request-group\s*\{[^}]*padding:\s*\.1rem\s+\.18rem\s+\.18rem/
+  );
+});
+
+test("expanded node body remeasures natural height after parameter edits", () => {
+  const canvas =
+    read("front/js/canvasNode.js");
+
+  const start =
+    canvas.indexOf(
+      "listen(\n  nodesLayer,\n  'input'"
+    );
+  const end =
+    canvas.indexOf(
+      "    /*\n      연결선은",
+      start
+    );
+  const handler =
+    canvas.slice(
+      start,
+      end
+    );
+
+  const reset =
+    handler.indexOf(
+      "body.style.height =\n          'auto'"
+    );
+  const measure =
+    handler.indexOf(
+      "body.scrollHeight"
+    );
+
+  assert.ok(
+    start >= 0 &&
+    end > start
+  );
+  assert.ok(
+    reset >= 0,
+    "parameter edits must clear the old explicit node body height"
+  );
+  assert.ok(
+    measure > reset,
+    "natural height must be measured only after the explicit height is cleared"
+  );
+});
