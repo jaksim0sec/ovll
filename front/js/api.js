@@ -43,8 +43,60 @@
      ======================================================= */
   const NODE_DEFINITIONS_KEY =
     "ovll:node-definitions";
+  const SvgLibrary =
+    global.OvllSvgLibrary;
   let nodeDefinitionsCache = null;
   let nodeDefinitionsPromise = null;
+
+  function applyLocalNodeIcons(
+    definitions
+  ) {
+    if (
+      !definitions ||
+      typeof definitions !==
+        "object" ||
+      Array.isArray(definitions)
+    ) {
+      return definitions;
+    }
+
+    return Object.fromEntries(
+      Object.entries(
+        definitions
+      ).map(
+        ([type, definition]) => {
+          const icon =
+            SvgLibrary
+              ?.getNodeIcon?.(
+                type
+              ) || "";
+
+          if (
+            !icon ||
+            !definition ||
+            typeof definition !==
+              "object" ||
+            Array.isArray(
+              definition
+            )
+          ) {
+            return [
+              type,
+              definition
+            ];
+          }
+
+          return [
+            type,
+            {
+              ...definition,
+              icon
+            }
+          ];
+        }
+      )
+    );
+  }
 
   function readStoredNodeDefinitions() {
     try {
@@ -60,7 +112,9 @@
         typeof parsed === "object" &&
         !Array.isArray(parsed)
       )
-        ? parsed
+        ? applyLocalNodeIcons(
+            parsed
+          )
         : null;
     } catch {
       return null;
@@ -939,7 +993,9 @@
         }
 
         nodeDefinitionsCache =
-          result.nodes;
+          applyLocalNodeIcons(
+            result.nodes
+          );
         storeNodeDefinitions(
           nodeDefinitionsCache
         );

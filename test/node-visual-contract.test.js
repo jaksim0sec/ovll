@@ -4,7 +4,7 @@ import fs from "node:fs";
 
 const css = fs.readFileSync(new URL("../front/css/node.css", import.meta.url), "utf8");
 const canvasNode = fs.readFileSync(new URL("../front/js/canvasNode.js", import.meta.url), "utf8");
-const server = fs.readFileSync(new URL("../server.js", import.meta.url), "utf8");
+const svgLibrary = fs.readFileSync(new URL("../front/js/svgLibrary.js", import.meta.url), "utf8");
 
 function cssBlock(selector) {
   const marker = `${selector} {`;
@@ -53,11 +53,11 @@ test("action icons share the rounded closed visual language", () => {
 });
 
 test("all default node icons are balanced rounded closed shapes", () => {
-  assert.equal((server.match(/icon:\s*`\s*<svg viewBox="0 0 20 20"/g) || []).length, 7);
-  assert.match(server, /organize:\s*\{[\s\S]*?<rect x="3\.7" y="3\.7" width="12\.6" height="12\.6" rx="3"/);
-  assert.match(server, /write:\s*\{[\s\S]*?stroke-width="2\.15" stroke-linecap="round"/);
-  assert.match(server, /file:\s*\{[\s\S]*?M5\.45 3\.65h5\.2l3\.9 3\.9v7\.05a1\.75 1\.75/);
-  assert.match(server, /createFile:\s*\{[\s\S]*?M10 3\.55c\.43 3\.2/);
+  assert.equal((svgLibrary.match(/^  (?:start|research|organize|judge|write|file|createFile):`/gm) || []).length, 7);
+  assert.match(svgLibrary, /organize:\s*`[\s\S]*?<rect x="3\.7" y="3\.7" width="12\.6" height="12\.6" rx="3"/);
+  assert.match(svgLibrary, /write:\s*`[\s\S]*?stroke-width="2\.15" stroke-linecap="round"/);
+  assert.match(svgLibrary, /file:\s*`[\s\S]*?M5\.45 3\.65h5\.2l3\.9 3\.9v7\.05a1\.75 1\.75/);
+  assert.match(svgLibrary, /createFile:\s*`[\s\S]*?M10 3\.55c\.43 3\.2/);
 });
 
 test("ports and connection lines use pale real colors instead of opacity dimming", () => {
