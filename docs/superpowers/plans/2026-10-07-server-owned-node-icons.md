@@ -37,6 +37,7 @@
 
 **Files:**
 - Modify: `test/node-icon-authority.test.js`
+- Modify: `test/node-visual-contract.test.js`
 - Modify: `front/js/api.js`
 - Modify: `front/js/svgLibrary.js`
 
@@ -60,13 +61,17 @@ In `test/node-icon-authority.test.js`:
   - `OvllSvgLibrary.hasNodeIcon === undefined`
   - `OvllSvgLibrary.nodeIcons === undefined`
 
-- [ ] **Step 2: Run the authority test and verify RED**
+- [ ] **Step 2: Move the existing visual-contract ownership check to the server source**
+
+In `test/node-visual-contract.test.js`, replace only the obsolete filled-silhouette/`svgLibrary.js` ownership test with a compatibility test that reads `server.js` and confirms all seven built-in types still define an `icon` SVG. Do not impose the new monoline geometry yet; Task 2 owns that visual contract.
+
+- [ ] **Step 3: Run the authority test and verify RED**
 
 Run: `node --test test/node-icon-authority.test.js`
 
 Expected: FAIL because current `applyLocalNodeIcons()` replaces server/cached built-in icons and `OvllSvgLibrary` still exposes node icon APIs.
 
-- [ ] **Step 3: Remove frontend normalization from `front/js/api.js`**
+- [ ] **Step 4: Remove frontend normalization from `front/js/api.js`**
 
 Delete the `SvgLibrary` dependency used only for node icon normalization and delete `applyLocalNodeIcons(definitions)`.
 
@@ -74,22 +79,29 @@ Change `readStoredNodeDefinitions()` to return a valid parsed definitions object
 
 In the fetch path of `getNodeDefinitions()`, store and cache the server-returned definitions directly; do not add any icon transformation layer.
 
-- [ ] **Step 4: Remove built-in node icons from `front/js/svgLibrary.js`**
+- [ ] **Step 5: Remove built-in node icons from `front/js/svgLibrary.js`**
 
 Delete `NODE_ICONS`, `getNodeIcon(type)`, `hasNodeIcon(type)`, and the exported `nodeIcons` property.
 
 Preserve `ICONS`, `get(name)`, `has(name)`, and all generic UI SVG definitions unchanged.
 
-- [ ] **Step 5: Run the authority test and verify GREEN**
+- [ ] **Step 6: Run the authority test and verify GREEN**
 
 Run: `node --test test/node-icon-authority.test.js`
 
 Expected: PASS with all authority, cache, custom-node, and generic-library assertions green.
 
-- [ ] **Step 6: Commit Task 1**
+- [ ] **Step 7: Run the full regression suite for the authority migration**
+
+Run: `npm test`
+
+Expected: all tests PASS with 0 failures. The updated visual-contract compatibility check prevents Task 1 from leaving the branch red solely because the old test expected frontend-owned filled icons.
+
+- [ ] **Step 8: Commit Task 1**
 
 Commit files:
 `test/node-icon-authority.test.js`
+`test/node-visual-contract.test.js`
 `front/js/api.js`
 `front/js/svgLibrary.js`
 
