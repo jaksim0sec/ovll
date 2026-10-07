@@ -21,7 +21,7 @@ test("request area stays flat and visually attached to the node title", () => {
   const request = css.match(/\.vc-request-group\s*\{([\s\S]*?)\n\}/)?.[1] ?? "";
   const expandedBody = css.match(/\.vc-node\.vc-expanded\s+\.vc-node-body\s*\{([\s\S]*?)\n\}/)?.[1] ?? "";
 
-  assert.match(request, /padding:\s*\.1rem\s*\.08rem\s*\.18rem\s*2\.12rem/);
+  assert.match(request, /padding:\s*\.1rem\s*\.08rem\s*\.18rem\s*0/);
   assert.match(request, /border:\s*0/);
   assert.match(request, /background:\s*transparent/);
   assert.match(expandedBody, /margin-top:\s*\.18rem/);
@@ -29,9 +29,23 @@ test("request area stays flat and visually attached to the node title", () => {
   assert.doesNotMatch(css, /:root\.dark\s+\.vc-request-group\s*\{/);
 });
 
+test("node icons keep a slightly lighter visual weight", () => {
+  assert.match(cssBlock(".vc-node-icon svg"), /width:\s*1\.46rem/);
+  assert.match(cssBlock(".vc-node-icon svg [stroke]"), /stroke-width:\s*1\.2/);
+});
+
 test("node titles use a lighter identity weight", () => {
-  assert.match(cssBlock(".vc-node-title"), /font-weight:\s*690/);
-  assert.match(cssBlock(".vc-file-title"), /font-weight:\s*690/);
+  assert.match(cssBlock(".vc-node-title"), /font-weight:\s*650/);
+  assert.match(cssBlock(".vc-file-title"), /font-weight:\s*650/);
+});
+
+test("node shell and footer actions keep subtle neutral outlines by default", () => {
+  const node = cssBlock(".vc-node");
+  const run = cssBlock(".vc-node-run");
+  const del = cssBlock(".vc-node-delete");
+  assert.match(node, /var\(--text\)\s+5%/);
+  assert.match(run, /inset 0 0 0 \.0625rem/);
+  assert.match(del, /inset 0 0 0 \.0625rem/);
 });
 
 test("expanded footer buttons share width", () => {
@@ -69,20 +83,18 @@ test("node action icons are semantic rounded stroke glyphs with balanced text hi
   const runStart = canvasNode.indexOf("run: \`");
   const runEnd = canvasNode.indexOf("stop: \`", runStart);
   const runIcon = canvasNode.slice(runStart, runEnd);
-  assert.match(runIcon, /<rect x="3\.85" y="4\.65" width="12\.3" height="10\.7" rx="3\.2"/);
+  assert.match(runIcon, /<rect x="4\.1" y="4\.1" width="11\.8" height="11\.8" rx="4\.1"/);
   assert.doesNotMatch(runIcon, /<circle/);
-  assert.match(runIcon, /stroke-linejoin="round"/);
-  assert.match(runIcon, /stroke-width="1\.38"/);
-  assert.match(runIcon, /stroke-width="1\.34"/);
+  assert.match(runIcon, /fill="currentColor"/);
+  assert.match(runIcon, /stroke-width="1\.24"/);
 
   const deleteStart = canvasNode.indexOf("delete: \`");
   const deleteEnd = canvasNode.indexOf("run: \`", deleteStart);
   const deleteIcon = canvasNode.slice(deleteStart, deleteEnd);
-  assert.match(deleteIcon, /M5\.95 7\.15h8\.1/);
-  assert.match(deleteIcon, /M7\.15 7\.2l\.48 7\.05/);
-  assert.match(deleteIcon, /M8\.05 5\.4/);
-  assert.match(deleteIcon, /stroke-width="1\.38"/);
-  assert.match(deleteIcon, /stroke-width="1\.34"/);
+  assert.match(deleteIcon, /M6\.05 6\.85h7\.9/);
+  assert.match(deleteIcon, /M7\.2 6\.9l\.42 6\.45/);
+  assert.match(deleteIcon, /M8\.1 5\.15h3\.8/);
+  assert.match(deleteIcon, /stroke-width="1\.24"/);
 });
 
 test("default node icons use compact filled silhouettes with minimal inner detail", () => {

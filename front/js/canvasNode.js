@@ -21,21 +21,19 @@
     `,
     delete: `
       <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
-        <path d="M5.95 7.15h8.1" stroke="currentColor" stroke-width="1.38" stroke-linecap="round"/>
-        <path d="M7.15 7.2l.48 7.05c.05.75.67 1.33 1.42 1.33h1.9c.75 0 1.37-.58 1.42-1.33l.48-7.05" stroke="currentColor" stroke-width="1.38" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M8.05 5.4h3.9M8.85 5.35v-.55c0-.42.34-.75.75-.75h.8c.41 0 .75.33.75.75v.55M8.75 9.25v3.95M11.25 9.25v3.95" stroke="currentColor" stroke-width="1.34" stroke-linecap="round"/>
+        <path d="M6.05 6.85h7.9M7.2 6.9l.42 6.45c.05.77.68 1.37 1.45 1.37h1.86c.77 0 1.4-.6 1.45-1.37l.42-6.45M8.1 5.15h3.8" stroke="currentColor" stroke-width="1.24" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
     `,
     run: `
       <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
-        <rect x="3.85" y="4.65" width="12.3" height="10.7" rx="3.2" stroke="currentColor" stroke-width="1.38"/>
-        <path d="m8.55 7.7 3.75 2.3-3.75 2.3Z" stroke="currentColor" stroke-width="1.34" stroke-linecap="round" stroke-linejoin="round"/>
+        <rect x="4.1" y="4.1" width="11.8" height="11.8" rx="4.1" stroke="currentColor" stroke-width="1.24"/>
+        <path d="m8.35 7.35 4.2 2.65-4.2 2.65Z" fill="currentColor"/>
       </svg>
     `,
     stop: `
       <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
-        <rect x="3.85" y="4.65" width="12.3" height="10.7" rx="3.2" stroke="currentColor" stroke-width="1.38"/>
-        <rect x="8.05" y="8.05" width="3.9" height="3.9" rx="1.05" fill="currentColor"/>
+        <rect x="4.1" y="4.1" width="11.8" height="11.8" rx="4.1" stroke="currentColor" stroke-width="1.24"/>
+        <rect x="8.2" y="8.2" width="3.6" height="3.6" rx="1.05" fill="currentColor"/>
       </svg>
     `,
     fileResult: `

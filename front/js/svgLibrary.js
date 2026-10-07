@@ -51,7 +51,7 @@ const NODE_ICONS=Object.freeze({
   `,
   research:`
     <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
-      <path fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" d="M8.55 3.35a5.2 5.2 0 1 0 3.24 9.27l2.9 2.9a1.02 1.02 0 0 0 1.44-1.44l-2.9-2.9a5.2 5.2 0 0 0-4.68-7.83Zm0 1.72a3.48 3.48 0 1 0 0 6.96 3.48 3.48 0 0 0 0-6.96Z"/>
+      <path fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" d="M8.55 3.35a5.2 5.2 0 1 0 3.24 9.27l2.9 2.9a.92.92 0 0 0 1.3-1.3l-2.9-2.9a5.2 5.2 0 0 0-4.68-7.83Zm0 1.58a3.62 3.62 0 1 0 0 7.24 3.62 3.62 0 0 0 0-7.24Z"/>
     </svg>
   `,
   organize:`
