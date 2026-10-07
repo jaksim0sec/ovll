@@ -1896,3 +1896,28 @@ test("custom nodes use the canvas plugin pipeline and node picker catalog", () =
   );
 });
 
+
+
+test("runtime activity uses ovll naming and keeps a definite chat width", () => {
+  const chat = compact(read("front/css/chat.css"));
+  const app = read("front/js/app.js");
+
+  assert.doesNotMatch(chat, /\.astra-runtime-/);
+  assert.doesNotMatch(app, /astra-runtime-/);
+  assert.match(
+    chat,
+    /\.ovll-runtime-activity\s*\{[^}]*width:\s*100%[^}]*max-width:\s*42\.5rem/
+  );
+  assert.match(
+    chat,
+    /\.ovll-runtime-activity-body\s*\{[^}]*width:\s*100%[^}]*min-width:\s*0[^}]*max-width:\s*100%/
+  );
+  assert.match(
+    chat,
+    /\.ovll-runtime-step\s*\{[^}]*width:\s*100%[^}]*min-width:\s*0/
+  );
+  assert.match(
+    chat,
+    /\.ovll-runtime-step-content\s*\{[^}]*width:\s*100%[^}]*min-width:\s*0/
+  );
+});

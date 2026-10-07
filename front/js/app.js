@@ -3832,15 +3832,15 @@
     return `
       <button
         type="button"
-        class="astra-runtime-activity-summary"
+        class="ovll-runtime-activity-summary"
         aria-expanded="true"
       >
-        <span class="astra-runtime-activity-meta">준비 중</span>
-        <svg class="astra-runtime-activity-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <span class="ovll-runtime-activity-meta">준비 중</span>
+        <svg class="ovll-runtime-activity-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
           <path d="M6.5 8 10 11.5 13.5 8" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </button>
-      <div class="astra-runtime-activity-steps"></div>
+      <div class="ovll-runtime-activity-steps"></div>
     `;
   }
 
@@ -3885,10 +3885,10 @@
 
   function runtimeStepMarkup() {
     return `
-      <span class="astra-runtime-step-icon" aria-hidden="true"></span>
-      <span class="astra-runtime-step-content">
-        <span class="astra-runtime-step-label"></span>
-        <span class="astra-runtime-step-detail"></span>
+      <span class="ovll-runtime-step-icon" aria-hidden="true"></span>
+      <span class="ovll-runtime-step-content">
+        <span class="ovll-runtime-step-label"></span>
+        <span class="ovll-runtime-step-detail"></span>
       </span>
     `;
   }
@@ -3916,13 +3916,13 @@
             label:
               String(
                 step.querySelector(
-                  ".astra-runtime-step-label"
+                  ".ovll-runtime-step-label"
                 )?.textContent || ""
               ),
             detail:
               String(
                 step.querySelector(
-                  ".astra-runtime-step-detail"
+                  ".ovll-runtime-step-detail"
                 )?.textContent || ""
               ),
             status:
@@ -3988,7 +3988,7 @@
       );
 
     row.className =
-      "astra-message astra-message-assistant astra-runtime-activity is-complete";
+      "astra-message astra-message-assistant ovll-runtime-activity is-complete";
     row.dataset.runtimeActivity =
       "stored";
 
@@ -3998,7 +3998,7 @@
       );
 
     body.className =
-      "astra-runtime-activity-body";
+      "ovll-runtime-activity-body";
     body.innerHTML =
       runtimeActivityMarkup();
 
@@ -4006,15 +4006,15 @@
 
     const summary =
       body.querySelector(
-        ".astra-runtime-activity-summary"
+        ".ovll-runtime-activity-summary"
       );
     const meta =
       body.querySelector(
-        ".astra-runtime-activity-meta"
+        ".ovll-runtime-activity-meta"
       );
     const stepsRoot =
       body.querySelector(
-        ".astra-runtime-activity-steps"
+        ".ovll-runtime-activity-steps"
       );
 
     const compact =
@@ -4042,7 +4042,7 @@
         );
 
       step.className =
-        "astra-runtime-step is-visible";
+        "ovll-runtime-step is-visible";
       step.dataset.stepId =
         String(item.id || "");
       step.dataset.nodeType =
@@ -4062,7 +4062,7 @@
         );
       const icon =
         step.querySelector(
-          ".astra-runtime-step-icon"
+          ".ovll-runtime-step-icon"
         );
 
       if (icon) {
@@ -4083,11 +4083,11 @@
 
       const label =
         step.querySelector(
-          ".astra-runtime-step-label"
+          ".ovll-runtime-step-label"
         );
       const detail =
         step.querySelector(
-          ".astra-runtime-step-detail"
+          ".ovll-runtime-step-detail"
         );
 
       if (label) {
@@ -4161,7 +4161,7 @@
       );
 
     row.className =
-      "astra-message astra-message-assistant astra-runtime-activity";
+      "astra-message astra-message-assistant ovll-runtime-activity";
     row.dataset.runtimeActivity =
       "true";
 
@@ -4171,7 +4171,7 @@
       );
 
     body.className =
-      "astra-runtime-activity-body";
+      "ovll-runtime-activity-body";
     body.innerHTML =
       runtimeActivityMarkup();
 
@@ -4180,7 +4180,7 @@
 
     const summary =
       body.querySelector(
-        ".astra-runtime-activity-summary"
+        ".ovll-runtime-activity-summary"
       );
 
     const activity = {
@@ -4188,11 +4188,11 @@
       summary,
       meta:
         body.querySelector(
-          ".astra-runtime-activity-meta"
+          ".ovll-runtime-activity-meta"
         ),
       stepsRoot:
         body.querySelector(
-          ".astra-runtime-activity-steps"
+          ".ovll-runtime-activity-steps"
         ),
       steps:
         new Map(),
@@ -4361,7 +4361,7 @@
         );
 
       step.className =
-        "astra-runtime-step";
+        "ovll-runtime-step";
       step.innerHTML =
         runtimeStepMarkup();
       step.dataset.stepId =
@@ -4377,7 +4377,7 @@
 
       const icon =
         step.querySelector(
-          ".astra-runtime-step-icon"
+          ".ovll-runtime-step-icon"
         );
 
       if (icon) {
@@ -4419,12 +4419,12 @@
 
     const label =
       step.querySelector(
-        ".astra-runtime-step-label"
+        ".ovll-runtime-step-label"
       );
 
     const detailElement =
       step.querySelector(
-        ".astra-runtime-step-detail"
+        ".ovll-runtime-step-detail"
       );
 
     const nextText =
@@ -4556,7 +4556,7 @@
 
     const label =
       step.querySelector(
-        ".astra-runtime-step-label"
+        ".ovll-runtime-step-label"
       );
 
     upsertRuntimeStep(

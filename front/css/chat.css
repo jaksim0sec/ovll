@@ -1069,8 +1069,9 @@ tr:last-child td {
   }
 }
 
-.astra-runtime-activity {
-  width: min(42.5rem, 100%);
+.ovll-runtime-activity {
+  width: 100%;
+  max-width: 42.5rem;
   margin-bottom: -.32rem;
   padding: 0;
   color:
@@ -1082,21 +1083,23 @@ tr:last-child td {
   opacity: .72;
 }
 
-.astra-runtime-activity-body {
-  width: min(43.75rem, 100%);
+.ovll-runtime-activity-body {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
 }
 
-.astra-runtime-activity.is-compact
-.astra-runtime-activity-summary {
+.ovll-runtime-activity.is-compact
+.ovll-runtime-activity-summary {
   display: none;
 }
 
-.astra-runtime-activity.is-compact
-.astra-runtime-activity-steps {
+.ovll-runtime-activity.is-compact
+.ovll-runtime-activity-steps {
   padding-top: 0;
 }
 
-.astra-runtime-activity-summary {
+.ovll-runtime-activity-summary {
   appearance: none;
   -webkit-appearance: none;
   width: fit-content;
@@ -1114,7 +1117,7 @@ tr:last-child td {
   cursor: pointer;
 }
 
-.astra-runtime-activity-spark {
+.ovll-runtime-activity-spark {
   width: .8rem;
   height: .8rem;
   flex: 0 0 .8rem;
@@ -1122,7 +1125,7 @@ tr:last-child td {
   place-items: center;
 }
 
-.astra-runtime-activity-spark::before {
+.ovll-runtime-activity-spark::before {
   content: "";
   width: .34rem;
   height: .34rem;
@@ -1135,29 +1138,29 @@ tr:last-child td {
   opacity: .82;
 }
 
-.astra-runtime-activity:not(.is-complete)
-.astra-runtime-activity-spark::before {
+.ovll-runtime-activity:not(.is-complete)
+.ovll-runtime-activity-spark::before {
   animation:
-    astra-runtime-step-spin
+    ovll-runtime-step-spin
     .9s
     linear
     infinite;
 }
 
-.astra-runtime-activity.is-complete
-.astra-runtime-activity-spark::before {
+.ovll-runtime-activity.is-complete
+.ovll-runtime-activity-spark::before {
   border: 0;
   background:
     currentColor;
   opacity: .5;
 }
 
-.astra-runtime-activity-spark::after,
-.astra-runtime-activity-spark span {
+.ovll-runtime-activity-spark::after,
+.ovll-runtime-activity-spark span {
   display: none;
 }
 
-.astra-runtime-activity-meta {
+.ovll-runtime-activity-meta {
   color:
     color-mix(
       in srgb,
@@ -1169,7 +1172,7 @@ tr:last-child td {
   white-space: nowrap;
 }
 
-.astra-runtime-activity-chevron {
+.ovll-runtime-activity-chevron {
   width: .88rem;
   height: .88rem;
   flex: 0 0 .88rem;
@@ -1184,12 +1187,13 @@ tr:last-child td {
     cubic-bezier(.22,.8,.25,1);
 }
 
-.astra-runtime-activity.is-collapsed
-.astra-runtime-activity-chevron {
+.ovll-runtime-activity.is-collapsed
+.ovll-runtime-activity-chevron {
   transform: rotate(-90deg);
 }
 
-.astra-runtime-activity-steps {
+.ovll-runtime-activity-steps {
+  width: 100%;
   display: grid;
   gap: .18rem;
   max-height: 32rem;
@@ -1207,15 +1211,16 @@ tr:last-child td {
       cubic-bezier(.22,.8,.25,1);
 }
 
-.astra-runtime-activity.is-collapsed
-.astra-runtime-activity-steps {
+.ovll-runtime-activity.is-collapsed
+.ovll-runtime-activity-steps {
   max-height: 0;
   padding-top: 0;
   padding-bottom: 0;
   opacity: 0;
 }
 
-.astra-runtime-step {
+.ovll-runtime-step {
+  width: 100%;
   min-width: 0;
   display: grid;
   grid-template-columns:
@@ -1233,12 +1238,12 @@ tr:last-child td {
       cubic-bezier(.22,.8,.25,1);
 }
 
-.astra-runtime-step.is-visible {
+.ovll-runtime-step.is-visible {
   opacity: .985;
   transform: translateY(0);
 }
 
-.astra-runtime-step-icon {
+.ovll-runtime-step-icon {
   width: 1.16rem;
   height: 1.16rem;
   display: grid;
@@ -1252,42 +1257,42 @@ tr:last-child td {
     );
 }
 
-.astra-runtime-step-icon[hidden] {
+.ovll-runtime-step-icon[hidden] {
   visibility: hidden;
 }
 
-.astra-runtime-step-icon svg {
+.ovll-runtime-step-icon svg {
   width: 1rem;
   height: 1rem;
   display: block;
   max-width: none;
 }
 
-.astra-runtime-step[data-status="running"]
-.astra-runtime-step-icon {
+.ovll-runtime-step[data-status="running"]
+.ovll-runtime-step-icon {
   animation:
-    astra-runtime-icon-work
+    ovll-runtime-icon-work
     1.4s
     ease-in-out
     infinite;
 }
 
-.astra-runtime-step[data-status="done"] {
+.ovll-runtime-step[data-status="done"] {
   opacity: .9;
 }
 
-.astra-runtime-step[data-status="done"]
-.astra-runtime-step-detail,
-.astra-runtime-step[data-status="skipped"]
-.astra-runtime-step-detail {
+.ovll-runtime-step[data-status="done"]
+.ovll-runtime-step-detail,
+.ovll-runtime-step[data-status="skipped"]
+.ovll-runtime-step-detail {
   display: none;
 }
 
-.astra-runtime-step[data-status="skipped"] {
+.ovll-runtime-step[data-status="skipped"] {
   opacity: .74;
 }
 
-.astra-runtime-step[data-status="failed"] {
+.ovll-runtime-step[data-status="failed"] {
   color:
     color-mix(
       in srgb,
@@ -1297,13 +1302,14 @@ tr:last-child td {
   opacity: .9;
 }
 
-.astra-runtime-step-content {
+.ovll-runtime-step-content {
+  width: 100%;
   min-width: 0;
   display: grid;
   gap: .08rem;
 }
 
-.astra-runtime-step-label {
+.ovll-runtime-step-label {
   min-width: 0;
   color:
     color-mix(
@@ -1318,7 +1324,7 @@ tr:last-child td {
   overflow-wrap: anywhere;
 }
 
-.astra-runtime-step-detail {
+.ovll-runtime-step-detail {
   max-width: 38rem;
   color:
     color-mix(
@@ -1332,17 +1338,17 @@ tr:last-child td {
   overflow-wrap: anywhere;
 }
 
-.astra-runtime-step-detail[hidden] {
+.ovll-runtime-step-detail[hidden] {
   display: none;
 }
 
-@keyframes astra-runtime-step-spin {
+@keyframes ovll-runtime-step-spin {
   to {
     transform: rotate(360deg);
   }
 }
 
-@keyframes astra-runtime-status-pulse {
+@keyframes ovll-runtime-status-pulse {
   0%,
   100% {
     opacity: .35;
@@ -1355,7 +1361,7 @@ tr:last-child td {
   }
 }
 
-@keyframes astra-runtime-icon-work {
+@keyframes ovll-runtime-icon-work {
   0%,
   100% {
     transform: translateY(0);

@@ -29,7 +29,11 @@ test("request area stays flat and visually attached to the node title", () => {
   assert.doesNotMatch(css, /:root\.dark\s+\.vc-request-group\s*\{/);
 });
 
-test("node icons keep a slightly lighter visual weight", () => {
+test("node icons align to their visible glyph width without hidden x-space", () => {
+  const icon = cssBlock(".vc-node-icon");
+  assert.match(icon, /width:\s*1\.46rem/);
+  assert.match(icon, /flex:\s*0 0 1\.46rem/);
+  assert.match(icon, /justify-content:\s*flex-start/);
   assert.match(cssBlock(".vc-node-icon svg"), /width:\s*1\.46rem/);
   assert.match(cssBlock(".vc-node-icon svg [stroke]"), /stroke-width:\s*1\.2/);
 });
@@ -43,7 +47,9 @@ test("node shell and footer actions keep subtle neutral outlines by default", ()
   const node = cssBlock(".vc-node");
   const run = cssBlock(".vc-node-run");
   const del = cssBlock(".vc-node-delete");
-  assert.match(node, /var\(--text\)\s+5%/);
+  assert.match(node, /border:\s*\.0625rem solid var\(--line\)/);
+  assert.match(node, /box-shadow:\s*var\(--shadow-soft\)/);
+  assert.doesNotMatch(node, /0 0 0/);
   assert.match(run, /inset 0 0 0 \.0625rem/);
   assert.match(del, /inset 0 0 0 \.0625rem/);
 });
@@ -69,10 +75,12 @@ test("node action icons are semantic rounded stroke glyphs with balanced text hi
   const runButton = cssBlock(".vc-node-run");
   const deleteButton = cssBlock(".vc-node-delete");
 
-  assert.match(runCss, /width:\s*\.92rem/);
-  assert.match(deleteCss, /width:\s*\.92rem/);
-  assert.match(runButton, /gap:\s*\.3rem/);
-  assert.match(deleteButton, /gap:\s*\.3rem/);
+  assert.match(runCss, /width:\s*\.94rem/);
+  assert.match(deleteCss, /width:\s*\.94rem/);
+  assert.match(runCss, /opacity:\s*\.84/);
+  assert.match(deleteCss, /opacity:\s*\.84/);
+  assert.match(runButton, /gap:\s*\.24rem/);
+  assert.match(deleteButton, /gap:\s*\.24rem/);
   assert.match(runButton, /font-size:\s*\.66rem/);
   assert.match(deleteButton, /font-size:\s*\.66rem/);
   assert.match(runButton, /font-weight:\s*620/);
@@ -86,7 +94,7 @@ test("node action icons are semantic rounded stroke glyphs with balanced text hi
   assert.match(runIcon, /<rect x="4\.1" y="4\.1" width="11\.8" height="11\.8" rx="4\.1"/);
   assert.doesNotMatch(runIcon, /<circle/);
   assert.match(runIcon, /fill="currentColor"/);
-  assert.match(runIcon, /stroke-width="1\.24"/);
+  assert.match(runIcon, /stroke-width="1\.36"/);
 
   const deleteStart = canvasNode.indexOf("delete: \`");
   const deleteEnd = canvasNode.indexOf("run: \`", deleteStart);
@@ -94,7 +102,7 @@ test("node action icons are semantic rounded stroke glyphs with balanced text hi
   assert.match(deleteIcon, /M6\.05 6\.85h7\.9/);
   assert.match(deleteIcon, /M7\.2 6\.9l\.42 6\.45/);
   assert.match(deleteIcon, /M8\.1 5\.15h3\.8/);
-  assert.match(deleteIcon, /stroke-width="1\.24"/);
+  assert.match(deleteIcon, /stroke-width="1\.38"/);
 });
 
 test("default node icons use compact filled silhouettes with minimal inner detail", () => {
@@ -137,5 +145,6 @@ test("ports and connection lines are neutral borderless geometry", () => {
 
 test("mobile keeps node identity legible and actions touchable", () => {
   assert.match(css, /@media \(max-width: 37\.5rem\)[\s\S]*?\.vc-node-title\s*\{\s*font-size:\s*\.82rem/);
+  assert.match(css, /@media \(max-width: 37\.5rem\)[\s\S]*?\.vc-node-icon\s*\{[\s\S]*?width:\s*1\.42rem[\s\S]*?flex-basis:\s*1\.42rem/);
   assert.match(css, /@media \(hover: none\) and \(pointer: coarse\)[\s\S]*?\.vc-node-run,\s*\.vc-node-delete\s*\{[\s\S]*?padding-inline:\s*\.55rem/);
 });
