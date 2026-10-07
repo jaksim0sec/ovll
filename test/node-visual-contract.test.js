@@ -54,10 +54,10 @@ test("action icons share the rounded closed visual language", () => {
 
 test("all default node icons are balanced rounded closed shapes", () => {
   assert.equal((svgLibrary.match(/^  (?:start|research|organize|judge|write|file|createFile):`/gm) || []).length, 7);
-  assert.match(svgLibrary, /organize:\\s*`[\\s\\S]*?<rect x="3\\.7" y="3\\.7" width="12\\.6" height="12\\.6" rx="3"/);
-  assert.match(svgLibrary, /write:\\s*`[\\s\\S]*?stroke-width="2\\.15" stroke-linecap="round"/);
-  assert.match(svgLibrary, /file:\\s*`[\\s\\S]*?M5\\.45 3\\.65h5\\.2l3\\.9 3\\.9v7\\.05a1\\.75 1\\.75/);
-  assert.match(svgLibrary, /createFile:\\s*`[\\s\\S]*?M10 3\\.55c\\.43 3\\.2/);
+  assert.match(svgLibrary, /organize:\s*`[\s\S]*?<rect x="3\.7" y="3\.7" width="12\.6" height="12\.6" rx="3"/);
+  assert.match(svgLibrary, /write:\s*`[\s\S]*?stroke-width="2\.15" stroke-linecap="round"/);
+  assert.match(svgLibrary, /file:\s*`[\s\S]*?M5\.45 3\.65h5\.2l3\.9 3\.9v7\.05a1\.75 1\.75/);
+  assert.match(svgLibrary, /createFile:\s*`[\s\S]*?M10 3\.55c\.43 3\.2/);
 });
 
 test("ports and connection lines use pale real colors instead of opacity dimming", () => {
