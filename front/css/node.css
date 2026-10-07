@@ -308,7 +308,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: .26rem;
+  gap: .3rem;
   margin: 0;
   padding: 0 .5rem;
   border:
@@ -333,9 +333,9 @@
       transparent
     );
   cursor: pointer;
-  font-size: var(--font-micro);
+  font-size: .66rem;
   font-weight: 680;
-  line-height: 1;
+  line-height: 1.1;
   letter-spacing: -.012em;
   transition:
     color .16s ease,
@@ -345,9 +345,9 @@
 }
 
 .vc-node-run svg {
-  width: 1.02rem;
-  height: 1.02rem;
-  flex: 0 0 1.02rem;
+  width: .92rem;
+  height: .92rem;
+  flex: 0 0 .92rem;
   overflow: visible;
 }
 
@@ -968,7 +968,7 @@
   margin: 0;
   justify-content: center;
   align-items: center;
-  gap: .26rem;
+  gap: .3rem;
   border:
     .0625rem solid
     color-mix(
@@ -989,9 +989,9 @@
       var(--text) 3.8%,
       transparent
     );
-  font-size: var(--font-micro);
+  font-size: .66rem;
   font-weight: 660;
-  line-height: 1;
+  line-height: 1.1;
   cursor: pointer;
   transition:
     color .16s ease,
@@ -1015,10 +1015,11 @@
     );
 }
 .vc-node-delete svg {
-  width: 1.02rem;
-  height: 1.02rem;
+  width: .92rem;
+  height: .92rem;
   display: block;
   max-width: none;
+  flex: 0 0 .92rem;
 }
 /* =========================================================
    PORT HIT AREA
@@ -1055,78 +1056,124 @@
    PORT PILL
    ========================================================= */
 .vc-port-pill {
-  width: .625rem;
-  height: .625rem;
+  width: .6rem;
+  height: .6rem;
   flex: none;
+  border: 0;
   border-radius: 50%;
-  background: color-mix(in srgb, var(--node-color) 34%, var(--node));
-  border: .078125rem solid color-mix(in srgb, var(--node-color) 58%, var(--node));
+  background:
+    color-mix(
+      in srgb,
+      var(--text) 18%,
+      var(--node)
+    );
   opacity: 1;
   box-shadow: none;
   transition:
     transform .15s cubic-bezier(.22,.8,.25,1),
     background .15s ease,
-    border-color .15s ease,
     box-shadow .15s ease;
 }
 .vc-node.vc-selected .vc-port-pill,
 .vc-node.vc-expanded .vc-port-pill {
   transform: scale(1.04);
-  background: color-mix(in srgb, var(--node-color) 42%, var(--node));
-  border-color: color-mix(in srgb, var(--node-color) 68%, var(--node));
+  background:
+    color-mix(
+      in srgb,
+      var(--text) 24%,
+      var(--node)
+    );
 }
 .vc-port-pill.vc-connected {
-  background: color-mix(in srgb, var(--node-color) 58%, var(--node));
-  border-color: color-mix(in srgb, var(--node-color) 78%, var(--node));
+  background:
+    color-mix(
+      in srgb,
+      var(--text) 30%,
+      var(--node)
+    );
 }
 .vc-node.vc-selected
 .vc-port-pill.vc-connected,
 .vc-node.vc-expanded
 .vc-port-pill.vc-connected {
-  background: color-mix(in srgb, var(--node-color) 68%, var(--node));
-  border-color: color-mix(in srgb, var(--node-color) 88%, var(--node));
+  background:
+    color-mix(
+      in srgb,
+      var(--text) 38%,
+      var(--node)
+    );
 }
 .vc-port-hit:hover .vc-port-pill {
-  transform: scale(1.18);
-  background: color-mix(in srgb, var(--node-color) 76%, var(--node));
-  border-color: color-mix(in srgb, var(--node-color) 92%, var(--node));
-  box-shadow: 0 0 0 .1875rem color-mix(in srgb, var(--node-color) 10%, transparent);
+  transform: scale(1.16);
+  background:
+    color-mix(
+      in srgb,
+      var(--text) 46%,
+      var(--node)
+    );
+  box-shadow:
+    0 0 0 .17rem
+    color-mix(
+      in srgb,
+      var(--text) 7%,
+      transparent
+    );
 }
 
 .vc-port-hit.vc-port-pickup-hover
 .vc-port-pill {
-  transform: scale(1.26);
-  background: color-mix(in srgb, var(--node-color) 82%, var(--node));
-  border-color: var(--node-color);
-  box-shadow: 0 0 0 .24rem color-mix(in srgb, var(--node-color) 13%, transparent);
+  transform: scale(1.24);
+  background:
+    color-mix(
+      in srgb,
+      var(--text) 54%,
+      var(--node)
+    );
+  box-shadow:
+    0 0 0 .22rem
+    color-mix(
+      in srgb,
+      var(--text) 9%,
+      transparent
+    );
   animation: vc-port-pickup-hold .5s linear both;
 }
 
 .vc-port-hit.vc-port-picked
 .vc-port-pill {
-  transform: scale(1.2);
-  background: color-mix(in srgb, var(--node-color) 88%, var(--node));
-  border-color: var(--node-color);
-  box-shadow: 0 0 0 .22rem color-mix(in srgb, var(--node-color) 12%, transparent);
+  transform: scale(1.18);
+  background:
+    color-mix(
+      in srgb,
+      var(--text) 58%,
+      var(--node)
+    );
+  box-shadow:
+    0 0 0 .2rem
+    color-mix(
+      in srgb,
+      var(--text) 8%,
+      transparent
+    );
 }
 
 @keyframes vc-port-pickup-hold {
   from {
     box-shadow:
-      0 0 0 .08rem
+      0 0 0 .07rem
       color-mix(
         in srgb,
-        var(--node-color) 8%,
+        var(--text) 5%,
         transparent
       );
   }
 
   to {
     box-shadow:
-      0 0 0 .28rem
+      0 0 0 .24rem
       color-mix(
         in srgb,
-        var(--node-color) 15%,
+        var(--text) 10%,
         transparent
       );
   }
@@ -1168,7 +1215,12 @@
    ========================================================= */
 .vc-connection {
   fill: none;
-  stroke: color-mix(in srgb, var(--connection-color, var(--text)) 34%, var(--canvas, var(--bg)));
+  stroke:
+    color-mix(
+      in srgb,
+      var(--text) 18%,
+      var(--canvas, var(--bg))
+    );
   stroke-width: .1rem;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -1182,14 +1234,24 @@
     stroke-dasharray .28s cubic-bezier(.22,.8,.25,1);
 }
 .vc-connection.vc-active {
-  stroke: color-mix(in srgb, var(--connection-color, var(--accent)) 68%, var(--canvas, var(--bg)));
+  stroke:
+    color-mix(
+      in srgb,
+      var(--text) 34%,
+      var(--canvas, var(--bg))
+    );
   stroke-dasharray: 624.9375rem 0;
   opacity: 1;
   stroke-width: .1375rem;
 }
 
 .vc-connection.vc-runtime-active {
-  stroke: color-mix(in srgb, var(--connection-color, var(--accent)) 84%, var(--canvas, var(--bg)));
+  stroke:
+    color-mix(
+      in srgb,
+      var(--text) 48%,
+      var(--canvas, var(--bg))
+    );
   stroke-dasharray: 624.9375rem 0;
   opacity: 1;
   stroke-width: .15rem;
@@ -1216,7 +1278,12 @@
    ========================================================= */
 .vc-drag-connection {
   fill: none;
-  stroke: var(--accent);
+  stroke:
+    color-mix(
+      in srgb,
+      var(--text) 42%,
+      var(--canvas, var(--bg))
+    );
   stroke-width: .1375rem;
   stroke-linecap: round;
   opacity: 1;
@@ -1225,14 +1292,22 @@
 }
 .vc-drag-source-dot {
   fill:
-    var(--accent);
+    color-mix(
+      in srgb,
+      var(--text) 42%,
+      var(--canvas, var(--bg))
+    );
 }
 /* =========================================================
    DARK MODE
    ========================================================= */
 :root.dark .vc-port-pill {
-  background: color-mix(in srgb, var(--node-color) 38%, var(--node));
-  border-color: color-mix(in srgb, var(--node-color) 64%, var(--node));
+  background:
+    color-mix(
+      in srgb,
+      var(--text) 22%,
+      var(--node)
+    );
 }
 :root.dark .vc-node-icon {
   background: transparent;
@@ -1346,7 +1421,7 @@
 
 .vc-node.vc-expanded
 .vc-node-body {
-  margin-top: .5rem;
+  margin-top: .38rem;
 }
 
 .vc-request-group {
@@ -1354,8 +1429,8 @@
   display: grid;
   gap: 0;
   padding:
-    .54rem
-    .58rem;
+    .46rem
+    .5rem;
   border:
     .0625rem solid
     color-mix(
@@ -1363,7 +1438,7 @@
       var(--text) 6%,
       transparent
     );
-  border-radius: .92rem;
+  border-radius: .8rem;
   background:
     color-mix(
       in srgb,
@@ -1388,7 +1463,7 @@
 }
 
 .vc-request-input {
-  min-height: 2.5rem;
+  min-height: 2.3rem;
   max-height: 9rem;
   padding: 0;
   color: var(--text);
@@ -1459,4 +1534,11 @@
     min-height: 2.5rem;
     padding-inline: .55rem;
   }
+}
+
+.vc-node-run > span,
+.vc-node-delete > span {
+  display: inline-block;
+  line-height: 1.1;
+  transform: translateY(.01rem);
 }

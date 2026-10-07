@@ -266,7 +266,7 @@ test("composer uses a compact single-row state and a two-row expanded state", ()
   );
 });
 
-test("composer submit releases textarea focus after sending", () => {
+test("composer autofocus is desktop-only and never summons a mobile keyboard", () => {
   const js = read("front/js/app.js");
   const start = js.indexOf("async function handleSubmit");
   const end = js.indexOf("function handleComposerInput", start);
@@ -278,7 +278,23 @@ test("composer submit releases textarea focus after sending", () => {
     submit.indexOf("composerInput.blur()") <
       submit.indexOf("await runPrompt(text)")
   );
-  assert.doesNotMatch(js, /focusComposerWithoutScroll/);
+
+  assert.match(
+    js,
+    /function\s+shouldAutoFocusComposer\s*\([\s\S]*?\(hover:\s*hover\)\s*and\s*\(pointer:\s*fine\)/
+  );
+  assert.match(
+    js,
+    /function\s+focusComposerForDesktop\s*\([\s\S]*?UI\.getMode\?\.\(\)[\s\S]*?"chat"[\s\S]*?composerInput\.focus/
+  );
+  assert.match(
+    js,
+    /UI\.on\("modechange"[\s\S]*?mode\s*===\s*"chat"[\s\S]*?focusComposerForDesktop/
+  );
+  assert.match(
+    js,
+    /state\.ready\s*=\s*true[\s\S]*?focusComposerForDesktop/
+  );
 });
 
 test("dark theme keeps the app background distinct from surfaces", () => {
@@ -346,6 +362,22 @@ test("sidebar typography is larger and higher contrast", () => {
   assert.match(css, /\.ovll-sidebar-section-title\s*\{[^}]*font-size:\s*\.86rem/);
   assert.match(css, /\.ovll-sidebar-chat-title\s*\{[^}]*font-size:\s*\.98rem/);
   assert.match(css, /\.ovll-sidebar-chat-menu button\s*\{[^}]*color:\s*var\(--sidebar-text\)[^}]*font-size:\s*\.9rem/);
+});
+
+test("light chat bubble follows the workspace background palette", () => {
+  const css = read("front/css/chat.css");
+  const light = css.match(
+    /\.astra-message-user\s*\n\.astra-message-body\s*\{([\s\S]*?)\n\}/
+  )?.[1] ?? "";
+  const dark = css.match(
+    /:root\.dark\s*\n\.astra-message-user\s*\n\.astra-message-body\s*\{([\s\S]*?)\n\}/
+  )?.[1] ?? "";
+
+  assert.match(light, /var\(--bg\)\s+48%/);
+  assert.match(light, /var\(--panel\)\s+52%/);
+  assert.doesNotMatch(light, /var\(--text\)\s+6%/);
+  assert.match(dark, /var\(--panel\)\s+94%/);
+  assert.match(dark, /var\(--text\)\s+6%/);
 });
 
 test("workspace hierarchy favors content over decorative surfaces", () => {

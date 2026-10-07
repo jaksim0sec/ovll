@@ -21,20 +21,21 @@
     `,
     delete: `
       <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
-        <rect x="5.35" y="6.4" width="9.3" height="8.45" rx="2.15" stroke="currentColor" stroke-width="1.5"/>
-        <path d="M6.2 6.4h7.6M8.15 6.35V5.5c0-.55.45-1 1-1h1.7c.55 0 1 .45 1 1v.85" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M5.95 7.15h8.1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M7.15 7.2l.48 7.05c.05.75.67 1.33 1.42 1.33h1.9c.75 0 1.37-.58 1.42-1.33l.48-7.05" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M8.05 5.4h3.9M8.85 5.35v-.55c0-.42.34-.75.75-.75h.8c.41 0 .75.33.75.75v.55M8.75 9.25v3.95M11.25 9.25v3.95" stroke="currentColor" stroke-width="1.45" stroke-linecap="round"/>
       </svg>
     `,
     run: `
       <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
-        <circle cx="10" cy="10" r="6.05" stroke="currentColor" stroke-width="1.5"/>
-        <path d="M8.35 7.6c0-.56.62-.9 1.1-.6l3.25 2.08c.43.28.43.91 0 1.18l-3.25 2.08c-.48.3-1.1-.04-1.1-.6V7.6Z" fill="currentColor"/>
+        <rect x="3.85" y="4.65" width="12.3" height="10.7" rx="3.2" stroke="currentColor" stroke-width="1.5"/>
+        <path d="m8.55 7.7 3.75 2.3-3.75 2.3Z" stroke="currentColor" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
     `,
     stop: `
       <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
-        <circle cx="10" cy="10" r="6.05" stroke="currentColor" stroke-width="1.5"/>
-        <rect x="7.55" y="7.55" width="4.9" height="4.9" rx="1.35" fill="currentColor"/>
+        <rect x="3.85" y="4.65" width="12.3" height="10.7" rx="3.2" stroke="currentColor" stroke-width="1.5"/>
+        <rect x="8.05" y="8.05" width="3.9" height="3.9" rx="1.05" fill="currentColor"/>
       </svg>
     `,
     fileResult: `
@@ -1720,14 +1721,7 @@
           runtimeActive
         );
 
-        const definition = getDefinition(
-          getNode(connection.from.node)?.type
-        );
 
-        path.style.setProperty(
-          '--connection-color',
-          definition?.color || 'var(--text)'
-        );
       }
       for (const [id] of connectionElements) {
         if (!activeIds.has(id)) removeConnectionElement(id);
@@ -1771,16 +1765,6 @@
             continue;
           }
 
-          const sourceNode =
-            getNode(
-              anchor.node
-            );
-
-          const definition =
-            getDefinition(
-              sourceNode?.type
-            );
-
           const path =
             svgEl(
               'path',
@@ -1800,13 +1784,6 @@
           path.style.pointerEvents =
             'none';
 
-          if (
-            definition?.color
-          ) {
-            path.style.stroke =
-              definition.color;
-          }
-
           dragLayer.appendChild(
             path
           );
@@ -1824,13 +1801,6 @@
           dot.classList.add(
             'vc-drag-source-dot'
           );
-
-          if (
-            definition?.color
-          ) {
-            dot.style.fill =
-              definition.color;
-          }
 
           dot.style.pointerEvents =
             'none';
