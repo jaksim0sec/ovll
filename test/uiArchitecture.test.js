@@ -1786,6 +1786,55 @@ test("explicit verification requests are promoted to workflow planning", () => {
 });
 
 
+test("chat routing owns workflow decisions before planner execution", () => {
+  const gemini =
+    read(
+      "geminiExecution.js"
+    );
+  const server =
+    read(
+      "server.js"
+    );
+
+  assert.match(
+    gemini,
+    /shape of the user's goal/i
+  );
+  assert.match(
+    gemini,
+    /does not need to mention workflow, nodes, or canvas/i
+  );
+  assert.match(
+    gemini,
+    /answer the request directly is not evidence against workflow/i
+  );
+  assert.match(
+    gemini,
+    /inspect, edit, rerun, reuse, or chain/i
+  );
+  assert.match(
+    gemini,
+    /multi-step internal reasoning/i
+  );
+  assert.match(
+    server,
+    /Upstream routing has already selected this request for workflow planning/i
+  );
+  assert.match(
+    server,
+    /mode="workflow" for every normal planner response/i
+  );
+  assert.match(
+    server,
+    /Never downgrade a planner request to conversation mode/i
+  );
+  assert.match(
+    server,
+    /planner\.mode !==[\s\S]*?'workflow'/
+  );
+});
+
+
 test("auto execution works without requiring a workflow proposal", () => {
   const app =
     read(

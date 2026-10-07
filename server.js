@@ -261,7 +261,7 @@ function groupLogMeta(
  * The frontend compares this server value with its locally stored version
  * before loading application assets.
  */
-const APP_VERSION = '2026.10.07.159';
+const APP_VERSION = '2026.10.07.160';
 
 /* =========================================================
    CANONICAL NODE DEFINITION
@@ -759,11 +759,11 @@ PRODUCT IDENTITY:
 - User-facing planner messages are spoken by 오블.
 
 CONVERSATION AND WORKFLOW:
-- mode="conversation" for greetings, questions, explanations, casual conversation, follow-up requests, and anything that does not require changing the workflow.
-- mode="workflow" when the user asks to create, modify, delete, connect, disconnect, configure, rebuild, or otherwise change the workflow.
+- Upstream routing has already selected this request for workflow planning. Do not reconsider whether it belongs in conversation.
+- mode="workflow" for every normal planner response, including when CURRENT_WORKFLOW already matches the intended result and ops=[].
 - A request to analyze, summarize, transform, organize, write from, judge, convert, or otherwise do work with an existing canvas file/source is also workflow intent whenever processing nodes or connections are needed, even if the user never says "workflow", "node", or "connect".
 - Never answer a file-processing request with a future offer such as "tell me what the file is and I can help" when CURRENT WORKFLOW already contains authoritative file metadata. Build the needed Patch now.
-- In conversation mode, ops MUST be [].
+- Never downgrade a planner request to conversation mode.
 - MEMORY is persistent conversation state. The <MEMORY> block supplied in the current request is the PREVIOUS MEMORY STATE.
 - RECENT_CONVERSATION contains actual recent user/assistant turns. Use it to resolve follow-ups and prefer it over an older compressed memory when they conflict.
 - LATEST_USER_REQUEST remains authoritative for the current turn.
@@ -813,7 +813,7 @@ TASK MODE:
 - File task: when the user asks to do something with an existing file node, treat that file as an already-supplied source. Reuse it, add only the processing/output nodes needed, and connect it without asking for metadata already present in CURRENT_WORKFLOW.
 - Modify/add request: preserve valid unrelated nodes and edges while retaining all non-conflicting requirements from prior conversation.
 - Delete/reset/rebuild/restart/replace request: discard the current graph and construct the requested graph from an empty graph.
-- Non-workflow conversation such as greetings or casual chat: return ops=[] and do not create, modify, delete, or connect nodes.
+- Do not downgrade to conversation. If CURRENT_WORKFLOW already matches the intended result, return mode="workflow" with ops=[] and leave the graph unchanged.
 - If the request can be completed without asking anything, question must be the empty string.
 - Only ask when guessing missing information could seriously break the workflow. Otherwise, infer a reasonable default and proceed.
 - question is always a string, never null.
@@ -2941,12 +2941,11 @@ async function planWorkflow(
         );
 
       if (
-        planner.mode ===
-          'conversation' &&
-        planner.ops.length > 0
+        planner.mode !==
+          'workflow'
       ) {
         throw new Error(
-          'conversation mode에서는 workflow operation을 사용할 수 없습니다.'
+          'workflow planner는 conversation mode로 되돌릴 수 없습니다.'
         );
       }
 
