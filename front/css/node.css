@@ -181,6 +181,7 @@
   height: 1.75rem;
   display: block;
   max-width: none;
+  stroke-width: 1.152;
 }
 .vc-node-icon svg [stroke] {
   stroke-width: 1.152;

@@ -1943,7 +1943,7 @@ test("node connection handles stay hollow while title controls gain hierarchy", 
   );
   assert.match(
     css,
-    /\.vc-node-icon svg\s*\{[^}]*width:\s*1\.75rem[^}]*height:\s*1\.75rem/
+    /\.vc-node-icon svg\s*\{[^}]*width:\s*1\.75rem[^}]*height:\s*1\.75rem[^}]*stroke-width:\s*1\.152/
   );
   assert.match(
     css,
