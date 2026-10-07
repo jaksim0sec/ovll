@@ -1076,8 +1076,8 @@
    PORT PILL
    ========================================================= */
 .vc-port-pill {
-  width: .6rem;
-  height: .6rem;
+  width: .75rem;
+  height: .75rem;
   flex: none;
   box-sizing: border-box;
   border:
@@ -1095,6 +1095,14 @@
     transform .15s cubic-bezier(.22,.8,.25,1),
     border-color .15s ease,
     box-shadow .15s ease;
+}
+.vc-port-hit.vc-input .vc-port-pill {
+  -webkit-clip-path: inset(0 50% 0 0);
+  clip-path: inset(0 50% 0 0);
+}
+.vc-port-hit.vc-output .vc-port-pill {
+  -webkit-clip-path: inset(0 0 0 50%);
+  clip-path: inset(0 0 0 50%);
 }
 .vc-node.vc-selected .vc-port-pill,
 .vc-node.vc-expanded .vc-port-pill {
