@@ -182,9 +182,6 @@
   display: block;
   max-width: none;
 }
-.vc-node-icon svg [stroke] {
-  stroke-width: 1.2;
-}
 .vc-node:hover .vc-node-icon,
 .vc-node.vc-selected .vc-node-icon,
 .vc-node.vc-expanded .vc-node-icon {

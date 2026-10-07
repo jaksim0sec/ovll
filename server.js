@@ -261,7 +261,7 @@ function groupLogMeta(
  * The frontend compares this server value with its locally stored version
  * before loading application assets.
  */
-const APP_VERSION = '2026.10.07.141';
+const APP_VERSION = '2026.10.07.142';
 
 /* =========================================================
    CANONICAL NODE DEFINITION
@@ -275,9 +275,8 @@ const defaultNodeDef = {
     tag: 'START',
     color: '#10B981',
     icon: `
-      <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
-        <circle cx="10" cy="10" r="6.2" stroke="currentColor" stroke-width="1.55"/>
-        <path d="M8.45 7.55c0-.58.64-.92 1.12-.6l3.38 2.22c.42.28.42.9 0 1.18l-3.38 2.22c-.48.32-1.12-.02-1.12-.6V7.55Z" fill="currentColor"/>
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M6.05 5.05c0-.95 1.04-1.53 1.84-1.03l6.65 4.13c.8.5.8 1.66 0 2.16l-6.65 4.13c-.8.5-1.84-.08-1.84-1.03V5.05Z"/>
       </svg>
     `,
     inputs: [],
@@ -300,9 +299,9 @@ const defaultNodeDef = {
     tag: 'RESEARCH',
     color: '#4F8EF7',
     icon: `
-      <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
-        <circle cx="10" cy="10" r="6.2" stroke="currentColor" stroke-width="1.55"/>
-        <path d="M4.2 10h11.6M10 3.8c1.48 1.72 2.25 3.79 2.25 6.2S11.48 14.48 10 16.2M10 3.8C8.52 5.52 7.75 7.59 7.75 10s.77 4.48 2.25 6.2" stroke="currentColor" stroke-width="1.42" stroke-linecap="round" stroke-linejoin="round"/>
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="10" cy="10" r="6.15"/>
+        <path d="M3.85 10h12.3M10 3.85c1.65 1.7 2.5 3.75 2.5 6.15S11.65 14.45 10 16.15M10 3.85C8.35 5.55 7.5 7.6 7.5 10s.85 4.45 2.5 6.15"/>
       </svg>
     `,
     params: [
@@ -358,11 +357,10 @@ const defaultNodeDef = {
     tag: 'ORGANIZE',
     color: '#E9A63A',
     icon: `
-      <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
-        <rect x="3.7" y="3.7" width="12.6" height="12.6" rx="3" stroke="currentColor" stroke-width="1.5"/>
-        <rect x="6.05" y="6.15" width="7.9" height="1.8" rx=".9" fill="currentColor"/>
-        <rect x="6.05" y="9.1" width="5.4" height="1.8" rx=".9" fill="currentColor"/>
-        <rect x="6.05" y="12.05" width="6.65" height="1.8" rx=".9" fill="currentColor"/>
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M9.75 4.25c-.58-.72-1.5-1.1-2.42-.93-1.22.22-2.05 1.37-1.88 2.6-1.5.1-2.65 1.35-2.65 2.86 0 1.12.65 2.14 1.65 2.61-.58 1.67.4 3.48 2.08 3.86.35 1.05 1.35 1.78 2.5 1.78.28 0 .53-.04.77-.11V4.25Z"/>
+        <path d="M10.25 4.25c.58-.72 1.5-1.1 2.42-.93 1.22.22 2.05 1.37 1.88 2.6 1.5.1 2.65 1.35 2.65 2.86 0 1.12-.65 2.14-1.65 2.61.58 1.67-.4 3.48-2.08 3.86-.35 1.05-1.35 1.78-2.5 1.78-.28 0-.53-.04-.77-.11V4.25Z"/>
+        <path d="M6.25 8c1.2 0 1.95.68 1.95 1.7M13.75 8c-1.2 0-1.95.68-1.95 1.7"/>
       </svg>
     `,
     params: [
@@ -418,9 +416,10 @@ const defaultNodeDef = {
     tag: 'JUDGE',
     color: '#8B6BE8',
     icon: `
-      <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
-        <circle cx="10" cy="10" r="6.2" stroke="currentColor" stroke-width="1.55"/>
-        <path d="M6.8 10.15 9 12.3l4.3-4.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M4.15 6.2h11.7M10 3.95v11.9M7.05 15.85h5.9"/>
+        <path d="M3.25 9.45h3.6M5.05 6.2 3.25 9.45M5.05 6.2l1.8 3.25M3.25 9.45c.22 1.45.82 2.18 1.8 2.18s1.58-.73 1.8-2.18"/>
+        <path d="M13.15 9.45h3.6M14.95 6.2l-1.8 3.25M14.95 6.2l1.8 3.25M13.15 9.45c.22 1.45.82 2.18 1.8 2.18s1.58-.73 1.8-2.18"/>
       </svg>
     `,
     params: [
@@ -485,10 +484,10 @@ const defaultNodeDef = {
     tag: 'WRITE',
     color: '#D96F83',
     icon: `
-      <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
-        <rect x="4.15" y="3.8" width="9.2" height="12.4" rx="2.3" stroke="currentColor" stroke-width="1.45"/>
-        <path d="M7.7 14.15 13.9 7.95" stroke="currentColor" stroke-width="2.15" stroke-linecap="round"/>
-        <path d="m13.2 7.25 1.55 1.55" stroke="currentColor" stroke-width="2.15" stroke-linecap="round"/>
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M4.15 13.75 6.45 5.6c.2-.72.86-1.22 1.61-1.22h3.88c.75 0 1.41.5 1.61 1.22L15.85 13.75 10 15.8l-5.85-2.05Z"/>
+        <path d="M10 4.38v5.15M10 9.53 7.7 14.98M10 9.53l2.3 5.45"/>
+        <circle cx="10" cy="9.53" r=".82"/>
       </svg>
     `,
     params: [
@@ -559,9 +558,8 @@ const defaultNodeDef = {
     tag: 'INPUT',
     color: '#718096',
     icon: `
-      <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
-        <path d="M5.45 3.65h5.2l3.9 3.9v7.05a1.75 1.75 0 0 1-1.75 1.75H5.45A1.75 1.75 0 0 1 3.7 14.6V5.4a1.75 1.75 0 0 1 1.75-1.75Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
-        <path d="M10.65 3.65v2.9a1 1 0 0 0 1 1h2.9M6.8 10.4h4.9M6.8 12.95h3.65" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M3.7 6.35c0-1.05.85-1.9 1.9-1.9h2.8l1.55 1.65h4.45c1.05 0 1.9.85 1.9 1.9v6.05c0 1.05-.85 1.9-1.9 1.9H5.6c-1.05 0-1.9-.85-1.9-1.9v-7.7Z"/>
       </svg>
     `,
     inputs: [],
@@ -584,8 +582,8 @@ const defaultNodeDef = {
     tag: 'OUTPUT',
     color: '#0EA5A4',
     icon: `
-      <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
-        <path d="M10 3.55c.43 3.2 2.65 5.42 5.85 5.85.75.1.75 1.1 0 1.2-3.2.43-5.42 2.65-5.85 5.85-.1.75-1.1.75-1.2 0-.43-3.2-2.65-5.42-5.85-5.85-.75-.1-.75-1.1 0-1.2 3.2-.43 5.42-2.65 5.85-5.85.1-.75 1.1-.75 1.2 0Z" stroke="currentColor" stroke-width="1.45" stroke-linejoin="round"/>
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M10 3.55c.42 3.18 2.67 5.43 5.85 5.85.78.1.78 1.1 0 1.2-3.18.42-5.43 2.67-5.85 5.85-.1.78-1.1.78-1.2 0-.42-3.18-2.67-5.43-5.85-5.85-.78-.1-.78-1.1 0-1.2 3.18-.42 5.43-2.67 5.85-5.85.1-.78 1.1-.78 1.2 0Z"/>
       </svg>
     `,
     params: [

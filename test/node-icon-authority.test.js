@@ -137,14 +137,16 @@ function serverDefinitions(icon) {
 }
 
 test(
-  "fresh node definitions always use frontend-owned built-in icons",
+  "fresh node definitions preserve server-owned built-in icons",
   async () => {
+    const expected =
+      serverDefinitions(
+        "fresh"
+      );
     const browser =
       createBrowser({
         fetchDefinitions: {
-          ...serverDefinitions(
-            "old"
-          ),
+          ...expected,
           "custom:demo": {
             name: "custom",
             icon:
@@ -165,10 +167,8 @@ test(
     ) {
       assert.equal(
         definitions[type].icon,
-        browser.window
-          .OvllSvgLibrary
-          .getNodeIcon(type),
-        `${type} must ignore server icon`
+        expected[type].icon,
+        `${type} must preserve server icon`
       );
     }
 
@@ -186,22 +186,22 @@ test(
 
     assert.equal(
       stored.start.icon,
-      browser.window
-        .OvllSvgLibrary
-        .getNodeIcon("start")
+      expected.start.icon
     );
   }
 );
 
 test(
-  "stored legacy node definitions are normalized before offline use",
+  "stored server node icons survive offline without frontend normalization",
   async () => {
+    const expected =
+      serverDefinitions(
+        "cached"
+      );
     const browser =
       createBrowser({
         storedDefinitions:
-          serverDefinitions(
-            "stale"
-          ),
+          expected,
         fetchError:
           new Error(
             "offline"
@@ -218,11 +218,48 @@ test(
     ) {
       assert.equal(
         definitions[type].icon,
-        browser.window
-          .OvllSvgLibrary
-          .getNodeIcon(type),
-        `${type} cached icon must be frontend-owned`
+        expected[type].icon,
+        `${type} cached icon must stay server-owned`
       );
     }
+  }
+);
+
+test(
+  "svg library exposes generic icons but no built-in node icon authority",
+  () => {
+    const browser =
+      createBrowser();
+
+    assert.equal(
+      browser.window
+        .OvllSvgLibrary
+        .has("composerSend"),
+      true
+    );
+    assert.match(
+      browser.window
+        .OvllSvgLibrary
+        .get("composerSend"),
+      /<svg/
+    );
+    assert.equal(
+      browser.window
+        .OvllSvgLibrary
+        .getNodeIcon,
+      undefined
+    );
+    assert.equal(
+      browser.window
+        .OvllSvgLibrary
+        .hasNodeIcon,
+      undefined
+    );
+    assert.equal(
+      browser.window
+        .OvllSvgLibrary
+        .nodeIcons,
+      undefined
+    );
   }
 );
