@@ -32,6 +32,57 @@ function cssBlock(selector) {
     css.indexOf("}", open);
   return css.slice(open + 1, close);
 }
+function serverNodeIcon(type) {
+  const definitionStart =
+    server.indexOf(
+      "const defaultNodeDef = {"
+    );
+  const definitionEnd =
+    server.indexOf(
+      "const CUSTOM_NODE_TYPE_RE",
+      definitionStart
+    );
+  const definitions =
+    server.slice(
+      definitionStart,
+      definitionEnd
+    );
+  const typeStart =
+    definitions.indexOf(
+      `\n  ${type}: {`
+    );
+
+  assert.notEqual(
+    typeStart,
+    -1,
+    `missing server definition for ${type}`
+  );
+
+  const typeEnd =
+    definitions.indexOf(
+      "\n  },",
+      typeStart
+    );
+  const section =
+    definitions.slice(
+      typeStart,
+      typeEnd === -1
+        ? definitions.length
+        : typeEnd
+    );
+  const match =
+    section.match(
+      /icon:\s*`([\s\S]*?)`/
+    );
+
+  assert.ok(
+    match,
+    `missing server icon for ${type}`
+  );
+
+  return match[1];
+}
+
 
 test("request area stays flat and visually attached to the node title", () => {
   assert.match(css, /:root\.dark\s+\.vc-node-icon\s*\{[\s\S]*?background:\s*transparent;/);
@@ -53,7 +104,7 @@ test("node icons align to their visible glyph width without hidden x-space", () 
   assert.match(icon, /flex:\s*0 0 1\.46rem/);
   assert.match(icon, /justify-content:\s*flex-start/);
   assert.match(cssBlock(".vc-node-icon svg"), /width:\s*1\.46rem/);
-  assert.match(cssBlock(".vc-node-icon svg [stroke]"), /stroke-width:\s*1\.2/);
+  assert.doesNotMatch(css, /\.vc-node-icon svg \[stroke\]\s*\{/);
 });
 
 test("node titles use a lighter identity weight", () => {
@@ -123,61 +174,112 @@ test("node action icons are semantic rounded stroke glyphs with balanced text hi
   assert.match(deleteIcon, /stroke-width="1\.38"/);
 });
 
-test("server keeps built-in node icons in canonical definitions", () => {
-  const definitionStart =
-    server.indexOf(
-      "const defaultNodeDef = {"
-    );
-  const definitionEnd =
-    server.indexOf(
-      "const CUSTOM_NODE_TYPE_RE",
-      definitionStart
-    );
-  const definitions =
-    server.slice(
-      definitionStart,
-      definitionEnd
+test("server-owned node icons share one rounded monoline visual contract", () => {
+  const icons =
+    Object.fromEntries(
+      [
+        "start",
+        "research",
+        "organize",
+        "judge",
+        "write",
+        "file",
+        "createFile"
+      ].map(
+        type => [
+          type,
+          serverNodeIcon(type)
+        ]
+      )
     );
 
   for (
-    const type of [
-      "start",
-      "research",
-      "organize",
-      "judge",
-      "write",
-      "file",
-      "createFile"
-    ]
+    const [type, icon] of
+    Object.entries(icons)
   ) {
-    const typeStart =
-      definitions.indexOf(
-        `\n  ${type}: {`
-      );
-    assert.notEqual(
-      typeStart,
-      -1,
-      `missing server definition for ${type}`
-    );
-    const nextType =
-      definitions.indexOf(
-        "\n  },",
-        typeStart
-      );
-    const section =
-      definitions.slice(
-        typeStart,
-        nextType === -1
-          ? definitions.length
-          : nextType
-      );
     assert.match(
-      section,
-      /icon:\s*`[\s\S]*?<svg/,
-      `missing server icon for ${type}`
+      icon,
+      /viewBox="0 0 20 20"/,
+      `${type} viewBox`
+    );
+    assert.match(
+      icon,
+      /fill="none"/,
+      `${type} outline root`
+    );
+    assert.match(
+      icon,
+      /stroke="currentColor"/,
+      `${type} currentColor stroke`
+    );
+    assert.match(
+      icon,
+      /stroke-linecap="round"/,
+      `${type} rounded cap`
+    );
+    assert.match(
+      icon,
+      /stroke-linejoin="round"/,
+      `${type} rounded join`
+    );
+    assert.doesNotMatch(
+      icon,
+      /fill="currentColor"/,
+      `${type} must stay outline-first`
+    );
+    assert.doesNotMatch(
+      icon,
+      /var\(--node\)/,
+      `${type} must not depend on node background`
     );
   }
+
+  assert.match(
+    icons.research,
+    /<circle cx="10" cy="10" r="6\.15"/
+  );
+  assert.match(
+    icons.research,
+    /M3\.85 10h12\.3/
+  );
+
+  assert.match(
+    icons.judge,
+    /M4\.15 6\.2h11\.7/
+  );
+  assert.match(
+    icons.judge,
+    /M3\.25 9\.45h3\.6/
+  );
+  assert.match(
+    icons.judge,
+    /M13\.15 9\.45h3\.6/
+  );
+
+  assert.match(
+    icons.file,
+    /M3\.7 6\.35/
+  );
+
+  assert.match(
+    icons.createFile,
+    /M10 3\.55c\.42 3\.18/
+  );
+
+  assert.match(
+    icons.write,
+    /M4\.15 13\.75 6\.45 5\.6/
+  );
+  assert.match(
+    icons.write,
+    /15\.85 13\.75/
+  );
+  assert.doesNotMatch(
+    icons.write,
+    /M10 2\.9/
+  );
 });
+
 test("ports and connection lines are neutral borderless geometry", () => {
   const port = cssBlock(".vc-port-pill");
   const connection = cssBlock(".vc-connection");
