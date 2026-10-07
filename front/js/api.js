@@ -45,6 +45,7 @@
     "ovll:node-definitions";
   let nodeDefinitionsCache = null;
   let nodeDefinitionsPromise = null;
+  let nodeDefinitionsFresh = false;
 
   function readStoredNodeDefinitions() {
     try {
@@ -902,6 +903,7 @@
   ) {
     if (
       nodeDefinitionsCache &&
+      nodeDefinitionsFresh &&
       !options.force
     ) {
       return nodeDefinitionsCache;
@@ -940,6 +942,7 @@
 
         nodeDefinitionsCache =
           result.nodes;
+        nodeDefinitionsFresh = true;
         storeNodeDefinitions(
           nodeDefinitionsCache
         );
@@ -994,6 +997,7 @@
   }
   function clearNodeDefinitionsCache() {
     nodeDefinitionsCache = null;
+    nodeDefinitionsFresh = false;
   }
   /* =======================================================
      Definition Helpers
