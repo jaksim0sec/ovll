@@ -15,22 +15,23 @@ function cssBlock(selector) {
   return css.slice(open + 1, close);
 }
 
-test("dark nodes keep the icon one-layer and use neutral request surfaces", () => {
+test("request area stays flat and visually attached to the node title", () => {
   assert.match(css, /:root\.dark\s+\.vc-node-icon\s*\{[\s\S]*?background:\s*transparent;/);
-  const darkRequest = css.match(/:root\.dark\s+\.vc-request-group\s*\{([\s\S]*?)\n\}/)?.[1] ?? "";
-  assert.doesNotMatch(darkRequest, /var\(--node-color\)/);
-  assert.match(darkRequest, /var\(--text\)\s+4\.5%/);
+
+  const request = css.match(/\.vc-request-group\s*\{([\s\S]*?)\n\}/)?.[1] ?? "";
+  const expandedBody = css.match(/\.vc-node\.vc-expanded\s+\.vc-node-body\s*\{([\s\S]*?)\n\}/)?.[1] ?? "";
+
+  assert.match(request, /padding:\s*\.1rem\s*\.08rem\s*\.18rem\s*2\.12rem/);
+  assert.match(request, /border:\s*0/);
+  assert.match(request, /background:\s*transparent/);
+  assert.match(expandedBody, /margin-top:\s*\.18rem/);
+  assert.match(css, /\.vc-request-input\s*\{[\s\S]*?min-height:\s*1\.7rem/);
+  assert.doesNotMatch(css, /:root\.dark\s+\.vc-request-group\s*\{/);
 });
 
-test("request panels keep the node body visually compact", () => {
-  const request = css.match(/\.vc-request-group\s*\{([\s\S]*?)\n\}/)?.[1] ?? "";
-  const expandedBody = css.match(/\.vc-node\.vc-expanded\s*\n\.vc-node-body\s*\{([\s\S]*?)\n\}/)?.[1] ?? "";
-
-  assert.match(request, /padding:\s*\.46rem\s*\.5rem/);
-  assert.match(request, /border-radius:\s*\.8rem/);
-  assert.match(request, /var\(--bg\)\s+82%/);
-  assert.match(expandedBody, /margin-top:\s*\.38rem/);
-  assert.match(css, /\.vc-request-input\s*\{[\s\S]*?min-height:\s*2\.3rem/);
+test("node titles use a lighter identity weight", () => {
+  assert.match(cssBlock(".vc-node-title"), /font-weight:\s*690/);
+  assert.match(cssBlock(".vc-file-title"), /font-weight:\s*690/);
 });
 
 test("expanded footer buttons share width", () => {
@@ -60,6 +61,10 @@ test("node action icons are semantic rounded stroke glyphs with balanced text hi
   assert.match(deleteButton, /gap:\s*\.3rem/);
   assert.match(runButton, /font-size:\s*\.66rem/);
   assert.match(deleteButton, /font-size:\s*\.66rem/);
+  assert.match(runButton, /font-weight:\s*620/);
+  assert.match(deleteButton, /font-weight:\s*620/);
+  assert.match(runButton, /var\(--text\)\s+5\.6%/);
+  assert.match(deleteButton, /var\(--text\)\s+5\.6%/);
 
   const runStart = canvasNode.indexOf("run: \`");
   const runEnd = canvasNode.indexOf("stop: \`", runStart);
@@ -67,6 +72,8 @@ test("node action icons are semantic rounded stroke glyphs with balanced text hi
   assert.match(runIcon, /<rect x="3\.85" y="4\.65" width="12\.3" height="10\.7" rx="3\.2"/);
   assert.doesNotMatch(runIcon, /<circle/);
   assert.match(runIcon, /stroke-linejoin="round"/);
+  assert.match(runIcon, /stroke-width="1\.38"/);
+  assert.match(runIcon, /stroke-width="1\.34"/);
 
   const deleteStart = canvasNode.indexOf("delete: \`");
   const deleteEnd = canvasNode.indexOf("run: \`", deleteStart);
@@ -74,12 +81,14 @@ test("node action icons are semantic rounded stroke glyphs with balanced text hi
   assert.match(deleteIcon, /M5\.95 7\.15h8\.1/);
   assert.match(deleteIcon, /M7\.15 7\.2l\.48 7\.05/);
   assert.match(deleteIcon, /M8\.05 5\.4/);
+  assert.match(deleteIcon, /stroke-width="1\.38"/);
+  assert.match(deleteIcon, /stroke-width="1\.34"/);
 });
 
 test("all default node icons are balanced rounded closed shapes", () => {
   assert.equal((svgLibrary.match(/^  (?:start|research|organize|judge|write|file|createFile):`/gm) || []).length, 7);
   assert.match(svgLibrary, /organize:\s*`[\s\S]*?<rect x="3\.7" y="3\.7" width="12\.6" height="12\.6" rx="3"/);
-  assert.match(svgLibrary, /write:\s*`[\s\S]*?stroke-width="2\.15" stroke-linecap="round"/);
+  assert.match(svgLibrary, /write:\s*`[\s\S]*?stroke-width="1\.95" stroke-linecap="round"/);
   assert.match(svgLibrary, /file:\s*`[\s\S]*?M5\.45 3\.65h5\.2l3\.9 3\.9v7\.05a1\.75 1\.75/);
   assert.match(svgLibrary, /createFile:\s*`[\s\S]*?M10 3\.55c\.43 3\.2/);
 });
