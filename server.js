@@ -418,8 +418,8 @@ const defaultNodeDef = {
     icon: `
       <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M4.15 6.2h11.7M10 3.95v11.9M7.05 15.85h5.9"/>
-        <path d="M5.05 6.2 3.25 9.45h3.6L5.05 6.2ZM14.95 6.2l-1.8 3.25h3.6l-1.8-3.25Z"/>
-        <path d="M3.25 9.45c.22 1.45.82 2.18 1.8 2.18s1.58-.73 1.8-2.18M13.15 9.45c.22 1.45.82 2.18 1.8 2.18s1.58-.73 1.8-2.18"/>
+        <path d="M3.25 9.45h3.6M5.05 6.2 3.25 9.45M5.05 6.2l1.8 3.25M3.25 9.45c.22 1.45.82 2.18 1.8 2.18s1.58-.73 1.8-2.18"/>
+        <path d="M13.15 9.45h3.6M14.95 6.2l-1.8 3.25M14.95 6.2l1.8 3.25M13.15 9.45c.22 1.45.82 2.18 1.8 2.18s1.58-.73 1.8-2.18"/>
       </svg>
     `,
     params: [
