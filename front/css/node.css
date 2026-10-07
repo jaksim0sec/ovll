@@ -301,13 +301,13 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: .24rem;
+  gap: .16rem;
   margin: 0;
-  padding: 0 .5rem;
+  padding: 0 .4rem;
   border: 0;
   outline: 0;
   border-radius: .72rem;
-  color: var(--text);
+  color: var(--node-color);
   background:
     color-mix(
       in srgb,
@@ -334,12 +334,12 @@
 }
 
 .vc-node-run svg {
-  width: .94rem;
-  height: .94rem;
-  flex: 0 0 .94rem;
+  width: 1.04rem;
+  height: 1.04rem;
+  flex: 0 0 1.04rem;
   overflow: visible;
-  color: var(--node-color);
-  opacity: .9;
+  color: currentColor;
+  opacity: 1;
 }
 .vc-node-run span,
 .vc-node-delete span {
@@ -349,7 +349,7 @@
 }
 
 .vc-node-run:hover {
-  color: var(--text);
+  color: var(--node-color);
   background:
     color-mix(
       in srgb,
@@ -993,11 +993,11 @@
   min-width: 0;
   width: auto;
   min-height: 1.85rem;
-  padding: 0 .5rem;
+  padding: 0 .4rem;
   margin: 0;
   justify-content: center;
   align-items: center;
-  gap: .24rem;
+  gap: .16rem;
   border: 0;
   border-radius: .72rem;
   color: var(--text);
@@ -1033,12 +1033,13 @@
     );
 }
 .vc-node-delete svg {
-  width: .94rem;
-  height: .94rem;
+  width: 1.04rem;
+  height: 1.04rem;
   display: block;
   max-width: none;
-  flex: 0 0 .94rem;
-  opacity: .84;
+  flex: 0 0 1.04rem;
+  color: currentColor;
+  opacity: 1;
 }
 /* =========================================================
    PORT HIT AREA

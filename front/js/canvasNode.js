@@ -21,12 +21,12 @@
     `,
     delete: `
       <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
-        <path d="M5.8 6.7h8.4M7 6.75l.45 7c.05.67.6 1.18 1.27 1.18h2.56c.67 0 1.22-.51 1.27-1.18l.45-7M8 4.95h4" stroke="currentColor" stroke-width="1.38" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M5.65 6.55h8.7M6.95 6.6l.46 7.05c.05.74.66 1.3 1.4 1.3h2.38c.74 0 1.35-.56 1.4-1.3l.46-7.05M7.85 4.75h4.3" stroke="currentColor" stroke-width="1.42" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
     `,
     run: `
       <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
-        <path d="m7.15 5.65 6.9 4.35-6.9 4.35Z" fill="currentColor" stroke="currentColor" stroke-width=".5" stroke-linejoin="round"/>
+        <path d="M7.5 5.7c-.52-.33-1.2.05-1.2.67v7.26c0 .62.68 1 1.2.67l5.8-3.63c.5-.31.5-1.03 0-1.34L7.5 5.7Z" stroke="currentColor" stroke-width="1.42" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
     `,
     stop: `

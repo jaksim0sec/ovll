@@ -138,40 +138,46 @@ test("file node follows the same compact one-line identity hierarchy", () => {
   assert.match(type, /border-radius:\s*999px/);
 });
 
-test("node action icons are semantic rounded stroke glyphs with balanced text hierarchy", () => {
+test("node footer actions use balanced rounded stroke glyphs and compact spacing", () => {
   const runCss = cssBlock(".vc-node-run svg");
   const deleteCss = cssBlock(".vc-node-delete svg");
   const runButton = cssBlock(".vc-node-run");
   const deleteButton = cssBlock(".vc-node-delete");
 
-  assert.match(runCss, /width:\s*\.94rem/);
-  assert.match(deleteCss, /width:\s*\.94rem/);
-  assert.match(runCss, /opacity:\s*\.84/);
-  assert.match(deleteCss, /opacity:\s*\.84/);
-  assert.match(runButton, /gap:\s*\.24rem/);
-  assert.match(deleteButton, /gap:\s*\.24rem/);
+  assert.match(runCss, /width:\s*1\.04rem/);
+  assert.match(deleteCss, /width:\s*1\.04rem/);
+  assert.match(runButton, /gap:\s*\.16rem/);
+  assert.match(deleteButton, /gap:\s*\.16rem/);
+  assert.match(runButton, /padding:\s*0\s+\.4rem/);
+  assert.match(deleteButton, /padding:\s*0\s+\.4rem/);
   assert.match(runButton, /font-size:\s*\.66rem/);
   assert.match(deleteButton, /font-size:\s*\.66rem/);
   assert.match(runButton, /font-weight:\s*620/);
   assert.match(deleteButton, /font-weight:\s*620/);
-  assert.match(runButton, /var\(--text\)\s+5\.6%/);
+  assert.match(runButton, /color:\s*var\(--node-color\)/);
+  assert.match(runCss, /color:\s*currentColor/);
+  assert.match(deleteCss, /color:\s*currentColor/);
+  assert.match(cssBlock(".vc-node-run:hover"), /color:\s*var\(--node-color\)/);
+  assert.match(runButton, /var\(--node-color\)\s+7%/);
   assert.match(deleteButton, /var\(--text\)\s+5\.6%/);
 
-  const runStart = canvasNode.indexOf("run: \`");
-  const runEnd = canvasNode.indexOf("stop: \`", runStart);
+  const runStart = canvasNode.indexOf("run: `");
+  const runEnd = canvasNode.indexOf("stop: `", runStart);
   const runIcon = canvasNode.slice(runStart, runEnd);
-  assert.match(runIcon, /<rect x="4\.1" y="4\.1" width="11\.8" height="11\.8" rx="4\.1"/);
-  assert.doesNotMatch(runIcon, /<circle/);
-  assert.match(runIcon, /fill="currentColor"/);
-  assert.match(runIcon, /stroke-width="1\.36"/);
+  assert.match(runIcon, /M7\.5 5\.7c-\.52-\.33-1\.2\.05-1\.2\.67v7\.26/);
+  assert.match(runIcon, /stroke-width="1\.42"/);
+  assert.match(runIcon, /stroke-linecap="round"/);
+  assert.match(runIcon, /stroke-linejoin="round"/);
+  assert.doesNotMatch(runIcon, /fill="currentColor"/);
 
-  const deleteStart = canvasNode.indexOf("delete: \`");
-  const deleteEnd = canvasNode.indexOf("run: \`", deleteStart);
+  const deleteStart = canvasNode.indexOf("delete: `");
+  const deleteEnd = canvasNode.indexOf("run: `", deleteStart);
   const deleteIcon = canvasNode.slice(deleteStart, deleteEnd);
-  assert.match(deleteIcon, /M6\.05 6\.85h7\.9/);
-  assert.match(deleteIcon, /M7\.2 6\.9l\.42 6\.45/);
-  assert.match(deleteIcon, /M8\.1 5\.15h3\.8/);
-  assert.match(deleteIcon, /stroke-width="1\.38"/);
+  assert.match(deleteIcon, /M5\.65 6\.55h8\.7/);
+  assert.match(deleteIcon, /stroke-width="1\.42"/);
+  assert.match(deleteIcon, /stroke-linecap="round"/);
+  assert.match(deleteIcon, /stroke-linejoin="round"/);
+  assert.doesNotMatch(deleteIcon, /fill="currentColor"/);
 });
 
 test("server-owned node icons share one rounded monoline visual contract", () => {
