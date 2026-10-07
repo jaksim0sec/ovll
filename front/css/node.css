@@ -323,7 +323,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: .16rem;
+  gap: .12rem;
   margin: 0;
   padding: 0 .4rem;
   border: 0;
@@ -1019,7 +1019,7 @@
   margin: 0;
   justify-content: center;
   align-items: center;
-  gap: .16rem;
+  gap: .12rem;
   border: 0;
   border-radius: .72rem;
   color: var(--text);

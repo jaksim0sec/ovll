@@ -146,8 +146,8 @@ test("node footer actions use balanced rounded stroke glyphs and compact spacing
 
   assert.match(runCss, /width:\s*1\.04rem/);
   assert.match(deleteCss, /width:\s*1\.04rem/);
-  assert.match(runButton, /gap:\s*\.16rem/);
-  assert.match(deleteButton, /gap:\s*\.16rem/);
+  assert.match(runButton, /gap:\s*\.12rem/);
+  assert.match(deleteButton, /gap:\s*\.12rem/);
   assert.match(runButton, /padding:\s*0\s+\.4rem/);
   assert.match(deleteButton, /padding:\s*0\s+\.4rem/);
   assert.match(runButton, /font-size:\s*\.66rem/);
