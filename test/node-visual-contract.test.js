@@ -89,7 +89,7 @@ test("default node icons use compact filled silhouettes with minimal inner detai
   assert.equal((svgLibrary.match(/^  (?:start|research|organize|judge|write|file|createFile):`/gm) || []).length, 7);
   assert.match(svgLibrary, /research:\s*`[\s\S]*?fill-rule="evenodd"/);
   assert.match(svgLibrary, /organize:\s*`[\s\S]*?<rect x="3\.7" y="4\.1" width="12\.6" height="3\.05" rx="1\.525" fill="currentColor"/);
-  assert.match(svgLibrary, /write:\s*`[\s\S]*?M10 2\.9c\.44 0 \.85 \.21 1\.12 \.56/);
+  assert.match(svgLibrary, /write:\s*`[\s\S]*?M10 2\.9c\.44 0 \.85\.21 1\.12\.56/);
   assert.match(svgLibrary, /write:\s*`[\s\S]*?fill-rule="evenodd"/);
   assert.doesNotMatch(svgLibrary, /write:\s*`[\s\S]*?<rect x="4\.15" y="3\.8"/);
   assert.match(svgLibrary, /file:\s*`[\s\S]*?fill="currentColor"/);
