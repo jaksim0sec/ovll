@@ -8,10 +8,28 @@ const server = fs.readFileSync(new URL("../server.js", import.meta.url), "utf8")
 
 function cssBlock(selector) {
   const marker = `${selector} {`;
-  const start = css.indexOf(marker);
-  assert.notEqual(start, -1, `missing selector: ${selector}`);
-  const open = css.indexOf("{", start);
-  const close = css.indexOf("}", open);
+  let start =
+    css.indexOf(
+      `\n${marker}`
+    );
+
+  if (start !== -1) {
+    start += 1;
+  } else if (
+    css.startsWith(marker)
+  ) {
+    start = 0;
+  }
+
+  assert.notEqual(
+    start,
+    -1,
+    `missing selector: ${selector}`
+  );
+  const open =
+    css.indexOf("{", start);
+  const close =
+    css.indexOf("}", open);
   return css.slice(open + 1, close);
 }
 
