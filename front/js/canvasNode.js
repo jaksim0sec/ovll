@@ -16,32 +16,32 @@
   const icons = {
     toggle: `
       <svg viewBox="0 0 20 20" fill="none" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-        <path d="m6.7 8 3.3 3.3L13.3 8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="m6.7 8 3.3 3.3L13.3 8" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
     `,
     delete: `
       <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
-        <path d="M5.95 7.15h8.1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-        <path d="M7.15 7.2l.48 7.05c.05.75.67 1.33 1.42 1.33h1.9c.75 0 1.37-.58 1.42-1.33l.48-7.05" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M8.05 5.4h3.9M8.85 5.35v-.55c0-.42.34-.75.75-.75h.8c.41 0 .75.33.75.75v.55M8.75 9.25v3.95M11.25 9.25v3.95" stroke="currentColor" stroke-width="1.45" stroke-linecap="round"/>
+        <path d="M5.95 7.15h8.1" stroke="currentColor" stroke-width="1.38" stroke-linecap="round"/>
+        <path d="M7.15 7.2l.48 7.05c.05.75.67 1.33 1.42 1.33h1.9c.75 0 1.37-.58 1.42-1.33l.48-7.05" stroke="currentColor" stroke-width="1.38" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M8.05 5.4h3.9M8.85 5.35v-.55c0-.42.34-.75.75-.75h.8c.41 0 .75.33.75.75v.55M8.75 9.25v3.95M11.25 9.25v3.95" stroke="currentColor" stroke-width="1.34" stroke-linecap="round"/>
       </svg>
     `,
     run: `
       <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
-        <rect x="3.85" y="4.65" width="12.3" height="10.7" rx="3.2" stroke="currentColor" stroke-width="1.5"/>
-        <path d="m8.55 7.7 3.75 2.3-3.75 2.3Z" stroke="currentColor" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round"/>
+        <rect x="3.85" y="4.65" width="12.3" height="10.7" rx="3.2" stroke="currentColor" stroke-width="1.38"/>
+        <path d="m8.55 7.7 3.75 2.3-3.75 2.3Z" stroke="currentColor" stroke-width="1.34" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
     `,
     stop: `
       <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
-        <rect x="3.85" y="4.65" width="12.3" height="10.7" rx="3.2" stroke="currentColor" stroke-width="1.5"/>
+        <rect x="3.85" y="4.65" width="12.3" height="10.7" rx="3.2" stroke="currentColor" stroke-width="1.38"/>
         <rect x="8.05" y="8.05" width="3.9" height="3.9" rx="1.05" fill="currentColor"/>
       </svg>
     `,
     fileResult: `
       <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
-        <path d="M5.45 3.65h5.2l3.9 3.9v7.05a1.75 1.75 0 0 1-1.75 1.75H5.45A1.75 1.75 0 0 1 3.7 14.6V5.4a1.75 1.75 0 0 1 1.75-1.75Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
-        <path d="M10.65 3.65v2.9a1 1 0 0 0 1 1h2.9M6.8 10.4h4.9M6.8 12.95h3.65" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M5.45 3.65h5.2l3.9 3.9v7.05a1.75 1.75 0 0 1-1.75 1.75H5.45A1.75 1.75 0 0 1 3.7 14.6V5.4a1.75 1.75 0 0 1 1.75-1.75Z" stroke="currentColor" stroke-width="1.38" stroke-linejoin="round"/>
+        <path d="M10.65 3.65v2.9a1 1 0 0 0 1 1h2.9M6.8 10.4h4.9M6.8 12.95h3.65" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
     `
   };
