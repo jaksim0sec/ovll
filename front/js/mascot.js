@@ -1221,10 +1221,34 @@ function mount(world,canvas,options={}){
       y:lineX/lineLength
     };
 
+    const arcProgress=
+      Math.max(
+        0,
+        Math.min(
+          1,
+          (
+            lineLength-
+            rect.width*2
+          )/
+          Math.max(
+            1,
+            rect.width*7
+          )
+        )
+      );
+
     let bend=
       Math.min(
-        rect.width*.72,
-        lineLength*.14
+        rect.width*
+          (
+            .72+
+            arcProgress*.62
+          ),
+        lineLength*
+          (
+            .14+
+            arcProgress*.07
+          )
       );
 
     let bendSign=
@@ -1435,8 +1459,14 @@ function mount(world,canvas,options={}){
       orbRect.width*
       gapScale;
 
+    const observationLift=
+      Math.min(
+        nodeRect.height*.22,
+        orbRect.width*.78
+      );
+
     /*
-      높이는 항상 node 중앙축.
+      node보다 살짝 위에 떠서 아래를 내려다보는 위치.
       좌우 중 orb가 있는 쪽으로 docking.
     */
     return{
@@ -1444,7 +1474,9 @@ function mount(world,canvas,options={}){
         current.x<nodeCenter.x
           ?nodeRect.left-gap
           :nodeRect.right+gap,
-      y:nodeCenter.y
+      y:
+        nodeCenter.y-
+        observationLift
     };
   }
 

@@ -175,6 +175,58 @@ test("main workspace owns the interactive mascot lifecycle", () => {
   );
 });
 
+
+test("interactive mascot observes nodes from above and widens long travel arcs", () => {
+  const mascot =
+    read("front/js/mascot.js");
+
+  const targetStart =
+    mascot.indexOf(
+      "function nodeTarget"
+    );
+  const targetEnd =
+    mascot.indexOf(
+      "function reactMoveToNode",
+      targetStart
+    );
+  const target =
+    mascot.slice(
+      targetStart,
+      targetEnd
+    );
+
+  const swooshStart =
+    mascot.indexOf(
+      "function swooshToward"
+    );
+  const swoosh =
+    mascot.slice(
+      swooshStart,
+      targetStart
+    );
+
+  assert.match(
+    target,
+    /const\s+observationLift/
+  );
+  assert.match(
+    target,
+    /nodeCenter\.y-\s*observationLift/
+  );
+  assert.match(
+    swoosh,
+    /const\s+arcProgress/
+  );
+  assert.match(
+    swoosh,
+    /arcProgress\*\.62/
+  );
+  assert.match(
+    swoosh,
+    /arcProgress\*\.07/
+  );
+});
+
 test("function builder keeps contextual identity out of the global topbar lane", () => {
   const feature =
     read("front/js/functionWorkspace.js");

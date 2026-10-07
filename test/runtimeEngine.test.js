@@ -1467,6 +1467,223 @@ test("execution gate auto-runs a small added research node even beside a large u
   );
 });
 
+
+test("execution gate auto-runs a normal generated research organize write chain", () => {
+  const before = {
+    nodes: [],
+    links: [],
+    data: []
+  };
+
+  const after = {
+    nodes: [
+      {
+        id: "research",
+        type: "research",
+        params: {
+          request: "자료 조사"
+        }
+      },
+      {
+        id: "organize",
+        type: "organize",
+        params: {
+          request: "정리"
+        }
+      },
+      {
+        id: "write",
+        type: "write",
+        params: {
+          request: "작성"
+        }
+      }
+    ],
+    links: [
+      [
+        "research.result",
+        "organize.in"
+      ],
+      [
+        "organize.result",
+        "write.in"
+      ]
+    ],
+    data: []
+  };
+
+  const runtime =
+    workflow(
+      [
+        node(
+          "research",
+          "research"
+        ),
+        node(
+          "organize",
+          "organize"
+        ),
+        node(
+          "write",
+          "write"
+        )
+      ],
+      [
+        edge(
+          "research-organize",
+          "research",
+          "organize"
+        ),
+        edge(
+          "organize-write",
+          "organize",
+          "write"
+        )
+      ]
+    );
+
+  const result =
+    analyzeWorkflowExecutionDelta(
+      before,
+      after,
+      runtime,
+      "수행평가 준비해줘"
+    );
+
+  assert.equal(
+    result.mode,
+    "auto"
+  );
+  assert.equal(
+    result.pivot,
+    "write"
+  );
+  assert.equal(
+    result.score,
+    7
+  );
+});
+
+test("execution gate auto-runs a safe generated branch with one terminal", () => {
+  const before = {
+    nodes: [],
+    links: [],
+    data: []
+  };
+
+  const after = {
+    nodes: [
+      {
+        id: "left",
+        type: "research",
+        params: {
+          request: "왼쪽 조사"
+        }
+      },
+      {
+        id: "right",
+        type: "research",
+        params: {
+          request: "오른쪽 조사"
+        }
+      },
+      {
+        id: "organize",
+        type: "organize",
+        params: {
+          request: "정리"
+        }
+      },
+      {
+        id: "write",
+        type: "write",
+        params: {
+          request: "작성"
+        }
+      }
+    ],
+    links: [
+      [
+        "left.result",
+        "organize.in"
+      ],
+      [
+        "right.result",
+        "organize.in"
+      ],
+      [
+        "organize.result",
+        "write.in"
+      ]
+    ],
+    data: []
+  };
+
+  const runtime =
+    workflow(
+      [
+        node(
+          "left",
+          "research"
+        ),
+        node(
+          "right",
+          "research"
+        ),
+        node(
+          "organize",
+          "organize"
+        ),
+        node(
+          "write",
+          "write"
+        )
+      ],
+      [
+        edge(
+          "left-organize",
+          "left",
+          "organize"
+        ),
+        edge(
+          "right-organize",
+          "right",
+          "organize"
+        ),
+        edge(
+          "organize-write",
+          "organize",
+          "write"
+        )
+      ]
+    );
+
+  const result =
+    analyzeWorkflowExecutionDelta(
+      before,
+      after,
+      runtime,
+      "자료 두 갈래로 조사해서 정리하고 작성해줘"
+    );
+
+  assert.equal(
+    result.mode,
+    "auto"
+  );
+  assert.equal(
+    result.reason,
+    "safe-branched-delta"
+  );
+  assert.equal(
+    result.pivot,
+    "write"
+  );
+  assert.equal(
+    result.score,
+    10
+  );
+});
+
 test("execution gate keeps a heavier inherited chain manual", () => {
   const before = {
     nodes: [
