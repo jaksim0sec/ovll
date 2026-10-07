@@ -282,6 +282,26 @@ function installStyle(){
   animation:ovll-thinking 1.9s ease-in-out infinite;
 }
 
+.ovll-mascot[data-task="research"].working{
+  animation:ovll-task-research 1.45s ease-in-out infinite;
+}
+
+.ovll-mascot[data-task="organize"].working{
+  animation:ovll-task-organize 1.7s ease-in-out infinite;
+}
+
+.ovll-mascot[data-task="judge"].working{
+  animation:ovll-task-judge 1.35s ease-in-out infinite;
+}
+
+.ovll-mascot[data-task="write"].working{
+  animation:ovll-task-write 1.05s ease-in-out infinite;
+}
+
+.ovll-mascot[data-task="createFile"].working{
+  animation:ovll-task-create 1.3s ease-in-out infinite;
+}
+
 .ovll-mascot.pop{
   animation:ovll-pop .3s cubic-bezier(.18,.88,.25,1.2);
 }
@@ -292,6 +312,31 @@ function installStyle(){
 
 .ovll-mascot.bump{
   animation:ovll-bump .24s cubic-bezier(.18,.9,.25,1);
+}
+
+@keyframes ovll-task-research{
+  0%,100%{translate:-.025rem 0}
+  50%{translate:.025rem -.018rem}
+}
+
+@keyframes ovll-task-organize{
+  0%,100%{translate:0 -.018rem}
+  50%{translate:0 .018rem}
+}
+
+@keyframes ovll-task-judge{
+  0%,100%{rotate:-2.4deg}
+  50%{rotate:2.4deg}
+}
+
+@keyframes ovll-task-write{
+  0%,100%{translate:0 0}
+  45%{translate:0 .028rem}
+}
+
+@keyframes ovll-task-create{
+  0%,100%{filter:brightness(1)}
+  50%{filter:brightness(.82)}
 }
 
 @keyframes ovll-idle{
@@ -603,6 +648,10 @@ function mount(world,canvas,options={}){
   let thinkingTimer=null;
   let satelliteTimer=null;
   let satelliteTarget=null;
+  let taskTimer=null;
+  let idleBehaviorTimer=null;
+  let activeTaskId=null;
+  let taskStep=0;
   let connectionColor=false;
   let lastActivity=performance.now();
 
@@ -757,22 +806,16 @@ function mount(world,canvas,options={}){
         ?mode
         :"hidden";
 
-    const visiblePoint=
-      next==="point"&&
-      (
-        orb.classList.contains(
-          "working"
-        )||
-        orb.classList.contains(
-          "connecting"
-        )
+    const pointAllowed=
+      next!=="point"||
+      orb.classList.contains(
+        "working"
+      )||
+      orb.classList.contains(
+        "connecting"
       );
 
-    if(
-      next!=="hidden"&&
-      next!=="orbit"&&
-      !visiblePoint
-    ){
+    if(!pointAllowed){
       next="hidden";
     }
 
@@ -1814,12 +1857,222 @@ function mount(world,canvas,options={}){
     }
   }
 
+  const TASK_MOODS={
+    research:"curious",
+    organize:"focus",
+    judge:"suspicious",
+    write:"attention",
+    file:"curious",
+    createFile:"working"
+  };
+
+  const TASK_INTERVALS={
+    research:520,
+    organize:680,
+    judge:760,
+    write:620,
+    file:980,
+    createFile:820
+  };
+
+  function taskType(id){
+    const node=
+      canvas.getNode?.(
+        String(id)
+      );
+
+    return String(
+      node?.type||
+      "generic"
+    );
+  }
+
+  function clearTaskBehavior(){
+    clearTimeout(taskTimer);
+    taskTimer=null;
+    activeTaskId=null;
+    taskStep=0;
+    delete orb.dataset.task;
+  }
+
+  function startTaskBehavior(
+    id,
+    type
+  ){
+    clearTaskBehavior();
+
+    const key=
+      String(id);
+
+    activeTaskId=key;
+    orb.dataset.task=type;
+    taskStep=0;
+
+    const tick=()=>{
+      if(
+        activeTaskId!==key||
+        !orb.classList.contains(
+          "working"
+        )||
+        drag
+      ){
+        return;
+      }
+
+      const node=
+        nodeEl(key);
+
+      if(
+        !node||
+        !nodeVisible(node)
+      ){
+        taskTimer=setTimeout(
+          tick,
+          720
+        );
+        return;
+      }
+
+      const rect=
+        node.getBoundingClientRect();
+
+      const c=center(rect);
+      let targetX=c.x;
+      let targetY=c.y;
+
+      if(type==="research"){
+        targetX+=
+          (taskStep%2?1:-1)*
+          Math.min(
+            rect.width*.22,
+            34
+          );
+        targetY-=
+          rect.height*.08;
+      }else if(type==="organize"){
+        targetY+=
+          (taskStep%2?1:-1)*
+          Math.min(
+            rect.height*.18,
+            24
+          );
+      }else if(type==="judge"){
+        targetX+=
+          (taskStep%2?1:-1)*
+          Math.min(
+            rect.width*.16,
+            26
+          );
+      }else if(type==="write"){
+        targetY+=
+          Math.min(
+            rect.height*.2,
+            28
+          );
+      }else if(type==="file"){
+        targetY-=
+          Math.min(
+            rect.height*.16,
+            22
+          );
+      }
+
+      lookAt(
+        targetX,
+        targetY,
+        type==="judge"
+          ?.205
+          :.185
+      );
+
+      if(type==="createFile"){
+        setSatellite(
+          "orbit"
+        );
+      }else{
+        pointSatelliteAt(
+          targetX,
+          targetY
+        );
+      }
+
+      taskStep++;
+      taskTimer=setTimeout(
+        tick,
+        TASK_INTERVALS[type]||
+        900
+      );
+    };
+
+    tick();
+  }
+
   function setSituation(
     name,
     detail={}
   ){
     const nodeId=
       detail?.nodeId;
+
+    if(name==="nodeSuccess"){
+      if(nodeId&&nodeEl(nodeId)){
+        focusNode(
+          nodeId,
+          {
+            mood:"success",
+            duration:520,
+            priority:13
+          }
+        );
+      }else{
+        setMood(
+          "success",
+          520
+        );
+      }
+
+      setSatellite(
+        "celebrate",
+        {hold:480}
+      );
+
+      pulse(
+        "pop",
+        240
+      );
+
+      return;
+    }
+
+    if(name==="nodeError"){
+      if(nodeId&&nodeEl(nodeId)){
+        focusNode(
+          nodeId,
+          {
+            mood:"confused",
+            duration:760,
+            priority:15
+          }
+        );
+      }else{
+        setMood(
+          "confused",
+          760
+        );
+      }
+
+      setSatellite(
+        "drop",
+        {hold:580}
+      );
+
+      pulse(
+        "bump",
+        260
+      );
+
+      return;
+    }
 
     if(name==="success"){
       if(nodeId&&nodeEl(nodeId)){
@@ -1852,18 +2105,30 @@ function mount(world,canvas,options={}){
     }
 
     if(name==="error"){
-      setMood(
-        "focus",
-        620
-      );
+      if(nodeId&&nodeEl(nodeId)){
+        focusNode(
+          nodeId,
+          {
+            mood:"confused",
+            duration:820,
+            priority:14
+          }
+        );
+      }else{
+        setMood(
+          "confused",
+          820
+        );
+      }
 
       setSatellite(
-        "hidden"
+        "drop",
+        {hold:620}
       );
 
       pulse(
         "bump",
-        240
+        260
       );
 
       return;
@@ -1897,6 +2162,8 @@ function mount(world,canvas,options={}){
     }
 
     if(name==="idle"){
+      clearTaskBehavior();
+
       setMood(
         "idle"
       );
@@ -1918,19 +2185,15 @@ function mount(world,canvas,options={}){
     );
 
     if(!active){
-      if(
-        orb.dataset.mood===
-          "working"
-      ){
-        orb.dataset.mood=
-          "idle";
-      }
+      clearTaskBehavior();
+      setMood("idle");
 
       setSatellite(
         "hidden"
       );
 
       restoreGaze();
+      scheduleIdleBehavior();
       return false;
     }
 
@@ -1943,6 +2206,9 @@ function mount(world,canvas,options={}){
     noteActivity();
     stopMotion();
 
+    const type=
+      taskType(id);
+
     focusId=
       String(id);
     gazePriority=14;
@@ -1952,8 +2218,13 @@ function mount(world,canvas,options={}){
       gazeUntil;
 
     setMood(
-      "working",
-      2200
+      TASK_MOODS[type]||
+      "working"
+    );
+
+    startTaskBehavior(
+      id,
+      type
     );
 
     const target=
@@ -1986,10 +2257,16 @@ function mount(world,canvas,options={}){
         .19
       );
 
-      pointSatelliteAt(
-        nodeCenter.x,
-        nodeCenter.y
-      );
+      if(type==="createFile"){
+        setSatellite(
+          "orbit"
+        );
+      }else{
+        pointSatelliteAt(
+          nodeCenter.x,
+          nodeCenter.y
+        );
+      }
     }
 
     if(
@@ -2138,6 +2415,130 @@ function mount(world,canvas,options={}){
     }
 
     scheduleThinking();
+    scheduleIdleBehavior();
+  }
+
+  function scheduleIdleBehavior(
+    delay=7600+Math.random()*7200
+  ){
+    clearTimeout(
+      idleBehaviorTimer
+    );
+
+    idleBehaviorTimer=
+      setTimeout(
+        ()=>{
+          const now=
+            performance.now();
+
+          if(
+            drag||
+            motion||
+            connectionClose||
+            activeTaskId||
+            App?.isBusy?.()||
+            now<attentionUntil||
+            now-lastActivity<4800
+          ){
+            scheduleIdleBehavior(
+              2800+
+              Math.random()*2400
+            );
+            return;
+          }
+
+          clearTimeout(
+            gazeTimer
+          );
+
+          const observed=
+            interestingNode();
+
+          const roll=
+            Math.random();
+
+          gazePriority=2;
+          gazeUntil=
+            now+1050;
+          attentionUntil=
+            gazeUntil;
+
+          if(
+            observed&&
+            roll<.58
+          ){
+            const rect=
+              observed
+                .getBoundingClientRect();
+
+            const c=
+              center(rect);
+
+            setMood(
+              roll<.3
+                ?"curious"
+                :"suspicious",
+              980
+            );
+
+            lookAt(
+              c.x+
+                (roll<.3
+                  ?Math.min(
+                    rect.width*.12,
+                    20
+                  )
+                  :0),
+              c.y-
+                Math.min(
+                  rect.height*.08,
+                  14
+                ),
+              .145
+            );
+          }else if(roll<.82){
+            setMood(
+              "sleepy",
+              1100
+            );
+
+            eyes(
+              0,
+              .025
+            );
+          }else{
+            setMood(
+              "confused",
+              900
+            );
+
+            eyes(
+              Math.random()<.5
+                ?-.09
+                :.09,
+              -.025
+            );
+          }
+
+          setTimeout(
+            ()=>{
+              if(
+                !drag&&
+                !motion&&
+                !activeTaskId&&
+                !App?.isBusy?.()
+              ){
+                gazePriority=0;
+                restoreGaze();
+              }
+            },
+            1120
+          );
+
+          scheduleIdleBehavior();
+        },
+        delay
+      );
   }
 
   function setReactColor(id){
@@ -2850,6 +3251,7 @@ function mount(world,canvas,options={}){
 
   scheduleBlink();
   scheduleThinking();
+  scheduleIdleBehavior();
 
   let wasBusy=
     !!App?.isBusy?.();
@@ -2972,6 +3374,14 @@ function mount(world,canvas,options={}){
 
       clearTimeout(
         thinkingTimer
+      );
+
+      clearTimeout(
+        taskTimer
+      );
+
+      clearTimeout(
+        idleBehaviorTimer
       );
 
       clearTimeout(
