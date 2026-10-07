@@ -232,68 +232,77 @@ test("server-owned node icons share one rounded monoline visual contract", () =>
       /var\(--node\)/,
       `${type} must not depend on node background`
     );
+    assert.match(
+      icon,
+      /stroke-width="1\.28"/,
+      `${type} shared stroke width`
+    );
   }
 
   assert.match(
     icons.research,
-    /<circle cx="10" cy="10" r="6\.15"/
+    /<circle cx="10" cy="10" r="6\.2"/
   );
   assert.match(
     icons.research,
-    /M3\.85 10h12\.3/
+    /M3\.8 10h12\.4/
   );
 
   assert.match(
     icons.organize,
-    /M5\.2 4\.15h8\.55/
+    /M5\.55 3\.85h8\.25/
   );
   assert.match(
     icons.organize,
-    /M5\.2 4\.15v12\.05/
+    /M4\.2 13\.15h11\.08/
   );
 
   assert.match(
     icons.judge,
-    /<circle cx="10" cy="4\.35" r="\.8"/
+    /<circle cx="10" cy="4\.15" r="\.85"/
   );
   assert.match(
     icons.judge,
-    /M4\.2 6\.1h11\.6/
+    /M3\.9 6\.15h12\.2/
   );
   assert.match(
     icons.judge,
-    /M3\.45 9\.55c\.2 1\.65/
+    /M5\.15 6\.15 3\.5 9\.4h3\.3/
   );
   assert.match(
     icons.judge,
-    /M12\.55 9\.55c\.2 1\.65/
+    /M14\.85 6\.15 13\.2 9\.4h3\.3/
   );
 
   assert.match(
     icons.file,
-    /M3\.7 6\.35/
+    /M3\.65 6\.35/
   );
 
   assert.match(
     icons.createFile,
-    /M10 3\.55c\.42 3\.18/
+    /M10 3\.4C10\.28 6\.85 13\.15 9\.72 16\.6 10/
+  );
+  assert.match(
+    icons.createFile,
+    /C9\.72 13\.15 6\.85 10\.28 3\.4 10/
   );
 
   assert.match(
     icons.write,
-    /M4\.35 15\.65 6\.15 7\.15/
+    /M4\.25 15\.75 5\.75 8\.2 6\.45 6\.85 12\.65 3\.5/
   );
   assert.match(
     icons.write,
-    /<circle cx="10\.45" cy="9\.35" r="1\.02"/
+    /15\.8 4\.2 16\.5 7\.35 13\.15 13\.55 11\.8 14\.25/
   );
   assert.match(
     icons.write,
-    /m9\.72 10\.08-5\.18 5\.35/
+    /<circle cx="10\.3" cy="9\.7" r="1\.02"/
   );
-  assert.doesNotMatch(
+  assert.match(
     icons.write,
-    /M4\.15 13\.75/
+    /m9\.58 10\.42-5\.03 5\.03/
   );
 });
 
