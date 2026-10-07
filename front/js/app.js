@@ -6785,6 +6785,14 @@
         completeRuntimeStep(
           event.nodeId
         );
+
+        Presence.mascotState?.(
+          "nodeSuccess",
+          {
+            nodeId:
+              event.nodeId
+          }
+        );
       } else if (
         event.status ===
           "FAILED"
@@ -6818,6 +6826,14 @@
               "노드 실행 오류",
             fallback:
               errorText
+          }
+        );
+
+        Presence.mascotState?.(
+          "nodeError",
+          {
+            nodeId:
+              event.nodeId
           }
         );
       } else if (
