@@ -105,7 +105,62 @@ test("node action icons are semantic rounded stroke glyphs with balanced text hi
   assert.match(deleteIcon, /stroke-width="1\.38"/);
 });
 
-test("server keeps built-in node icons in canonical definitions", () => {\n  const definitionStart =\n    server.indexOf(\n      "const defaultNodeDef = {"\n    );\n  const definitionEnd =\n    server.indexOf(\n      "const CUSTOM_NODE_TYPE_RE",\n      definitionStart\n    );\n  const definitions =\n    server.slice(\n      definitionStart,\n      definitionEnd\n    );\n\n  for (\n    const type of [\n      "start",\n      "research",\n      "organize",\n      "judge",\n      "write",\n      "file",\n      "createFile"\n    ]\n  ) {\n    const typeStart =\n      definitions.indexOf(\n        `\n  ${type}: {`\n      );\n    assert.notEqual(\n      typeStart,\n      -1,\n      `missing server definition for ${type}`\n    );\n    const nextType =\n      definitions.indexOf(\n        "\n  },",\n        typeStart\n      );\n    const section =\n      definitions.slice(\n        typeStart,\n        nextType === -1\n          ? definitions.length\n          : nextType\n      );\n    assert.match(\n      section,\n      /icon:\s*`[\s\S]*?<svg/,\n      `missing server icon for ${type}`\n    );\n  }\n});\ntest("ports and connection lines are neutral borderless geometry", () => {
+test("server keeps built-in node icons in canonical definitions", () => {
+  const definitionStart =
+    server.indexOf(
+      "const defaultNodeDef = {"
+    );
+  const definitionEnd =
+    server.indexOf(
+      "const CUSTOM_NODE_TYPE_RE",
+      definitionStart
+    );
+  const definitions =
+    server.slice(
+      definitionStart,
+      definitionEnd
+    );
+
+  for (
+    const type of [
+      "start",
+      "research",
+      "organize",
+      "judge",
+      "write",
+      "file",
+      "createFile"
+    ]
+  ) {
+    const typeStart =
+      definitions.indexOf(
+        `\n  ${type}: {`
+      );
+    assert.notEqual(
+      typeStart,
+      -1,
+      `missing server definition for ${type}`
+    );
+    const nextType =
+      definitions.indexOf(
+        "\n  },",
+        typeStart
+      );
+    const section =
+      definitions.slice(
+        typeStart,
+        nextType === -1
+          ? definitions.length
+          : nextType
+      );
+    assert.match(
+      section,
+      /icon:\s*`[\s\S]*?<svg/,
+      `missing server icon for ${type}`
+    );
+  }
+});
+test("ports and connection lines are neutral borderless geometry", () => {
   const port = cssBlock(".vc-port-pill");
   const connection = cssBlock(".vc-connection");
   const dragConnection = cssBlock(".vc-drag-connection");
