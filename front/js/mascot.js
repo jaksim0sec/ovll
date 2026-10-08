@@ -10,6 +10,16 @@ function installStyle(){
   const style=document.createElement("style");
   style.id=STYLE_ID;
   style.textContent=`
+.ovll-mascot-position{
+  position:absolute;
+  z-index:1000;
+  left:0;
+  top:0;
+  width:0;
+  height:0;
+  pointer-events:none;
+  will-change:transform;
+}
 .ovll-mascot{
   --agent-color:#4b94ff;
   --react-color:var(--agent-color);
@@ -65,7 +75,6 @@ function installStyle(){
       rgba(0,0,0,.17);
 
   transform:translate(-50%,-50%);
-  will-change:transform;
   rotate:
     calc(
       var(--lean) +
@@ -83,6 +92,7 @@ function installStyle(){
   animation:ovll-idle 6.5s ease-in-out infinite;
 
   cursor:grab;
+  pointer-events:auto;
   touch-action:none;
   user-select:none;
   -webkit-user-select:none;
@@ -615,6 +625,8 @@ function mount(world,canvas,options={}){
     );
 
   const viewport=canvas.root;
+  const positioner=documentRef.createElement("span");
+  positioner.className="ovll-mascot-position";
   const orb=documentRef.createElement("button");
   const satellite=
     documentRef.createElement("span");
@@ -635,8 +647,9 @@ function mount(world,canvas,options={}){
     "true"
   );
 
+  positioner.appendChild(orb);
   world.append(
-    orb,
+    positioner,
     satellite
   );
 
@@ -809,7 +822,7 @@ function mount(world,canvas,options={}){
     const left=x+"px";
     const top=y+"px";
 
-    orb.style.transform=`translate3d(${left},${top},0) translate(-50%,-50%)`;
+    positioner.style.transform=`translate3d(${left},${top},0)`;
 
     world.style.setProperty(
       "--ovll-world-x",
@@ -3756,7 +3769,7 @@ function mount(world,canvas,options={}){
           }catch{}
         });
 
-      orb.remove();
+      positioner.remove();
       satellite.remove();
     }
   };
