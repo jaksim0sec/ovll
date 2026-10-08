@@ -671,7 +671,7 @@ test("server health preserves event-loop stall history", () => {
 test("PDFKit fallback uses one font subset and a low-CPU single-pass profile", () => {
   const renderer =
     read(
-      "pdfKitRenderer.js"
+      "backend/artifacts/pdfKitRenderer.js"
     );
 
   assert.match(
@@ -699,7 +699,7 @@ test("PDFKit fallback uses one font subset and a low-CPU single-pass profile", (
 test("PDFKit fallback reuses one isolated worker instead of cold-starting every PDF", () => {
   const renderer =
     read(
-      "pdfRenderer.js"
+      "backend/artifacts/pdfRenderer.js"
     );
   const worker =
     read(
@@ -923,7 +923,7 @@ test("artifact requests and local persistence are time bounded", () => {
 test("PDF client timeout remains above the server worker ceiling", () => {
   const renderer =
     read(
-      "pdfRenderer.js"
+      "backend/artifacts/pdfRenderer.js"
     );
   const artifact =
     read(
@@ -1256,7 +1256,7 @@ test("planner keeps document length requirements on the upstream writer", () => 
 test("PDFKit fallback keeps flowing text cheap and table rows anchored", () => {
   const renderer =
     read(
-      "pdfKitRenderer.js"
+      "backend/artifacts/pdfKitRenderer.js"
     );
 
   const paragraphStart =
@@ -1789,7 +1789,7 @@ test("explicit verification requests are promoted to workflow planning", () => {
 test("chat routing owns workflow decisions before planner execution", () => {
   const gemini =
     read(
-      "geminiExecution.js"
+      "backend/ai/geminiExecution.js"
     );
   const server =
     read(
