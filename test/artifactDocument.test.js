@@ -5,7 +5,7 @@ import {
   createArtifactDocument,
   extractArtifactContent,
   extractHtmlArtifact
-} from "../artifactDocument.js";
+} from "../backend/artifacts/artifactDocument.js";
 
 test("semantic result wrappers do not leak transport keys", () => {
   const content =

@@ -1,68 +1,28 @@
-# AGENTS.md
+# AGENTS.md — Ovll 개발 규칙
 
-This repository is the live ovll project.
+## 기준
+- 프로젝트: `jaksim0sec/ovll`, 핵심 브랜치: `main`.
+- 서버 진입점: `server.js`. 웹 프론트엔드: `front/`. 활성 서버 보조 모듈: `backend/`.
+- 제품 비전: `docs/VISION.md`. 기술·체계 논의: `docs/architecture/`. 지침 개편 현황: `instructions/`.
+- `docs/archive/`와 과거 Git 이력은 참고 자료이지 현재의 구현 명세가 아니다.
 
-## Source of truth
+## 개발 방식
+- 복잡한 변경은 실제 코드와 참조를 확인 → 책임·원인 분석 → 구현 → 관련 회귀 검증 순으로 진행한다.
+- 불필요한 추가 패치보다 원인을 해결하는 구조적 수정이 우선이다.
+- 현재 작동하는 사용자 경험·기능은 의도적 변경이 아닌 한 유지한다.
+- 새 동작을 제안하거나 작성했다고 기존 코드에 구현되어 있다고 주장하지 않는다.
+- 사용자의 의도와 모델 역량·자율성, 서버의 검증 가능한 사실과 실행 책임을 구분한다.
+- UI 표현을 개선하기 전에 사용자의 총노동과 재사용성을 판단한다.
 
-- The real execution branch is `main`.
-- Treat `main` as the default and authoritative branch for all work.
-- Do not create, switch to, or work on temporary/feature branches unless the user explicitly asks for a branch.
-- Do not assume an old PR branch is still relevant after merge.
+## Git 및 배포
+- 명시 요청이 없으면 새 브랜치/PR을 만들지 않는다.
+- Vercel에 연속 배포가 일어나지 않도록 관련 변경을 가급적 하나의 검증된 커밋으로 묶는다.
+- GitHub의 blob/tree/commit을 사용한 원자적 다중 파일 변경을 우선한다.
+- `server.js` 또는 제품 파일이 바뀔 때 `server.js`의 `APP_VERSION`을 올린다.
+- CI 및 테스트를 확인한다. 검증하지 않은 성공을 주장하지 않는다.
+- 진행 중인 작업은 의미 있는 진행률(%)로 보고한다.
 
-## Git workflow
-
-- Minimize pushes because Git pushes can trigger Vercel deployments.
-- Do not make intermediate commits while implementing a task.
-- Batch all related file changes into one final atomic commit whenever possible.
-- Prefer Git blob/tree/commit operations for multi-file changes so the whole task lands as one commit.
-- Update the `main` ref only after the task is ready.
-- Do not create a PR unless the user explicitly asks for one.
-- Progress updates are conversational only and must not imply intermediate Git commits.
-
-## Deployment discipline
-
-- Avoid unnecessary Vercel deployments.
-- Assume each push to a connected branch may trigger a deployment.
-- Keep automatic deployment activity focused on `main`.
-- If Vercel configuration is changed, prefer disabling automatic deployments for non-main branches.
-- Check for duplicate Vercel projects connected to the same repository before increasing deployment activity.
-- Do not manually trigger deployments unless required by the task or explicitly requested.
-
-## Project structure
-
-- Server entry: `server.js`
-- Frontend files: `front/`
-- Do not use additive patch-on-patch coding when a cleaner replacement/refactor is appropriate.
-- Preserve the existing architecture and reuse current components, SVG conventions, stores, and runtime systems where practical.
-
-## Versioning
-
-- When a deployed application update changes `server.js` or ships frontend/backend behavior, bump `APP_VERSION` in `server.js`.
-- Never forget the version bump for a production-facing update.
-
-## Supabase
-
-- Supabase MCP is connected and should be used directly for Supabase work when available.
-- The currently discoverable Supabase project is `bapsang` with project ref `akuqtolnofdutzumgxsa`.
-- Verify the intended project before destructive or project-specific changes.
-- For schema/security work, verify changes and check RLS/security implications.
-- Never expose service-role or secret keys to frontend code.
-
-## Vercel connection
-
-- Do not assume the Vercel MCP/app is connected.
-- If live Vercel account/project access is needed, verify connector state first.
-- If no teams/projects are visible, explain that the Vercel connector needs user authorization rather than guessing project settings.
-
-## Validation
-
-- Run or inspect relevant tests before the final commit when feasible.
-- Prefer fixing validation failures before touching `main`.
-- Do not create extra branches merely to run tests.
-- Keep the final Git history compact: ideally one task, one commit.
-
-## Communication
-
-- Keep progress percentages in chat for longer tasks.
-- Do not equate progress updates with Git operations.
-- If a task would require a different branch, multiple deployment-triggering pushes, or a workflow exception, mention it before doing so.
+## 경로 및 정리
+- 임시 스크립트·디버그 로그·일회성 백업을 저장소의 현재 소스로 유지하지 않는다.
+- 현재 사용 중인 `front/`, `mobile/`, `test/`, 배포 설정 및 서버 진입점을 삭제·이동할 때는 참조와 회귀 영향을 먼저 확인한다.
+- 외부 도구나 저장소를 사용할 때 실제 연결·대상 프로젝트를 확인한다. 연결되어 있다고 추측하지 않는다.

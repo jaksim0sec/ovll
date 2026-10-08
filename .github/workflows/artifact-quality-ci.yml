@@ -43,10 +43,10 @@ jobs:
           import {
             createStoredArtifact,
             getStoredArtifact
-          } from "./artifactStore.js";
+          } from "./backend/artifacts/artifactStore.js";
           import {
             warmPdfFallback
-          } from "./pdfRenderer.js";
+          } from "./backend/artifacts/pdfRenderer.js";
 
           const source = [
             "# 고라니 종합 보고서",

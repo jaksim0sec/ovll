@@ -6,14 +6,14 @@ import { fileURLToPath } from "node:url";
 import {
   createStoredArtifact,
   getStoredArtifact
-} from "../artifactStore.js";
+} from "../backend/artifacts/artifactStore.js";
 import {
   createArtifactDocument
-} from "../artifactDocument.js";
+} from "../backend/artifacts/artifactDocument.js";
 import {
   pdfDocumentHtml,
   renderPdfFallback
-} from "../pdfRenderer.js";
+} from "../backend/artifacts/pdfRenderer.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, "..");
@@ -104,7 +104,7 @@ test("common file formats have distinct visual kinds", () => {
 test("PDF fallback uses the dedicated embedded-font renderer", async () => {
   const renderer =
     read(
-      "pdfKitRenderer.js"
+      "backend/artifacts/pdfKitRenderer.js"
     );
 
   assert.match(
@@ -252,7 +252,7 @@ test("fallback PDF accepts canonical section hierarchy", async () => {
 });test("fallback PDF renders canonical tables through the table layout engine", async () => {
   const renderer =
     read(
-      "pdfKitRenderer.js"
+      "backend/artifacts/pdfKitRenderer.js"
     );
 
   assert.match(
@@ -659,7 +659,7 @@ test("PDF fallback prewarms the shared worker and bounds pathological table cost
     fs.readFileSync(
       path.join(
         ROOT,
-        "pdfRenderer.js"
+        "backend/artifacts/pdfRenderer.js"
       ),
       "utf8"
     );
@@ -667,7 +667,7 @@ test("PDF fallback prewarms the shared worker and bounds pathological table cost
     fs.readFileSync(
       path.join(
         ROOT,
-        "pdfKitRenderer.js"
+        "backend/artifacts/pdfKitRenderer.js"
       ),
       "utf8"
     );

@@ -5,17 +5,17 @@ import {randomUUID} from 'crypto';
 import {
   createGeminiExecution,
   GeminiExecutionError
-} from './geminiExecution.js';
+} from './backend/ai/geminiExecution.js';
 import {
   bindRequestAbort
-} from './requestAbort.js';
+} from './backend/http/requestAbort.js';
 import {
   createStoredArtifact,
   getStoredArtifact
-} from './artifactStore.js';
+} from './backend/artifacts/artifactStore.js';
 import {
   warmPdfFallback
-} from './pdfRenderer.js';
+} from './backend/artifacts/pdfRenderer.js';
 
 const app = express();
 
@@ -261,7 +261,7 @@ function groupLogMeta(
  * The frontend compares this server value with its locally stored version
  * before loading application assets.
  */
-const APP_VERSION = '2026.10.08.172';
+const APP_VERSION = '2026.10.09.1';
 
 /* =========================================================
    CANONICAL NODE DEFINITION

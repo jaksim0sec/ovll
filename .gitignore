@@ -2,3 +2,8 @@ node_modules/
 .env
 *.bak
 *.astra-bak
+.astra-baseline/
+logs/
+edit.py
+artifact-quality-output/
+artifact-quality-fixture.mjs

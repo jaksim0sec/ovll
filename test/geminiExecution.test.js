@@ -7,7 +7,7 @@ import {
   buildChatRequest,
   DEFAULT_GEMINI_MODEL,
   DEFAULT_GEMINI_FALLBACK_MODEL
-} from "../geminiExecution.js";
+} from "../backend/ai/geminiExecution.js";
 
 test("execution prompt separates user intent, node task, context, and source data", () => {
   const request =

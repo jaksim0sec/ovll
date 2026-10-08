@@ -4,7 +4,7 @@ import { EventEmitter } from "node:events";
 
 import {
   bindRequestAbort
-} from "../requestAbort.js";
+} from "../backend/http/requestAbort.js";
 
 function pair() {
   const req =
