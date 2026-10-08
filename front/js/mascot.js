@@ -11,19 +11,19 @@ function installStyle(){
   style.id=STYLE_ID;
   style.textContent=`
 .ovll-mascot-position{
+  --agent-size:2.08rem;
   position:absolute;
   z-index:1000;
   left:0;
   top:0;
-  width:0;
-  height:0;
+  width:var(--agent-size);
+  height:var(--agent-size);
   pointer-events:none;
   will-change:transform;
 }
 .ovll-mascot{
   --agent-color:#4b94ff;
   --react-color:var(--agent-color);
-  --agent-size:2.08rem;
 
   --body-color:#202120;
   --eye-color:#efefec;
@@ -74,7 +74,6 @@ function installStyle(){
     0 .1rem .36rem
       rgba(0,0,0,.17);
 
-  transform:translate(-50%,-50%);
   rotate:
     calc(
       var(--lean) +
@@ -670,7 +669,7 @@ function mount(world,canvas,options={}){
   );
 
   if(options.size){
-    orb.style.setProperty(
+    positioner.style.setProperty(
       "--agent-size",
       String(options.size)
     );
@@ -822,7 +821,7 @@ function mount(world,canvas,options={}){
     const left=x+"px";
     const top=y+"px";
 
-    positioner.style.transform=`translate3d(${left},${top},0)`;
+    positioner.style.transform=`translate3d(${left},${top},0) translate(-50%,-50%)`;
 
     world.style.setProperty(
       "--ovll-world-x",
