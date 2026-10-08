@@ -1020,7 +1020,7 @@ function mount(world,canvas,options={}){
         const current={x:view.left+point.x,y:view.top+point.y};
         const centerX=r.left+r.width/2;
         const centerY=r.top-size*1.65;
-        const key=[orbitScene.id,thinking,r.left,r.top,r.width,size].join(":");
+        const key=[orbitScene.id,thinking].join(":");
         if(!orbitAnchor||orbitAnchor.key!==key){
           orbitPhase=Math.atan2((current.y-centerY)/height,(current.x-centerX)/(radius||1));
           orbitAnchor={key,
@@ -1802,7 +1802,7 @@ function mount(world,canvas,options={}){
         const next=pendingOrbitId;
         pendingOrbitId=null;
         orbitId=null;
-        startOrbit(next);
+        startOrbit(next,{approach:false});
       }
     }
 
