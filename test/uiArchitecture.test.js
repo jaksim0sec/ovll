@@ -703,11 +703,11 @@ test("PDFKit fallback reuses one isolated worker instead of cold-starting every 
     );
   const worker =
     read(
-      "pdfKitWorker.js"
+      "backend/artifacts/pdfKitWorker.js"
     );
   const artifact =
     read(
-      "artifactStore.js"
+      "backend/artifacts/artifactStore.js"
     );
 
   assert.match(
@@ -927,7 +927,7 @@ test("PDF client timeout remains above the server worker ceiling", () => {
     );
   const artifact =
     read(
-      "artifactStore.js"
+      "backend/artifacts/artifactStore.js"
     );
   const api =
     read(
