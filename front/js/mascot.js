@@ -65,6 +65,7 @@ function installStyle(){
       rgba(0,0,0,.17);
 
   transform:translate(-50%,-50%);
+  will-change:transform;
   rotate:
     calc(
       var(--lean) +
@@ -808,8 +809,7 @@ function mount(world,canvas,options={}){
     const left=x+"px";
     const top=y+"px";
 
-    orb.style.left=left;
-    orb.style.top=top;
+    orb.style.transform=`translate3d(${left},${top},0) translate(-50%,-50%)`;
 
     world.style.setProperty(
       "--ovll-world-x",
