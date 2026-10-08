@@ -540,6 +540,37 @@ function installStyle(){
   }
 }
 
+.ovll-mascot-menu{
+  position:absolute;
+  z-index:1002;
+  width:min(13rem,calc(100vw - 2rem));
+  padding:.35rem;
+  border:.0625rem solid var(--line);
+  border-radius:var(--radius-md,1.0625rem);
+  background:var(--panel-strong,var(--bg));
+  color:var(--text);
+  box-shadow:var(--ui-control-shadow);
+  transform-origin:50% 0;
+}
+.ovll-mascot-menu[hidden]{display:none}
+.ovll-mascot-menu button{
+  display:block;
+  width:100%;
+  min-height:2.75rem;
+  padding:.55rem .65rem;
+  border:0;
+  border-radius:.75rem;
+  background:transparent;
+  color:inherit;
+  font:inherit;
+  font-size:.8125rem;
+  text-align:left;
+  cursor:pointer;
+}
+.ovll-mascot-menu button:hover{background:var(--surface-hover)}
+.ovll-mascot-menu button:disabled{opacity:.4;cursor:default}
+.ovll-mascot:focus-visible{outline:.125rem solid var(--text);outline-offset:.2rem}
+
 @media(prefers-reduced-motion:reduce){
   .ovll-mascot,
   .ovll-mascot-satellite{
@@ -560,11 +591,11 @@ function mount(world,canvas,options={}){
 
   const UI=
     options.ui||
-    UI;
+    global.AstraUI;
 
   const App=
     options.app||
-    App;
+    global.AstraApp;
 
   const busyTarget=
     options.busyTarget||
@@ -654,6 +685,36 @@ function mount(world,canvas,options={}){
   let taskStep=0;
   let connectionColor=false;
   let lastActivity=performance.now();
+  let orbitId=null;
+  let orbitTimer=null;
+  let orbitPhase=0;
+  let orbitPausedUntil=0;
+  let orbitPinned=false;
+  let nodeDragging=false;
+  let connectionDragging=false;
+  let destroyed=false;
+  const reducedMotion=global.matchMedia?.(
+    "(prefers-reduced-motion: reduce)"
+  );
+  const collaboration=documentRef.createElement("div");
+  collaboration.className="ovll-mascot-menu";
+  collaboration.hidden=true;
+  collaboration.setAttribute("aria-label","오블과 협업");
+  for(const [action,label] of [
+    ["question","이 노드 질문하기"],
+    ["next","다음 노드 살펴보기"],
+    ["stay","이 노드 곁에 머물기"],
+    ["resume","다시 둘러보기"]
+  ]){
+    const button=documentRef.createElement("button");
+    button.type="button";
+    button.dataset.mascotAction=action;
+    button.textContent=label;
+    collaboration.appendChild(button);
+  }
+  world.appendChild(collaboration);
+  orb.tabIndex=0;
+  orb.setAttribute("aria-expanded","false");
 
   let blinkTimer=null;
   let viewportTimer=null;
@@ -752,6 +813,182 @@ function mount(world,canvas,options={}){
     );
 
     syncPointSatellite();
+    if(!collaboration.hidden) positionCollaboration();
+  }
+
+  function closeCollaboration(){
+    collaboration.hidden=true;
+    orb.setAttribute("aria-expanded","false");
+  }
+
+  function positionCollaboration(){
+    collaboration.style.left=x+"px";
+    collaboration.style.top=y+"px";
+    const raw=getComputedStyle(world).transform;
+    const matrix=raw==="none"?new DOMMatrix():new DOMMatrix(raw);
+    const scale=Math.hypot(matrix.a,matrix.b)||1;
+    collaboration.style.transform="translate(-50%, 1.7rem) scale("+(1/scale)+")";
+    const menuRect=collaboration.getBoundingClientRect();
+    const view=viewport.getBoundingClientRect();
+    const bottom=composerElement?.getBoundingClientRect().top??view.bottom;
+    const dx=Math.max(view.left+8-menuRect.left,
+      Math.min(0,view.right-8-menuRect.right));
+    const dy=menuRect.bottom>bottom-8
+      ?-menuRect.height-orb.getBoundingClientRect().height-12:0;
+    if(dx||dy){
+      const c=clientPoint(x,y);
+      const point=worldPoint(c.x+dx,c.y+dy);
+      collaboration.style.left=point.x+"px";
+      collaboration.style.top=point.y+"px";
+    }
+  }
+
+  function toggleCollaboration(){
+    if(!collaboration.hidden){
+      closeCollaboration();
+      return;
+    }
+    const target=nodeEl(orbitId||focusId||lastObservedId);
+    const id=target?.dataset.nodeId;
+    const next=canvas.getWorkflow?.().connections?.find(
+      edge=>String(edge.from?.node)===String(id)
+    );
+    for(const button of collaboration.querySelectorAll("button")){
+      button.disabled=button.dataset.mascotAction==="next"
+        ?!nodeEl(next?.to?.node)
+        :button.dataset.mascotAction==="resume"?false:!target;
+    }
+    collaboration.hidden=false;
+    orb.setAttribute("aria-expanded","true");
+    positionCollaboration();
+  }
+
+  function collaborate(action){
+    const id=orbitId||focusId||lastObservedId;
+    const node=nodeEl(id);
+    closeCollaboration();
+    if(action==="resume"){
+      orbitPinned=false;
+      orbitPausedUntil=0;
+      orbitId=null;
+      noteActivity();
+      return;
+    }
+    if(!node) return;
+    if(action==="question"){
+      const input=composerElement?.querySelector("textarea")||
+        documentRef.querySelector("#composer-input");
+      if(input){
+        if(!String(input.value||"").trim()){
+          const data=canvas.getNode?.(String(id));
+          const title=data?.title||node.querySelector(".vc-node-title")?.textContent||"선택한";
+          input.value=title+" 노드를 검토하고 개선할 점을 알려줘";
+          input.dispatchEvent(new global.Event("input",{bubbles:true}));
+        }
+        input.focus();
+      }
+    }else if(action==="next"){
+      const next=canvas.getWorkflow?.().connections?.find(
+        edge=>String(edge.from?.node)===String(id)&&nodeEl(edge.to?.node)
+      );
+      if(next){
+        canvas.selectNode?.(String(next.to.node));
+      }
+    }else if(action==="stay"){
+      orbitId=String(id);
+      orbitPinned=true;
+      orbitPausedUntil=0;
+      setMood("focus",750);
+    }
+  }
+
+  function startOrbit(id){
+    if(id==null||!nodeEl(id)) return;
+    orbitId=String(id);
+    orbitPausedUntil=0;
+    orbitPinned=false;
+    const node=nodeEl(id);
+    if(nodeVisible(node)&&!drag&&!nodeDragging){
+      const target=nodeTarget(node);
+      const current=clientPoint(x,y);
+      const size=orb.getBoundingClientRect().width||32;
+      const distance=Math.hypot(target.x-current.x,target.y-current.y);
+      lookAt(target.x,target.y,.17);
+      swooshToward(target.x,target.y,{
+        step:distance/size+.2,
+        duration:Math.min(720,350+distance*.35)
+      });
+    }
+  }
+
+  function positionOverlap(clientX,clientY,size){
+    const half=size*.65;
+    return [...viewport.querySelectorAll(".vc-node")].reduce((total,node)=>{
+      const r=node.getBoundingClientRect();
+      const width=Math.max(0,Math.min(clientX+half,r.right)-Math.max(clientX-half,r.left));
+      const height=Math.max(0,Math.min(clientY+half,r.bottom)-Math.max(clientY-half,r.top));
+      return total+width*height;
+    },0);
+  }
+
+  function scheduleOrbit(){
+    clearTimeout(orbitTimer);
+    if(destroyed) return;
+    orbitTimer=setTimeout(()=>{
+      const now=performance.now();
+      const editing=documentRef.activeElement;
+      const blocked=drag||motion||nodeDragging||connectionDragging||layoutAnchor||
+        orb.hidden||documentRef.hidden||
+        (UI?.getMode?.()&&UI.getMode()!=="canvas")||
+        !collaboration.hidden||orb.classList.contains("connecting")||
+        now<orbitPausedUntil||
+        (editing&&(editing.tagName==="TEXTAREA"||editing.tagName==="INPUT"||editing.isContentEditable));
+      if(!blocked){
+        let node=nodeEl(activeTaskId||orbitId);
+        if(!node&&now-lastActivity>4800){
+          node=interestingNode();
+          if(node) orbitId=node.dataset.nodeId;
+        }
+        if(node&&nodeVisible(node)){
+          const r=node.getBoundingClientRect();
+          const orbRect=orb.getBoundingClientRect();
+          const size=orbRect.width||32;
+          const thinking=orb.classList.contains("thinking");
+          const working=orb.classList.contains("working");
+          const still=orbitPinned||reducedMotion?.matches;
+          orbitPhase+=still?0:thinking?.009:working?.022:.012;
+          const radius=Math.min(r.width*.42,size*2.8)*(thinking?.35:1);
+          const view=viewport.getBoundingClientRect();
+          const top=Math.max(view.top,topbarElement?.getBoundingClientRect().bottom??view.top)+size/2+12;
+          const bottom=Math.min(view.bottom,composerElement?.getBoundingClientRect().top??view.bottom)-size/2-12;
+          let tx=Math.max(view.left+size,Math.min(view.right-size,
+            r.left+r.width/2+Math.cos(orbitPhase)*radius));
+          let ty=Math.max(top,Math.min(bottom,
+            r.top-size*1.65+Math.sin(orbitPhase)*size*(thinking?.12:.35)));
+          const current=clientPoint(x,y);
+          const currentOverlap=positionOverlap(current.x,current.y,size);
+          if(currentOverlap){
+            const escape=nodeTarget(node);
+            tx=escape.x;
+            ty=escape.y;
+          }
+          const alpha=reducedMotion?.matches?1:.085;
+          const cx=current.x+(tx-current.x)*alpha;
+          const cy=current.y+(ty-current.y)*alpha;
+          const nextOverlap=positionOverlap(cx,cy,size);
+          if(!nextOverlap||(currentOverlap&&nextOverlap<=currentOverlap)){
+            const point=worldPoint(cx,cy);
+            x=point.x;
+            y=point.y;
+            render();
+            if(!working&&!thinking){
+              lookAt(r.left+r.width/2,r.top+r.height/2,.145);
+            }
+          }
+        }
+      }
+      scheduleOrbit();
+    },orb.hidden||documentRef.hidden?500:50);
   }
 
   function syncPointSatellite(){
@@ -1207,6 +1444,15 @@ function mount(world,canvas,options={}){
       y:current.y+uy*moveDistance
     };
 
+    if(reducedMotion?.matches){
+      const point=worldPoint(endClient.x,endClient.y);
+      x=point.x;
+      y=point.y;
+      render();
+      stopMotion();
+      return true;
+    }
+
     const lineX=
       endClient.x-current.x;
 
@@ -1447,37 +1693,31 @@ function mount(world,canvas,options={}){
     그래서 node 위로 파고드는 이상한 이동 방지.
   */
   function nodeTarget(
-    node,
-    gapScale=.9
+    node
   ){
     const nodeRect=node.getBoundingClientRect();
     const orbRect=orb.getBoundingClientRect();
 
     const current=center(orbRect);
     const nodeCenter=center(nodeRect);
-    const gap=
-      orbRect.width*
-      gapScale;
-
-    const observationLift=
-      Math.min(
-        nodeRect.height*.22,
-        orbRect.width*.78
-      );
-
-    /*
-      node보다 살짝 위에 떠서 아래를 내려다보는 위치.
-      좌우 중 orb가 있는 쪽으로 docking.
-    */
-    return{
-      x:
-        current.x<nodeCenter.x
-          ?nodeRect.left-gap
-          :nodeRect.right+gap,
-      y:
-        nodeCenter.y-
-        observationLift
-    };
+    const observationLift=nodeRect.height/2+orbRect.width*1.65;
+    const view=viewport.getBoundingClientRect();
+    const size=orbRect.width||32;
+    const top=Math.max(view.top,topbarElement?.getBoundingClientRect().bottom??view.top)+size;
+    const bottom=Math.min(view.bottom,composerElement?.getBoundingClientRect().top??view.bottom)-size;
+    const side=current.x<nodeCenter.x?-1:1;
+    const candidates=[
+      {x:nodeCenter.x+side*nodeRect.width*.35,y:nodeCenter.y-observationLift},
+      {x:nodeCenter.x-side*nodeRect.width*.35,y:nodeCenter.y-observationLift},
+      {x:nodeRect.left-size*1.5,y:nodeCenter.y-size*.4},
+      {x:nodeRect.right+size*1.5,y:nodeCenter.y-size*.4}
+    ];
+    for(const point of candidates){
+      point.x=Math.max(view.left+size,Math.min(view.right-size,point.x));
+      point.y=Math.max(top,Math.min(bottom,point.y));
+      if(!positionOverlap(point.x,point.y,size)) return point;
+    }
+    return current;
   }
 
   function reactMoveToNode(id){
@@ -2047,6 +2287,7 @@ function mount(world,canvas,options={}){
       detail?.nodeId;
 
     if(name==="nodeSuccess"){
+      orbitPausedUntil=performance.now()+600;
       if(nodeId&&nodeEl(nodeId)){
         focusNode(
           nodeId,
@@ -2077,6 +2318,8 @@ function mount(world,canvas,options={}){
     }
 
     if(name==="nodeError"){
+      orbitPausedUntil=Infinity;
+      stopMotion();
       if(nodeId&&nodeEl(nodeId)){
         focusNode(
           nodeId,
@@ -2107,6 +2350,7 @@ function mount(world,canvas,options={}){
     }
 
     if(name==="success"){
+      orbitPausedUntil=performance.now()+850;
       if(nodeId&&nodeEl(nodeId)){
         focusNode(
           nodeId,
@@ -2137,6 +2381,8 @@ function mount(world,canvas,options={}){
     }
 
     if(name==="error"){
+      orbitPausedUntil=Infinity;
+      stopMotion();
       if(nodeId&&nodeEl(nodeId)){
         focusNode(
           nodeId,
@@ -2167,6 +2413,8 @@ function mount(world,canvas,options={}){
     }
 
     if(name==="cancelled"){
+      orbitPausedUntil=performance.now()+1800;
+      stopMotion();
       setMood(
         "bumped",
         480
@@ -2194,6 +2442,7 @@ function mount(world,canvas,options={}){
     }
 
     if(name==="idle"){
+      orbitPausedUntil=0;
       clearTaskBehavior();
 
       setMood(
@@ -2237,6 +2486,7 @@ function mount(world,canvas,options={}){
 
     noteActivity();
     stopMotion();
+    startOrbit(id);
 
     const type=
       taskType(id);
@@ -2261,8 +2511,7 @@ function mount(world,canvas,options={}){
 
     const target=
       nodeTarget(
-        node,
-        .72
+        node
       );
 
     const orbRect=
@@ -2341,6 +2590,7 @@ function mount(world,canvas,options={}){
     );
 
     if(active){
+      closeCollaboration();
       orb.dataset.mood="thinking";
 
       setSatellite(
@@ -2721,7 +2971,8 @@ function mount(world,canvas,options={}){
       dy:y-point.y,
       startClientX:event.clientX,
       startClientY:event.clientY,
-      moved:false
+      moved:false,
+      task:activeTaskId
     };
 
     setEffectMode(
@@ -2780,11 +3031,13 @@ function mount(world,canvas,options={}){
       !drag.moved&&
       event.type==="pointerup";
 
+    const resumeTask=drag.task;
     drag=null;
 
     orb.classList.remove(
       "grabbed"
     );
+    if(resumeTask&&nodeEl(resumeTask)) workAtNode(resumeTask,true);
 
     try{
       orb.releasePointerCapture(
@@ -2794,6 +3047,18 @@ function mount(world,canvas,options={}){
 
     if(wasClick){
       react();
+      toggleCollaboration();
+    }else{
+      orbitPinned=true;
+      orbitPausedUntil=performance.now()+4000;
+      const near=[...viewport.querySelectorAll(".vc-node")].filter(nodeVisible)
+        .sort((a,b)=>{
+          const ac=center(a.getBoundingClientRect());
+          const bc=center(b.getBoundingClientRect());
+          const c=clientPoint(x,y);
+          return Math.hypot(ac.x-c.x,ac.y-c.y)-Math.hypot(bc.x-c.x,bc.y-c.y);
+        })[0];
+      if(near) orbitId=near.dataset.nodeId;
     }
 
     scheduleVisible();
@@ -2867,9 +3132,7 @@ function mount(world,canvas,options={}){
       }
 
       if(
-        orb.contains(
-          event.target
-        )
+        orb.contains(event.target)||collaboration.contains(event.target)
       ){
         return;
       }
@@ -2880,6 +3143,8 @@ function mount(world,canvas,options={}){
       const clientY=
         event.clientY;
 
+      closeCollaboration();
+      orbitPausedUntil=performance.now()+1000;
       noteActivity();
 
       gazePriority=20;
@@ -2930,10 +3195,12 @@ function mount(world,canvas,options={}){
     "select",
     id=>{
       if(id){
+        startOrbit(id);
         focusNode(
           id,
           {
-            priority:1,
+            priority:21,
+            mood:"curious",
             duration:700
           }
         );
@@ -2968,6 +3235,7 @@ function mount(world,canvas,options={}){
   bind(
     "nodeEdit",
     event=>{
+      orbitPausedUntil=performance.now()+1800;
       focusNode(
         event.id,
         {
@@ -3007,6 +3275,8 @@ function mount(world,canvas,options={}){
   bind(
     "nodeDragStart",
     event=>{
+      nodeDragging=true;
+      closeCollaboration();
       stopMotion();
 
       focusNode(
@@ -3054,6 +3324,8 @@ function mount(world,canvas,options={}){
   bind(
     "nodeDragEnd",
     event=>{
+      nodeDragging=false;
+      startOrbit(event.id);
       focusNode(
         event.id,
         {
@@ -3111,6 +3383,9 @@ function mount(world,canvas,options={}){
   bind(
     "connectionDragStart",
     event=>{
+      connectionDragging=true;
+      closeCollaboration();
+      stopMotion();
       noteActivity();
 
       setEffectMode(
@@ -3165,6 +3440,7 @@ function mount(world,canvas,options={}){
   bind(
     "connectionDragEnd",
     event=>{
+      connectionDragging=false;
       noteActivity();
 
       connectionEnd(
@@ -3281,9 +3557,44 @@ function mount(world,canvas,options={}){
       },2600+Math.random()*3600);
   }
 
+  listen(orb,"keydown",event=>{
+    if(event.key==="Enter"||event.key===" "){
+      event.preventDefault();
+      react();
+      toggleCollaboration();
+      if(!collaboration.hidden){
+        collaboration.querySelectorAll("button")[0]?.focus();
+      }
+    }
+  });
+  listen(documentRef,"pointerdown",event=>{
+    if(!orb.contains(event.target)&&!collaboration.contains(event.target)){
+      closeCollaboration();
+    }
+  },{capture:true});
+  listen(collaboration,"pointerdown",event=>event.stopPropagation());
+  listen(collaboration,"keydown",event=>{
+    if(event.key==="Escape"){
+      closeCollaboration();
+      orb.focus();
+    }
+  });
+  for(const button of collaboration.querySelectorAll("button")){
+    listen(button,"click",event=>{
+      event.stopPropagation();
+      collaborate(button.dataset.mascotAction);
+    });
+  }
+  listen(viewport,"keydown",event=>{
+    if(event.key==="Escape") closeCollaboration();
+  });
+  const offCollaborationMode=UI?.on?.("modechange",closeCollaboration);
+  if(typeof offCollaborationMode==="function") cleanup.push(offCollaborationMode);
+
   scheduleBlink();
   scheduleThinking();
   scheduleIdleBehavior();
+  scheduleOrbit();
 
   let wasBusy=
     !!App?.isBusy?.();
@@ -3382,6 +3693,10 @@ function mount(world,canvas,options={}){
     centerInViewport,
 
     destroy(){
+      destroyed=true;
+      clearTimeout(orbitTimer);
+      closeCollaboration();
+      collaboration.remove();
       stopMotion();
 
       cancelAnimationFrame(
@@ -3644,3 +3959,4 @@ if(
 }
 
 })(window);
+
