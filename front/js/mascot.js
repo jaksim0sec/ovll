@@ -690,6 +690,8 @@ function mount(world,canvas,options={}){
   let orbitFrame=null;
   let orbitTime=performance.now();
   let orbitScene=null;
+  let orbitAnchor=null;
+  let pendingOrbitId=null;
   let typingUntil=0;
   let typingTimer=null;
   let typingTarget=null;
@@ -887,7 +889,8 @@ function mount(world,canvas,options={}){
       if(input){
         if(!String(input.value||"").trim()){
           const data=canvas.getNode?.(String(id));
-          const title=data?.title||node.querySelector(".vc-node-title")?.textContent||"선택한";
+          const title=String(data?.title||node.querySelector(".vc-node-title,.vc-file-title")?.textContent||"선택한")
+            .replace(/\s+/g," ").trim()||"선택한";
           input.value=title+" 노드를 검토하고 개선할 점을 알려줘";
           input.dispatchEvent(new global.Event("input",{bubbles:true}));
         }
@@ -908,16 +911,23 @@ function mount(world,canvas,options={}){
     }
   }
 
-  function startOrbit(id){
+  function startOrbit(id,{approach=true}={}){
     if(id==null||!nodeEl(id)) return;
     if(activeTaskId&&String(id)!==activeTaskId) return;
     const same=orbitId===String(id);
     orbitId=String(id);
-    orbitScene=null;
+    if(!same||!approach){
+      orbitScene=null;
+      orbitAnchor=null;
+    }
     orbitPausedUntil=0;
     orbitPinned=false;
+    if(motion?.reason==="collision"){
+      if(approach&&!same) pendingOrbitId=String(id);
+      return;
+    }
     const node=nodeEl(id);
-    if(!same&&nodeVisible(node)&&!drag&&!nodeDragging&&!layoutAnchor&&performance.now()>=typingUntil){
+    if(approach&&!same&&nodeVisible(node)&&!drag&&!nodeDragging&&!layoutAnchor&&performance.now()>=typingUntil){
       const target=nodeTarget(node);
       const current=clientPoint(x,y);
       const size=orb.getBoundingClientRect().width||32;
@@ -992,16 +1002,27 @@ function mount(world,canvas,options={}){
         const thinking=orb.classList.contains("thinking");
         const working=orb.classList.contains("working");
         const still=orbitPinned||reducedMotion?.matches;
-        orbitPhase+=still?0:dt*(thinking?.18:working?.44:.24);
         const radius=Math.min(r.width*.42,size*2.8)*(thinking?.35:1);
-        let tx=Math.max(view.left+size,Math.min(view.right-size,
-          r.left+r.width/2+Math.cos(orbitPhase)*radius));
-        let ty=Math.max(orbitScene.top+size/2+12,Math.min(orbitScene.bottom-size/2-12,
-          r.top-size*1.65+Math.sin(orbitPhase)*size*(thinking?.12:.35)));
+        const height=size*(thinking?.12:.35);
         const point=new DOMPoint(x,y).matrixTransform(matrix);
         const current={x:view.left+point.x,y:view.top+point.y};
+        const centerX=r.left+r.width/2;
+        const centerY=r.top-size*1.65;
+        const key=[orbitScene.id,thinking,r.left,r.top,r.width,size].join(":");
+        if(!orbitAnchor||orbitAnchor.key!==key){
+          orbitPhase=Math.atan2((current.y-centerY)/height,(current.x-centerX)/(radius||1));
+          orbitAnchor={key,
+            dx:current.x-centerX-Math.cos(orbitPhase)*radius,
+            dy:current.y-centerY-Math.sin(orbitPhase)*height};
+        }
+        orbitPhase+=still?0:dt*(thinking?.18:working?.44:.24);
+        let tx=Math.max(view.left+size,Math.min(view.right-size,
+          centerX+orbitAnchor.dx+Math.cos(orbitPhase)*radius));
+        let ty=Math.max(orbitScene.top+size/2+12,Math.min(orbitScene.bottom-size/2-12,
+          centerY+orbitAnchor.dy+Math.sin(orbitPhase)*height));
         const currentOverlap=positionOverlap(current.x,current.y,size,rects);
         if(currentOverlap){
+          orbitAnchor=null;
           const escape=nodeTarget(node);
           tx=escape.x;
           ty=escape.y;
@@ -1457,6 +1478,8 @@ function mount(world,canvas,options={}){
     }
 
     motion=null;
+    orbitAnchor=null;
+    pendingOrbitId=null;
 
     orb.classList.remove(
       "moving",
@@ -1481,7 +1504,8 @@ function mount(world,canvas,options={}){
     clientY,
     {
       step=2.35,
-      duration=380
+      duration=380,
+      reason="approach"
     }={}
   ){
     if(drag)
@@ -1691,7 +1715,9 @@ function mount(world,canvas,options={}){
 
     motion={
       x:endClient.x,
-      y:endClient.y
+      y:endClient.y,
+      reason,
+      started
     };
 
     orb.classList.add("moving");
@@ -1750,6 +1776,8 @@ function mount(world,canvas,options={}){
 
       motionFrame=null;
       motion=null;
+      orbitAnchor=null;
+      orbitScene=null;
 
       orb.classList.remove("moving");
 
@@ -1758,6 +1786,12 @@ function mount(world,canvas,options={}){
       orb.style.setProperty("--sy","1");
 
       restoreGaze();
+      if(pendingOrbitId){
+        const next=pendingOrbitId;
+        pendingOrbitId=null;
+        orbitId=null;
+        startOrbit(next);
+      }
     }
 
     motionFrame=
@@ -1949,110 +1983,41 @@ function mount(world,canvas,options={}){
   }
 
   function pushFromNode(node){
-    if(
-      !(node instanceof Element)||
-      !overlaps(node)
-    ){
-      return false;
-    }
-
-    /*
-      전부 screen 좌표 기준이라 Canvas zoom이 이미 반영됨.
-      작은 화면에서는 viewport 크기 자체로 최대 이동량도 제한.
-    */
-    const orbRect=orb.getBoundingClientRect();
-    const nodeRect=node.getBoundingClientRect();
+    if(!(node instanceof Element)||!overlaps(node)||drag) return false;
+    const size=orb.getBoundingClientRect().width||32;
+    if(motion?.reason==="collision"&&(
+      performance.now()-motion.started<120||!positionOverlap(motion.x,motion.y,size)
+    )) return true;
+    const r=node.getBoundingClientRect();
+    const current=clientPoint(x,y);
     const view=viewport.getBoundingClientRect();
-
-    const oc=center(orbRect);
-    const nc=center(nodeRect);
-
-    let dx=oc.x-nc.x;
-    let dy=oc.y-nc.y;
-    let distance=Math.hypot(dx,dy);
-
-    if(distance<1){
-      dx=1;
-      dy=0;
-      distance=1;
+    const gap=size*.85+4;
+    const top=Math.max(view.top,topbarElement?.getBoundingClientRect().bottom??view.top)+size;
+    const bottom=Math.min(view.bottom,composerElement?.getBoundingClientRect().top??view.bottom)-size;
+    const candidates=[
+      {x:r.left-gap,y:current.y},
+      {x:r.right+gap,y:current.y},
+      {x:current.x,y:r.top-gap},
+      {x:current.x,y:r.bottom+gap}
+    ].map(point=>({
+      x:Math.max(view.left+size,Math.min(view.right-size,point.x)),
+      y:Math.max(top,Math.min(bottom,point.y))
+    })).filter(point=>!positionOverlap(point.x,point.y,size))
+      .sort((a,b)=>Math.hypot(a.x-current.x,a.y-current.y)-Math.hypot(b.x-current.x,b.y-current.y));
+    const target=candidates[0];
+    if(!target) return false;
+    const distance=Math.hypot(target.x-current.x,target.y-current.y);
+    const moved=swooshToward(target.x,target.y,{
+      step:distance/size+.2,
+      duration:Math.min(440,240+distance*.5),
+      reason:"collision"
+    });
+    if(moved){
+      setMood("bumped",360);
+      pulse("bump",220);
+      blink();
     }
-
-    const ux=dx/distance;
-    const uy=dy/distance;
-
-    const margin=
-      orbRect.width*.65+8;
-
-    /*
-      기본 push는 orb 2.6개 정도.
-      단, 작은 viewport에서는 짧은 축의 16%를 넘지 않음.
-    */
-    const wanted=Math.min(
-      orbRect.width*2.6,
-      Math.min(
-        view.width,
-        view.height
-      )*.16
-    );
-
-    /*
-      이동 방향으로 실제 화면 안에 남아있는 거리 계산.
-      edge를 뚫고 날아가는 걸 여기서 차단.
-    */
-    const roomX=
-      ux>0
-        ?view.right-margin-oc.x
-        :ux<0
-          ?oc.x-(view.left+margin)
-          :Infinity;
-
-    const roomY=
-      uy>0
-        ?view.bottom-margin-oc.y
-        :uy<0
-          ?oc.y-(view.top+margin)
-          :Infinity;
-
-    const maxX=
-      Math.abs(ux)>.001
-        ?Math.max(0,roomX/Math.abs(ux))
-        :Infinity;
-
-    const maxY=
-      Math.abs(uy)>.001
-        ?Math.max(0,roomY/Math.abs(uy))
-        :Infinity;
-
-    const travel=Math.max(
-      0,
-      Math.min(
-        wanted,
-        maxX,
-        maxY
-      )
-    );
-
-    if(travel<2)
-      return false;
-
-    /*
-      swooshToward 자체 step 제한보다
-      우리가 계산한 target까지 정확히 갈 수 있게 step 산출.
-    */
-    swooshToward(
-      oc.x+ux*travel,
-      oc.y+uy*travel,
-      {
-        step:travel/orbRect.width,
-        duration:300
-      }
-    );
-
-    setMood("bumped",360);
-    pulse("bump",220);
-    blink();
-
-    return true;
+    return moved;
   }
 
   function ensureVisible(){
@@ -3365,7 +3330,7 @@ function mount(world,canvas,options={}){
     "nodeDragEnd",
     event=>{
       nodeDragging=false;
-      startOrbit(event.id);
+      startOrbit(event.id,{approach:false});
       focusNode(
         event.id,
         {

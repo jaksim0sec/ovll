@@ -14,18 +14,18 @@ function harness(reduced=false){
     contains(n){return n===this||this.children.some(c=>c.contains(n))}focus(){document.activeElement=this}setPointerCapture(){}releasePointerCapture(){}
     querySelectorAll(s){return this.children.flatMap(c=>[...(s==='button'||s==='.vc-node'&&c.classes.has('vc-node')?[c]:[]),...c.querySelectorAll(s)])}
     querySelector(s){return this.querySelectorAll(s)[0]||null}
-    getBoundingClientRect(){const left=this.rect?.left??parseFloat(this.style.left??0),top=this.rect?.top??parseFloat(this.style.top??0),width=this.rect?.width??32,height=this.rect?.height??32;return {left,top,width,height,right:left+width,bottom:top+height}}
+    getBoundingClientRect(){const width=this.rect?.width??32,height=this.rect?.height??32,shift=this.classes.has('ovll-mascot');const left=this.rect?.left??parseFloat(this.style.left??0)-(shift?width/2:0),top=this.rect?.top??parseFloat(this.style.top??0)-(shift?height/2:0);return {left,top,width,height,right:left+width,bottom:top+height}}
   }
   const document=new Element();document.readyState='loading';document.head=new Element();document.createElement=()=>new Element();document.getElementById=()=>null;document.querySelector=()=>null;document.hidden=false;
   const viewport=new Element();viewport.rect={left:0,top:0,width:800,height:550};const world=new Element();const a=new Element();a.className='vc-node';a.dataset.nodeId='a';a.rect={left:200,top:230,width:190,height:120};const b=new Element();b.className='vc-node';b.dataset.nodeId='b';b.rect={left:480,top:230,width:190,height:120};world.append(a,b);viewport.append(world);
   const composer=new Element();composer.rect={left:0,top:550,width:800,height:50};const input=new Element();composer.append(input);input.tagName="TEXTAREA";input.rect={left:0,top:550,width:800,height:50};composer.querySelector=()=>input;
   document.querySelector=s=>s==='#composer-form'?composer:s==='#composer-input'?input:null;
   const canvas={root:viewport,on:(n,f)=>{handlers.set(n,f);return()=>handlers.delete(n)},getNode:id=>({id,type:'research',title:'자료 조사'}),getWorkflow:()=>({nodes:[{id:'a'},{id:'b'}],connections:[{from:{node:'a'},to:{node:'b'}}]})},UI={getMode:()=>"canvas",on:()=>()=>{}},App={isBusy:()=>false};
-  const context={document,performance:{now:()=>now},console,Math,DOMMatrix:class{inverse(){return this}},DOMPoint:class{constructor(x,y){this.x=x;this.y=y}matrixTransform(){return this}},getComputedStyle:()=>({transform:'none',getPropertyValue:()=>''}),setTimeout:(f,delay=0)=>{const id=++next;timers.set(id,{f,t:now+delay});return id},clearTimeout:id=>timers.delete(id),requestAnimationFrame:f=>context.setTimeout(()=>f(now),16),cancelAnimationFrame:id=>timers.delete(id),Event:class{constructor(type,options){this.type=type;Object.assign(this,options)}}};context.window=context;context.addEventListener=()=>{};context.removeEventListener=()=>{};context.matchMedia=()=>({matches:reduced,addEventListener(){},removeEventListener(){}});vm.runInNewContext(fs.readFileSync(new URL('../front/js/mascot.js',import.meta.url),'utf8'),context);
+  const context={document,Element,performance:{now:()=>now},console,Math,DOMMatrix:class{inverse(){return this}},DOMPoint:class{constructor(x,y){this.x=x;this.y=y}matrixTransform(){return this}},getComputedStyle:()=>({transform:'none',getPropertyValue:()=>''}),setTimeout:(f,delay=0)=>{const id=++next;timers.set(id,{f,t:now+delay});return id},clearTimeout:id=>timers.delete(id),requestAnimationFrame:f=>context.setTimeout(()=>f(now),16),cancelAnimationFrame:id=>timers.delete(id),Event:class{constructor(type,options){this.type=type;Object.assign(this,options)}}};context.window=context;context.addEventListener=()=>{};context.removeEventListener=()=>{};context.matchMedia=()=>({matches:reduced,addEventListener(){},removeEventListener(){}});vm.runInNewContext(fs.readFileSync(new URL('../front/js/mascot.js',import.meta.url),'utf8'),context);
   const mascot=context.mountOvllCanvasMascot(world,canvas,{ui:UI,app:App,composer});
   function advance(ms){const end=now+ms;let count=0;while(true){const entry=[...timers].filter(([,v])=>v.t<=end).sort((a,b)=>a[1].t-b[1].t)[0];if(!entry)break;if(++count>10000)throw Error('timer runaway');now=entry[1].t;timers.delete(entry[0]);entry[1].f()}now=end;}
   const position=()=>({x:parseFloat(mascot.element.style.left),y:parseFloat(mascot.element.style.top)});
-  return {mascot,advance,position,handlers,world,input,context,document,nodes:[a,b],click:()=>{mascot.element.dispatchEvent({type:'pointerdown',pointerId:1,clientX:400,clientY:100,button:0});mascot.element.dispatchEvent({type:'pointerup',pointerId:1})}};
+  return {mascot,advance,position,handlers,world,input,context,document,canvas,nodes:[a,b],click:()=>{mascot.element.dispatchEvent({type:'pointerdown',pointerId:1,clientX:400,clientY:100,button:0});mascot.element.dispatchEvent({type:'pointerup',pointerId:1})}};
 }
 
 test('selection approaches above the node and continues orbiting',()=>{const h=harness();h.handlers.get('select')('a');h.advance(4000);const a=h.position();h.advance(1500);const b=h.position();assert.ok(Math.hypot(a.x-b.x,a.y-b.y)>1,'orbit should move around the selected node');assert.ok(b.y+16<230,'orbit should clear the node body');h.mascot.destroy()});
@@ -42,3 +42,38 @@ test('typing stops an in-progress approach and looks toward the input',()=>{cons
 test('reselecting the same node does not repeatedly restart its approach',()=>{const h=harness();h.handlers.get('select')('a');h.advance(3000);const p=h.position();for(let i=0;i<60;i++){h.handlers.get('select')('a');h.advance(16)}const q=h.position();assert.ok(Math.hypot(p.x-q.x,p.y-q.y)>2,'repeated selection must not freeze motion by restarting the curve');h.mascot.destroy()});
 test('viewport changes cancel stale approach frames without position snapping',()=>{const h=harness();h.handlers.get('select')('a');h.advance(100);const p=h.position();h.handlers.get('viewport')();h.advance(200);assert.deepEqual(h.position(),p,'a pre-viewport curve must not continue writing old coordinates');h.mascot.destroy()});
 test('task gaze does not steal attention during keyboard input',()=>{const h=harness();h.mascot.workAtNode('a',true);h.advance(2000);h.document.dispatchEvent({type:'input',target:h.input});h.advance(700);assert.equal(h.mascot.element.dataset.mood,'attention');assert.ok(parseFloat(h.mascot.element.style['--ey'])>0);h.advance(700);assert.ok(h.mascot.element.classList.contains('working'));h.mascot.destroy()});
+
+test('approach hands over to orbit without a reverse correction at arrival',()=>{const h=harness();h.handlers.get('select')('a');for(let i=0;i<100&&h.mascot.element.classList.contains('moving');i++)h.advance(16);const p=h.position();h.advance(160);const q=h.position();assert.ok(Math.abs(q.x-p.x)<1,'arrival must not slide backward toward a different orbit starting point');h.mascot.destroy()});
+test('repeated collision events do not starve the push animation',()=>{const h=harness();h.handlers.get('select')('a');h.advance(3000);const p=h.position();h.nodes[1].rect={left:p.x-45,top:p.y-45,width:110,height:110};h.handlers.get('nodeDragStart')({id:'b'});for(let i=0;i<20;i++){h.handlers.get('nodeDragMove')({id:'b'});h.advance(16)}const q=h.position();assert.ok(Math.hypot(q.x-p.x,q.y-p.y)>20,'collision response must progress instead of restarting on every pointer event');h.handlers.get('nodeDragEnd')({id:'b'});h.advance(1200);const r=h.nodes[1].rect,z=h.position();assert.ok(!(z.x+16>r.left&&z.x-16<r.left+r.width&&z.y+16>r.top&&z.y-16<r.top+r.height),'completed push must clear the collider');h.mascot.destroy()});
+test('node question normalizes title markup whitespace',()=>{const h=harness();h.canvas.getNode=id=>({id,type:'research'});h.nodes[0].querySelector=()=>({textContent:'\n    조사하기\n   자료 요약  \n'});h.handlers.get('select')('a');h.advance(2000);h.click();const menu=h.world.children.find(e=>e.className==='ovll-mascot-menu');menu.children.find(e=>e.dataset.mascotAction==='question').dispatchEvent({type:'click'});assert.equal(h.input.value,'조사하기 자료 요약 노드를 검토하고 개선할 점을 알려줘');h.mascot.destroy()});
+
+function beginCollision(dragged=true){
+  const h=harness();
+  h.handlers.get('select')('a');h.advance(3000);
+  const p=h.position();
+  h.nodes[1].rect={left:p.x-45,top:p.y-45,width:110,height:110};
+  if(dragged){
+    h.handlers.get('nodeDragStart')({id:'b'});
+    h.handlers.get('nodeDragMove')({id:'b'});
+  }else h.handlers.get('nodeExpand')({id:'b'});
+  h.advance(64);
+  return h;
+}
+
+test('releasing a dragged node lets its existing collision motion finish',()=>{
+  const control=beginCollision(),released=beginCollision();
+  released.handlers.get('nodeDragEnd')({id:'b'});
+  control.advance(96);released.advance(96);
+  assert.deepEqual(released.position(),control.position(),'release must not replace the escape curve with an approach');
+  control.mascot.destroy();released.mascot.destroy();
+});
+
+test('selection waits for collision escape before approaching the selected node',()=>{
+  const control=beginCollision(false),selected=beginCollision(false);
+  selected.handlers.get('select')('b');
+  control.advance(96);selected.advance(96);
+  assert.deepEqual(selected.position(),control.position(),'selection must not interrupt the collision escape');
+  selected.advance(2000);
+  assert.ok(selected.position().y+16<selected.nodes[1].rect.top,'the queued selection should approach once the collision ends');
+  control.mascot.destroy();selected.mascot.destroy();
+});
