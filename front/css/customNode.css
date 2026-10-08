@@ -69,7 +69,9 @@
 .ovll-function-identity,
 .ovll-function-save,
 .ovll-function-inspector button,
-.ovll-function-color{
+.ovll-function-records-panel button,
+.ovll-function-color,
+.ovll-function-icon-option{
   appearance:none;
   border:0;
   font:inherit;
@@ -112,19 +114,18 @@
   box-shadow:var(--ui-control-shadow);
 }
 
-.ovll-function-color-dot{
-  width:.62rem;
-  height:.62rem;
-  flex:0 0 .62rem;
-  border-radius:999px;
-  background:var(--function-color,#7c6cf2);
-  box-shadow:
-    0 0 0 .0625rem
-    color-mix(
-      in srgb,
-      var(--function-color,#7c6cf2) 58%,
-      var(--line)
-    );
+.ovll-function-icon{
+  width:1.12rem;
+  height:1.12rem;
+  flex:0 0 1.12rem;
+  display:grid;
+  place-items:center;
+  color:var(--function-color,#7c6cf2);
+}
+
+.ovll-function-icon svg{
+  width:1.12rem;
+  height:1.12rem;
 }
 
 .ovll-function-identity-copy{
@@ -186,7 +187,8 @@ small[data-tone="saved"]{
   cursor:default;
 }
 
-.ovll-function-inspector{
+.ovll-function-inspector,
+.ovll-function-records-panel{
   position:absolute;
   z-index:calc(var(--layer-overlay) + 2);
   top:
@@ -229,11 +231,13 @@ small[data-tone="saved"]{
   scrollbar-width:none;
 }
 
-.ovll-function-inspector[hidden]{
+.ovll-function-inspector[hidden],
+.ovll-function-records-panel[hidden]{
   display:none;
 }
 
-.ovll-function-inspector::-webkit-scrollbar{
+.ovll-function-inspector::-webkit-scrollbar,
+.ovll-function-records-panel::-webkit-scrollbar{
   display:none;
 }
 
@@ -271,8 +275,7 @@ small[data-tone="saved"]{
   margin-top:.58rem;
 }
 
-.ovll-function-field>span,
-.ovll-function-library-title{
+.ovll-function-field>span{
   color:var(--muted);
   font-size:.56rem;
   font-weight:690;
@@ -343,10 +346,49 @@ small[data-tone="saved"]{
     0 0 0 .2rem var(--function-color);
 }
 
-.ovll-function-library{
-  margin-top:.78rem;
-  padding-top:.68rem;
-  border-top:.0625rem solid var(--line);
+.ovll-function-records-actions{
+  display:flex;
+  align-items:center;
+  gap:.28rem;
+}
+
+.ovll-function-icons{
+  display:grid;
+  grid-template-columns:repeat(6,minmax(0,1fr));
+  gap:.28rem;
+}
+
+.ovll-function-inspector .ovll-function-icon-option{
+  display:grid;
+  place-items:center;
+  min-width:0;
+  min-height:2.42rem;
+  padding:0;
+  border:.0625rem solid var(--line);
+  border-radius:.63rem;
+  background:var(--ui-control-surface);
+  color:var(--sub);
+  transition:background .16s ease,border-color .16s ease,color .16s ease;
+}
+
+.ovll-function-icon-option svg{
+  width:1.34rem;
+  height:1.34rem;
+}
+
+.ovll-function-icon-option:hover{
+  background:var(--ui-control-surface-strong);
+}
+
+.ovll-function-icon-option.is-active{
+  color:var(--function-color,#7c6cf2);
+  border-color:color-mix(in srgb,var(--function-color,#7c6cf2) 60%,var(--line));
+  background:color-mix(in srgb,var(--function-color,#7c6cf2) 10%,var(--panel-strong));
+}
+
+.ovll-function-icon-option:focus-visible{
+  outline:.125rem solid var(--line-strong);
+  outline-offset:.1rem;
 }
 
 .ovll-function-list{
@@ -359,7 +401,7 @@ small[data-tone="saved"]{
   width:100%;
   min-width:0;
   display:grid;
-  grid-template-columns:1rem minmax(0,1fr);
+  grid-template-columns:1.4rem minmax(0,1fr);
   align-items:center;
   gap:.52rem;
   min-height:2.7rem;
@@ -382,23 +424,17 @@ small[data-tone="saved"]{
     );
 }
 
-.ovll-function-list-dot{
-  width:.72rem;
-  height:.72rem;
-  border-radius:.28rem;
-  background:
-    color-mix(
-      in srgb,
-      var(--function-color) 22%,
-      transparent
-    );
-  box-shadow:
-    inset 0 0 0 .0625rem
-    color-mix(
-      in srgb,
-      var(--function-color) 60%,
-      transparent
-    );
+.ovll-function-list-icon{
+  width:1.4rem;
+  height:1.4rem;
+  display:grid;
+  place-items:center;
+  color:var(--function-color,#7c6cf2);
+}
+
+.ovll-function-list-icon svg{
+  width:1.23rem;
+  height:1.23rem;
 }
 
 .ovll-function-list-copy{

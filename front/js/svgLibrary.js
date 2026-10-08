@@ -1,7 +1,7 @@
 (function(global){
 "use strict";
 
-const ICONS=Object.freeze({
+const LOCAL_ICONS=Object.freeze({
   nodeAdd:`
     <svg viewBox="0 0 20 20" fill="none" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
       <rect x="4.25" y="4.25" width="11.5" height="11.5" rx="3.6"></rect>
@@ -42,6 +42,39 @@ const ICONS=Object.freeze({
   `
 });
 
+const CACHE_KEY="ovll:server-icon-svg-cache";
+const ICONS={...LOCAL_ICONS};
+let serverKeys=[];
+
+function setServerIcons(source){
+  if(!source||typeof source!=="object"||Array.isArray(source))return false;
+  const next={};
+  for(const [key,svg] of Object.entries(source)){
+    if(!/^[a-z][a-z0-9_-]{0,63}$/i.test(key)||
+       typeof svg!=="string"||
+       !svg.trim().startsWith("<svg")||
+       !svg.trim().endsWith("</svg>"))continue;
+    next[key]=svg;
+  }
+  if(!Object.keys(next).length)return false;
+  for(const key of serverKeys)delete ICONS[key];
+  Object.assign(ICONS,next);
+  serverKeys=Object.keys(next);
+  try{
+    global.localStorage?.setItem(CACHE_KEY,JSON.stringify(next));
+  }catch{}
+  return true;
+}
+
+function getServerKeys(){
+  return serverKeys.filter(key=>key!=="custom");
+}
+
+try{
+  const stored=global.localStorage?.getItem(CACHE_KEY);
+  if(stored)setServerIcons(JSON.parse(stored));
+}catch{}
+
 function get(name){
   return ICONS[String(name||"")]||"";
 }
@@ -56,7 +89,9 @@ function has(name){
 global.OvllSvgLibrary=Object.freeze({
   get,
   has,
-  icons:ICONS
+  icons:ICONS,
+  setServerIcons,
+  getServerKeys
 });
 
 })(window);

@@ -3870,11 +3870,8 @@
       type:
         type || "node",
       icon:
-        typeof definition?.icon ===
-          "string" &&
-        definition.icon.trim()
-          ? definition.icon
-          : "",
+        global.OvllSvgLibrary?.get?.(definition?.iconKey)||
+        (typeof definition?.icon==="string"?definition.icon:""),
       color:
         String(
           definition?.color ||

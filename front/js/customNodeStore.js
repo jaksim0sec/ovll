@@ -212,6 +212,12 @@ function normalizeRecord(value){
       )
         ?String(source.color)
         :"#7c6cf2",
+    iconKey:
+      /^[a-z][a-z0-9_-]{0,63}$/i.test(
+        String(source.iconKey||"")
+      )
+        ?String(source.iconKey)
+        :"custom",
     workflow:
       normalizeWorkflow(
         source.workflow

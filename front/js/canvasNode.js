@@ -673,6 +673,7 @@
         ...(definition || {}),
         name: definition?.name || type,
         color: definition?.color || '#888888',
+        iconKey: typeof definition?.iconKey === 'string' ? definition.iconKey : '',
         icon: typeof definition?.icon === 'string' ? definition.icon : '',
         inputs: Array.isArray(definition?.inputs)
           ? definition.inputs.map((port, index) => normalizePort(port, index, 'input'))
@@ -1543,7 +1544,7 @@
           node.type === 'file' &&
           node.data?.generated
             ? icons.fileResult
-            : definition.icon || '';
+            : global.OvllSvgLibrary?.get?.(definition.iconKey) || definition.icon || '';
         element.innerHTML = `
           <div class="vc-node-head">
             <span class="vc-node-icon">${nodeIcon}</span>

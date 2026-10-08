@@ -940,6 +940,10 @@
           );
         }
 
+        if(!global.OvllSvgLibrary?.setServerIcons?.(result.iconSvg)){
+          throw new Error("서버 SVG 라이브러리를 불러오지 못했습니다.");
+        }
+
         nodeDefinitionsCache =
           result.nodes;
         nodeDefinitionsFresh = true;

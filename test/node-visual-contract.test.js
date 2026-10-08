@@ -33,54 +33,26 @@ function cssBlock(selector) {
   return css.slice(open + 1, close);
 }
 function serverNodeIcon(type) {
-  const definitionStart =
-    server.indexOf(
-      "const defaultNodeDef = {"
-    );
-  const definitionEnd =
-    server.indexOf(
-      "const CUSTOM_NODE_TYPE_RE",
-      definitionStart
-    );
-  const definitions =
-    server.slice(
-      definitionStart,
-      definitionEnd
-    );
-  const typeStart =
-    definitions.indexOf(
-      `\n  ${type}: {`
-    );
+  const start=server.indexOf("const defaultNodeDef = {");
+  const end=server.indexOf("const CUSTOM_NODE_TYPE_RE",start);
+  const definitions=server.slice(start,end);
+  const from=definitions.indexOf(`\n  ${type}: {`);
+  assert.notEqual(from,-1,`missing server definition: ${type}`);
+  const to=definitions.indexOf("\n  },",from);
+  const node=definitions.slice(from,to<0?definitions.length:to);
+  const key=node.match(/iconKey:\s*['"]([^'"]+)['"]/)?.[1];
+  assert.ok(key,`missing iconKey for ${type}`);
 
-  assert.notEqual(
-    typeStart,
-    -1,
-    `missing server definition for ${type}`
-  );
-
-  const typeEnd =
-    definitions.indexOf(
-      "\n  },",
-      typeStart
-    );
-  const section =
-    definitions.slice(
-      typeStart,
-      typeEnd === -1
-        ? definitions.length
-        : typeEnd
-    );
-  const match =
-    section.match(
-      /icon:\s*`([\s\S]*?)`/
-    );
-
-  assert.ok(
-    match,
-    `missing server icon for ${type}`
-  );
-
-  return match[1];
+  const libraryStart=server.indexOf("const iconSvg = Object.freeze({");
+  const libraryEnd=server.indexOf("\n});",libraryStart);
+  const library=server.slice(libraryStart,libraryEnd);
+  const marker=`  ${key}: \``;
+  const iconAt=library.indexOf(marker);
+  assert.notEqual(iconAt,-1,`missing catalog icon: ${key}`);
+  const begin=iconAt+marker.length;
+  const finish=library.indexOf("\`,",begin);
+  assert.notEqual(finish,-1,`unterminated catalog icon: ${key}`);
+  return library.slice(begin,finish);
 }
 
 
@@ -245,6 +217,21 @@ test("server-owned node icons share one rounded monoline visual contract", () =>
     );
   }
 
+});
+
+test("approved custom icon selection is centralized without rejected icons",()=>{
+  const start=server.indexOf("const iconSvg = Object.freeze({");
+  const end=server.indexOf("\n});",start);
+  const text=server.slice(start,end);
+  const names=[...text.matchAll(/^\s+(?:'([^']+)'|([a-z][a-zA-Z0-9]*)):\s*\`/gm)]
+    .map(item=>item[1]||item[2]);
+  assert.equal(names.length,19);
+  for(const name of ["open-book","flask","potted-plant","graduation-cap","pencil","lightbulb","hourglass","planet","headphones","coffee-cup","compass"]){
+    assert.ok(names.includes(name),`missing ${name}`);
+  }
+  for(const name of ["brain","bar-chart","bag","puzzle-piece"]){
+    assert.ok(!names.includes(name),`rejected icon present: ${name}`);
+  }
 });
 
 test("ports and connection lines are neutral borderless geometry", () => {

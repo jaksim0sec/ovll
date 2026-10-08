@@ -31,6 +31,16 @@ const COLORS=[
   "#d96f83",
   "#6c7a89"
 ];
+const DEFAULT_ICON_KEY="pencil";
+const ICON_LABELS={
+  play:"시작",globe:"지구본",notebook:"정리",scales:"저울",
+  pen:"펜",folder:"폴더",sparkle:"생성",
+  "open-book":"펼쳐진 책",flask:"플라스크",
+  "potted-plant":"화분","graduation-cap":"학사모",
+  pencil:"연필",lightbulb:"전구",hourglass:"모래시계",
+  planet:"행성",headphones:"헤드폰",
+  "coffee-cup":"커피잔",compass:"나침반"
+};
 
 function clone(value){
   return value==null
@@ -68,6 +78,8 @@ function createOvllFunctionWorkspace(
     canvas:null,
     definitions:null,
     color:COLORS[0],
+    iconKey:DEFAULT_ICON_KEY,
+    recordsOpen:false,
     messages:[],
     dirty:false,
     busy:false,
@@ -173,7 +185,7 @@ function createOvllFunctionWorkspace(
       type="button"
       aria-expanded="false"
     >
-      <span class="ovll-function-color-dot" aria-hidden="true"></span>
+      <span class="ovll-function-icon" data-function-icon-preview aria-hidden="true"></span>
       <span class="ovll-function-identity-copy">
         <strong data-function-title>새 함수</strong>
         <small data-function-save-state>새 함수</small>
@@ -215,7 +227,7 @@ function createOvllFunctionWorkspace(
   inspector.innerHTML=`
     <div class="ovll-function-inspector-head">
       <strong>함수 설정</strong>
-      <button data-function-new type="button">새 함수</button>
+      <button data-function-records-open type="button">내 함수</button>
     </div>
 
     <label class="ovll-function-field">
@@ -229,13 +241,13 @@ function createOvllFunctionWorkspace(
     </label>
 
     <div class="ovll-function-field">
-      <span>색상</span>
-      <div class="ovll-function-colors" data-function-colors></div>
+      <span>아이콘</span>
+      <div class="ovll-function-icons" data-function-icons role="group" aria-label="노드 아이콘 선택"></div>
     </div>
 
-    <div class="ovll-function-library">
-      <div class="ovll-function-library-title">내 함수</div>
-      <div class="ovll-function-list" data-function-list></div>
+    <div class="ovll-function-field">
+      <span>색상</span>
+      <div class="ovll-function-colors" data-function-colors></div>
     </div>
 
     <button class="ovll-function-delete" data-function-delete type="button" hidden>삭제</button>
@@ -244,6 +256,25 @@ function createOvllFunctionWorkspace(
   overlay?.appendChild(
     inspector
   );
+
+  const recordsPanel=
+    document.createElement("div");
+
+  recordsPanel.className=
+    "ovll-function-records-panel";
+  recordsPanel.hidden=true;
+  recordsPanel.innerHTML=`
+    <div class="ovll-function-inspector-head">
+      <strong>내 함수</strong>
+      <div class="ovll-function-records-actions">
+        <button data-function-new type="button">새 함수</button>
+        <button data-function-records-close type="button" aria-label="내 함수 닫기">닫기</button>
+      </div>
+    </div>
+    <div class="ovll-function-list" data-function-list></div>
+  `;
+
+  overlay?.appendChild(recordsPanel);
 
   const nameInput=
     inspector.querySelector(
@@ -260,8 +291,13 @@ function createOvllFunctionWorkspace(
       "[data-function-colors]"
     );
 
-  const listRoot=
+  const iconsRoot=
     inspector.querySelector(
+      "[data-function-icons]"
+    );
+
+  const listRoot=
+    recordsPanel.querySelector(
       "[data-function-list]"
     );
 
@@ -280,9 +316,9 @@ function createOvllFunctionWorkspace(
       "[data-function-save-state]"
     );
 
-  const colorDot=
+  const iconPreview=
     context.querySelector(
-      ".ovll-function-color-dot"
+      "[data-function-icon-preview]"
     );
 
   const inspectorToggle=
@@ -345,13 +381,54 @@ function createOvllFunctionWorkspace(
         displayName();
     }
 
-    if(colorDot){
-      colorDot.style
-        .setProperty(
-          "--function-color",
-          state.color
-        );
+    if(iconPreview){
+      iconPreview.style.setProperty(
+        "--function-color",
+        state.color
+      );
+      iconPreview.innerHTML=
+        SvgLibrary?.get?.(state.iconKey)||
+        SvgLibrary?.get?.("custom")||
+        "";
     }
+  }
+
+  function setIconKey(key){
+    state.iconKey=
+      SvgLibrary?.has?.(key)
+        ?String(key)
+        :"custom";
+
+    iconsRoot?.querySelectorAll("[data-function-icon-key]")
+      .forEach(button=>{
+        const active=button.dataset.functionIconKey===state.iconKey;
+        button.classList.toggle("is-active",active);
+        button.setAttribute("aria-pressed",String(active));
+      });
+
+    syncIdentity();
+  }
+
+  function renderIconChoices(){
+    iconsRoot?.replaceChildren();
+
+    for(const key of SvgLibrary?.getServerKeys?.()||[]){
+      const svg=SvgLibrary.get(key);
+      if(!svg)continue;
+
+      const button=document.createElement("button");
+      const name=ICON_LABELS[key]||key;
+      button.type="button";
+      button.className="ovll-function-icon-option";
+      button.dataset.functionIconKey=key;
+      button.setAttribute("aria-label",name);
+      button.setAttribute("title",name);
+      button.setAttribute("aria-pressed","false");
+      button.innerHTML=svg;
+      iconsRoot?.appendChild(button);
+    }
+
+    setIconKey(state.iconKey);
   }
 
   function setColor(color){
@@ -508,12 +585,19 @@ function createOvllFunctionWorkspace(
           ?.length||0;
 
       button.innerHTML=`
-        <span class="ovll-function-list-dot" aria-hidden="true"></span>
+        <span class="ovll-function-list-icon" aria-hidden="true"></span>
         <span class="ovll-function-list-copy">
           <strong></strong>
           <small></small>
         </span>
       `;
+
+      button.querySelector(
+        ".ovll-function-list-icon"
+      ).innerHTML=
+        SvgLibrary?.get?.(record.iconKey)||
+        SvgLibrary?.get?.("custom")||
+        "";
 
       button.querySelector(
         "strong"
@@ -534,6 +618,7 @@ function createOvllFunctionWorkspace(
   }
 
   function setInspectorOpen(open){
+    if(open&&state.recordsOpen)setRecordsOpen(false);
     state.inspectorOpen=
       !!open;
 
@@ -554,6 +639,16 @@ function createOvllFunctionWorkspace(
       );
 
     return state.inspectorOpen;
+  }
+
+  function setRecordsOpen(open){
+    state.recordsOpen=!!open;
+    recordsPanel.hidden=!state.recordsOpen;
+    recordsPanel.classList.toggle("is-open",state.recordsOpen);
+    if(state.recordsOpen){
+      setInspectorOpen(false);
+      renderRecords();
+    }
   }
 
   function renderMessages(){
@@ -643,6 +738,8 @@ function createOvllFunctionWorkspace(
     state.definitions=
       await API
         .getNodeDefinitions();
+
+    renderIconChoices();
 
     state.canvas=
       await workspace
@@ -763,6 +860,7 @@ function createOvllFunctionWorkspace(
     state.editingId=null;
     state.messages=[];
     state.color=COLORS[0];
+    state.iconKey=DEFAULT_ICON_KEY;
     state.dirty=false;
 
     if(nameInput){
@@ -776,6 +874,7 @@ function createOvllFunctionWorkspace(
     setColor(
       COLORS[0]
     );
+    setIconKey(DEFAULT_ICON_KEY);
 
     state.canvas.setState({
       workflow:
@@ -808,6 +907,7 @@ function createOvllFunctionWorkspace(
     setInspectorOpen(
       false
     );
+    setRecordsOpen(false);
 
     return true;
   }
@@ -829,6 +929,9 @@ function createOvllFunctionWorkspace(
     state.color=
       record.color||
       COLORS[0];
+    state.iconKey=
+      record.iconKey||
+      "custom";
     state.messages=
       clone(
         record.builder
@@ -846,6 +949,7 @@ function createOvllFunctionWorkspace(
     setColor(
       state.color
     );
+    setIconKey(state.iconKey);
 
     state.canvas.setState({
       workflow:
@@ -882,6 +986,7 @@ function createOvllFunctionWorkspace(
     setInspectorOpen(
       false
     );
+    setRecordsOpen(false);
 
     requestAnimationFrame(
       ()=>state.canvas
@@ -955,6 +1060,8 @@ function createOvllFunctionWorkspace(
             " 작업을 수행하는 사용자 정의 함수.",
           color:
             state.color,
+          iconKey:
+            state.iconKey,
           workflow:
             validated.workflow,
           boundary:
@@ -1232,10 +1339,26 @@ function createOvllFunctionWorkspace(
 
   listen(
     inspector.querySelector(
+      "[data-function-records-open]"
+    ),
+    "click",
+    ()=>setRecordsOpen(true)
+  );
+
+  listen(
+    recordsPanel.querySelector(
       "[data-function-new]"
     ),
     "click",
     ()=>void newDraft()
+  );
+
+  listen(
+    recordsPanel.querySelector(
+      "[data-function-records-close]"
+    ),
+    "click",
+    ()=>setRecordsOpen(false)
   );
 
   listen(
@@ -1280,6 +1403,17 @@ function createOvllFunctionWorkspace(
   );
 
   listen(
+    iconsRoot,
+    "click",
+    event=>{
+      const button=event.target.closest("[data-function-icon-key]");
+      if(!button)return;
+      setIconKey(button.dataset.functionIconKey);
+      markDirty();
+    }
+  );
+
+  listen(
     colorsRoot,
     "click",
     event=>{
@@ -1305,13 +1439,11 @@ function createOvllFunctionWorkspace(
     document,
     "keydown",
     event=>{
-      if(
-        event.key==="Escape"&&
-        state.inspectorOpen
-      ){
-        setInspectorOpen(
-          false
-        );
+      if(event.key!=="Escape")return;
+      if(state.recordsOpen){
+        setRecordsOpen(false);
+      }else if(state.inspectorOpen){
+        setInspectorOpen(false);
       }
     }
   );

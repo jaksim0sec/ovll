@@ -41,16 +41,6 @@ function typeForRecord(recordId){
     String(recordId||"");
 }
 
-function customIcon(){
-  return `
-    <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
-      <rect x="3.4" y="4" width="5.2" height="5.2" rx="1.6" stroke="currentColor" stroke-width="1.45"/>
-      <rect x="11.4" y="10.8" width="5.2" height="5.2" rx="1.6" stroke="currentColor" stroke-width="1.45"/>
-      <path d="M8.6 6.6h2.1a2 2 0 0 1 2 2v2.2" stroke="currentColor" stroke-width="1.45" stroke-linecap="round"/>
-    </svg>
-  `;
-}
-
 function definitionFor(record){
   return {
     name:
@@ -67,7 +57,7 @@ function definitionFor(record){
     color:
       record.color||
       "#7c6cf2",
-    icon:customIcon(),
+    iconKey:record.iconKey||"custom",
     params:[],
     inputs:[
       {

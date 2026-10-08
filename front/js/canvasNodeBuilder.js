@@ -166,7 +166,7 @@ function createCanvasNodeBuilder(options={}){
 
         const icon=document.createElement("span");
         icon.className="canvas-node-builder-icon";
-        icon.innerHTML=definition.icon||"";
+        icon.innerHTML=SvgLibrary?.get?.(definition.iconKey)||definition.icon||"";
 
         const name=document.createElement("span");
         name.className="canvas-node-builder-name";
