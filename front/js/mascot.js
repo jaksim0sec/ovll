@@ -1048,7 +1048,7 @@ function mount(world,canvas,options={}){
           x=next.x;
           y=next.y;
           render({x:cx,y:cy});
-          if(!working&&!thinking){
+          if(!working&&!thinking&&now>=gazeUntil&&now>=attentionUntil){
             const dx=r.left+r.width/2-cx;
             const dy=r.top+r.height/2-cy;
             const distance=Math.hypot(dx,dy)||1;
@@ -1444,8 +1444,10 @@ function mount(world,canvas,options={}){
       return;
     }
 
-    const observed=
-      interestingNode();
+    const orbitObserved=nodeEl(activeTaskId||orbitId);
+    const observed=!motion&&orbitObserved&&nodeVisible(orbitObserved)
+      ?orbitObserved
+      :interestingNode();
 
     if(observed){
       const c=
@@ -1459,7 +1461,7 @@ function mount(world,canvas,options={}){
       lookAt(
         c.x,
         c.y,
-        .11
+        observed===orbitObserved?.145:.11
       );
 
       gazeTimer=setTimeout(
