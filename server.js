@@ -261,7 +261,7 @@ function groupLogMeta(
  * The frontend compares this server value with its locally stored version
  * before loading application assets.
  */
-const APP_VERSION = '2026.10.08.162';
+const APP_VERSION = '2026.10.08.163';
 
 /* =========================================================
    CANONICAL NODE DEFINITION
@@ -270,9 +270,9 @@ const APP_VERSION = '2026.10.08.162';
 /* Server-owned SVG catalog; clients only cache these paths. */
 const iconSvg = Object.freeze({
   play: `
-      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.28" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.28" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><g transform="translate(10 10) scale(1.15) translate(-10 -10)">
         <path d="M6.2 5.55c0-1.02 1.12-1.66 2.01-1.15l5.74 3.27c.52.3.84.86.84 1.46s-.32 1.16-.84 1.46l-5.74 3.27c-.89.51-2.01-.13-2.01-1.15V5.55Z"/>
-      </svg>
+      </g></svg>
     `,
   globe: `
       <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.28" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -318,10 +318,10 @@ const iconSvg = Object.freeze({
   'flask': `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.28" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7.75 3.22h4.5"/>
 <path d="M8.65 3.22v4.82L4.38 14.6c-.64.98.06 2.18 1.23 2.18h8.78c1.17 0 1.87-1.2 1.23-2.18l-4.27-6.56V3.22"/>
 <path d="M6.42 13.1h7.16"/></svg>`,
-  'potted-plant': `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.28" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.78 11.36h8.44l-.88 4.07c-.17.82-.88 1.39-1.72 1.39H8.38c-.84 0-1.55-.57-1.72-1.39l-.88-4.07Z"/>
+  'potted-plant': `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.28" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><g transform="translate(10 10) scale(1.07) translate(-10 -10)"><path d="M5.78 11.36h8.44l-.88 4.07c-.17.82-.88 1.39-1.72 1.39H8.38c-.84 0-1.55-.57-1.72-1.39l-.88-4.07Z"/>
 <path d="M5.18 11.36h9.64M10 11.36V6.95"/>
 <path d="M9.98 8.23C7.04 8.27 5.04 6.76 4.98 4.17c2.64-.09 4.74 1.19 5 4.06Z"/>
-<path d="M10.03 7.26c.08-2.78 1.77-4.36 4.74-4.42.09 2.58-1.51 4.35-4.74 4.42Z"/></svg>`,
+<path d="M10.03 7.26c.08-2.78 1.77-4.36 4.74-4.42.09 2.58-1.51 4.35-4.74 4.42Z"/></g></svg>`,
   'graduation-cap': `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.28" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m2.78 7.65 6.52-3.3c.45-.22.95-.22 1.4 0l6.52 3.3-6.52 3.31c-.45.23-.95.23-1.4 0L2.78 7.65Z"/>
 <path d="M5.55 9.12v3.24c0 1.77 1.95 3.01 4.45 3.01s4.45-1.24 4.45-3.01V9.12"/>
 <path d="M17.22 7.65v5.08"/>
@@ -330,8 +330,8 @@ const iconSvg = Object.freeze({
 <path d="m11.62 5.27 3.11 3.11M4.24 12.64l3.12 3.12"/></svg>`,
   'lightbulb': `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.28" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 2.68c-2.95 0-5.12 2.08-5.12 5.05 0 1.91.88 3.22 2.42 4.43.63.5.93 1.05.93 1.88h3.54c0-.83.3-1.38.93-1.88 1.54-1.21 2.42-2.52 2.42-4.43 0-2.97-2.17-5.05-5.12-5.05Z"/>
 <path d="M8.19 14.11h3.62M8.59 16.19h2.82"/></svg>`,
-  'hourglass': `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.28" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.07 3.43h9.86M5.07 16.57h9.86"/>
-<path d="M6.12 3.43v1.48c0 2.01 1.08 3.1 3.88 5.09-2.8 1.99-3.88 3.08-3.88 5.09v1.48h7.76v-1.48c0-2.01-1.08-3.1-3.88-5.09 2.8-1.99 3.88-3.08 3.88-5.09V3.43"/></svg>`,
+  'hourglass': `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.28" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><g transform="translate(10 10) scale(1.07) translate(-10 -10)"><path d="M5.07 3.43h9.86M5.07 16.57h9.86"/>
+<path d="M6.12 3.43v1.48c0 2.01 1.08 3.1 3.88 5.09-2.8 1.99-3.88 3.08-3.88 5.09v1.48h7.76v-1.48c0-2.01-1.08-3.1-3.88-5.09 2.8-1.99 3.88-3.08 3.88-5.09V3.43"/></g></svg>`,
   'planet': `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.28" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.03" cy="9.88" r="4.49"/>
 <path d="M5.69 8.66C3.2 9.9 2.17 11.3 2.73 12.35c.9 1.69 4.95 1.65 8.95-.07 4.01-1.73 6.72-4.26 5.62-5.65-.66-.84-2.32-.86-4.35-.37"/>
 <path d="M7.59 6.13c.7-.39 1.55-.63 2.51-.69"/></svg>`,
