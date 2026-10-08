@@ -687,6 +687,12 @@ function mount(world,canvas,options={}){
   let lastActivity=performance.now();
   let orbitId=null;
   let orbitTimer=null;
+  let orbitFrame=null;
+  let orbitTime=performance.now();
+  let orbitScene=null;
+  let typingUntil=0;
+  let typingTimer=null;
+  let typingTarget=null;
   let orbitPhase=0;
   let orbitPausedUntil=0;
   let orbitPinned=false;
@@ -796,7 +802,7 @@ function mount(world,canvas,options={}){
     };
   }
 
-  function render(){
+  function render(screenPoint=null){
     const left=x+"px";
     const top=y+"px";
 
@@ -812,7 +818,7 @@ function mount(world,canvas,options={}){
       top
     );
 
-    syncPointSatellite();
+    syncPointSatellite(screenPoint);
     if(!collaboration.hidden) positionCollaboration();
   }
 
@@ -904,11 +910,14 @@ function mount(world,canvas,options={}){
 
   function startOrbit(id){
     if(id==null||!nodeEl(id)) return;
+    if(activeTaskId&&String(id)!==activeTaskId) return;
+    const same=orbitId===String(id);
     orbitId=String(id);
+    orbitScene=null;
     orbitPausedUntil=0;
     orbitPinned=false;
     const node=nodeEl(id);
-    if(nodeVisible(node)&&!drag&&!nodeDragging){
+    if(!same&&nodeVisible(node)&&!drag&&!nodeDragging&&!layoutAnchor&&performance.now()>=typingUntil){
       const target=nodeTarget(node);
       const current=clientPoint(x,y);
       const size=orb.getBoundingClientRect().width||32;
@@ -921,10 +930,11 @@ function mount(world,canvas,options={}){
     }
   }
 
-  function positionOverlap(clientX,clientY,size){
+  function positionOverlap(clientX,clientY,size,rects=null){
     const half=size*.65;
-    return [...viewport.querySelectorAll(".vc-node")].reduce((total,node)=>{
-      const r=node.getBoundingClientRect();
+    const boxes=rects||[...viewport.querySelectorAll(".vc-node")]
+      .map(node=>node.getBoundingClientRect());
+    return boxes.reduce((total,r)=>{
       const width=Math.max(0,Math.min(clientX+half,r.right)-Math.max(clientX-half,r.left));
       const height=Math.max(0,Math.min(clientY+half,r.bottom)-Math.max(clientY-half,r.top));
       return total+width*height;
@@ -932,66 +942,130 @@ function mount(world,canvas,options={}){
   }
 
   function scheduleOrbit(){
-    clearTimeout(orbitTimer);
     if(destroyed) return;
-    orbitTimer=setTimeout(()=>{
-      const now=performance.now();
-      const editing=documentRef.activeElement;
-      const blocked=drag||motion||nodeDragging||connectionDragging||layoutAnchor||
-        orb.hidden||documentRef.hidden||
-        (UI?.getMode?.()&&UI.getMode()!=="canvas")||
-        !collaboration.hidden||orb.classList.contains("connecting")||
-        now<orbitPausedUntil||
-        (editing&&(editing.tagName==="TEXTAREA"||editing.tagName==="INPUT"||editing.isContentEditable));
-      if(!blocked){
-        let node=nodeEl(activeTaskId||orbitId);
+    if(orb.hidden||documentRef.hidden){
+      orbitTimer=setTimeout(()=>{
+        orbitTimer=null;
+        orbitTime=performance.now();
+        scheduleOrbit();
+      },500);
+      return;
+    }
+    orbitFrame=requestAnimationFrame(advanceOrbit);
+  }
+
+  function advanceOrbit(now){
+    orbitFrame=null;
+    if(destroyed) return;
+    const dt=Math.min(.05,Math.max(0,(now-orbitTime)/1000));
+    orbitTime=now;
+    const blocked=drag||motion||nodeDragging||connectionDragging||layoutAnchor||
+      orb.hidden||documentRef.hidden||
+      (UI?.getMode?.()&&UI.getMode()!=="canvas")||
+      !collaboration.hidden||orb.classList.contains("connecting")||
+      now<orbitPausedUntil||now<typingUntil;
+    if(!blocked){
+      const id=activeTaskId||orbitId;
+      if(!orbitScene||orbitScene.id!==id||now-orbitScene.time>100){
+        let node=nodeEl(id);
         if(!node&&now-lastActivity>4800){
           node=interestingNode();
           if(node) orbitId=node.dataset.nodeId;
         }
         if(node&&nodeVisible(node)){
-          const r=node.getBoundingClientRect();
-          const orbRect=orb.getBoundingClientRect();
-          const size=orbRect.width||32;
-          const thinking=orb.classList.contains("thinking");
-          const working=orb.classList.contains("working");
-          const still=orbitPinned||reducedMotion?.matches;
-          orbitPhase+=still?0:thinking?.009:working?.022:.012;
-          const radius=Math.min(r.width*.42,size*2.8)*(thinking?.35:1);
           const view=viewport.getBoundingClientRect();
-          const top=Math.max(view.top,topbarElement?.getBoundingClientRect().bottom??view.top)+size/2+12;
-          const bottom=Math.min(view.bottom,composerElement?.getBoundingClientRect().top??view.bottom)-size/2-12;
-          let tx=Math.max(view.left+size,Math.min(view.right-size,
-            r.left+r.width/2+Math.cos(orbitPhase)*radius));
-          let ty=Math.max(top,Math.min(bottom,
-            r.top-size*1.65+Math.sin(orbitPhase)*size*(thinking?.12:.35)));
-          const current=clientPoint(x,y);
-          const currentOverlap=positionOverlap(current.x,current.y,size);
-          if(currentOverlap){
-            const escape=nodeTarget(node);
-            tx=escape.x;
-            ty=escape.y;
-          }
-          const alpha=reducedMotion?.matches?1:.085;
-          const cx=current.x+(tx-current.x)*alpha;
-          const cy=current.y+(ty-current.y)*alpha;
-          const nextOverlap=positionOverlap(cx,cy,size);
-          if(!nextOverlap||(currentOverlap&&nextOverlap<=currentOverlap)){
-            const point=worldPoint(cx,cy);
-            x=point.x;
-            y=point.y;
-            render();
-            if(!working&&!thinking){
-              lookAt(r.left+r.width/2,r.top+r.height/2,.145);
-            }
+          const raw=getComputedStyle(world).transform;
+          const matrix=raw==="none"?new DOMMatrix():new DOMMatrix(raw);
+          const scale=Math.hypot(matrix.a,matrix.b)||1;
+          orbitScene={
+            id:activeTaskId||orbitId,node,time:now,
+            r:node.getBoundingClientRect(),view,matrix,inverse:matrix.inverse(),
+            size:orb.offsetWidth?orb.offsetWidth*scale:orb.getBoundingClientRect().width||32,
+            top:Math.max(view.top,topbarElement?.getBoundingClientRect().bottom??view.top),
+            bottom:Math.min(view.bottom,composerElement?.getBoundingClientRect().top??view.bottom),
+            rects:[...viewport.querySelectorAll(".vc-node")].map(el=>el.getBoundingClientRect())
+          };
+        }else orbitScene=null;
+      }
+      if(orbitScene){
+        const {node,r,view,size,matrix,inverse,rects}=orbitScene;
+        const thinking=orb.classList.contains("thinking");
+        const working=orb.classList.contains("working");
+        const still=orbitPinned||reducedMotion?.matches;
+        orbitPhase+=still?0:dt*(thinking?.18:working?.44:.24);
+        const radius=Math.min(r.width*.42,size*2.8)*(thinking?.35:1);
+        let tx=Math.max(view.left+size,Math.min(view.right-size,
+          r.left+r.width/2+Math.cos(orbitPhase)*radius));
+        let ty=Math.max(orbitScene.top+size/2+12,Math.min(orbitScene.bottom-size/2-12,
+          r.top-size*1.65+Math.sin(orbitPhase)*size*(thinking?.12:.35)));
+        const point=new DOMPoint(x,y).matrixTransform(matrix);
+        const current={x:view.left+point.x,y:view.top+point.y};
+        const currentOverlap=positionOverlap(current.x,current.y,size,rects);
+        if(currentOverlap){
+          const escape=nodeTarget(node);
+          tx=escape.x;
+          ty=escape.y;
+        }
+        const alpha=reducedMotion?.matches?1:1-Math.exp(-dt*1.78);
+        const cx=current.x+(tx-current.x)*alpha;
+        const cy=current.y+(ty-current.y)*alpha;
+        const nextOverlap=positionOverlap(cx,cy,size,rects);
+        if(!nextOverlap||(currentOverlap&&nextOverlap<=currentOverlap)){
+          const next=new DOMPoint(cx-view.left,cy-view.top).matrixTransform(inverse);
+          x=next.x;
+          y=next.y;
+          render({x:cx,y:cy});
+          if(!working&&!thinking){
+            const dx=r.left+r.width/2-cx;
+            const dy=r.top+r.height/2-cy;
+            const distance=Math.hypot(dx,dy)||1;
+            eyes(dx/distance*.145,dy/distance*.145*.82);
           }
         }
       }
-      scheduleOrbit();
-    },orb.hidden||documentRef.hidden?500:50);
+    }
+    scheduleOrbit();
   }
 
-  function syncPointSatellite(){
+  function finishTyping(){
+    clearTimeout(typingTimer);
+    typingTimer=null;
+    typingUntil=0;
+    typingTarget=null;
+    gazePriority=0;
+    gazeUntil=0;
+    if(orb.classList.contains("working")){
+      setMood(TASK_MOODS[taskType(activeTaskId)]||"working");
+    }else if(orb.classList.contains("thinking")){
+      setMood("thinking");
+    }else{
+      setMood("idle");
+      setSatellite("hidden");
+    }
+    restoreGaze();
+    scheduleVisible();
+  }
+
+  function reactToTyping(event){
+    const input=event.target;
+    if(!input||(input.tagName!=="TEXTAREA"&&input.tagName!=="INPUT"&&!input.isContentEditable)) return;
+    if(!viewport.contains(input)&&!composerElement?.contains(input)) return;
+    noteActivity();
+    typingTarget=input;
+    typingUntil=performance.now()+1000;
+    gazePriority=23;
+    gazeUntil=typingUntil;
+    closeCollaboration();
+    stopMotion();
+    setMood("attention");
+    const c=center(input.getBoundingClientRect());
+    lookAt(c.x,c.y,.19);
+    if(!orb.classList.contains("working")) setSatellite("thought",{hold:1050});
+    clearTimeout(typingTimer);
+    typingTimer=setTimeout(finishTyping,1000);
+  }
+
+  function syncPointSatellite(screenPoint=null){
     if(
       satellite.dataset.mode!=="point"||
       !satelliteTarget
@@ -999,8 +1073,7 @@ function mount(world,canvas,options={}){
       return;
     }
 
-    const c=
-      clientPoint(x,y);
+    const c=screenPoint||clientPoint(x,y);
 
     const angle=
       Math.atan2(
@@ -1306,6 +1379,11 @@ function mount(world,canvas,options={}){
 
   function restoreGaze(){
     clearTimeout(gazeTimer);
+    if(typingTarget&&performance.now()<typingUntil){
+      const c=center(typingTarget.getBoundingClientRect());
+      lookAt(c.x,c.y,.19);
+      return;
+    }
 
     const now=performance.now();
 
@@ -1978,6 +2056,7 @@ function mount(world,canvas,options={}){
   }
 
   function ensureVisible(){
+    if(drag||nodeDragging||connectionDragging||layoutAnchor||performance.now()<typingUntil) return;
     const view=
       viewport.getBoundingClientRect();
 
@@ -2191,6 +2270,10 @@ function mount(world,canvas,options={}){
         return;
       }
 
+      if(performance.now()<typingUntil){
+        taskTimer=setTimeout(tick,200);
+        return;
+      }
       const node=
         nodeEl(key);
 
@@ -2486,7 +2569,6 @@ function mount(world,canvas,options={}){
 
     noteActivity();
     stopMotion();
-    startOrbit(id);
 
     const type=
       taskType(id);
@@ -2508,27 +2590,11 @@ function mount(world,canvas,options={}){
       id,
       type
     );
-
-    const target=
-      nodeTarget(
-        node
-      );
-
-    const orbRect=
-      orb.getBoundingClientRect();
-
-    const current=
-      center(orbRect);
+    startOrbit(id);
 
     const nodeCenter=
       center(
         node.getBoundingClientRect()
-      );
-
-    const distance=
-      Math.hypot(
-        target.x-current.x,
-        target.y-current.y
       );
 
     if(nodeVisible(node)){
@@ -2550,33 +2616,6 @@ function mount(world,canvas,options={}){
       }
     }
 
-    if(
-      distance >
-        orbRect.width*1.15
-    ){
-      swooshToward(
-        target.x,
-        target.y,
-        {
-          step:
-            Math.max(
-              1.4,
-              distance/
-              Math.max(
-                1,
-                orbRect.width
-              )
-            ),
-          duration:
-            Math.min(
-              620,
-              300+
-              distance*.2
-            )
-        }
-      );
-    }
-
     return true;
   }
 
@@ -2590,6 +2629,7 @@ function mount(world,canvas,options={}){
     );
 
     if(active){
+      if(typingTarget) finishTyping();
       closeCollaboration();
       orb.dataset.mood="thinking";
 
@@ -3485,6 +3525,9 @@ function mount(world,canvas,options={}){
   bind(
     "viewport",
     ()=>{
+      stopMotion();
+      orbitScene=null;
+      orbitPausedUntil=Math.max(orbitPausedUntil,performance.now()+250);
       if(
         layoutAnchor&&
         !drag
@@ -3557,6 +3600,8 @@ function mount(world,canvas,options={}){
       },2600+Math.random()*3600);
   }
 
+  listen(documentRef,"input",reactToTyping,{capture:true});
+  listen(documentRef,"compositionend",reactToTyping,{capture:true});
   listen(orb,"keydown",event=>{
     if(event.key==="Enter"||event.key===" "){
       event.preventDefault();
@@ -3695,6 +3740,9 @@ function mount(world,canvas,options={}){
     destroy(){
       destroyed=true;
       clearTimeout(orbitTimer);
+      cancelAnimationFrame(orbitFrame);
+      clearTimeout(typingTimer);
+      typingTarget=null;
       closeCollaboration();
       collaboration.remove();
       stopMotion();
