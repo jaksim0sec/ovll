@@ -261,7 +261,7 @@ function groupLogMeta(
  * The frontend compares this server value with its locally stored version
  * before loading application assets.
  */
-const APP_VERSION = '2026.10.08.163';
+const APP_VERSION = '2026.10.08.164';
 
 /* =========================================================
    CANONICAL NODE DEFINITION
@@ -332,9 +332,9 @@ const iconSvg = Object.freeze({
 <path d="M8.19 14.11h3.62M8.59 16.19h2.82"/></svg>`,
   'hourglass': `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.28" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><g transform="translate(10 10) scale(1.07) translate(-10 -10)"><path d="M5.07 3.43h9.86M5.07 16.57h9.86"/>
 <path d="M6.12 3.43v1.48c0 2.01 1.08 3.1 3.88 5.09-2.8 1.99-3.88 3.08-3.88 5.09v1.48h7.76v-1.48c0-2.01-1.08-3.1-3.88-5.09 2.8-1.99 3.88-3.08 3.88-5.09V3.43"/></g></svg>`,
-  'planet': `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.28" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.03" cy="9.88" r="4.49"/>
+  'planet': `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.28" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><g transform="translate(10 10) scale(1.12) translate(-10 -10)"><circle cx="10.03" cy="9.88" r="4.49"/>
 <path d="M5.69 8.66C3.2 9.9 2.17 11.3 2.73 12.35c.9 1.69 4.95 1.65 8.95-.07 4.01-1.73 6.72-4.26 5.62-5.65-.66-.84-2.32-.86-4.35-.37"/>
-<path d="M7.59 6.13c.7-.39 1.55-.63 2.51-.69"/></svg>`,
+<path d="M7.59 6.13c.7-.39 1.55-.63 2.51-.69"/></g></svg>`,
   'headphones': `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.28" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.42 10.9V9.5c0-3.48 2.25-5.92 5.58-5.92s5.58 2.44 5.58 5.92v1.4"/>
 <path d="M4.36 10.88h.63c.69 0 1.26.57 1.26 1.26v2.84c0 .74-.6 1.34-1.34 1.34h-.55c-.97 0-1.76-.79-1.76-1.76v-1.92c0-.97.79-1.76 1.76-1.76Z"/>
 <path d="M15.64 10.88h-.63c-.69 0-1.26.57-1.26 1.26v2.84c0 .74.6 1.34 1.34 1.34h.55c.97 0 1.76-.79 1.76-1.76v-1.92c0-.97-.79-1.76-1.76-1.76Z"/></svg>`,
