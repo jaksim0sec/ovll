@@ -42,6 +42,12 @@ export function createDurableVNextApp({ store, authenticate, verifyMutation }={}
     if (taskRef!==undefined && !safeId(taskRef)) error('BAD_TASK_ID');
     res.json(await store.submit(req.body?.turn,{...scope,requestRef,graphId,taskRef}));
   }));
+  app.get('/api/vnext/runs/:runRef',handler(async(req,res)=>{
+    res.set('Cache-Control','no-store').json(await store.inspectRun(await session(req),req.params.runRef));
+  }));
+  app.get('/api/vnext/artifacts/:valueRef',handler(async(req,res)=>{
+    res.set('Cache-Control','no-store').json(await store.readArtifact(await session(req),req.params.valueRef));
+  }));
   app.get('/api/vnext/events',handler(async(req,res)=>{
     const scope=await session(req);
     const after=req.query.after===undefined?0:Number(req.query.after);

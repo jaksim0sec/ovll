@@ -32,7 +32,7 @@ export function createRunWorker({store,executeRun,workerRef,leaseSeconds=30}={})
         if(leaseLost)fail('STALE_LEASE',409);
         if (!['completed','failed','waiting'].includes(outcome?.status)) fail('INVALID_EXECUTOR_OUTCOME');
         return await store.settleRun({workspaceRef:job.workspaceRef,runRef:job.runRef,leaseToken:job.leaseToken,
-          status:outcome.status,evidenceRefs:outcome.evidenceRefs||[]});
+          status:outcome.status,evidenceRefs:outcome.evidenceRefs||[],expectedPlanEpoch:job.run.planEpoch});
       } finally {closed=true;clearInterval(timer);}
     }
   };

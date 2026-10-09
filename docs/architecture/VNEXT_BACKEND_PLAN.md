@@ -96,9 +96,39 @@ P0는 **새 코어 단독 테스트 통과**까지만 뜻하며 '운영 가능�
 - [x] 인증된 Workspace 읽기/쓰기 분리, CSRF 주입 경계, 정해진 Request ID로 행동 제안 처리.
 - [x] Run + Queue 같은 트랜잭션 예약, token lease·heartbeat·취소·외부 효과 불확정 차단 구현.
 - [x] PostgreSQL CI 재현 테스트 및 모듈별 제한·이관 체크리스트 작성.
-- [ ] Node별 Attempt/ValueArtifact **실제 생성·검증·저장**, 정교한 branch/merge, planEpoch/병렬 결과 보존.
+- [x] 직선 DAG의 Node별 Attempt/ValueArtifact 실제 생성·계약 검증·저장·출처와 pure-model 재개 구현(8절 CI 수용 조건 적용).
+- [ ] 조건 branch/merge, planEpoch 채택과 부분 무효화/병렬 결과 보존.
 - [ ] 모든 Action 종류와 실 Task 완료·검증 함수 버전의 저장/재사용.
 - [ ] 운영 PostgreSQL과 driver pin/TLS/비밀키·백업 설정, session provider, 실제 인증/권한·타이밍 검증.
 - [ ] 실제 모델 호출 및 Prompt Composer의 출력 검증, 비용/캐시/품질 계측, Canvas 전환.
 
 세부 구현/사용 금지 조건: [P1 영속 코어 README](../../backend/vnext/README.md). 실제 CI 실패 시 구현·체크리스트를 재검토한다.
+
+## 8. P1 수직 실행 경로 — 2026-10-09
+
+### 완료된 구현과 로컬 증거
+- [x] 고정 GraphRevision/planEpoch에서 닫힌댐·열린댐 실행 계획과 DAG 순서를 계산한다.
+- [x] 노드별 Attempt·ValueArtifact·sourceRefs·이벤트를 영속 저장한다. 결과·success 이벤트는 같은 트랜잭션이다.
+- [x] 실행 lease/execution owner/요청자의 현재 멤버십과 epoch를 검사한다. worker 종료 확정에도 epoch를 전달한다.
+- [x] 만료 후 모델 전용 Run을 재개하고 유효한 성공 시도만 재사용한다. 외부 효과 불확정 Run은 자동 재실행하지 않는다.
+- [x] 동결 NodeOutput의 produced/blocked 및 inline/제한된 ref, 필수 IO·형식·바이트·중첩을 검사한다.
+- [x] 일반적인 다중 data 입력 join을 실행한다. flow 연결을 값 전달로 취급하지 않는다.
+- [x] 같은 Run의 동시 실행 예약을 DB에서 차단한다. 실행 내내 연결을 점유하지 않으며 단일 연결 풀 검증 사례를 포함한다.
+- [x] 외부 실행/출력 검증/완료 검증에 시간 상한을 둔다. tool timeout은 outcome_unknown으로 보존한다.
+- [x] Ajv 8.20.0으로 동결 Draft 2020-12 규격을 실행한다. 원본 계약은 변경하지 않고 입력을 강제 변환하지 않는다.
+- [x] `runtime.js`가 위 구성 요소와 독립 인증 HTTP 서버를 조립한다. Run 및 실제 Artifact 내용의 읽기 API를 제공한다.
+- [x] 단위 74/74와 로컬 SQL smoke(영속 기반 13/13·노드 실행 25/25)를 실행했다. PGlite 결과는 네이티브 다중 세션의 대체 증거가 아니다.
+- [x] GitHub Actions에서 PostgreSQL 16으로 같은 기반·노드 실행 테스트를 실행하는 게이트를 추가했다. **이 커밋의 실제 green CI가 필수 수용 조건**이다.
+- [x] 기존 전체 테스트 296/308. 실패 이름 12개는 변경 전과 동일하며 별도로 남긴다.
+
+### 다음 P1 순서와 미완성 조건
+1. [ ] Task/Question 상태 머신과 실제 대기/응답/재개 위치 영속화, 모델 행동으로 제안된 Retry/Cancel의 멱등 적용.
+2. [ ] 조건 branch/merge와 subgraph 실행, 분기 포트의 명시적 의미, 실행 중 그래프 수정의 안전한 planEpoch 채택·부분 무효화.
+3. [ ] FunctionVersion draft 저장 → 근거 기반 별도 검증 → 고정 버전에서 새로운 입력으로 재실행. 저장을 verified로 표시하지 않는다.
+4. [ ] 일반 Artifact/파일 참조 InputBinding, blob 저장소·파싱 범위·출처, 검증된 도구 효과/권한 카탈로그.
+5. [ ] Task별 토큰/비용/재시도/질문/재계획 예산, 운영 인증·TLS/driver pin·배포 worker 수명/백업/복구.
+6. [ ] P2 실제 Provider 호출·Prompt Composer·사용량/캐시/품질 측정 후 P3 Canvas 어댑터를 검증한다.
+
+현재 입력 바인딩은 선언된 포트별 inline JSON만 의미한다. 결과 ref는 이미 공급한 input artifact만 해석한다. 전문 representation은 신뢰 가능한 검증기 없이는 거부한다. provider/프롬프트/실행기/검증 정책 변경 시 executionProfileId를 올린다. 조건 분기와 subgraph는 성공으로 가장하지 않고 사전 거부한다. 기존 `server.js`는 버전 `2026.10.09.11`만 변경했으며 서비스 연결은 하지 않았다.
+
+참조: [노드 실행·정책·검증 README](../../backend/vnext/README.md), [Ajv Draft 2020-12](https://ajv.js.org/json-schema.html), [PostgreSQL locking](https://www.postgresql.org/docs/16/explicit-locking.html).

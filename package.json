@@ -20,10 +20,11 @@
   },
   "homepage": "https://github.com/jaksim0sec/ovll#readme",
   "dependencies": {
+    "@fontsource/noto-sans-kr": "^5.3.0",
+    "ajv": "8.20.0",
     "compression": "^1.8.2",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
-    "@fontsource/noto-sans-kr": "^5.3.0",
     "pdfkit": "^0.20.2"
   }
 }

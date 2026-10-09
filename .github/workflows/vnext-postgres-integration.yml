@@ -5,7 +5,8 @@ on:
     branches: [main]
     paths:
       - 'backend/vnext/**'
-      - 'test/vnextPostgres.integration.mjs'
+      - 'test/vnext*.js'
+      - 'test/vnext*.mjs'
       - '.github/workflows/vnext-postgres-integration.yml'
   workflow_dispatch:
 
@@ -43,8 +44,10 @@ jobs:
         run: npm install --no-save --package-lock=false 'pg@8'
       - name: Verify new-core syntax
         run: |
-          for f in backend/vnext/*.js test/vnextPostgres.integration.mjs; do node --check "$f"; done
+          for f in backend/vnext/*.js test/vnext*.mjs test/vnext*.test.js; do node --check "$f"; done
       - name: Existing vNext foundation
-        run: node --test test/vnextFoundation.test.js
+        run: node --test test/vnextFoundation.test.js test/vnextExecutionPlan.test.js test/vnextNodeOutput.test.js test/vnextValidation.test.js test/vnextRuntime.test.js
       - name: Real PostgreSQL persistence and recovery integration
         run: node --test test/vnextPostgres.integration.mjs
+      - name: Real PostgreSQL node attempts and evidence integration
+        run: node --test test/vnextNodeExecution.integration.mjs

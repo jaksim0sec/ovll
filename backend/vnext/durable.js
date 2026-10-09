@@ -183,8 +183,8 @@ export class PostgresVNextStore {
               const definition=graph.definitions.find(d=>d.definitionId===node?.definitionRef.definitionId&&d.version===node?.definitionRef.version);
               return definition?.executorKind==='tool_task'; // unknown tool side effects are fail-closed
             });
-            await c.query('INSERT INTO ov_runs(workspace_id,run_id,task_id,graph_id,graph_revision,status,snapshot) VALUES($1,$2,$3,$4,$5,$6,$7::jsonb)',
-              [scope.workspaceRef,runId,scope.taskRef,scope.graphId,graph.graph.revision,'queued',JSON.stringify(spec)]);
+            await c.query('INSERT INTO ov_runs(workspace_id,run_id,task_id,graph_id,graph_revision,status,snapshot,requester_ref) VALUES($1,$2,$3,$4,$5,$6,$7::jsonb,$8)',
+              [scope.workspaceRef,runId,scope.taskRef,scope.graphId,graph.graph.revision,'queued',JSON.stringify(spec),scope.actorRef]);
             await c.query("INSERT INTO ov_run_queue(workspace_id,run_id,status,external_effect) VALUES($1,$2,'queued',$3)",[scope.workspaceRef,runId,externalEffect]);
             outcome={actionId,status:'scheduled',runRef:runId};
             await event(c,scope.workspaceRef,'run.queued',{runRef:runId,graphRef:spec.graphRef,actionId});
@@ -222,20 +222,20 @@ export class PostgresVNextStore {
       if (!r.rows.length) return null;
       const row=r.rows[0], claimedWorkspace=row.workspace_id,runRef=row.run_id;
       if (row.status==='leased' && row.external_effect) {
-        await c.query("UPDATE ov_run_queue SET status='outcome_unknown',lease_token=NULL,updated_at=now() WHERE workspace_id=$1 AND run_id=$2",[claimedWorkspace,runRef]);
+        await c.query("UPDATE ov_run_queue SET status='outcome_unknown',execution_token=NULL,lease_token=NULL,updated_at=now() WHERE workspace_id=$1 AND run_id=$2",[claimedWorkspace,runRef]);
         await c.query("UPDATE ov_runs SET status='waiting',snapshot=jsonb_set(snapshot,'{status}','\"waiting\"') WHERE workspace_id=$1 AND run_id=$2",[claimedWorkspace,runRef]);
         await event(c,claimedWorkspace,'run.outcome_unknown',{runRef});
         return {outcomeUnknown:runRef};
       }
       const leaseToken=randomUUID();
-      await c.query("UPDATE ov_run_queue SET status='leased',lease_token=$3,leased_until=now()+($4*interval '1 second'),attempts=attempts+1,updated_at=now() WHERE workspace_id=$1 AND run_id=$2",
+      await c.query("UPDATE ov_run_queue SET status='leased',execution_token=NULL,lease_token=$3,leased_until=now()+($4*interval '1 second'),attempts=attempts+1,updated_at=now() WHERE workspace_id=$1 AND run_id=$2",
         [claimedWorkspace,runRef,leaseToken,leaseSeconds]);
       await c.query("UPDATE ov_runs SET status='running',snapshot=jsonb_set(snapshot,'{status}','\"running\"') WHERE workspace_id=$1 AND run_id=$2",[claimedWorkspace,runRef]);
       await event(c,claimedWorkspace,'run.running',{runRef,attempt:Number(row.attempts)+1});
       return {workspaceRef:claimedWorkspace,runRef,leaseToken,attempt:Number(row.attempts)+1,externalEffect:row.external_effect,run:{...row.snapshot,status:'running'}};
     });
   }
-  async settleRun({workspaceRef,runRef,leaseToken,status,evidenceRefs=[]}) {
+  async settleRun({workspaceRef,runRef,leaseToken,status,evidenceRefs=[],expectedPlanEpoch}) {
     checkId(workspaceRef);checkId(runRef);checkId(leaseToken);
     if (!['completed','failed','waiting'].includes(status)) deny('INVALID_RUN_STATUS');
     if (status==='completed' && (!Array.isArray(evidenceRefs)||!evidenceRefs.length)) deny('RUN_EVIDENCE_REQUIRED');
@@ -243,9 +243,14 @@ export class PostgresVNextStore {
     return transaction(this.#pool,async c=>{
       const r=await c.query('SELECT status,lease_token,leased_until FROM ov_run_queue WHERE workspace_id=$1 AND run_id=$2 FOR UPDATE',[workspaceRef,runRef]);
       expiredOrBadLease(r.rows[0],leaseToken);
+      if(expectedPlanEpoch!==undefined){
+        const plan=await c.query('SELECT plan_epoch FROM ov_runs WHERE workspace_id=$1 AND run_id=$2 FOR UPDATE',[workspaceRef,runRef]);
+        if(!Number.isInteger(expectedPlanEpoch)||plan.rows[0]?.plan_epoch!==expectedPlanEpoch)deny('STALE_PLAN_EPOCH',409);
+      }
       if (status==='completed' && await this.#verifyRunEvidence({workspaceRef,runRef,evidenceRefs,client:c})!==true) deny('RUN_EVIDENCE_NOT_VERIFIED',409);
+      expiredOrBadLease(r.rows[0],leaseToken);
       const queuedStatus=status==='waiting'?'outcome_unknown':'done';
-      await c.query('UPDATE ov_run_queue SET status=$3,lease_token=NULL,leased_until=NULL,updated_at=now() WHERE workspace_id=$1 AND run_id=$2',[workspaceRef,runRef,queuedStatus]);
+      await c.query('UPDATE ov_run_queue SET status=$3,execution_token=NULL,lease_token=NULL,leased_until=NULL,updated_at=now() WHERE workspace_id=$1 AND run_id=$2',[workspaceRef,runRef,queuedStatus]);
       await c.query("UPDATE ov_runs SET status=$3,snapshot=jsonb_set(snapshot,'{status}',to_jsonb($3::text)) WHERE workspace_id=$1 AND run_id=$2",[workspaceRef,runRef,status]);
       await event(c,workspaceRef,'run.'+status,{runRef,evidenceRefs});
       return {runRef,status};
@@ -272,10 +277,22 @@ export class PostgresVNextStore {
       if (!r.rows.length) deny('RUN_NOT_FOUND',404);
       if (r.rows[0].status==='completed') deny('RUN_ALREADY_COMPLETED',409);
       if (r.rows[0].status==='cancelled') return {runRef,status:'cancelled'};
-      await c.query("UPDATE ov_run_queue SET status='cancelled',lease_token=NULL,leased_until=NULL,updated_at=now() WHERE workspace_id=$1 AND run_id=$2",[scope.workspaceRef,runRef]);
+      await c.query("UPDATE ov_run_queue SET status='cancelled',execution_token=NULL,lease_token=NULL,leased_until=NULL,updated_at=now() WHERE workspace_id=$1 AND run_id=$2",[scope.workspaceRef,runRef]);
       await c.query("UPDATE ov_runs SET status='cancelled',snapshot=jsonb_set(snapshot,'{status}',to_jsonb('cancelled'::text)) WHERE workspace_id=$1 AND run_id=$2",[scope.workspaceRef,runRef]);
       await event(c,scope.workspaceRef,'run.cancelled',{runRef});
       return {runRef,status:'cancelled'};
+    });
+  }
+  async readArtifact(scope,valueRef){
+    checkId(valueRef);
+    return transaction(this.#pool,async c=>{
+      await member(c,scope);
+      const result=await c.query('SELECT value_id,attempt_id,semantic_role,source_refs,representation,value,validation_status FROM ov_value_artifacts WHERE workspace_id=$1 AND value_id=$2',[scope.workspaceRef,valueRef]);
+      if(!result.rows.length)deny('ARTIFACT_NOT_FOUND',404);
+      const value=result.rows[0];
+      return {artifact:{valueId:value.value_id,semanticRole:value.semantic_role,contentRef:'content:'+value.value_id,
+        producerAttemptRef:value.attempt_id,sourceRefs:value.source_refs},
+        content:{representation:value.representation,value:value.value},validationStatus:value.validation_status};
     });
   }
   async inspectRun(scope,runRef) {
