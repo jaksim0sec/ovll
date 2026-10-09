@@ -12,6 +12,7 @@ test('model readiness endpoint never calls the model, and disabled service rejec
   const app=express();app.use(express.json());
   let called=0;mountLocalVNextRoutes(app,{enabled:()=>false,createHost:()=>{called++;return {};}});
   const server=app.listen(0,'127.0.0.1');
+  await new Promise(resolve=>server.once('listening',resolve));
   try{
     const url='http://127.0.0.1:'+server.address().port;
     const health=await fetch(url+'/api/vnext/local/ready');
