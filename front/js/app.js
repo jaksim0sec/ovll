@@ -5788,9 +5788,10 @@
       const diff=VNextGraphPatch.build(snapshot,local);
       if(!diff)return;
       canvas.setInteractionEnabled?.(false);
-      const result=await VNextAPI.turn({...scope,requestRef:VNextAPI.uniqueId(),actions:[
-        {localKey:'edit',kind:'ir.applyPatch',args:{patch:diff.patch}}
-      ]});
+      const actions=[{localKey:'edit',kind:'ir.applyPatch',args:{patch:diff.patch}}];
+      const result=scope.storageMode==='local'?
+        await global.OvllVNextLocal.turn({...scope,actions}):
+        await VNextAPI.turn({...scope,requestRef:VNextAPI.uniqueId(),actions});
       const decision=result.results?.[0];
       if(decision?.status!=='applied'&&decision?.status!=='duplicate')
         throw Object.assign(new Error(decision?.error?.code||'PATCH_REJECTED'),
@@ -6196,9 +6197,15 @@
 
   function vnextScope(){
     const settings=global.OVLL_RUNTIME||{};
-    return settings.vnextEnabled===true&&VNextAPI&&global.OvllVNextProjection&&
+    if(settings.vnextEnabled!==true||!global.OvllVNextProjection)return null;
+    if(settings.vnextStorageMode==='local'){
+      const conversationId=currentConversationId();
+      return conversationId&&global.OvllVNextLocal?
+        {conversationId,graphId:global.OvllVNextLocal.graphId(conversationId),storageMode:'local'}:null;
+    }
+    return settings.vnextStorageMode==='postgres'&&VNextAPI&&
       typeof settings.vnextGraphId==='string'&&settings.vnextGraphId?
-      {graphId:settings.vnextGraphId,taskRef:settings.vnextTaskRef||undefined}:null;
+      {graphId:settings.vnextGraphId,taskRef:settings.vnextTaskRef||undefined,storageMode:'postgres'}:null;
   }
 
   async function refreshVNextCanvas({force=false}={}){
@@ -6206,7 +6213,9 @@
     const scope=vnextScope();
     if(!scope||!state.canvas)return 0;
     const conversation=state.activeConversationId;
-    const snapshot=await VNextAPI.state(scope.graphId,scope.taskRef);
+    const snapshot=scope.storageMode==='local'?
+      await global.OvllVNextLocal.state(scope.conversationId,scope.graphId):
+      await VNextAPI.state(scope.graphId,scope.taskRef);
     if(state.destroyed||conversation!==state.activeConversationId)return snapshot.eventCursor;
     state.vnextEventCursor=snapshot.eventCursor;
     if(snapshot.graph?.graph?.revision>=state.vnextGraphRevision){
@@ -6297,6 +6306,7 @@
     if(!scope||!state.canvas)return;
     state.vnextWatch?.();state.vnextWatch=null;
     const cursor=await refreshVNextCanvas();
+    if(scope.storageMode==='local')return;
     state.vnextWatch=VNextAPI.watch({
       after:cursor,
       onEvent:event=>{
@@ -6355,6 +6365,11 @@
   async function cancelVNextCanvasNode(nodeId){
     const scope=vnextScope();
     if(!scope)return;
+    if(scope.storageMode==='local'){
+      showErrorNotice(new Error('LOCAL_RUN_UNAVAILABLE'),{scope:'실행 중단',
+        fallback:'로컬 vNext 노드 실행은 아직 연결되지 않았습니다.'});
+      return;
+    }
     const runRef=[...state.vnextRuns].find(ref=>(state.vnextRunTargets.get(ref)||[]).includes(nodeId));
     if(!runRef)return;
     try{
@@ -6372,6 +6387,11 @@
 
   async function runVNextCanvasNode(nodeId,mode='closed'){
     const scope=vnextScope();
+    if(scope?.storageMode==='local'){
+      showErrorNotice(new Error('LOCAL_RUN_UNAVAILABLE'),{scope:'서버 실행',
+        fallback:'로컬 vNext 실행기는 준비 중입니다. 기본 오블 실행기는 계속 사용할 수 있습니다.'});
+      return;
+    }
     if(!scope||!scope.taskRef||!state.vnextGraphRevision||!state.canvas?.getNode?.(nodeId)){
       showErrorNotice(new Error('SERVER_RUN_SCOPE_UNAVAILABLE'),{scope:'서버 실행',fallback:'서버 작업을 확인할 수 없습니다.'});
       return;
@@ -6395,7 +6415,7 @@
   }
 
   async function runPrompt(text, options = {}) {
-    if(global.OVLL_RUNTIME?.vnextEnabled===true)return runVNextPrompt(text,options);
+    if(vnextScope()?.storageMode==='postgres')return runVNextPrompt(text,options);
     if (state.destroyed || state.busy) return;
 
     const value =

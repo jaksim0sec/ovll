@@ -96,6 +96,7 @@ const APP_SCRIPTS=[
   "./js/workspaceUi.js",
   "./js/ui.js",
   "./js/workspaceStore.js",
+  "./js/vnextLocal.js",
   "./js/customNodeStore.js",
   "./js/customNodes.js",
   "./js/canvasNodeBuilder.js",

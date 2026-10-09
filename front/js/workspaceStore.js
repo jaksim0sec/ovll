@@ -2,7 +2,7 @@
 "use strict";
 
 const STORAGE_KEY = "ovll:workspace:v1";
-const SCHEMA_VERSION = 5;
+const SCHEMA_VERSION = 6;
 const events = new Map();
 
 function clone(value){
@@ -138,7 +138,8 @@ function emptyConversationState(){
     canvas:emptyCanvas(),
     composerDraft:"",
     lastUserRequest:"",
-    workflowUserRequest:""
+    workflowUserRequest:"",
+    vnextGraph:null
   };
 }
 
@@ -371,6 +372,17 @@ function normalizeMessage(value){
   };
 }
 
+function normalizeVNextGraph(value){
+  if(value == null)return null;
+  if(!value?.graph || typeof value.graph.graphId!=="string" ||
+    !Number.isInteger(value.graph.revision) ||
+    !Array.isArray(value.graph.nodes) ||
+    !Array.isArray(value.graph.connections) ||
+    !Array.isArray(value.definitions) ||
+    JSON.stringify(value).length>600000)return null;
+  return clone(value);
+}
+
 function normalizeConversationState(value){
   const source =
     value &&
@@ -410,7 +422,8 @@ function normalizeConversationState(value){
       String(
         source.workflowUserRequest ||
         ""
-      ).slice(0,12000)
+      ).slice(0,12000),
+    vnextGraph:normalizeVNextGraph(source.vnextGraph)
   };
 }
 
@@ -1219,10 +1232,13 @@ function updateConversationState(
     return null;
   }
 
+  const preservedGraph=conversation.state?.vnextGraph || null;
   conversation.state =
     normalizeConversationState(
       nextState
     );
+  if(!Object.prototype.hasOwnProperty.call(nextState||{},"vnextGraph"))
+    conversation.state.vnextGraph=preservedGraph;
 
   conversation.updatedAt =
     now();
@@ -1250,6 +1266,20 @@ function updateConversationState(
   );
 
   return clone(conversation);
+}
+
+function updateConversationVNextGraph(conversationId,snapshot){
+  const conversation=getConversation(conversationId);
+  if(!conversation)throw new Error("CONVERSATION_NOT_FOUND");
+  const next=normalizeVNextGraph(snapshot);
+  if(snapshot!==null&&!next)throw new Error("INVALID_VNEXT_GRAPH");
+  const previous=conversation.state.vnextGraph;
+  conversation.state.vnextGraph=next;
+  if(!persist("conversation:vnext-graph")){
+    conversation.state.vnextGraph=previous;
+    throw new Error("LOCAL_GRAPH_SAVE_FAILED");
+  }
+  return clone(next);
 }
 
 function updateConversationDraft(
@@ -1504,6 +1534,7 @@ const api = {
   moveConversation,
   assignContextBundle,
   updateConversationState,
+  updateConversationVNextGraph,
   updateConversationDraft,
   deleteConversation,
   search,

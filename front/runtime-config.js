@@ -4,7 +4,9 @@
 global.OVLL_RUNTIME=
   Object.freeze({
     native:false,
-    apiOrigin:""
+    apiOrigin:"",
+    vnextStorageMode:"local",
+    vnextEnabled:false
   });
 
 })(window);
