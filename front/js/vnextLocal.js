@@ -1,7 +1,7 @@
 (function(global){
   "use strict";
   // Browser-owned graph snapshots, scoped to the existing local WorkspaceStore.
-  // No SQL, login, server state or external execution is involved.
+  // No SQL or user login; node inference delegates to the existing stateless server.
   function create({workspaceStore=global.OvllWorkspaceStore,
     loadCore=()=>import("/js/vnextGraphCore.mjs"),loadPlan=()=>import("/js/vnextPlanCore.mjs")}={}){
     if(!workspaceStore || typeof workspaceStore.updateConversationVNextGraph!=="function")
@@ -53,8 +53,8 @@
     }
 
     async function run({conversationId,targets,damMode='closed',requestText='',snapshotOverride,
-      executeNode=({snapshot,nodeId,inputArtifacts,requestText})=>global.OvllVNextApi.localNode({
-        snapshot,nodeId,inputArtifacts,requestText}),onProgress=()=>{},signal}={}){
+      executeNode=({snapshot,nodeId,inputArtifacts,requestText,signal})=>global.OvllVNextApi.localNode({
+        snapshot,nodeId,inputArtifacts,requestText,signal}),onProgress=()=>{},signal}={}){
       const snapshot=snapshotOverride||(await state(conversationId)).graph;
       const {buildExecutionPlan}=await loadPlan();
       const targetIds=(targets||[]).map(x=>typeof x==='string'?x:x.nodeId);
@@ -92,6 +92,7 @@
                   ?.outputs.find(p=>p.name===link.from.port)?.representation,value:source.inline};
             });
           const output=await executeNode({snapshot,nodeId:item.nodeId,inputArtifacts:inputs,requestText,signal});
+          if(signal?.aborted){entry.status='cancelled';record.status='cancelled';break;}
           if(output?.status==='blocked'){entry.status='blocked';entry.error=output.outputs?.reason||'CONTEXT_REQUIRED';record.status='waiting';break;}
           if(output?.status!=='success'||output.outputs?.status!=='produced')throw new Error('LOCAL_OUTPUT_NOT_VERIFIED');
           entry.status='success';entry.outputs=output.outputs;

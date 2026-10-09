@@ -98,6 +98,7 @@ const APP_SCRIPTS=[
   "./js/workspaceStore.js",
   "./js/vnextLocal.js",
   "./js/vnextFunctions.js",
+  "./js/vnextLocalActions.js",
   "./js/customNodeStore.js",
   "./js/customNodes.js",
   "./js/canvasNodeBuilder.js",

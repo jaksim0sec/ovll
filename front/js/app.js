@@ -6336,11 +6336,26 @@
         ...(n.status==='success'?{result:{report}}:{})});
     }
   }
+  let localRunActive=null;
   async function runLocalNodes({targets,damMode='closed',requestText='',snapshotOverride}={}){
     const scope=vnextScope();
     if(scope?.storageMode!=='local')throw new Error('LOCAL_SCOPE_UNAVAILABLE');
-    return global.OvllVNextLocal.run({conversationId:scope.conversationId,targets,damMode,
-      requestText,snapshotOverride,onProgress:showLocalRun});
+    if(localRunActive)throw new Error('LOCAL_RUN_ALREADY_ACTIVE');
+    const controller=new AbortController();
+    localRunActive={conversationId:scope.conversationId,controller,nodeIds:new Set(targets)};
+    try{
+      return await global.OvllVNextLocal.run({conversationId:scope.conversationId,targets,
+        damMode,requestText,snapshotOverride,signal:controller.signal,onProgress:run=>{
+          if(localRunActive)localRunActive.nodeIds=new Set(run.nodes.map(x=>x.nodeId));
+          if(currentConversationId()===scope.conversationId)showLocalRun(run);
+        }});
+    }finally{localRunActive=null;}
+  }
+  function localRunSummary(run){
+    return (run.nodes||[]).filter(x=>x.status==='success').flatMap(x=>
+      Object.entries(x.outputs?.values||{}).map(([name,v])=>
+        name+': '+String(typeof v?.inline==='string'?v.inline:JSON.stringify(v?.inline)||'')))
+      .join('\n').slice(0,3500);
   }
   async function runLocalPrompt(text,options={}){
     if(state.destroyed||state.busy)return;
@@ -6364,16 +6379,16 @@
         if(!fn)throw new Error('LOCAL_FUNCTION_NOT_FOUND');
         const run=await runLocalNodes({snapshotOverride:fn.snapshot,targets:fn.targets,
           requestText:args.join(' ')});
-        addAssistantMessage(run.status==='completed'?'저장된 함수 실행 완료. 캔버스에서 결과를 확인해줘.':
-          '함수 실행이 '+run.status+' 상태에서 종료됐어.');return;
+        addAssistantMessage(run.status==='completed'?'저장된 함수 실행 완료.\n'+localRunSummary(run):
+          '함수 실행이 '+run.status+' 상태에서 종료됐어.\n'+localRunSummary(run));return;
       }
       const graph=(await global.OvllVNextLocal.state(scope.conversationId)).graph;
       const proposal=await VNextAPI.localTurn({snapshot:graph,requestText:value,
         history:recentAiConversation(value).slice(-6).map(x=>x.role+': '+x.text)});
       if(proposal.needs?.length){addAssistantMessage(proposal.message||'추가 자료가 필요해.');return;}
       const applied=new Map(),summary=[];
-      if((proposal.actions||[]).length>32)throw new Error('LOCAL_ACTION_LIMIT');
-      for(const action of proposal.actions||[]){
+      const ordered=global.OvllVNextLocalActions.order(proposal.actions||[]);
+      for(const action of ordered){
         if(applied.has(action.localKey))throw new Error('DUPLICATE_LOCAL_ACTION');
         if((action.dependsOn||[]).some(key=>!applied.has(key))){
           summary.push(action.kind+' 선행 행동이 적용되지 않았어.');continue;
@@ -6390,7 +6405,8 @@
           const run=await runLocalNodes({targets,damMode:action.args.damMode||'closed',
             requestText:value});
           applied.set(action.localKey,run);
-          summary.push(run.status==='completed'?'노드 실행 완료':'노드 실행 '+run.status);
+          summary.push((run.status==='completed'?'노드 실행 완료':'노드 실행 '+run.status)+
+            '\n'+localRunSummary(run));
         }else if(action.kind==='function.save'){
           const draft=action.args.function;
           const current=(await global.OvllVNextLocal.state(scope.conversationId)).graph;
@@ -6460,7 +6476,11 @@
   async function cancelVNextCanvasNode(nodeId){
     const scope=vnextScope();
     if(!scope)return;
-    if(scope.storageMode==='local')return;
+    if(scope.storageMode==='local'){
+      if(localRunActive?.conversationId===scope.conversationId&&
+        localRunActive.nodeIds.has(nodeId))localRunActive.controller.abort();
+      return;
+    }
     const runRef=[...state.vnextRuns].find(ref=>(state.vnextRunTargets.get(ref)||[]).includes(nodeId));
     if(!runRef)return;
     try{
@@ -6481,8 +6501,8 @@
     if(scope?.storageMode==='local'){
       try{
         const run=await runLocalNodes({targets:[nodeId],damMode:mode});
-        addAssistantMessage(run.status==='completed'?'노드 실행 완료. 캔버스에서 결과를 확인해줘.':
-          '노드 실행 상태: '+run.status);
+        addAssistantMessage((run.status==='completed'?'노드 실행 완료.':'노드 실행 상태: '+run.status)+
+          '\n'+localRunSummary(run));
       }catch(error){showErrorNotice(error,{scope:'로컬 노드 실행',fallback:'노드 실행 실패'});}
       return;
     }

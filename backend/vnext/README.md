@@ -129,3 +129,7 @@ Lifecycle verification:26 PostgreSQL cases, 25/26 local single-session smoke wit
 - The experimental local chat branch now accepts an untrusted validated model proposal from the stateless server endpoint, applies GraphPatch through the versioned local graph repository, executes only model_task nodes in a locally persisted run, and stores graph-backed function drafts without claiming verification.
 - Local functions are listed via `/함수`; `/함수실행 <id> <new input>` runs a saved snapshot and does not mutate the original. This command UI is a temporary developer shortcut; achieving no-setup functionization requires product UX work.
 - `vnextEnabled` remains **false** until browser E2E, provider quality, cancellation/parallel editing, conditional flow and local function UX are verified. This gate does not prevent testing the stateless model APIs.
+
+## Local API opt-in and cancellation safeguards
+- The stateless model routes return `LOCAL_MODEL_DISABLED` unless the server operator explicitly sets `OVLL_VNEXT_LOCAL_MODEL_ENABLED=true`. The browser-side `vnextEnabled` remains false by default. This prevents experimental provider costs being introduced by ordinary production traffic while evaluating the product.
+- User-facing local runs propagate AbortSignal to the server call and record cancellation instead of success if interrupted. Local model actions are topologically ordered and reject cycles/missing dependencies. Saved-function results are shown directly in chat even when the saved pinned graph differs from the active canvas.

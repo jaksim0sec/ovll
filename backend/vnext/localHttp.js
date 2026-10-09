@@ -1,11 +1,14 @@
 import {createConfiguredLocalVNextHost} from './localHost.js';
 const allowed=new Set(['turn','node']);
-export function mountLocalVNextRoutes(app,{createHost=()=>createConfiguredLocalVNextHost()}={}){
+export function mountLocalVNextRoutes(app,{createHost=()=>createConfiguredLocalVNextHost(),
+  enabled=()=>process.env.OVLL_VNEXT_LOCAL_MODEL_ENABLED==='true'}={}){
   let host;
   const recent=new Map();
   app.post('/api/vnext/local/:kind',async(req,res)=>{
     const kind=req.params.kind;
+    res.set('Cache-Control','no-store');
     if(!allowed.has(kind))return res.status(404).json({error:{code:'UNKNOWN_LOCAL_OPERATION'}});
+    if(!enabled())return res.status(503).json({error:{code:'LOCAL_MODEL_DISABLED'}});
     // Stateless model use is still server-side and rate bounded; browser never sees API credentials.
     const now=Date.now(),ip=req.ip||'unknown',bucket=recent.get(ip)||{start:now,count:0};
     if(now-bucket.start>60000){bucket.start=now;bucket.count=0;}

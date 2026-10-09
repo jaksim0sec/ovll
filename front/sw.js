@@ -1,4 +1,4 @@
-const CACHE = 'ovll-shell-v61';
+const CACHE = 'ovll-shell-v62';
 
 const SHELL = [
   '/home',
@@ -28,6 +28,7 @@ const SHELL = [
   '/js/workspaceStore.js',
   '/js/vnextLocal.js',
   '/js/vnextFunctions.js',
+  '/js/vnextLocalActions.js',
   '/js/vnextGraphCore.mjs',
   '/js/vnextPlanCore.mjs',
   '/js/libraryPage.js',
