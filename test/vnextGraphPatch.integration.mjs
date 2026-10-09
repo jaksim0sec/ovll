@@ -1,7 +1,7 @@
 import test,{before,after} from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
-import {readFile,readFileSync} from 'node:fs';
+import {readFileSync} from 'node:fs';
 import {Pool} from 'pg';
 import vm from 'node:vm';
 import {PostgresVNextStore} from '../backend/vnext/durable.js';
@@ -28,8 +28,9 @@ test('real server commits semantic canvas edits with a pinned revision, immutabl
   const def={localKey:'draft',purpose:'Write a summary',instruction:'Use only actual sources',
     executorKind:'model_task',inputs:[{name:'in',role:'input',representation:'text'}],
     outputs:[{name:'out',role:'result',representation:'text'}]};
+  // Simulate the browser's actual JSON HTTP boundary: vm-created objects cross realms.
   const send=(patch,requestRef=id('req'))=>store.submit({actions:[{localKey:'edit',kind:'ir.applyPatch',
-    args:{patch}}]}, {...scope,graphId,requestRef});
+    args:{patch:JSON.parse(JSON.stringify(patch))}}]}, {...scope,graphId,requestRef});
   const initial={graphId,expectedGraphRevision:0,definitions:[def],operations:[
     {op:'node.add',localNodeKey:'a',definitionRef:{localDefinitionKey:'draft'}},
     {op:'node.add',localNodeKey:'b',definitionRef:{localDefinitionKey:'draft'}},
