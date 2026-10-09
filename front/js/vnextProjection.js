@@ -23,7 +23,10 @@
           required:p.required===true,multiple:true});
         definitions[type]={name:def.purpose.slice(0,100),desc:def.purpose,
           color:'#888888',iconKey:'',tag:'AI',
-          inputs:def.inputs.map(port),outputs:def.outputs.map(port),
+          inputs:[...def.inputs.map(port),...(!def.inputs.some(p=>p.name==='in')?
+            [{id:'in',name:'진입',type:'any',accepts:['any'],multiple:true}]:[])],
+          outputs:[...def.outputs.map(port),...(!def.outputs.some(p=>p.name==='next')?
+            [{id:'next',name:'다음',type:'any',accepts:['any'],multiple:true}]:[])],
           params:[{id:'request',name:'요청',type:'textarea',default:def.instruction}]};
       }
       const earlier=prior.get(node.nodeId);

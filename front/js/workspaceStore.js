@@ -2,7 +2,7 @@
 "use strict";
 
 const STORAGE_KEY = "ovll:workspace:v1";
-const SCHEMA_VERSION = 6;
+const SCHEMA_VERSION = 7;
 const events = new Map();
 
 function clone(value){
@@ -139,7 +139,8 @@ function emptyConversationState(){
     composerDraft:"",
     lastUserRequest:"",
     workflowUserRequest:"",
-    vnextGraph:null
+    vnextGraph:null,
+    vnextRuns:[]
   };
 }
 
@@ -383,6 +384,13 @@ function normalizeVNextGraph(value){
   return clone(value);
 }
 
+function normalizeVNextRuns(value){
+  if(!Array.isArray(value))return [];
+  return value.slice(-12).filter(x=>x&&typeof x.runId==='string'&&
+    typeof x.status==='string'&&Array.isArray(x.nodes)&&x.nodes.length<=64&&
+    JSON.stringify(x).length<=96000).map(clone);
+}
+
 function normalizeConversationState(value){
   const source =
     value &&
@@ -423,7 +431,8 @@ function normalizeConversationState(value){
         source.workflowUserRequest ||
         ""
       ).slice(0,12000),
-    vnextGraph:normalizeVNextGraph(source.vnextGraph)
+    vnextGraph:normalizeVNextGraph(source.vnextGraph),
+    vnextRuns:normalizeVNextRuns(source.vnextRuns)
   };
 }
 
@@ -1233,12 +1242,15 @@ function updateConversationState(
   }
 
   const preservedGraph=conversation.state?.vnextGraph || null;
+  const preservedRuns=conversation.state?.vnextRuns || [];
   conversation.state =
     normalizeConversationState(
       nextState
     );
   if(!Object.prototype.hasOwnProperty.call(nextState||{},"vnextGraph"))
     conversation.state.vnextGraph=preservedGraph;
+  if(!Object.prototype.hasOwnProperty.call(nextState||{},"vnextRuns"))
+    conversation.state.vnextRuns=preservedRuns;
 
   conversation.updatedAt =
     now();
@@ -1278,6 +1290,21 @@ function updateConversationVNextGraph(conversationId,snapshot){
   if(!persist("conversation:vnext-graph")){
     conversation.state.vnextGraph=previous;
     throw new Error("LOCAL_GRAPH_SAVE_FAILED");
+  }
+  return clone(next);
+}
+
+function updateConversationVNextRuns(conversationId,runs){
+  const conversation=getConversation(conversationId);
+  if(!conversation)throw new Error("CONVERSATION_NOT_FOUND");
+  const next=normalizeVNextRuns(runs);
+  if(!Array.isArray(runs)||next.length!==Math.min(runs.length,12))
+    throw new Error("INVALID_LOCAL_RUNS");
+  const previous=conversation.state.vnextRuns;
+  conversation.state.vnextRuns=next;
+  if(!persist("conversation:vnext-runs")){
+    conversation.state.vnextRuns=previous;
+    throw new Error("LOCAL_RUN_SAVE_FAILED");
   }
   return clone(next);
 }
@@ -1535,6 +1562,7 @@ const api = {
   assignContextBundle,
   updateConversationState,
   updateConversationVNextGraph,
+  updateConversationVNextRuns,
   updateConversationDraft,
   deleteConversation,
   search,

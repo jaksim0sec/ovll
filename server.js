@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
+import {mountLocalVNextRoutes} from './backend/vnext/localHttp.js';
 import compression from 'compression';
 import {randomUUID} from 'crypto';
 import {
@@ -261,7 +262,7 @@ function groupLogMeta(
  * The frontend compares this server value with its locally stored version
  * before loading application assets.
  */
-const APP_VERSION = '2026.10.09.25';
+const APP_VERSION = '2026.10.09.26';
 
 /* =========================================================
    CANONICAL NODE DEFINITION
@@ -4001,6 +4002,8 @@ app.get(
     );
   }
 );
+
+mountLocalVNextRoutes(app);
 
 /* =========================================================
    ERROR HANDLER

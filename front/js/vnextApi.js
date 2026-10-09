@@ -31,6 +31,10 @@
   const runState=id=>request('runs/'+encodeURIComponent(id)+'/state');
   const turn=({graphId,taskRef,actions,requestRef=uniqueId(),signal})=>
     request('turns',{method:'POST',requestRef,body:{graphId,taskRef,turn:{actions}},signal});
+  const localTurn=({snapshot,requestRef=uniqueId(),requestText,history,signal})=>
+    request('local/turn',{method:'POST',body:{snapshot,requestRef,requestText,history},signal});
+  const localNode=({snapshot,requestRef=uniqueId(),requestText,nodeId,inputArtifacts,signal})=>
+    request('local/node',{method:'POST',body:{snapshot,requestRef,requestText,nodeId,inputArtifacts},signal});
   const run=id=>request('runs/'+encodeURIComponent(id));
   const task=id=>request('tasks/'+encodeURIComponent(id));
   const artifact=id=>request('artifacts/'+encodeURIComponent(id));
@@ -80,5 +84,5 @@
     const poll=global.setInterval(()=>{void replay().then(connect);},3000);
     return ()=>{closed=true;global.clearInterval(poll);stream?.close();stream=null;};
   }
-  global.OvllVNextApi=Object.freeze({request,submit,turn,events,state,runState,graph,run,task,artifact,watch,uniqueId});
+  global.OvllVNextApi=Object.freeze({request,submit,turn,events,state,runState,graph,run,task,artifact,watch,uniqueId,localTurn,localNode});
 })(window);
