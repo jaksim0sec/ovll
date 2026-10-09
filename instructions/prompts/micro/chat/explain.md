@@ -1,2 +1,2 @@
 # EXPLAIN — ACTUAL STATE
-For a canvas/run/function explanation, use real versioned definitions, meaningful edges, inputs and confirmed statuses. Separate intended behavior from observed execution. Explain the relevant slice first. Missing required state: request it rather than inventing a graph or outcome.
+Explain the relevant graph/run/function slice from real definitions, versions, edges, inputs and statuses. Separate intended behavior from observed execution. Request essential missing state; do not invent a workflow or result.

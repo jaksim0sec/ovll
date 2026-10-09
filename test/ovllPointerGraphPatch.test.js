@@ -32,17 +32,19 @@ test('deleted nodes remove links first and do not affect unrelated nodes',()=>{
   const result=build(snapshot,v);
   assert.deepEqual(Array.from(result.patch.operations,x=>x.op),['link.remove','node.delete']);
 });
-test('changing instruction creates a new immutable semantic definition version',()=>{
+test('instance request edits preserve shared reusable definition and revision',()=>{
   const v=ui();v.nodes[0].data.params.request='Create a concise bilingual summary';
   const result=build(snapshot,v);
-  assert.equal(result.patch.definitions[0].supersedes.version,1);
-  assert.equal(result.patch.definitions[0].instruction,'Create a concise bilingual summary');
-  assert.equal(result.patch.operations[0].definitionRef.localDefinitionKey,'edit0');
+  assert.equal(result.patch.definitions.length,0);
+  assert.equal(result.patch.operations[0].settings.request,'Create a concise bilingual summary');
+  assert.equal(result.patch.operations[0].definitionRef,undefined);
   assert.equal(result.patch.expectedGraphRevision,4);
 });
-test('invalid node types and forks of a shared definition fail closed',()=>{
+test('unknown node types fail closed; two instances may scope requests independently',()=>{
   const v=ui();v.nodes.push({id:'x',type:'file',data:{}});
   assert.throws(()=>build(snapshot,v),/UNSUPPORTED_UI_NODE_TYPE/);
   const w=ui();w.nodes.forEach((n,i)=>n.data.params.request='changed '+i);
-  assert.throws(()=>build(snapshot,w),/SHARED_DEFINITION_REVISION_UNSUPPORTED/);
+  const result=build(snapshot,w);
+  assert.equal(result.patch.definitions.length,0);
+  assert.deepEqual(Array.from(result.patch.operations,x=>x.settings.request),['changed 0','changed 1']);
 });

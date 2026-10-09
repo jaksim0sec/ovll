@@ -1,2 +1,2 @@
-# PRESENT — ANSWER FIRST
-Give the actual answer or finished artifact in the requested format and language; preserve substance, references and caveats. Do not dump the node trace or expand into a status report when the deliverable is ready.
+# PRESENT — COMPLETE ANSWER
+Present actual target output/artifact in requested format/language, preserving substance, references, paragraphs and caveats. A ready deliverable needs neither intermediate traces nor an extra model rewrite.

@@ -1,38 +1,56 @@
+import {localModelContract} from './modelContract.js';
 import {MemoryGraphRepository,KernelError} from './graph.js';
 import {createContractValidation} from './validation.js';
 import {createPromptComposer} from './promptComposer.js';
 import {validateNodeOutput} from './nodeOutput.js';
 import {createConfiguredModelProvider} from './configuredProvider.js';
 
+import {withPointerCatalog,getPointerCatalog} from './nodeCatalog.js';
 const fail=(code,status=422)=>{throw new KernelError(code,code,status);};
 const safe=s=>typeof s==='string'&&/^[a-zA-Z0-9_.:-]{1,160}$/.test(s);
 const clone=x=>JSON.parse(JSON.stringify(x));
-function prepare({snapshot,requestRef,requestText,history=[],capabilities=[]}){
+function contextSnapshot(snapshot,nodeIdScope){
+  const view=clone(snapshot);let truncated=false;
+  if(nodeIdScope){
+    view.graph.nodes=view.graph.nodes.filter(n=>n.nodeId===nodeIdScope);
+    view.graph.connections=[];
+    view.definitions=view.definitions.filter(d=>view.graph.nodes.some(n=>n.definitionRef.definitionId===d.definitionId&&n.definitionRef.version===d.version));
+    for(const node of view.graph.nodes)node.inputBindings={}; // Exact bindings live once in nodeContext.
+  }
+  for(const node of view.graph.nodes){
+    const file=node.settings?.file;
+    if(file?.textPreview?.length>1000){file.valueRef='file:'+node.nodeId;file.textAvailableChars=file.textPreview.length;file.textPreview=file.textPreview.slice(0,1000);file.textTruncated=true;truncated=true;}
+    if(!nodeIdScope)for(const [port,value] of Object.entries(node.inputBindings||{})){
+      const raw=JSON.stringify(value);
+      if(Buffer.byteLength(raw,'utf8')>3000){node.inputBindings[port]={valueRef:'binding:'+node.nodeId+':'+port,preview:raw.slice(0,1000),truncated:true};truncated=true;}
+    }
+  }
+  return {view,truncated};
+}
+function prepare({snapshot,requestRef,requestText,history=[],capabilities=[],nodeIdScope}){
   if(!safe(requestRef)||typeof requestText!=='string'||!requestText.trim()||requestText.length>2400||
     !snapshot?.graph||!safe(snapshot.graph.graphId)||!Array.isArray(snapshot.graph.nodes)||
     snapshot.graph.nodes.length>64||!Array.isArray(snapshot.graph.connections)||
     snapshot.graph.connections.length>128||!Array.isArray(snapshot.definitions)||
-    snapshot.definitions.length>128||Buffer.byteLength(JSON.stringify(snapshot),'utf8')>30000)
+    snapshot.definitions.length>128||Buffer.byteLength(JSON.stringify(snapshot),'utf8')>262144)
     fail('INVALID_LOCAL_MODEL_REQUEST');
+  snapshot=withPointerCatalog(snapshot);
   const repo=new MemoryGraphRepository();
   repo.restore('local',snapshot.graph.graphId,snapshot);
+  const {view,truncated}=contextSnapshot(snapshot,nodeIdScope);
   const context={requestRef,objective:requestText,requestText,constraints:[],capabilities,
     outputContract:'ModelTurn',historyDigest:(Array.isArray(history)?history:[])
       .slice(-6).filter(x=>typeof x==='string').map(x=>x.slice(0,800)),
-    materials:[{ref:'graph',kind:'graph_snapshot',source:'user_input',content:clone(snapshot),truncated:false}]};
+    materials:[{ref:'graph',kind:'graph_snapshot',source:'user_input',content:view,truncated}]};
   return {snapshot:clone(snapshot),context};
 }
 export function createLocalPointerHost({gateway,resolveModel,validation=createContractValidation(),
   composer=createPromptComposer({validation})}={}){
   if(typeof gateway?.complete!=='function'||typeof resolveModel!=='function')
     fail('LOCAL_MODEL_NOT_CONFIGURED',503);
-  async function invoke({context,modules,nodeContext,signal}){
-    const {messages}=composer.assemble({moduleIds:modules,context,nodeContext});
-    // JSON mode guarantees JSON syntax, NOT the actual ModelTurn / GraphPatch contract.
-    // Port.role and nested local refs are easy for a model to omit unless explicitly defined.
-    const contract=nodeContext?
-      'Return one JSON ModelTurn with ONLY "outputs". Example: {"outputs":{"status":"produced","values":{"result":{"inline":"your answer"}}}}. Replace result with the EXACT declared output port name; blocked outputs use {"outputs":{"status":"blocked","reason":"why"}}. No actions, tools or invented results.':
-      'Return exactly one JSON ModelTurn object. Allowed top-level keys: "message" (string), "actions" (array), "needs" (array); do NOT add mode, workflow, plan, nodes, graph, explanation or markdown at top level. For ordinary chat use {"message":"answer"}. For a workflow create one ir.applyPatch action containing an atomic GraphPatch. Example, REPLACE graphId/revision with the actual graph snapshot values: {"message":"구성했어.","actions":[{"localKey":"p1","kind":"ir.applyPatch","args":{"patch":{"graphId":"g_example","expectedGraphRevision":0,"definitions":[{"localKey":"d1","purpose":"요약","executorKind":"model_task","instruction":"입력 내용을 요약한다","inputs":[],"outputs":[{"name":"result","role":"결과","representation":"text"}]}],"operations":[{"op":"node.add","localNodeKey":"n1","definitionRef":{"localDefinitionKey":"d1"}}]}}}]}. Every output/input port REQUIRES name,role,representation. Each definition REQUIRES localKey,purpose,executorKind,instruction,inputs,outputs (nonempty outputs). Node definitionRef with localDefinitionKey MUST point to a definition in the same patch. A run.start action is OPTIONAL (only when the user wants execution); if used it must include "dependsOn":["p1"] and targets [{"fromAction":"p1","localNodeKey":"n1"}]. Use only model_task executors for this browser-local runtime. Never claim graph edits executed until confirmed.';
+  async function invoke({context,modules,nodeContext,extraContext,signal}){
+    const {messages}=composer.assemble({moduleIds:modules,context,nodeContext,extraContext});
+    const contract=localModelContract(nodeContext);
     messages.splice(1,0,{role:'developer',content:contract});
     const config=await resolveModel();
     const complete=()=>gateway.complete({providerId:config.providerId,model:config.model,
@@ -61,34 +79,41 @@ export function createLocalPointerHost({gateway,resolveModel,validation=createCo
     }
     fail('INVALID_MODEL_TURN');
   }
-  async function turn({snapshot,requestRef,requestText,history,signal}={}){
-    const {context}=prepare({snapshot,requestRef,requestText,history,capabilities:[
-      'chat','ir.applyPatch','run.start','function.save','question.ask','model_task']});
+  async function turn({snapshot,requestRef,requestText,history,extraContext,signal}={}){
+    const {context}=prepare({snapshot,requestRef,requestText,history,capabilities:getPointerCatalog().capabilities});
     const result=await invoke({context,modules:['layer.entry','layer.chat','layer.ir',
-      'ir.define','ir.patch','ir.connect','layer.function','fn.extract'],signal});
+      'ir.define','ir.patch','ir.connect','layer.function','fn.extract','fn.reuse'],extraContext,signal});
     if(result.turn.outputs||result.turn.needs?.length&&result.turn.actions?.length)
       fail('UNSUPPORTED_LOCAL_MODEL_TURN');
     return result.turn;
   }
-  async function node({snapshot,requestRef,requestText,nodeId,inputArtifacts=[],signal}={}){
-    const {context}=prepare({snapshot,requestRef,requestText,capabilities:['model_task']});
+  async function node({snapshot,requestRef,requestText,nodeId,inputArtifacts=[],taskConstraints=[],signal}={}){
+    snapshot=withPointerCatalog(snapshot||{});
+    const requested=snapshot.graph?.nodes?.find(n=>n.nodeId===nodeId);
+    const requestedDefinition=snapshot.definitions?.find(d=>d.definitionId===requested?.definitionRef?.definitionId&&d.version===requested?.definitionRef?.version);
+    requestText=requestText?.trim()||requested?.settings?.request?.trim()||requestedDefinition?.purpose;
+    const {context}=prepare({snapshot,requestRef,requestText,capabilities:['model_task'],nodeIdScope:nodeId});
+    if(!Array.isArray(taskConstraints)||taskConstraints.length>64||taskConstraints.some(x=>typeof x!=='string'||!x.trim()||x.length>2400))fail('INVALID_TASK_CONSTRAINTS');
+    context.constraints=taskConstraints;
     if(!safe(nodeId)||!Array.isArray(inputArtifacts)||inputArtifacts.length>48||
-      Buffer.byteLength(JSON.stringify(inputArtifacts),'utf8')>22000)fail('INVALID_LOCAL_NODE_INPUT');
+      Buffer.byteLength(JSON.stringify(inputArtifacts),'utf8')>60000)fail('INVALID_LOCAL_NODE_INPUT');
     const target=snapshot.graph.nodes.find(n=>n.nodeId===nodeId);
     if(!target)fail('LOCAL_NODE_NOT_FOUND',404);
     const definition=snapshot.definitions.find(d=>d.definitionId===target.definitionRef.definitionId&&
       d.version===target.definitionRef.version);
-    if(!definition||definition.executorKind!=='model_task')fail('LOCAL_EXECUTOR_UNAVAILABLE',501);
+    if(!definition||definition.executorKind!=='model_task'||(definition.requiredCapabilities||[]).some(c=>!['model_task','branch.exclusive'].includes(c)))fail('LOCAL_EXECUTOR_UNAVAILABLE',501);
     const nodeContext={nodeId,purpose:definition.purpose,instruction:definition.instruction,
-      inputPorts:definition.inputs,outputPorts:definition.outputs,inputBindings:target.inputBindings||{},
+      instanceRequest:target.settings?.request||'',inputPorts:definition.inputs,outputPorts:definition.outputs,inputBindings:target.inputBindings||{},
       upstreamArtifacts:inputArtifacts.map(a=>({port:a.port,sourceNodeId:a.sourceNodeId,
         sourcePort:a.sourcePort,valueRef:a.valueRef,representation:a.representation,value:a.value}))};
-    const result=await invoke({context,modules:['run.perform'],nodeContext,signal});
+    const result=await invoke({context,modules:['run.perform'],nodeContext:clone(nodeContext),signal});
     if(result.turn.needs?.length||result.turn.actions?.length||!result.turn.outputs)
       fail('LOCAL_NODE_OUTPUT_REQUIRED');
     const checked=await validateNodeOutput(definition,result.turn.outputs,{inputArtifacts});
     return {nodeId,status:result.turn.outputs.status==='blocked'?'blocked':'success',
-      outputs:result.turn.outputs,validatedPorts:checked.length||0};
+      outputs:result.turn.outputs.status==='blocked'?result.turn.outputs:{status:'produced',
+        values:Object.fromEntries(checked.map(x=>[x.port.name,{inline:x.value}]))},
+      provenance:Object.fromEntries(Array.isArray(checked)?checked.map(x=>[x.port.name,x.sourceRefs]):[]),validatedPorts:checked.length||0};
   }
   return Object.freeze({turn,node});
 }

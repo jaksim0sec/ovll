@@ -3,7 +3,19 @@
   const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
   const safe=s=>typeof s==='string'&&/^[A-Za-z0-9_.:-]{1,160}$/.test(s);
   const fail=code=>{const e=new Error(code);e.code=code;throw e;};
-  const typeFor=d=>'pointer:'+d.definitionId+':'+d.version;
+  const refKey=d=>'pointer:'+d.definitionId+':'+d.version;
+  const typeFor=d=>d.version===1&&/^builtin:(research|organize|judge|write|file|createFile)$/.test(d.definitionId)?d.definitionId.slice(8):refKey(d);
+  function settingsFor(node,prior={}){
+    const settings={...prior};
+    const request=node.data?.params?.request;
+    if(typeof request==='string'){if(request.length>2400)fail('INVALID_NODE_INSTRUCTION');settings.request=request;}
+    if(node.type==='file'){
+      const file={};for(const k of ['localFileId','name','mime','size','downloadUrl','previewUrl','textPreview','textTruncated'])
+        if(node.data?.[k]!==undefined)file[k]=node.data[k];
+      settings.file=file;
+    }
+    return settings;
+  }
   function build(snapshot,workflow){
     const graph=snapshot?.graph;
     if(!graph||!safe(graph.graphId)||!Number.isInteger(graph.revision)||
@@ -11,8 +23,8 @@
       !Array.isArray(snapshot.definitions)||!Array.isArray(workflow?.nodes)||
       !Array.isArray(workflow?.connections))fail('INVALID_GRAPH_EDIT');
     const before=new Map(graph.nodes.map(n=>[n.nodeId,n]));
-    const after=new Map(),defs=new Map(snapshot.definitions.map(d=>[typeFor(d),d]));
-    const operations=[],definitions=[],added=new Map(),moved=new Map(),revisions=new Set();
+    const after=new Map(),defs=new Map(snapshot.definitions.flatMap(d=>[[typeFor(d),d],[refKey(d),d]]));
+    const operations=[],definitions=[],added=new Map(),moved=new Map();
     for(const [i,node] of workflow.nodes.entries()){
       if(!safe(node?.id)||after.has(node.id))fail('INVALID_CANVAS_NODE');
       after.set(node.id,node);
@@ -32,7 +44,9 @@
     }
     const desired=new Map();
     for(const link of workflow.connections){
-      const kind=link?.data?.kind==='data'?'data':'flow';
+      const source=defs.get(after.get(link?.from?.node)?.type),destination=defs.get(after.get(link?.to?.node)?.type);
+      const kind=link?.data?.kind||
+        (source?.outputs.some(p=>p.name===link?.from?.port)&&destination?.inputs.some(p=>p.name===link?.to?.port)?'data':'flow');
       const f=link?.from,t=link?.to;
       if(!safe(f?.node)||!safe(t?.node)||!safe(f.port)||!safe(t.port)||
         !after.has(f.node)||!after.has(t.node))fail('INVALID_CANVAS_CONNECTION');
@@ -47,7 +61,7 @@
       const node=after.get(id),def=defs.get(node.type);
       operations.push({op:'node.add',localNodeKey,
         definitionRef:{definitionId:def.definitionId,version:def.version},
-        inputBindings:node.data?.pointer?.inputBindings||{}});
+        inputBindings:node.data?.pointer?.inputBindings||{},settings:settingsFor(node)});
       moved.set(id,localNodeKey);
     }
     for(const [id,prior] of before){
@@ -63,18 +77,9 @@
       const uiBindings=node.data?.pointer?.inputBindings;
       if(uiBindings!==undefined&&!same(uiBindings,prior.inputBindings||{}))
         changes.inputBindings=uiBindings;
-      const request=node.data?.params?.request;
-      if(typeof request==='string'&&request!==prevDef.instruction){
-        const versionKey=typeFor(prior.definitionRef);
-        if(revisions.has(versionKey)||changes.definitionRef)fail('SHARED_DEFINITION_REVISION_UNSUPPORTED');
-        revisions.add(versionKey);
-        if(!request.trim()||request.length>2400)fail('INVALID_NODE_INSTRUCTION');
-        const localKey='edit'+definitions.length;
-        const {definitionId,version,localKey:unused,supersedes, ...draft}=prevDef;
-        definitions.push({...draft,localKey,supersedes:{definitionId:currentRef.definitionId,version:currentRef.version},
-          instruction:request});
-        changes.definitionRef={localDefinitionKey:localKey};
-      }
+      const settings=settingsFor(node,prior.settings||{});
+      const baseline={...(prior.settings||{}),request:prior.settings?.request??prevDef.instruction};
+      if(!same(settings,baseline)&&!(same(settings,prior.settings||{})))changes.settings=settings;
       if(Object.keys(changes).length)operations.push({op:'node.update',nodeId:id,...changes});
     }
     for(const [k,link] of desired)if(!original.has(k)){

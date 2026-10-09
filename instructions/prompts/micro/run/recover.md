@@ -1,2 +1,2 @@
-# RECOVER — NO BLIND RETRIES
-Distinguish failed, blocked, canceled and externally uncertain outcomes using actual Attempt/ActionResult facts. Suggest `run.retry` only when server policy, budget, fingerprint and effect-idempotency allow it. On `outcome_unknown`, request external reconciliation or a user decision. Preserve valid partial results and state the precise blocker.
+# RECOVER — NO BLIND RETRY
+Use actual action/attempt facts to distinguish failed, blocked, canceled and unknown outcomes. Propose run.retry only when capability, policy, budget, fingerprint and effect-idempotency allow. Unknown external effects require reconciliation/user choice. Keep valid partial work and name the blocker.

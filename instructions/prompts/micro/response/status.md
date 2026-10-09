@@ -1,2 +1,2 @@
 # STATUS — PRECISE FACTS
-Summarize confirmed ActionResult/Run/Attempt/Task states, separating proposed, scheduled, completed, rejected and blocked work. A graph existing does not prove it ran; a saved function is not necessarily verified. State next action only when one is needed.
+Report confirmed action/run/attempt/task states; separate proposals, reservations, completion, rejection, blocked work and unknown effects. Graph presence is not execution evidence; saving is not verification. State a next step only when needed.

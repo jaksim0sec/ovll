@@ -1,2 +1,2 @@
-# REUSE — BIND NEW INPUTS
-Keep the saved FunctionVersion's purpose, IO contracts, invariants and version fixed. Bind new materials; adapt execution details only within the original contract. Prefer the server's direct replay. The v1 model action set has no `function.execute`/`function.invoke`; never invent either. If replay is unavailable, state the limitation rather than claiming a Run started.
+# REUSE — FRESH INPUTS
+Preserve the saved version's purpose, IO and invariants. Bind new materials to named inputs; adapt incidental methods within the contract. Use only supplied replay capabilities: local function.run takes functionRef/inputBindings. Other hosts may expose a direct route. Never invent function.execute/invoke or claim unavailable replay succeeded.

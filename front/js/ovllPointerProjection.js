@@ -4,6 +4,11 @@
   const isObject=v=>v&&typeof v==='object'&&!Array.isArray(v);
   const validRef=v=>typeof v==='string'&&v.length>0&&v.length<=160;
   const key=ref=>'pointer:'+ref.definitionId+':'+ref.version;
+  function controlPort(ports,preferred,fallback,name){
+    let id=ports.some(p=>p.name===preferred)?fallback:preferred;
+    while(ports.some(p=>p.name===id))id+='_';
+    return {id,name,type:'flow',accepts:['flow'],multiple:true};
+  }
   function projectGraph(snapshot,previous){
     if(!isObject(snapshot)||!isObject(snapshot.graph)||!Array.isArray(snapshot.graph.nodes)||
       !Array.isArray(snapshot.graph.connections)||!Array.isArray(snapshot.definitions)||
@@ -16,22 +21,23 @@
     }
     const nodes=snapshot.graph.nodes.map(node=>{
       if(!validRef(node.nodeId)||!isObject(node.definitionRef))throw new Error('INVALID_GRAPH_NODE');
-      const type=key(node.definitionRef),def=defs.get(type);
+      const refKey=key(node.definitionRef),def=defs.get(refKey);
+      const type=node.definitionRef.version===1&&/^builtin:(research|organize|judge|write|file|createFile)$/.test(node.definitionRef.definitionId)?
+        node.definitionRef.definitionId.slice(8):refKey;
       if(!def)throw new Error('UNRESOLVED_NODE_DEFINITION');
       if(!definitions[type]){
-        const port=p=>({id:p.name,name:p.role||p.name,type:'any',accepts:['any'],
-          required:p.required===true,multiple:true});
-        definitions[type]={name:def.purpose.slice(0,100),desc:def.purpose,
-          color:'#888888',iconKey:'',tag:'AI',
-          inputs:[...def.inputs.map(port),...(!def.inputs.some(p=>p.name==='in')?
-            [{id:'in',name:'진입',type:'any',accepts:['any'],multiple:true}]:[])],
-          outputs:[...def.outputs.map(port),...(!def.outputs.some(p=>p.name==='next')?
-            [{id:'next',name:'다음',type:'any',accepts:['any'],multiple:true}]:[])],
-          params:[{id:'request',name:'요청',type:'textarea',default:def.instruction}]};
+        const port=p=>({id:p.name,name:p.role||p.name,type:p.representation,accepts:[p.representation],
+          required:p.required===true,multiple:false});
+        definitions[type]={name:def.presentation?.name||def.purpose.slice(0,100),desc:def.purpose,
+          color:/^#[0-9a-f]{6}$/i.test(def.presentation?.color||'')?def.presentation.color:'#7C6CF2',
+          iconKey:def.presentation?.iconKey||'sparkle',tag:type.startsWith('pointer:')?'AI':type.toUpperCase(),
+          inputs:[...def.inputs.map(port),controlPort(def.inputs,'in','flow_in','진입')],
+          outputs:[...def.outputs.map(port),controlPort(def.outputs,'next','flow_next','다음')],
+          params:[{id:'request',name:'요청사항',kind:'request',maxLength:2400,default:def.instruction}]};
       }
       const earlier=prior.get(node.nodeId);
-      const incoming={id:node.nodeId,type,params:{request:def.instruction},
-        data:{pointer:{definitionRef:clone(node.definitionRef),inputBindings:clone(node.inputBindings||{})}},
+      const incoming={id:node.nodeId,type,params:{request:node.settings?.request??def.instruction},
+        data:{...(node.settings?.file||{}),pointer:{definitionRef:clone(node.definitionRef),inputBindings:clone(node.inputBindings||{})}},
         expanded:earlier?.expanded??false};
       if(Number.isFinite(earlier?.x)&&Number.isFinite(earlier?.y)){
         incoming.x=earlier.x;incoming.y=earlier.y;

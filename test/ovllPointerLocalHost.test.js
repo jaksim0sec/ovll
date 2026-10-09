@@ -44,3 +44,14 @@ test('invalid graph snapshots fail before the model is called',async()=>{
     requestRef:'r',requestText:'test'}));
   assert.equal(calls,0);
 });
+test('large Korean upload keeps planner context bounded and node evidence available',async()=>{
+ const {getPointerCatalog}=await import('../backend/ovllPointer/nodeCatalog.js');const text='가'.repeat(10000);
+ const snapshot={definitions:getPointerCatalog().definitions,graph:{graphId:'g',revision:1,nodes:[{nodeId:'f',definitionRef:{definitionId:'builtin:file',version:1},settings:{file:{name:'자료.txt',mime:'text/plain',textPreview:text,textTruncated:false}}},{nodeId:'w',definitionRef:{definitionId:'builtin:write',version:1}}],connections:[{id:'fw',kind:'data',from:{nodeId:'f',port:'file'},to:{nodeId:'w',port:'in'}}]}};
+ const calls=[];const host=createLocalPointerHost({resolveModel:async()=>({providerId:'fixture',model:'fixture'}),gateway:{complete:async args=>{const data=JSON.parse(args.messages.at(-1).content);calls.push(data);return{text:JSON.stringify(data.nodeContext?{outputs:{status:'produced',values:{result:{inline:'요약'}}}}:{message:'가능해'})};}}});
+ await host.turn({snapshot,requestRef:'r',requestText:'할 수 있는 일 알려줘'});
+ assert.equal(calls[0].context.materials[0].truncated,true);
+ assert.ok(JSON.stringify(calls[0]).length<15000);
+ await host.node({snapshot,requestRef:'n',requestText:'요약',nodeId:'w',inputArtifacts:[{port:'in',sourceNodeId:'f',sourcePort:'file',valueRef:'v',representation:'json',value:{name:'자료.txt',textPreview:text,textTruncated:false}}]});
+ assert.equal(calls[1].nodeContext.upstreamArtifacts[0].value.textPreview.length,10000);
+ assert.equal(snapshot.graph.nodes[0].settings.file.textPreview.length,10000);
+});

@@ -129,6 +129,9 @@
         },
         "procedureRef": {
           "$ref": "#/$defs/GraphRef"
+        },
+        "presentation": {
+          "$ref": "#/$defs/NodePresentation"
         }
       },
       "required": [
@@ -661,6 +664,37 @@
         },
         "procedure": {
           "$ref": "#/$defs/FunctionProcedure"
+        },
+        "inputMap": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "nodeId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 160
+              },
+              "port": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 160
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "input",
+                  "file"
+                ]
+              }
+            },
+            "required": [
+              "nodeId",
+              "port"
+            ],
+            "additionalProperties": false
+          },
+          "maxProperties": 64
         }
       },
       "required": [
@@ -875,7 +909,8 @@
             "run.retry",
             "function.save",
             "question.ask",
-            "task.complete"
+            "task.complete",
+            "function.run"
           ]
         },
         "args": {
@@ -1187,6 +1222,41 @@
                 },
                 "required": [
                   "outcomeRefs"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "function.run"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "args": {
+                "type": "object",
+                "properties": {
+                  "functionRef": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 160
+                  },
+                  "inputBindings": {
+                    "type": "object",
+                    "maxProperties": 64
+                  }
+                },
+                "required": [
+                  "functionRef",
+                  "inputBindings"
                 ],
                 "additionalProperties": false
               }
@@ -2606,6 +2676,9 @@
         },
         "procedureRef": {
           "$ref": "#/$defs/GraphRef"
+        },
+        "presentation": {
+          "$ref": "#/$defs/NodePresentation"
         }
       },
       "required": [
@@ -2666,6 +2739,45 @@
           }
         }
       ]
+    },
+    "NodePresentation": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "iconKey": {
+          "type": "string",
+          "enum": [
+            "play",
+            "globe",
+            "notebook",
+            "scales",
+            "pen",
+            "folder",
+            "sparkle",
+            "custom",
+            "open-book",
+            "flask",
+            "potted-plant",
+            "graduation-cap",
+            "pencil",
+            "lightbulb",
+            "hourglass",
+            "planet",
+            "headphones",
+            "coffee-cup",
+            "compass"
+          ]
+        },
+        "color": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}$"
+        }
+      },
+      "additionalProperties": false
     }
   }
 }

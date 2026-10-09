@@ -31,7 +31,7 @@ export function createTurnController({store,composer,gateway,prepareContext,reso
       if(bound.aborted)fail('CONTROLLER_ABORTED',499);
       const selected=typeof selectModules==='function'?
         await selectModules({scope:trusted,phase,context,defaultModules:modules}):modules;
-      const prompt=composer.assemble({moduleIds:selected,context,...(nodeContext?{nodeContext}:{})});
+      const prompt=composer.assemble({moduleIds:selected,context,...(nodeContext?{extraContext:nodeContext}:{})});
       const config=await resolveModel({scope:trusted,phase,context});
       if(!config||typeof config.providerId!=='string'||!config.providerId||
         typeof config.model!=='string'||!config.model||

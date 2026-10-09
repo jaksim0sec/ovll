@@ -525,3 +525,26 @@ function buildNodeDefinitionPrompt() {
 export const NODE_DEFINITION_PROMPT =
   buildNodeDefinitionPrompt();
 
+
+// Stable reusable work definitions for the Pointer kernel, derived from the existing UI catalog.
+// Version 1 is canonical. A custom revision receives its own version and remains reusable.
+export function getPointerCatalog() {
+  const definitions=GENERATABLE_NODE_TYPES.map(type=>{
+    const ui=defaultNodeDef[type], tool=type==='file'||type==='createFile';
+    const port=p=>({name:p.id,role:p.name,representation:'json',required:false});
+    return {definitionId:'builtin:'+type,version:1,purpose:ui.desc,
+      executorKind:tool?'tool_task':'model_task',instruction:ui.llmdesc,
+      inputs:ui.inputs.map(port),
+      outputs:type==='createFile'?[{name:'artifact',role:'다운로드 파일',representation:'json',required:true}]:ui.outputs.map(port),
+      requiredCapabilities:type==='file'?['file.read_local']:type==='createFile'?['artifact.create']:
+        type==='judge'?['model_task','branch.exclusive']:['model_task'],
+      presentation:{name:ui.name,iconKey:ui.iconKey,color:ui.color}};
+  });
+  return {definitions,capabilities:['chat','ir.applyPatch','run.start','function.save',
+    'function.run','question.ask','model_task','file.read_local','artifact.create','branch.exclusive']};
+}
+export function withPointerCatalog(snapshot) {
+  const builtins=getPointerCatalog().definitions;
+  return {...snapshot,definitions:[...(snapshot.definitions||[]).filter(d=>
+    !builtins.some(b=>b.definitionId===d.definitionId&&b.version===d.version)),...builtins]};
+}

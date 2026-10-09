@@ -1,4 +1,5 @@
 import {createConfiguredLocalPointerHost} from './localHost.js';
+import {getPointerCatalog} from './nodeCatalog.js';
 const allowed=new Set(['turn','node']);
 export function localModelReady(env=process.env){
   if(env.OVLL_POINTER_LOCAL_MODEL_ENABLED==='false')return false;
@@ -13,6 +14,9 @@ export function mountLocalPointerRoutes(app,{createHost=()=>createConfiguredLoca
   const recent=new Map();
   const daily=new Map();
   let globalDay='',globalCount=0;
+  app.get('/api/pointer/local/catalog',(_req,res)=>{
+    res.set('Cache-Control','no-store').json(getPointerCatalog());
+  });
   app.get('/api/pointer/local/ready',(_req,res)=>{
     res.set('Cache-Control','no-store').json({ready:!!enabled()});
   });
@@ -34,7 +38,7 @@ export function mountLocalPointerRoutes(app,{createHost=()=>createConfiguredLoca
     if(count>48||globalCount>=400)return res.status(429).json({error:{code:'LOCAL_MODEL_DAILY_BUDGET'}});
     daily.set(dailyKey,count);globalCount++;
     const length=Buffer.byteLength(JSON.stringify(req.body||{}),'utf8');
-    if(length>65536)return res.status(413).json({error:{code:'LOCAL_MODEL_PAYLOAD_TOO_LARGE'}});
+    if(length>262144)return res.status(413).json({error:{code:'LOCAL_MODEL_PAYLOAD_TOO_LARGE'}});
     try{
       if(!host)host=createHost();
       const controller=new AbortController();

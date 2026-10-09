@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
+import {getPointerCatalog} from '../backend/ovllPointer/nodeCatalog.js';
+import {MemoryGraphRepository} from '../front/js/ovllPointerGraphCore.mjs';
 const source=readFileSync(new URL('../front/js/ovllPointerProjection.js',import.meta.url),'utf8');
 const window={};vm.runInNewContext(source,{window});
 const p=window.OvllPointerProjection;
@@ -68,4 +70,35 @@ test('server node evidence status maps to existing canvas runtime state without 
   assert.deepEqual(Array.from(entries[0][1].result.outputRefs),['v1']);
   assert.equal(entries[1][1].status,'FAILED');
   assert.equal(entries[0][1].result.downloadUrl,undefined);
+});
+test('semantic in and next ports retain separate compatible control ports through canvas patches',()=>{
+  const definitions=getPointerCatalog().definitions;
+  const graph={graphId:'g_controls',revision:1,nodes:['write','organize'].map(type=>({nodeId:type,
+    definitionRef:{definitionId:'builtin:'+type,version:1},settings:{},inputBindings:{}})),connections:[]};
+  const snapshot={graph,definitions},projected=p.projectGraph(snapshot);
+  const output=projected.definitions.write.outputs.find(port=>port.type==='flow');
+  const input=projected.definitions.organize.inputs.find(port=>port.type==='flow');
+  assert.ok(input,'canonical nodes need a control entry alongside semantic in');
+  assert.equal(projected.definitions.organize.inputs.find(port=>port.id==='in').type,'json');
+  const canvasSource=readFileSync(new URL('../front/js/canvasNode.js',import.meta.url),'utf8');
+  const compatible=vm.runInNewContext('('+canvasSource.slice(canvasSource.indexOf('function compatible('),canvasSource.indexOf('function wouldCycle(')).trim()+')');
+  assert.equal(compatible(output,input),true);
+  const w={};vm.runInNewContext(readFileSync(new URL('../front/js/ovllPointerGraphPatch.js',import.meta.url),'utf8'),{window:w});
+  const edit=w.OvllPointerGraphPatch.build(snapshot,{nodes:projected.workflow.nodes,
+    connections:[{from:{node:'write',port:output.id},to:{node:'organize',port:input.id}}]});
+  assert.equal(edit.patch.operations[0].kind,'flow');
+  const repo=new MemoryGraphRepository();repo.restore('local',graph.graphId,snapshot);
+  repo.apply('local',JSON.parse(JSON.stringify(edit.patch)));
+  assert.equal(repo.get('local',graph.graphId).graph.connections[0].to.port,input.id);
+  const legacy={...snapshot,graph:{...graph,connections:[{id:'old_flow',kind:'flow',from:{nodeId:'write',port:'result'},to:{nodeId:'organize',port:'in'}}]}};
+  const restored=p.projectGraph(legacy);
+  assert.deepEqual(Array.from(restored.workflow.links[0]),['write.result','organize.in']);
+  assert.equal(w.OvllPointerGraphPatch.build(legacy,{nodes:restored.workflow.nodes,connections:[{
+    from:{node:'write',port:'result'},to:{node:'organize',port:'in'},data:{kind:'flow'}}]}),null);
+  const collision={...definitions[0],definitionId:'custom_controls',inputs:[{name:'in',role:'data',representation:'text'},{name:'flow_in',role:'more data',representation:'text'}],outputs:[{name:'next',role:'result',representation:'text'}]};
+  const custom=p.projectGraph({definitions:[collision],graph:{...graph,nodes:[{nodeId:'custom',definitionRef:{definitionId:collision.definitionId,version:1}}]}}).definitions['pointer:custom_controls:1'];
+  for(const ports of [custom.inputs,custom.outputs]){
+    assert.equal(new Set(ports.map(port=>port.id)).size,ports.length);
+    assert.ok(ports.some(port=>port.type==='flow'));
+  }
 });

@@ -62,3 +62,11 @@ test('validator explains the missing schema member without including user text',
   assert.ok(errors.some(x=>x.rule==='required'));
   assert.equal(validator.explainTurn(valid).length,0);
 });
+test('local wire examples include existing reuse, dynamic work, scoped requests and supported replay',async()=>{
+ const received=[];await create([{message:'가능해'}],received).turn({snapshot,requestRef:'r5',requestText:'할 수 있는 일 알려줘'});
+ const text=received[0].messages.filter(m=>m.role==='developer').map(m=>m.content).join('\n');
+ assert.match(text,/builtin:write/);assert.match(text,/settings/);assert.match(text,/function.run/);
+ assert.match(text,/localDefinitionKey/);assert.doesNotMatch(text,/Use only model_task executors/);
+ const core=received[0].messages[0].content;
+ assert.match(core,/capabilit/i);assert.match(core,/internal implementation/i);
+});

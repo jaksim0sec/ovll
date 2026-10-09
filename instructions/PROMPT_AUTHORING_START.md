@@ -1,6 +1,6 @@
 # Ovll 계층형 LLM 지침 — 제작 착수 명세 (Draft)
 
-> **상태:** 프롬프트 제작 단계의 입력 계약. 프롬프트 자체는 아직 작성·실제 모델 검증하지 않았다.
+> **상태: 제작 당시 입력 계약 기록.** 현재 v0.3 조립·실행 연결은 [README](README.md)를 참조한다. 실제 공급자 품질 평가는 별도다.
 > 선행 계약: [동결된 상위 계층](../docs/architecture/BASELINE_2026-10-09.md), [상세 데이터 계약](../docs/architecture/DATA_CONTRACT_V1_FREEZE.md), [ModelTurn/needs JSON Schema](../docs/architecture/DATA_CONTRACT_PROPOSAL_V1.schema.json).
 
 ## 1. 지침 분할과 자동 조합

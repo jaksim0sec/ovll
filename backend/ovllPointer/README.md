@@ -5,7 +5,7 @@ OvllPointer는 **대문(판단) → 소통/IR 구성/실행/함수화 → 언어
 
 ## 실행 구성
 - `server.js`: Express 진입점, 모니터링, 기존 HTTP 계약과 Pointer 라우트 연결
-- `nodeCatalog.js`: 기존 고정형 캔버스 UI의 아이콘·기본 노드 정의 단일 원본
+- `nodeCatalog.js`: 기존 UI 아이콘·기본 정의와 canonical Pointer 정의의 단일 원본 (`GET /api/pointer/local/catalog`)
 - `legacyCompatibility.js`: 저장된 이전 형식의 워크플로우와 함수 빌더를 깨지 않기 위한 **호환 어댑터**. 새로운 IR 생성·실행에 사용할 핵심 구조가 아님
 - `localHttp.js`/`localHost.js`: 사용자 상태를 저장하지 않는 모델 호출 및 ModelTurn·NodeOutput 검증. 정식 라우트 `/api/pointer/local/*`
 - `graph.js`, `executionPlan.js`, `validation.js`, `providers.js`: 동적 GraphPatch, 실행 계획, 데이터 계약, 공급자 독립 모델 인터페이스
@@ -18,7 +18,9 @@ OvllPointer는 **대문(판단) → 소통/IR 구성/실행/함수화 → 언어
 ## 호환 경계 — 제거하지 못한 기능
 이전 사용자 워크플로우의 `/api/chat`, `/api/workflow`, `/api/execute-group`, `/api/finalize-run` 계약은 아직 실제 UI에서 사용된다. 이를 삭제하면 기존 데이터 및 함수 편집기 UX가 깨지므로 `legacyCompatibility.js`로 **격리만 완료**, 기능 자체 제거는 미완료다. 서버의 정식 신규 요청은 Pointer 라우트를 이용한다.
 
-현재 로컬 Pointer의 `tool_task`, 서브그래프, 조건부 실행, 외부 출처의 사실 검증, 함수의 완전한 자연어 재사용 및 브라우저 통합 테스트 역시 미완성이다. 검증 전 전체 시스템 전환 완료로 표시하지 않는다.
+로컬 Pointer는 모델 작업, 업로드 파일의 저장된 텍스트/메타데이터 전달, 기존 artifact API를 통한 파일 출력, 명시된 `branch.exclusive` 분기, named input을 바인딩하는 `function.run`을 지원한다. 파일 전달은 전체 PDF/이미지 파싱을 의미하지 않으며 미리보기 축약 표시를 유지한다. 범용 도구, 라이브 검색, 서브그래프 실행, 조건부 병합, 활성 Run 채택, 저장 함수 버전 수정은 미구현이다.
+
+그래프 편집·실행 결과는 브라우저 저장소가 소유하고 서버는 모델 출력/포트/표현을 검증한다. 최대 3턴의 맥락 조회·막힌 작업 재판단과 요청 범위의 동일 모델 결과 재사용을 지원한다. 파일 효과가 시작된 경우 자동 재실행하지 않는다. 산출물은 전체 타깃 결과를 전달하며 UI 요약만 짧게 표시한다. [검증 범위](../../docs/architecture/POINTER_QUALITY_VALIDATION.md)를 참조한다.
 
 ## 추가 의존성 방침
 기존 `GROQ_API_KEY` 또는 명시적 `OVLL_POINTER_MODEL_*` 설정으로만 모델 호출을 사용한다. 기존 `OVLL_VNEXT_MODEL_*` 환경변수도 이관 중 읽는다. 새 SQL/인증/유료 모델 의존성은 승인 없이 도입하지 않는다.

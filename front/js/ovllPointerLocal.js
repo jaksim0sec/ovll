@@ -3,10 +3,18 @@
   // Browser-owned graph snapshots, scoped to the existing local WorkspaceStore.
   // No SQL or user login; node inference delegates to the existing stateless server.
   function create({workspaceStore=global.OvllWorkspaceStore,
-    loadCore=()=>import("/js/ovllPointerGraphCore.mjs"),loadPlan=()=>import("/js/ovllPointerPlanCore.mjs")}={}){
+    loadCore=()=>import("/js/ovllPointerGraphCore.mjs"),loadPlan=()=>import("/js/ovllPointerPlanCore.mjs"),
+    loadCatalog=()=>global.OvllPointerApi?.localCatalog?.()||{definitions:[]}}={}){
     if(!workspaceStore || typeof workspaceStore.updateConversationPointerGraph!=="function")
       throw new Error("LOCAL_WORKSPACE_UNAVAILABLE");
     const pending=new Map();
+    let catalog;
+    async function seed(snapshot){
+      catalog??=await loadCatalog();
+      const builtins=catalog.definitions||[];
+      return {...snapshot,definitions:[...snapshot.definitions.filter(d=>!builtins.some(b=>
+        b.definitionId===d.definitionId&&b.version===d.version)),...builtins]};
+    }
     const safe=s=>typeof s==="string"&&/^[A-Za-z0-9_.:-]{1,150}$/.test(s);
     const graphIdFor=id=>{
       if(!safe(id))throw new Error("INVALID_CONVERSATION_ID");
@@ -25,8 +33,8 @@
       const snapshot=conversation.state?.pointerGraph;
       if(snapshot){
         if(snapshot.graph?.graphId!==graphId)throw new Error("LOCAL_GRAPH_SCOPE_MISMATCH");
-        repo.restore("local",graphId,snapshot);
-      }else repo.create("local",graphId);
+        repo.restore("local",graphId,await seed(snapshot));
+      }else repo.restore("local",graphId,await seed(repo.create("local",graphId)));
       return repo;
     }
     async function state(conversationId,graphId=graphIdFor(conversationId)){
@@ -52,9 +60,11 @@
       return current;
     }
 
-    async function run({conversationId,targets,damMode='closed',requestText='',snapshotOverride,
-      executeNode=({snapshot,nodeId,inputArtifacts,requestText,signal})=>global.OvllPointerApi.localNode({
-        snapshot,nodeId,inputArtifacts,requestText,signal}),onProgress=()=>{},signal}={}){
+    async function run({conversationId,targets,damMode='closed',requestText='',snapshotOverride,taskConstraints=[],
+      createArtifact=(input,options)=>global.AstraAPI.createArtifact(input,options),
+      resolveArtifactRequest=params=>global.OvllArtifactRequest.resolve(params),cache=new Map(),
+      executeNode=({snapshot,nodeId,inputArtifacts,requestText,taskConstraints,signal})=>global.OvllPointerApi.localNode({
+        snapshot,nodeId,inputArtifacts,requestText,taskConstraints,signal}),onProgress=()=>{},signal}={}){
       const snapshot=snapshotOverride||(await state(conversationId)).graph;
       const {buildExecutionPlan}=await loadPlan();
       const targetIds=(targets||[]).map(x=>typeof x==='string'?x:x.nodeId);
@@ -70,16 +80,37 @@
         onProgress(JSON.parse(JSON.stringify(record)));
       };
       persist();
-      const resolved=new Map();
+      const unavailable=plan.order.find(item=>{
+        const d=item.definition,caps=d.requiredCapabilities||[];
+        return d.executorKind==='model_task'?caps.some(c=>!['model_task','branch.exclusive'].includes(c)):
+          d.executorKind!=='tool_task'||caps.length!==1||!['file.read_local','artifact.create'].includes(caps[0])||d.outputs.length!==1||d.outputs[0].representation!=='json';
+      });
+      if(unavailable){
+        const entry=record.nodes.find(n=>n.nodeId===unavailable.nodeId);
+        entry.status='blocked';entry.error='LOCAL_EXECUTOR_UNAVAILABLE';record.status='waiting';persist();
+        return JSON.parse(JSON.stringify(record));
+      }
+      const resolved=new Map(),skipped=new Set();
+      const definitionFor=id=>{const node=snapshot.graph.nodes.find(n=>n.nodeId===id);
+        return snapshot.definitions.find(d=>d.definitionId===node?.definitionRef.definitionId&&d.version===node?.definitionRef.version);};
+      const exclusive=id=>definitionFor(id)?.requiredCapabilities?.includes('branch.exclusive');
       for(const item of plan.order){
         const entry=record.nodes.find(n=>n.nodeId===item.nodeId);
         if(signal?.aborted){entry.status='cancelled';record.status='cancelled';break;}
-        if(item.definition.executorKind!=='model_task'){
-          entry.status='blocked';entry.error='LOCAL_EXECUTOR_UNAVAILABLE';record.status='waiting';break;
+        const incoming=snapshot.graph.connections.filter(l=>l.to.nodeId===item.nodeId);
+        const inactive=link=>skipped.has(link.from.nodeId)||exclusive(link.from.nodeId)&&
+          definitionFor(link.from.nodeId).outputs.some(p=>p.name===link.from.port)&&
+          !resolved.get(link.from.nodeId)?.values?.[link.from.port];
+        const gates=incoming.filter(l=>l.kind==='flow'),dataLinks=incoming.filter(l=>l.kind==='data');
+        if(gates.length&&gates.every(inactive)||!gates.length&&dataLinks.length&&dataLinks.every(inactive)){
+          entry.status='skipped';skipped.add(item.nodeId);persist();continue;
+        }
+        if(dataLinks.some(l=>inactive(l)&&item.definition.inputs.some(p=>p.name===l.to.port&&p.required))){
+          entry.status='blocked';entry.error='REQUIRED_INPUT_MISSING';record.status='waiting';persist();break;
         }
         entry.status='running';persist();
         try{
-          const inputs=snapshot.graph.connections.filter(link=>link.kind==='data'&&link.to.nodeId===item.nodeId)
+          const inputs=snapshot.graph.connections.filter(link=>link.kind==='data'&&link.to.nodeId===item.nodeId&&!inactive(link))
             .map(link=>{
               const source=resolved.get(link.from.nodeId)?.values?.[link.from.port];
               if(!source||!Object.prototype.hasOwnProperty.call(source,'inline'))
@@ -91,17 +122,64 @@
                   d.version===snapshot.graph.nodes.find(n=>n.nodeId===link.from.nodeId)?.definitionRef.version)
                   ?.outputs.find(p=>p.name===link.from.port)?.representation,value:source.inline};
             });
-          const output=await executeNode({snapshot,nodeId:item.nodeId,inputArtifacts:inputs,requestText,signal});
-          if(signal?.aborted){entry.status='cancelled';record.status='cancelled';break;}
+          const objective=requestText.trim()||item.node.settings?.request?.trim()||item.definition.purpose;
+          const fingerprint=JSON.stringify({nodeId:item.nodeId,definition:item.definition,
+            settings:item.node.settings||{},bindings:item.node.inputBindings||{},objective,taskConstraints,
+            inputs:inputs.map(({valueRef,...rest})=>rest)});
+          let output;
+          if(item.definition.executorKind==='model_task'){
+            if((item.definition.requiredCapabilities||[]).some(c=>!['model_task','branch.exclusive'].includes(c)))
+              throw new Error('LOCAL_EXECUTOR_UNAVAILABLE');
+            output=cache.get(fingerprint);
+            if(output)entry.reused=true;
+            else output=await executeNode({snapshot,nodeId:item.nodeId,inputArtifacts:inputs,requestText:objective,taskConstraints,signal});
+          }else {
+            const caps=item.definition.requiredCapabilities||[];
+            const port=item.definition.outputs[0];
+            if(caps.length!==1||item.definition.outputs.length!==1||port.representation!=='json')
+              throw new Error('LOCAL_EXECUTOR_UNAVAILABLE');
+            let value;
+            if(caps[0]==='file.read_local'){
+              value=item.node.settings?.file;
+              if(!value?.name){output={status:'blocked',outputs:{status:'blocked',reason:'파일을 먼저 추가해줘.'}};}
+              else value=JSON.parse(JSON.stringify(value));
+            }else if(caps[0]==='artifact.create'){
+              const bound=Object.values(item.node.inputBindings||{}),sources=[...inputs.map(x=>x.value),...bound];
+              if(!sources.length)output={status:'blocked',outputs:{status:'blocked',reason:'파일로 내보낼 완성된 내용을 연결해줘.'}};
+              else {
+                const params=resolveArtifactRequest({request:item.node.settings?.request||objective});
+                entry.toolEffectStarted=true;persist();
+                const result=await createArtifact({...params,sources},{signal});
+                value=result?.artifact;
+                if(!value?.downloadUrl)throw new Error('LOCAL_ARTIFACT_NOT_VERIFIED');
+              }
+            }else throw new Error('LOCAL_EXECUTOR_UNAVAILABLE');
+            if(!output)output={status:'success',outputs:{status:'produced',values:{[port.name]:{inline:value}}}};
+          }
+          if(signal?.aborted){
+            if(entry.toolEffectStarted&&output?.status==='success'&&output.outputs?.status==='produced'){
+              entry.status='success';entry.outputs=output.outputs;entry.effectConfirmed=true;
+            }else entry.status='cancelled';
+            record.status='cancelled';break;
+          }
+
           if(output?.status==='blocked'){entry.status='blocked';entry.error=output.outputs?.reason||'CONTEXT_REQUIRED';record.status='waiting';break;}
           if(output?.status!=='success'||output.outputs?.status!=='produced')throw new Error('LOCAL_OUTPUT_NOT_VERIFIED');
+          const values=output.outputs.values||{},declared=item.definition.outputs;
+          if(Object.keys(values).some(name=>!declared.some(p=>p.name===name))||
+            declared.some(p=>p.required&&!Object.hasOwn(values,p.name))||
+            Object.values(values).some(v=>!v||!Object.hasOwn(v,'inline')))throw new Error('LOCAL_OUTPUT_NOT_VERIFIED');
+          if(exclusive(item.nodeId)&&Object.keys(values).length!==1)throw new Error('EXCLUSIVE_BRANCH_OUTPUT_REQUIRED');
           entry.status='success';entry.outputs=output.outputs;
+          entry.provenance=output.provenance||{};
+          if(item.definition.executorKind==='model_task')cache.set(fingerprint,output);
           resolved.set(item.nodeId,output.outputs);
         }catch(error){entry.status='failed';entry.error=error?.code||error?.message||'LOCAL_EXECUTION_FAILED';
-          record.status=signal?.aborted?'cancelled':'failed';break;}
+          record.status=entry.toolEffectStarted?'outcome_unknown':signal?.aborted?'cancelled':'failed';
+          if(entry.toolEffectStarted)entry.status='outcome_unknown';break;}
         persist();
       }
-      if(record.status==='running')record.status='completed';
+      if(record.status==='running')record.status=record.nodes.some(n=>targetIds.includes(n.nodeId)&&n.status==='success')?'completed':'skipped';
       persist();
       return JSON.parse(JSON.stringify(record));
     }

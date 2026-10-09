@@ -4,6 +4,12 @@
 > 상위 기준: [1차 논리 아키텍처](BASELINE_2026-10-09.md) · [v1 제안](DATA_CONTRACT_PROPOSAL_V1.md) · [형식 규격](DATA_CONTRACT_PROPOSAL_V1.schema.json) · [예제](DATA_CONTRACT_PROPOSAL_V1.cases.json).
 > 최우선 목표: 일반 모델의 기능을 약화하지 않고 유용한 일을 극도로 간편하게 함수화·재사용한다. 시각화나 강제 IR 생성은 목적이 아니다.
 
+## 2026-10-09 호환 확장
+
+기존 v1 필드를 유지하며 선택적 `NodePresentation`, `FunctionDraft.inputMap` 및 로컬 `function.run(functionRef,inputBindings)`을 추가했다. 기본 정의 v1은 서버 catalog의 canonical 값으로 공급하고, 커스텀 정의·새 버전은 보존한다. 일반 요청 편집은 `NodeInstance.settings.request`를 바꾸며 정의 버전을 불필요하게 생성하지 않는다. 출력 ref는 허용 입력에서 검증·해석 후 로컬 inline 값과 provenance로 정규화한다.
+
+새 행동의 Schema 수용은 모든 호스트의 실행 지원을 뜻하지 않는다. SQL 호스트는 미연결이고 `function.run` 구현은 브라우저 로컬 coordinator에만 있다. 기존 계약·fixture는 유지한다. 실제 지원 및 평가 한계는 [검증 기록](POINTER_QUALITY_VALIDATION.md)을 기준으로 한다.
+
 ## A. 상세 계약에서 확정할 경계
 
 1. **LLM의 능력**: 대문(판단·추가 맥락 요청), 4개 행동 영역(소통/IR/실행/함수화), 언어화. 역할은 논리적이며 매 역할 API 호출을 강제하지 않는다. 모델 출력 `ModelTurn`은 `message, actions, outputs, needs`의 필요 부분만 반환한다.

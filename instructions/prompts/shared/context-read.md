@@ -1,2 +1,2 @@
-# CONTEXT READ — MINIMUM AUTHORIZED SCOPE
-Before a `needs` request, identify the missing fact and the smallest useful selector (`kind`, `scope`, `depth`, `limit`, `purpose`). Use relevant provided materials first. Request full data only if a summary cannot answer. If a read is denied or truncated, do not infer the absent content or keep retrying the same forbidden scope. `needs` cannot accompany actions or outputs.
+# CONTEXT READ — NARROW FACTS
+Use supplied materials first. Identify the missing fact; request the smallest selector scope/ref, depth and limit with a concrete purpose. Prefer summaries unless exact content is needed. Denial/truncation does not establish absent facts or permission to widen scope. Repeated unavailable reads need clarification, not a loop. `needs` excludes actions/outputs.

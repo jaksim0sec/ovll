@@ -6347,16 +6347,16 @@
   function showLocalRun(run){
     for(const n of run.nodes||[]){
       const status={running:'RUNNING',success:'SUCCESS',failed:'FAILED',
-        blocked:'FAILED',cancelled:'SKIPPED'}[n.status];
+        blocked:'FAILED',cancelled:'SKIPPED',skipped:'SKIPPED',outcome_unknown:'FAILED'}[n.status];
       if(!status)continue;
       const report=Object.entries(n.outputs?.values||{}).map(([k,v])=>k+': '+
         String(typeof v?.inline==='string'?v.inline:JSON.stringify(v?.inline)||'')).join(' · ').slice(0,350);
       state.canvas?.setRuntimeNodeState?.(n.nodeId,{status,report:report||n.error||'',
-        ...(n.status==='success'?{result:{report}}:{})});
+        ...(n.status==='success'?{result:{report,artifact:Object.values(n.outputs?.values||{}).map(v=>v.inline).find(v=>v&&typeof v==='object'&&v.downloadUrl)}}:{})});
     }
   }
   let localRunActive=null;
-  async function runLocalNodes({targets,damMode='closed',requestText='',snapshotOverride}={}){
+  async function runLocalNodes({targets,damMode='closed',requestText='',snapshotOverride,taskConstraints=[],cache}={}){
     const scope=pointerScope();
     if(scope?.storageMode!=='local')throw new Error('LOCAL_SCOPE_UNAVAILABLE');
     if(localRunActive)throw new Error('LOCAL_RUN_ALREADY_ACTIVE');
@@ -6364,17 +6364,19 @@
     localRunActive={conversationId:scope.conversationId,controller,nodeIds:new Set(targets)};
     try{
       return await global.OvllPointerLocal.run({conversationId:scope.conversationId,targets,
-        damMode,requestText,snapshotOverride,signal:controller.signal,onProgress:run=>{
+        damMode,requestText,snapshotOverride,taskConstraints,cache,signal:controller.signal,onProgress:run=>{
           if(localRunActive)localRunActive.nodeIds=new Set(run.nodes.map(x=>x.nodeId));
           if(currentConversationId()===scope.conversationId)showLocalRun(run);
         }});
     }finally{localRunActive=null;}
   }
-  function localRunSummary(run){
-    return (run.nodes||[]).filter(x=>x.status==='success').flatMap(x=>
-      Object.entries(x.outputs?.values||{}).map(([name,v])=>
-        name+': '+String(typeof v?.inline==='string'?v.inline:JSON.stringify(v?.inline)||'')))
-      .join('\n').slice(0,3500);
+  function localRunSummary(run){return global.OvllPointerLocalActions.deliver(run);}
+  const localTerminalTargets=graph=>graph.nodes.filter(n=>!graph.connections.some(l=>
+    l.from.nodeId===n.nodeId)).map(n=>n.nodeId);
+  async function runSavedLocalFunction(fn,bindings){
+    const bound=global.OvllPointerFunctions.bind(fn,bindings);
+    return runLocalNodes({snapshotOverride:bound.snapshot,targets:bound.targets,
+      requestText:bound.requestText,taskConstraints:bound.invariants});
   }
   async function runLocalPrompt(text,options={}){
     if(state.destroyed||state.busy)return;
@@ -6383,6 +6385,7 @@
     if(options.addUserMessage!==false){
       addUserMessage(value);composerInput.value='';resizeComposer();scheduleComposerDraftSave(0);
     }
+    const previousRequest=state.lastUserRequest;
     state.lastUserRequest=value;setBusy(true);Presence.thinking();
     beginRuntimeActivity('로컬 작업 준비 중');
     try{
@@ -6395,11 +6398,10 @@
       if(value==='/함수저장'||value.startsWith('/함수저장 ')||value==='이 작업 함수로 저장해'){
         const graph=(await global.OvllPointerLocal.state(scope.conversationId)).graph;
         if(!graph.graph.nodes.length)throw new Error('LOCAL_FUNCTION_GRAPH_EMPTY');
-        const targets=graph.graph.nodes.filter(n=>!graph.graph.connections.some(l=>
-          l.kind==='flow'&&l.from.nodeId===n.nodeId)).map(n=>n.nodeId);
+        const targets=localTerminalTargets(graph.graph);
         const purpose=value.startsWith('/함수저장 ')?
           value.slice('/함수저장 '.length).trim():
-          state.workflowUserRequest||state.lastUserRequest||'새 함수';
+          state.workflowUserRequest||previousRequest||'새 함수';
         const saved=global.OvllPointerFunctions.save({purpose,snapshot:graph,targets});
         addAssistantMessage('함수 초안을 저장했어: '+saved.purpose+
           '\n다시 실행하려면 `/함수실행 1 새로운 입력`처럼 요청하면 돼.');
@@ -6411,57 +6413,52 @@
         const selected=/^[1-9][0-9]*$/.test(id)?all[Number(id)-1]:all.find(x=>x.id===id);
         const fn=selected?global.OvllPointerFunctions.get(selected.id):null;
         if(!fn)throw new Error('LOCAL_FUNCTION_NOT_FOUND');
-        const run=await runLocalNodes({snapshotOverride:fn.snapshot,targets:fn.targets,
-          requestText:args.join(' ')});
+        const input=args.join(' '),ports=fn.inputs||[];
+        if(input&&ports.length!==1)throw new Error('FUNCTION_NAMED_INPUTS_REQUIRED');
+        const run=await runSavedLocalFunction(fn,input?{[ports[0].name]:input}:{});
         addAssistantMessage(run.status==='completed'?'저장된 함수 실행 완료.\n'+localRunSummary(run):
           '함수 실행이 '+run.status+' 상태에서 종료됐어.\n'+localRunSummary(run));return;
       }
-      const graph=(await global.OvllPointerLocal.state(scope.conversationId)).graph;
-      const savedFunctions=(global.OvllPointerFunctions?.list()||[]).slice(0,10);
+      const actions=global.OvllPointerLocalActions;
+      const conversationId=scope.conversationId,cache=new Map();
       const contextHistory=recentAiConversation(value).slice(-5).map(x=>x.role+': '+x.text);
-      if(savedFunctions.length)contextHistory.push('Saved local function drafts (ids and purposes): '+
-        savedFunctions.map((fn,i)=>(i+1)+'. '+fn.id+' '+fn.purpose).join('; ').slice(0,750));
-      const proposal=await PointerAPI.localTurn({snapshot:graph,requestText:value,
-        history:contextHistory});
-      if(proposal.needs?.length){addAssistantMessage(proposal.message||'추가 자료가 필요해.');return;}
-      const applied=new Map(),summary=[];
-      const ordered=global.OvllPointerLocalActions.order(proposal.actions||[]);
-      for(const action of ordered){
-        if(applied.has(action.localKey))throw new Error('DUPLICATE_LOCAL_ACTION');
-        if((action.dependsOn||[]).some(key=>!applied.has(key))){
-          summary.push(action.kind+' 선행 행동이 적용되지 않았어.');continue;
+      const {facts,messages,runs}=await actions.coordinate({
+        isActive:()=>currentConversationId()===conversationId&&!state.destroyed,
+        getContext:async()=>({snapshot:(await global.OvllPointerLocal.state(conversationId)).graph,
+          history:contextHistory,savedFunctions:(global.OvllPointerFunctions?.list()||[]).slice(0,10),
+          runs:WorkspaceStore.getConversation(conversationId)?.state.pointerRuns||[]}),
+        request:context=>PointerAPI.localTurn({...context,requestText:value}),
+        handlers:{
+          'ir.applyPatch':async action=>{
+            if(currentConversationId()!==conversationId)throw new Error('LOCAL_CONVERSATION_CHANGED');
+            const data=await global.OvllPointerLocal.turn({...scope,actions:[action]});
+            const result=data.results[0];
+            if(result.status!=='applied')throw new Error('LOCAL_PATCH_REJECTED');
+            await refreshPointerCanvas({force:true});return result;
+          },
+          'run.start':async(action,applied)=>{
+            const targets=action.args.targets.map(x=>x.nodeId||
+              (action.dependsOn||[]).includes(x.fromAction)&&applied.get(x.fromAction)?.createdRefs?.['node:'+x.localNodeKey]);
+            if(!targets.length||targets.some(x=>!x))throw new Error('LOCAL_TARGET_UNRESOLVED');
+            const run=await runLocalNodes({targets,damMode:action.args.damMode||'closed',requestText:value,cache});
+            return {status:run.status,run};
+          },
+          'function.run':async action=>{
+            const fn=global.OvllPointerFunctions.get(action.args.functionRef);
+            const run=await runSavedLocalFunction(fn,action.args.inputBindings);
+            return {status:run.status,run};
+          },
+          'function.save':async action=>{
+            if(action.args.baseFunctionRef)throw new Error('LOCAL_FUNCTION_VERSION_UNSUPPORTED');
+            const current=(await global.OvllPointerLocal.state(conversationId)).graph;
+            const saved=global.OvllPointerFunctions.saveDraft(action.args.function,current);
+            return {status:'saved',functionRef:saved.id,purpose:saved.purpose};
+          },
+          'question.ask':async action=>actions.question(action)
         }
-        if(action.kind==='ir.applyPatch'){
-          const data=await global.OvllPointerLocal.turn({...scope,actions:[action]});
-          if(data.results[0].status!=='applied')throw new Error('LOCAL_PATCH_REJECTED');
-          applied.set(action.localKey,data.results[0]);
-          await refreshPointerCanvas({force:true});summary.push('그래프 변경 반영');
-        }else if(action.kind==='run.start'){
-          const targets=action.args.targets.map(x=>x.nodeId||
-            applied.get(x.fromAction)?.createdRefs?.['node:'+x.localNodeKey]);
-          if(!targets.length||targets.some(x=>!x))throw new Error('LOCAL_TARGET_UNRESOLVED');
-          const run=await runLocalNodes({targets,damMode:action.args.damMode||'closed',
-            requestText:value});
-          applied.set(action.localKey,run);
-          summary.push((run.status==='completed'?'노드 실행 완료':'노드 실행 '+run.status)+
-            '\n'+localRunSummary(run));
-        }else if(action.kind==='function.save'){
-          const draft=action.args.function;
-          const current=(await global.OvllPointerLocal.state(scope.conversationId)).graph;
-          if(draft?.procedure?.kind!=='graph'||draft.procedure.graphRef?.graphId!==current.graph.graphId||
-            draft.procedure.graphRef.revision!==current.graph.revision)throw new Error('LOCAL_FUNCTION_GRAPH_MISMATCH');
-          const targets=current.graph.nodes.filter(n=>!current.graph.connections.some(l=>
-            l.kind==='flow'&&l.from.nodeId===n.nodeId)).map(n=>n.nodeId);
-          const saved=global.OvllPointerFunctions.save({purpose:draft.purpose,snapshot:current,
-            targets,inputs:draft.inputs,outputs:draft.outputs,invariants:draft.invariants});
-          applied.set(action.localKey,saved);
-          summary.push('함수 초안 저장: '+saved.id);
-        }else if(action.kind==='question.ask'){
-          summary.push(action.args.question);applied.set(action.localKey,action);
-        }else summary.push(action.kind+'은(는) 로컬 모드에서 지원되지 않아.');
-      }
-      addAssistantMessage([proposal.message||'',...summary].filter(Boolean).join('\n')||
-        '모델 응답을 받았지만 실행된 변경은 없어.');
+      });
+      if(facts.some(r=>['applied','completed'].includes(r.status)))state.workflowUserRequest=value;
+      addAssistantMessage(actions.present({facts,messages,runs}));
     }catch(error){
       showErrorNotice(error,{scope:'로컬 OvllPointer 오류',fallback:'작업을 처리하지 못했어.'});
     }finally{

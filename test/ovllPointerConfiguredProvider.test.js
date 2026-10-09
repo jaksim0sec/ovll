@@ -31,3 +31,8 @@ test('former vNext environment variables remain readable during Pointer migratio
   const provider=createConfiguredModelProvider({env,fetchImpl:async()=>({ok:true,json:async()=>({choices:[{message:{content:'{}'}}]})})});
   assert.ok(provider.modelGateway);
 });
+test('provider truncation is explicit rather than retried as a JSON typo',async()=>{
+ const {openAIChatAdapter}=await import('../backend/ovllPointer/providers.js');
+ const adapter=openAIChatAdapter({endpoint:'https://unit.test',apiKey:'test',fetchImpl:async()=>({ok:true,json:async()=>({choices:[{finish_reason:'length',message:{content:'{"actions":['}}]})})});
+ await assert.rejects(adapter.complete({model:'test',messages:[],output:'json'}),error=>error.code==='MODEL_OUTPUT_TRUNCATED');
+});

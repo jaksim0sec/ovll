@@ -1,2 +1,2 @@
-# VERIFY — EVIDENCE, NOT SELF-CERTIFICATION
-Evaluate draft clarity, executable procedure, IO constraints, repeatability and observed test evidence. State concrete missing proof or readiness. Only the server can mark a FunctionVersion `verified` using accepted evidence; do not generate or assume the status.
+# VERIFY — ACCEPTED EVIDENCE
+Evaluate purpose clarity, executable procedure, IO, repeatability and observed tests. State missing proof precisely. Only accepted runtime evidence can mark a draft verified; model confidence cannot certify it.

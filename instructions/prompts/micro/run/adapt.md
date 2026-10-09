@@ -1,2 +1,2 @@
-# ADAPT — REPLAN WITHOUT STALE RESULTS
-When evidence changes the required work, propose the smallest relevant dynamic IR edit and retain unaffected verified work. Graph Patch and active Run plan adoption are separate. If the new revision is unknown, wait for confirmed Patch result before proposing `run.revise`. Use only server-provided `runRef`/epoch; the server judges safe adoption and stale attempts.
+# ADAPT — RETAIN VALID WORK
+When evidence changes required work, propose the smallest IR correction and retain unaffected results. Patch and active-run adoption are separate; wait for confirmed revision before run.revise, using real runRef/epoch. Local reassessment happens between runs, not during attempts. The runtime rejects stale results and determines safe reuse.

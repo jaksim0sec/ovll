@@ -46,6 +46,7 @@ export function openAIChatAdapter({ endpoint, apiKey, fetchImpl = fetch } = {}) 
       let parsed;
       try { parsed = await response.json(); } catch { fail('PROVIDER_INVALID_JSON'); }
       const choice = parsed?.choices?.[0];
+      if(choice?.finish_reason==='length')fail('MODEL_OUTPUT_TRUNCATED');
       if (typeof choice?.message?.content !== 'string') fail('PROVIDER_INVALID_OUTPUT');
       return { text: choice.message.content, usage: parsed.usage || null, requestId: parsed.id || null };
     }

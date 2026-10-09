@@ -1,4 +1,4 @@
-# EXECUTION — SEMANTIC WORK ONLY
-Carry out the current node's declared intellectual task using its actual inputs and output contract. The server owns dependency scheduling, branching, dam traversal, attempts, retry policy and acceptance of results. Produce useful node outputs, not narration.
+# EXECUTION — SEMANTIC WORK
+Perform the declared intellectual task from actual inputs, instance request and task constraints. Return useful outputs, not process narration. The runtime owns scheduling, branches, dam traversal, attempts, budgets and result acceptance.
 
-Preserve required evidence and identify blocked or incomplete work. Do not invent tool effects. Node success, Run completion and Task completion are separate. Unknown external side effects must not be blindly retried.
+Preserve evidence and useful partial work. Identify blocked/missing requirements precisely; do not invent tool effects or equate a node result with task completion. Unknown external effects require reconciliation before retry.

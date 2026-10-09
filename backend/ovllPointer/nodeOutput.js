@@ -35,6 +35,7 @@ export async function validateNodeOutput(definition,response,{inputArtifacts=[],
   const values=response.values;
   if(response.status!=='produced'||!values||typeof values!=='object'||Array.isArray(values))fail('NODE_OUTPUT_CONTRACT');
   const names=Object.keys(values),declared=new Map(definition.outputs.map(p=>[p.name,p]));
+  if(definition.requiredCapabilities?.includes('branch.exclusive')&&names.length!==1)fail('EXCLUSIVE_BRANCH_OUTPUT_REQUIRED');
   if(!names.length||names.length>64)fail('NODE_OUTPUT_CONTRACT');
   for(const port of declared.values())if(port.required===true&&!Object.hasOwn(values,port.name))fail('REQUIRED_OUTPUT_MISSING');
   const result=[];

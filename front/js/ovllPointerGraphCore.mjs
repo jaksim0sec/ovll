@@ -132,7 +132,7 @@ export class MemoryGraphRepository {
       }
       const base = d.supersedes && next.definitions.find(x => x.definitionId === d.supersedes.definitionId && x.version === d.supersedes.version);
       if (d.supersedes && !base) reject('UNKNOWN_BASE_DEFINITION');
-      const value = { ...d, definitionId: base ? base.definitionId : 'd_' + ids(), version: base ? base.version + 1 : 1 };
+      const value = { ...(base?.presentation?{presentation:base.presentation}:{}), ...d, definitionId: base ? base.definitionId : 'd_' + ids(), version: base ? base.version + 1 : 1 };
       if (next.definitions.some(x => x.definitionId === value.definitionId && x.version === value.version)) reject('DEFINITION_VERSION_CONFLICT');
       delete value.supersedes;
       delete value.localKey;

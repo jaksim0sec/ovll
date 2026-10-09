@@ -1236,7 +1236,7 @@ test("planner keeps document length requirements on the upstream writer", () => 
 
   assert.match(
     server,
-    /createFile[^\n]*does not generate|createFile[^\n]*does not expand/i
+    /createFile[^\n]*not content generation\/expansion/i
   );
   assert.match(
     server,
@@ -1777,11 +1777,11 @@ test("explicit verification requests are promoted to workflow planning", () => {
   );
   assert.match(
     server,
-    /explicit verification, fact-checking, research, cross-checking/i
+    /verification\/research\/cross-check/i
   );
   assert.match(
     server,
-    /Prefer one research node for a focused check/i
+    /focused check usually needs one research node/i
   );
 });
 
@@ -1798,35 +1798,35 @@ test("chat routing owns workflow decisions before planner execution", () => {
 
   assert.match(
     gemini,
-    /shape of the user's goal/i
+    /Choose conversation\/workflow by user value/i
   );
   assert.match(
     gemini,
-    /does not need to mention workflow, nodes, or canvas/i
+    /Canvas keywords are unnecessary/i
   );
   assert.match(
     gemini,
-    /answer the request directly is not evidence against workflow/i
+    /not whether you could answer directly/i
   );
   assert.match(
     gemini,
-    /inspect, edit, rerun, reuse, or chain/i
+    /inspection, editing, rerun, reuse or chaining/i
   );
   assert.match(
     gemini,
-    /multi-step internal reasoning/i
+    /multi-step reasoning alone/i
   );
   assert.match(
     server,
-    /Upstream routing has already selected this request for workflow planning/i
+    /Upstream selected workflow planning/i
   );
   assert.match(
     server,
-    /mode="workflow" for every normal planner response/i
+    /Return mode="workflow", including/i
   );
   assert.match(
     server,
-    /Never downgrade a planner request to conversation mode/i
+    /Do not execute, claim results or downgrade to conversation/i
   );
   assert.match(
     server,

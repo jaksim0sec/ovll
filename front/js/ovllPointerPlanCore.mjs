@@ -12,7 +12,11 @@ export function buildExecutionPlan(snapshot, run) {
   const outgoing=new Map([...selected].map(n=>[n,new Set()]));
   for(const link of graph.connections){
     if(!selected.has(link.from.nodeId)||!selected.has(link.to.nodeId))continue;
-    if(link.kind==='flow' && link.from.port!=='result' && link.from.port!=='next') reject('CONDITIONAL_ROUTING_NOT_IMPLEMENTED',501);
+    if(link.kind==='flow' && link.from.port!=='result' && link.from.port!=='next'){
+      const parent=nodes.get(link.from.nodeId),def=defs.get(parent?.definitionRef.definitionId+':'+parent?.definitionRef.version);
+      if(!def?.requiredCapabilities?.includes('branch.exclusive')||!def.outputs.some(p=>p.name===link.from.port))
+        reject('CONDITIONAL_ROUTING_NOT_IMPLEMENTED',501);
+    }
     if(!['flow','data'].includes(link.kind)) reject('UNKNOWN_EDGE_KIND');
     parents.get(link.to.nodeId).add(link.from.nodeId);
     outgoing.get(link.from.nodeId).add(link.to.nodeId);

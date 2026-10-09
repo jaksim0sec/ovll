@@ -1,14 +1,14 @@
 {
-  "status": "review_candidate_not_deployed",
-  "assemblyVersion": "0.2.0",
-  "source": "ALL_PROMPTS_REVIEW_v0.2.md",
+  "status": "active_local_runtime",
+  "assemblyVersion": "0.3.0",
+  "source": "prompts/",
   "modules": [
     {
       "id": "core",
       "path": "prompts/core.md",
       "requires": [],
       "order": 0,
-      "version": 2
+      "version": 3
     },
     {
       "id": "layer.entry",
@@ -17,7 +17,7 @@
         "core"
       ],
       "order": 100,
-      "version": 2
+      "version": 3
     },
     {
       "id": "layer.chat",
@@ -26,7 +26,7 @@
         "core"
       ],
       "order": 110,
-      "version": 2
+      "version": 3
     },
     {
       "id": "layer.ir",
@@ -35,7 +35,7 @@
         "core"
       ],
       "order": 120,
-      "version": 2
+      "version": 3
     },
     {
       "id": "layer.run",
@@ -44,7 +44,7 @@
         "core"
       ],
       "order": 130,
-      "version": 2
+      "version": 3
     },
     {
       "id": "layer.function",
@@ -53,7 +53,7 @@
         "core"
       ],
       "order": 140,
-      "version": 2
+      "version": 3
     },
     {
       "id": "layer.response",
@@ -62,7 +62,7 @@
         "core"
       ],
       "order": 150,
-      "version": 2
+      "version": 3
     },
     {
       "id": "shared.context-read",
@@ -71,7 +71,7 @@
         "core"
       ],
       "order": 195,
-      "version": 2
+      "version": 3
     },
     {
       "id": "chat.explain",
@@ -80,7 +80,7 @@
         "layer.chat"
       ],
       "order": 300,
-      "version": 2
+      "version": 3
     },
     {
       "id": "chat.clarify",
@@ -89,7 +89,7 @@
         "layer.chat"
       ],
       "order": 310,
-      "version": 2
+      "version": 3
     },
     {
       "id": "chat.feedback",
@@ -98,7 +98,7 @@
         "layer.chat"
       ],
       "order": 320,
-      "version": 2
+      "version": 3
     },
     {
       "id": "ir.inspect",
@@ -107,7 +107,7 @@
         "layer.ir"
       ],
       "order": 400,
-      "version": 2
+      "version": 3
     },
     {
       "id": "ir.define",
@@ -116,7 +116,7 @@
         "layer.ir"
       ],
       "order": 410,
-      "version": 2
+      "version": 3
     },
     {
       "id": "ir.patch",
@@ -125,7 +125,7 @@
         "layer.ir"
       ],
       "order": 420,
-      "version": 2
+      "version": 3
     },
     {
       "id": "ir.connect",
@@ -134,7 +134,7 @@
         "layer.ir"
       ],
       "order": 430,
-      "version": 2
+      "version": 3
     },
     {
       "id": "run.perform",
@@ -143,7 +143,7 @@
         "layer.run"
       ],
       "order": 500,
-      "version": 2
+      "version": 3
     },
     {
       "id": "run.evaluate",
@@ -152,7 +152,7 @@
         "layer.run"
       ],
       "order": 510,
-      "version": 2
+      "version": 3
     },
     {
       "id": "run.adapt",
@@ -162,7 +162,7 @@
         "run.evaluate"
       ],
       "order": 520,
-      "version": 2
+      "version": 3
     },
     {
       "id": "run.recover",
@@ -171,7 +171,7 @@
         "layer.run"
       ],
       "order": 530,
-      "version": 2
+      "version": 3
     },
     {
       "id": "fn.extract",
@@ -180,7 +180,7 @@
         "layer.function"
       ],
       "order": 600,
-      "version": 2
+      "version": 3
     },
     {
       "id": "fn.revise",
@@ -189,7 +189,7 @@
         "layer.function"
       ],
       "order": 610,
-      "version": 2
+      "version": 3
     },
     {
       "id": "fn.reuse",
@@ -198,7 +198,7 @@
         "layer.function"
       ],
       "order": 620,
-      "version": 2
+      "version": 3
     },
     {
       "id": "fn.verify",
@@ -207,7 +207,7 @@
         "layer.function"
       ],
       "order": 630,
-      "version": 2
+      "version": 3
     },
     {
       "id": "response.present",
@@ -216,7 +216,7 @@
         "layer.response"
       ],
       "order": 700,
-      "version": 2
+      "version": 3
     },
     {
       "id": "response.status",
@@ -225,7 +225,7 @@
         "layer.response"
       ],
       "order": 710,
-      "version": 2
+      "version": 3
     }
   ]
 }

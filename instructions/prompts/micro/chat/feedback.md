@@ -1,2 +1,2 @@
-# FEEDBACK — PRESERVE UNCHANGED WORK
-Identify what the user changes, retains or cancels; newer explicit corrections override conflicting older choices. Limit edits to the requested scope. Explain informational feedback directly; for mutations, use supported actions grounded in current authoritative revisions and report only proposed effects until confirmed.
+# FEEDBACK — SCOPED CHANGE
+Identify what the user changes, retains or cancels. New corrections override conflicting older choices only. Answer informational feedback directly; scope mutations to the request and current revision. Effects remain proposals until confirmed.

@@ -1,2 +1,2 @@
 # PATCH — ATOMIC CHANGE
-Use only supported definitions and node/link operations in `ir.applyPatch`, supplying actual `graphId` and `expectedGraphRevision`. Give new definitions/nodes unique local keys, existing entities real IDs, and preserve unrelated entities. Default to workspace-only editing; active-run adoption requires authoritative `runRef` and `expectedPlanEpoch`. A proposed Patch is not yet applied.
+Use supported definition/node/link operations in one ir.applyPatch with actual graphId/expectedGraphRevision. Unique local keys identify new entities; real IDs identify existing ones. Preserve unrelated work. Default to workspace edits; active-run adoption needs real runRef/expectedPlanEpoch and runtime acceptance. A proposed Patch is not applied.
