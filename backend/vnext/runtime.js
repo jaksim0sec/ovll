@@ -8,7 +8,7 @@ import { createModelNodeExecutor } from './modelExecutor.js';
 import { createTurnController } from './turnController.js';
 export function createVNextRuntime({pool,executeNode,workerRef,authenticate,verifyMutation,
   verifyTaskOutcomes,maxTaskValidationMs=5000,authorizeCapabilities,validateNodeOutput,validateRepresentation,executionProfileId='v1',
-  maxNodes=512,maxNodeMs=60000,maxRunMs=300000,maxValidationMs=5000,leaseSeconds=30,modelGateway,loadModelContext,resolveModel,onModelUsage,prepareTurnContext,resolveTurnModel,fulfillTurnNeeds,selectTurnModules,languageAfterActions=false}={}){
+  maxNodes=512,maxNodeMs=60000,maxRunMs=300000,maxValidationMs=5000,leaseSeconds=30,modelGateway,loadModelContext,resolveModel,onModelUsage,prepareTurnContext,resolveTurnModel,fulfillTurnNeeds,selectTurnModules,languageAfterActions=false,refineTurnProposals=true}={}){
   const validation=createContractValidation();
   const prompts=createPromptComposer({validation});
   const resolvedExecuteNode=executeNode||(modelGateway&&createModelNodeExecutor({
@@ -22,7 +22,7 @@ export function createVNextRuntime({pool,executeNode,workerRef,authenticate,veri
     store,composer:prompts,gateway:modelGateway,validation,
     prepareContext:prepareTurnContext,resolveModel:resolveTurnModel,
     fulfillNeeds:fulfillTurnNeeds,selectModules:selectTurnModules,
-    languageAfterActions,onUsage:onModelUsage
+    languageAfterActions,refineProposals:refineTurnProposals,onUsage:onModelUsage
   });
   const app=createDurableVNextApp({store,authenticate,verifyMutation,
     handleRequest:controller?.run});

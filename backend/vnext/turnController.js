@@ -8,7 +8,7 @@ const safeId=value=>typeof value==='string'&&/^[A-Za-z0-9_.:-]{1,160}$/.test(val
 // prepareContext, resolveModel and fulfillNeeds are trusted host functions.
 export function createTurnController({store,composer,gateway,prepareContext,resolveModel,
   fulfillNeeds,selectModules,validation=createContractValidation(),maxModelTurns=3,
-  maxRequestMs=60000,languageAfterActions=false,onUsage}={}) {
+  maxRequestMs=60000,languageAfterActions=false,refineProposals=true,onUsage}={}) {
   if(typeof store?.assertEditor!=='function'||typeof store?.recordControllerEvent!=='function'||
     typeof store?.submit!=='function'||typeof composer?.assemble!=='function'||
     typeof gateway?.complete!=='function'||typeof prepareContext!=='function'||
@@ -69,6 +69,23 @@ export function createTurnController({store,composer,gateway,prepareContext,reso
         checkContext(updated);
         context=updated;
       }
+      if(!turn?.needs?.length&&turn?.actions?.length&&refineProposals&&modelCalls<maxModelTurns){
+        const modules=new Set();
+        for(const action of turn.actions){
+          if(action.kind==='ir.applyPatch'){
+            modules.add('layer.ir');
+            if(action.args?.patch?.definitions?.length)modules.add('ir.define');
+            modules.add('ir.patch');
+            if(action.args?.patch?.operations?.some(o=>o.op?.startsWith('link.')))modules.add('ir.connect');
+          }
+          if(action.kind==='function.save'){modules.add('layer.function');modules.add('fn.extract');}
+          if(action.kind==='question.ask'){modules.add('layer.chat');modules.add('chat.clarify');}
+        }
+        if(modules.size){
+          phase='refine';
+          turn=await invoke([...modules],{previousProposal:turn});
+        }
+      }
       if(turn?.needs?.length) {
         await progress('needs_pending',{count:turn.needs.length});
         return {requestRef,message:turn.message||'',needs:turn.needs,results:[],modelCalls};
@@ -78,7 +95,8 @@ export function createTurnController({store,composer,gateway,prepareContext,reso
       if(applied.results.some(r=>r.status==='rejected'))await progress('actions_rejected',{
         rejected:applied.results.filter(r=>r.status==='rejected').length});
       else if(applied.results.length)await progress('actions_settled',{count:applied.results.length});
-      let message=turn.message||'';
+      // An uncommitted action proposal cannot certify success to the user.
+      let message=turn.actions?.length?'':turn.message||'';
       if(!message&&applied.results.length&&languageAfterActions&&modelCalls<maxModelTurns){
         phase='response';
         try {

@@ -49,6 +49,25 @@ test('unresolved needs do not submit actions',async()=>{
   assert.equal(out.needs.length,1);
   assert.equal(f.submits.length,0);
 });
+test('IR proposals receive precise dynamic-definition modules before server submission',async()=>{
+  const patch={graphId:'g1',expectedGraphRevision:0,definitions:[],operations:[]};
+  const draft={actions:[{localKey:'patch',kind:'ir.applyPatch',args:{patch}}]};
+  const f=setup([draft,draft]);
+  const result=await f.controller.run({scope,requestRef:'r1',requestText:'hello',graphId:'g1'});
+  assert.equal(result.modelCalls,2);
+  assert.equal(f.submits.length,1);
+  assert.equal(result.message,'','proposed actions must never be presented as completed');
+  assert.match(f.calls[1].messages[1].content,/IR —/);
+  assert.match(f.calls[1].messages[1].content,/atomic/i);
+});
+test('refined needs remains unresolved and never submits earlier speculative patch',async()=>{
+  const patch={graphId:'g1',expectedGraphRevision:0,definitions:[],operations:[]};
+  const f=setup([{actions:[{localKey:'p',kind:'ir.applyPatch',args:{patch}}]},
+    {needs:[{kind:'graph',selector:{scope:'ref',ref:'g1',depth:'semantic'},purpose:'Validate references'}]}]);
+  const result=await f.controller.run({scope,requestRef:'r1',requestText:'hello'});
+  assert.equal(result.needs.length,1);
+  assert.equal(f.submits.length,0);
+});
 test('malformed output or untrusted context fails before writing actions',async()=>{
   const a=setup([{message:'ok',actorRef:'forged'}]);
   await assert.rejects(a.controller.run({scope,requestRef:'r1',requestText:'hello'}),e=>e.code==='INVALID_MODEL_TURN');

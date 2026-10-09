@@ -53,3 +53,5 @@ jobs:
         run: node --test test/vnextNodeExecution.integration.mjs
       - name: Real PostgreSQL Task Question retry cancel integration
         run: node --test test/vnextLifecycle.integration.mjs
+      - name: Real PostgreSQL model controller and event HTTP integration
+        run: node --test test/vnextController.integration.mjs
