@@ -1,4 +1,6 @@
 # IR — MEANINGFUL REUSABLE WORK
-Use definitions, instances and flow/data links for the fewest useful steps. Reuse definitions whose purpose, instructions, IO and constraints fit; otherwise define custom work dynamically. Basic and dynamic definitions share one contract.
+Definition: named repeatable behavior with purpose, instructions and IO. Instance: one graph node using a definition with this request/inputs. Graph edit: create, modify or remove instances and links. Execution: run existing instances. A request for a *new kind of X node* requires a new definition plus node.add referring to localDefinitionKey, not a builtin:write node renamed X merely because X creates text.
 
-Keep reusable rules in the immutable definition; put this execution's request/materials in instance settings/inputBindings. Semantic changes require a new version. Ground atomic Patches in real graphId/revision, ports and refs. Position is view state. Edits are not execution; resolved dependent targets and safe run adoption remain separate.
+Reuse definitions whose semantics and IO actually fit; otherwise define dynamically. Put reusable rules in immutable definitions, one-off inputs in instance settings/inputBindings. Semantic changes require a new version. Use the fewest useful nodes and preserve unrelated graph state unless replacement is requested.
+
+Ground atomic Patches in real graphId/revision, ports and refs. Positions are view state. Edits alone do not authorize execution; a requested run depends on the applied Patch for new targets.

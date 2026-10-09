@@ -21,7 +21,7 @@ function order(actions){
   return ordered;
 }
 const succeeded=result=>['applied','completed','saved','answered'].includes(result?.status);
-async function execute(actions,handlers,{isActive=()=>true}={}){
+async function execute(actions,handlers,{isActive=()=>true,onActionStart,onActionResult}={}){
   const applied=new Map(),results=[];
   for(const action of order(actions)){
     let result;
@@ -29,15 +29,18 @@ async function execute(actions,handlers,{isActive=()=>true}={}){
     else if((action.dependsOn||[]).some(key=>!succeeded(applied.get(key))))
       result={status:'skipped',error:'LOCAL_ACTION_DEPENDENCY_FAILED'};
     else if(typeof handlers[action.kind]!=='function')result={status:'rejected',error:'UNSUPPORTED_LOCAL_ACTION'};
-    else try{result=await handlers[action.kind](action,applied);
+    else try{
+      try{onActionStart?.(action);}catch(error){console.warn('Pointer activity callback failed',error);}
+      result=await handlers[action.kind](action,applied);
       if(!result||typeof result.status!=='string')throw new Error('LOCAL_ACTION_RESULT_REQUIRED');
     }catch(error){result={status:'failed',error:error?.code||error?.message||'LOCAL_ACTION_FAILED'};}
     const fact={...result,localKey:action.localKey,kind:action.kind};
     applied.set(action.localKey,fact);results.push(fact);
+    try{onActionResult?.(action,fact);}catch(error){console.warn('Pointer activity callback failed',error);}
   }
   return results;
 }
-async function coordinate({getContext,request,handlers,isActive=()=>true}={}){
+async function coordinate({getContext,request,handlers,isActive=()=>true,onActionStart,onActionResult}={}){
   const facts=[],messages=[],runs=[],seenReads=new Set();let reads=[];
   for(let step=0;step<3&&isActive();step++){
     const context=await getContext();
@@ -51,7 +54,7 @@ async function coordinate({getContext,request,handlers,isActive=()=>true}={}){
       if(seenReads.has(key)||step===2){messages.push(proposal.message||'현재 자료로 해결되지 않은 입력을 알려줘.');break;}
       seenReads.add(key);reads=readNeeds(proposal.needs,context);continue;
     }
-    const results=await execute(proposal.actions||[],handlers,{isActive});
+    const results=await execute(proposal.actions||[],handlers,{isActive,onActionStart,onActionResult});
     facts.push(...results);runs.push(...results.filter(r=>r.run).map(r=>r.run));
     if(!results.length){if(proposal.message)messages.push(proposal.message);break;}
     if(results.some(r=>r.kind==='question.ask'&&r.status==='waiting'))break;

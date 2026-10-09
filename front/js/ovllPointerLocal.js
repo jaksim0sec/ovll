@@ -10,8 +10,18 @@
     const pending=new Map();
     let catalog;
     async function seed(snapshot){
-      catalog??=await loadCatalog();
-      const builtins=catalog.definitions||[];
+      if(!catalog){
+        try{catalog=await loadCatalog();}
+        catch(error){
+          // Existing graphs carry their definitions; a catalog outage must not hide those nodes.
+          if(snapshot.definitions?.length){
+            console.warn('OvllPointer catalog unavailable; using saved definitions',error);
+            return snapshot;
+          }
+          throw error;
+        }
+      }
+      const builtins=catalog?.definitions||[];
       return {...snapshot,definitions:[...snapshot.definitions.filter(d=>!builtins.some(b=>
         b.definitionId===d.definitionId&&b.version===d.version)),...builtins]};
     }
