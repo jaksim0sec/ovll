@@ -22,7 +22,7 @@ test('configured local Pointer never falls back to legacy because a readiness pr
   conversation={state:{canvas:{workflow:{nodes:[]}}}};
   assert.equal(scope().storageMode,'local');
   conversation={state:{canvas:{workflow:{nodes:[{id:'legacy',type:'write'}]}}}};
-  assert.equal(scope(),null,'legacy-only saved workflows must be preserved');
+  assert.equal(scope().storageMode,'local','legacy graph remains Pointer-owned during migration');
   conversation={state:{pointerGraph:{graph:{graphId:'g_c1'}},canvas:{workflow:{nodes:[{type:'pointer:d_custom:1'}]}}}};
   assert.equal(scope().storageMode,'local');
   window.OVLL_RUNTIME.pointerEnabled=false;
@@ -70,7 +70,7 @@ test('Pointer user-facing steps track action boundaries, real nodes, and lifecyc
   assert.match(app,/pointerNodeProgress\(run\)/);
   assert.match(app,/upsertRuntimeStep\('__thinking__','생각 완료','done'\)/);
   assert.match(app,/finishRuntimeActivity\(\{removeImmediately:!state\.runtimeActivity\?\.order\?\.length\}\)/);
-  assert.match(app,/POINTER_RUNTIME_REQUIRED/);
+  assert.match(app,/POINTER_WORKSPACE_UNAVAILABLE/);
   assert.match(app,/POINTER_WORKSPACE_UNAVAILABLE/);
   const entry=read('instructions/prompts/layers/entry.md');
   const define=read('instructions/prompts/micro/ir/define.md');

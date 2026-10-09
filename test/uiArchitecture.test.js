@@ -776,42 +776,14 @@ test("log API exposes lightweight server runtime health", () => {
   );
 });
 
-test("Gemini request logs stay lightweight and expose a dedicated log page", () => {
-  const server =
-    read(
-      "server.js"
-    );
-  const page =
-    read(
-      "front/log.html"
-    );
-
-  assert.match(
-    server,
-    /const\s+geminiRequestLogs\s*=/
-  );
-  assert.match(
-    server,
-    /\/api\/logs/
-  );
-  assert.match(
-    server,
-    /\/log/
-  );
-  assert.match(
-    server,
-    /pushGeminiRequestLog/
-  );
-  assert.match(
-    page,
-    /\/api\/logs/
-  );
-  assert.doesNotMatch(
-    page,
-    /GEMINI_API_KEY/
-  );
+test("Pointer health remains available without exposing retired model logs",()=>{
+  const server=read("server.js"),page=read("front/log.html");
+  assert.match(server,/\/api\/logs/);
+  assert.match(server,/serverRuntimeHealth\(\)/);
+  assert.doesNotMatch(server,/geminiRequestLogs|pushGeminiRequestLog/);
+  assert.match(page,/\/api\/logs/);
+  assert.doesNotMatch(page,/GEMINI_API_KEY/);
 });
-
 test("bootstrap fetches app scripts concurrently while preserving ordered execution", () => {
   const boot =
     read(
@@ -1835,75 +1807,27 @@ test("chat routing owns workflow decisions before planner execution", () => {
 });
 
 
-test("auto execution works without requiring a workflow proposal", () => {
-  const app =
-    read(
-      "front/js/app.js"
-    );
-
-  assert.match(
-    app,
-    /execution\?\.mode\s*===\s*"auto"\s*&&\s*execution\.pivot\s*\)\s*\{[\s\S]*?let\s+accepted\s*=\s*true/
-  );
-  assert.match(
-    app,
-    /const\s+runResult\s*=\s*await\s+runCanvasNode/
-  );
-  assert.match(
-    app,
-    /auto-run-not-started/
-  );
-  assert.match(
-    app,
-    /현재 워크플로우를 실행할 준비가 됐어/
-  );
+test("Pointer can apply a patch and execute a target in one proposal",()=>{
+  const app=read("front/js/app.js");
+  const entry=read("instructions/prompts/layers/entry.md");
+  assert.match(app,/onActionStart:pointerActionStarted/);
+  assert.match(app,/['"]run\.start['"]:async/);
+  assert.match(app,/runLocalNodes\(\{targets/);
+  assert.match(entry,/Combine communication, IR construction, execution and functionization/);
 });
-
-test("unchanged workflows still receive an execution policy", () => {
-  const app =
-    read(
-      "front/js/app.js"
-    );
-
-  assert.match(
-    app,
-    /result\.workflowExecution\s*=\s*execution/
-  );
-  assert.match(
-    app,
-    /analyzeWorkflowExecutionDelta\([\s\S]*?beforeWorkflow,[\s\S]*?result\.workflow,[\s\S]*?state\.canvas/
-  );
-  assert.match(
-    app,
-    /options\.userRequest\s*\|\|\s*state\.workflowUserRequest/
-  );
+test("Pointer execution scope follows targets and dam mode",()=>{
+  const local=read("front/js/ovllPointerLocal.js");
+  assert.match(local,/buildExecutionPlan\(snapshot,/);
+  assert.match(local,/damMode='closed'/);
+  assert.match(local,/targets:targetIds,damMode/);
 });
-
-
-test("automatic runtime readiness receives the actual user request", () => {
-  const app =
-    read(
-      "front/js/app.js"
-    );
-  const runtime =
-    read(
-      "front/js/runtimeEngine.js"
-    );
-
-  assert.match(
-    app,
-    /validateExecutionReadiness\([\s\S]*?userRequest:\s*String\(/
-  );
-  assert.match(
-    runtime,
-    /findUnreadyNodes\([\s\S]*?userRequest:\s*cacheContext\s*\?\.userRequest/
-  );
-  assert.match(
-    runtime,
-    /validateExecutionReadiness\([\s\S]*?userRequest:\s*userText/
-  );
+test("Pointer node tasks receive the actual request and constraints",()=>{
+  const local=read("front/js/ovllPointerLocal.js");
+  const host=read("backend/ovllPointer/localHost.js");
+  assert.match(local,/requestText:objective,taskConstraints,signal/);
+  assert.match(host,/context\.constraints=taskConstraints/);
+  assert.match(host,/modules:\['run\.perform'\]/);
 });
-
 test("custom nodes use the canvas plugin pipeline and node picker catalog", () => {
   const canvas = read("front/js/canvasNode.js");
   const custom = read("front/js/customNodes.js");

@@ -1,6 +1,6 @@
 import {createConfiguredLocalPointerHost} from './localHost.js';
 import {getPointerCatalog} from './nodeCatalog.js';
-const allowed=new Set(['turn','node']);
+const allowed=new Set(['turn','node','response']);
 export function localModelReady(env=process.env){
   if(env.OVLL_POINTER_LOCAL_MODEL_ENABLED==='false')return false;
   const configured=!!((env.OVLL_POINTER_MODEL_ENDPOINT||env.OVLL_VNEXT_MODEL_ENDPOINT)&&

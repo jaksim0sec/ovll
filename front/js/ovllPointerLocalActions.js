@@ -144,5 +144,10 @@ function present({facts=[],messages=[],runs=[]}={}){
   return [...new Set(parts.filter(Boolean))].join('\n\n')||
     (runs.some(r=>r.status==='completed')?'작업을 완료했어.':'실행된 변경은 없어.');
 }
-global.OvllPointerLocalActions=Object.freeze({order,execute,coordinate,readNeeds,deliver,present,question,succeeded});
+function needsLanguage({facts=[],messages=[],runs=[]}={}){
+  if(messages.length||runs.some(run=>run.status==='completed'&&deliver(run).trim()))return false;
+  return facts.some(f=>['failed','rejected','waiting','skipped','cancelled'].includes(f.status)||
+    f.run&&['failed','waiting','outcome_unknown'].includes(f.run.status));
+}
+global.OvllPointerLocalActions=Object.freeze({order,execute,coordinate,readNeeds,deliver,present,needsLanguage,question,succeeded});
 })(window);

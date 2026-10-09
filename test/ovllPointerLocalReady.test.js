@@ -24,14 +24,15 @@ test('model readiness endpoint never calls the model, and disabled service rejec
     assert.equal(called,0);
   }finally{await new Promise(resolve=>server.close(resolve));}
 });
-test('front keeps Pointer ownership independent of transient readiness while preserving legacy-only graphs',()=>{
+test('front keeps Pointer ownership independent of transient readiness and migrates old graphs',()=>{
   const app=readFileSync(new URL('../front/js/app.js',import.meta.url),'utf8');
   const config=readFileSync(new URL('../front/runtime-config.js',import.meta.url),'utf8');
   const api=readFileSync(new URL('../front/js/ovllPointerApi.js',import.meta.url),'utf8');
   assert.match(config,/pointerEnabled:true/);
   assert.match(app,/verifyLocalPointerReady\(\)/);
   assert.doesNotMatch(app,/if\(!state\.pointerLocalReady\)return null/);
-  assert.match(app,/conversation\.state\?\.pointerGraph/);
-  assert.match(app,/conversation\.state\?\.canvas\?\.workflow\?\.nodes\?\.length/);
+  assert.match(app,/global\.OvllPointerLocal\.migrateConversation/);
+  assert.match(app,/state\.pointerMigrationError/);
+  assert.doesNotMatch(app,/legacy-only workflows stay on the compatibility path/);
   assert.match(api,/local\/ready/);
 });

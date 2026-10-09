@@ -18,6 +18,7 @@ if(
   !API||
   !Store||
   !CustomNodes||
+  !global.OvllPointerFunctions||
   typeof createWorkspace!=="function"
 ){
   return;
@@ -86,7 +87,9 @@ function createOvllFunctionWorkspace(
     inspectorOpen:false,
     deleteArmed:false,
     deleteTimer:null,
-    canvasOffs:[]
+    canvasOffs:[],
+    pointerDraft:null,
+    pointerDraftId:null
   };
 
   const workspace=
@@ -530,8 +533,13 @@ function createOvllFunctionWorkspace(
       return;
     }
 
-    const records=
-      Store.list();
+    const pointers=(global.OvllPointerFunctions?.list()||[]).map(item=>({
+      id:item.id,name:item.presentation?.name||item.purpose,
+      revision:item.version,color:item.presentation?.color||COLORS[0],
+      iconKey:item.presentation?.iconKey||'custom',
+      workflow:{nodes:global.OvllPointerFunctions.get(item.id)?.snapshot?.graph?.nodes||[]}
+    }));
+    const records=[...Store.list(),...pointers];
 
     listRoot.replaceChildren();
 
@@ -858,6 +866,8 @@ function createOvllFunctionWorkspace(
     await ensureReady();
 
     state.editingId=null;
+    state.pointerDraft=null;
+    state.pointerDraftId=null;
     state.messages=[];
     state.color=COLORS[0];
     state.iconKey=DEFAULT_ICON_KEY;
@@ -915,17 +925,22 @@ function createOvllFunctionWorkspace(
   async function loadRecord(recordId){
     await ensureReady();
 
-    const record=
-      Store.get(
-        recordId
-      );
+    const pointerFunction=global.OvllPointerFunctions?.get(recordId);
+    const record=pointerFunction?{
+      id:pointerFunction.id,name:pointerFunction.presentation?.name||pointerFunction.purpose,
+      description:pointerFunction.presentation?.description||'',
+      color:pointerFunction.presentation?.color||COLORS[0],
+      iconKey:pointerFunction.presentation?.iconKey||'custom',
+      revision:pointerFunction.version,builder:{messages:[]},
+      workflow:global.OvllPointerProjection.projectGraph(pointerFunction.snapshot).workflow
+    }:Store.get(recordId);
 
-    if(!record){
-      return false;
-    }
+    if(!record)return false;
 
     state.editingId=
       record.id;
+    state.pointerDraft=pointerFunction?.snapshot||null;
+    state.pointerDraftId=pointerFunction?.snapshot?.graph?.graphId||null;
     state.color=
       record.color||
       COLORS[0];
@@ -951,19 +966,15 @@ function createOvllFunctionWorkspace(
     );
     setIconKey(state.iconKey);
 
-    state.canvas.setState({
-      workflow:
-        record.workflow,
-      viewport:
-        record.builder
-          ?.viewport||{
-            scale:1,
-            offset:{
-              x:0,
-              y:0
-            }
-          }
-    });
+    if(pointerFunction){
+      global.OvllPointerProjection.applyGraph(state.canvas,pointerFunction.snapshot,
+        {nodes:pointerFunction.presentation?.view||[]});
+    }else{
+      state.canvas.setState({
+        workflow:record.workflow,
+        viewport:record.builder?.viewport||{scale:1,offset:{x:0,y:0}}
+      });
+    }
 
     state.dirty=false;
     renderMessages();
@@ -998,123 +1009,53 @@ function createOvllFunctionWorkspace(
 
   async function saveDraft(){
     await ensureReady();
-
-    const name=
-      String(
-        nameInput?.value||
-        ""
-      ).trim()||
-      "새 함수";
-
-    let validated;
-
+    const name=String(nameInput?.value||'').trim()||'새 함수';
+    const description=String(descriptionInput?.value||'').trim().slice(0,220);
     try{
-      validated=
-        CustomNodes
-          .validateWorkflow(
-            state.canvas
-              .getWorkflow(),
-            state.canvas
-              .getNodeDefinitions()
-          );
+      const {repo,id}=await draftRepository();
+      const snapshot=repo.get('local',id);
+      const nodes=snapshot.graph.nodes;
+      if(!nodes.length)throw new Error('함수로 저장할 노드를 먼저 추가해줘.');
+      const targets=nodes.filter(n=>!snapshot.graph.connections.some(l=>
+        l.from.nodeId===n.nodeId)).map(n=>n.nodeId);
+      if(!targets.length)throw new Error('결과로 이어지는 마지막 노드를 확인해줘.');
+      const saved=global.OvllPointerFunctions.save({purpose:name,
+        snapshot,targets,presentation:{name,description,color:state.color,iconKey:state.iconKey,
+          view:state.canvas.getWorkflow().nodes.map(n=>({id:n.id,x:n.x,y:n.y,expanded:n.expanded}))}});
+      state.editingId=saved.id;
+      state.pointerDraft=snapshot;
+      state.dirty=false;
+      if(deleteButton)deleteButton.hidden=false;
+      renderRecords();
+      syncIdentity();
+      setStatus('함수 초안 저장됨','saved');
+      return true;
     }catch(error){
-      setStatus(
-        error?.message||
-        "함수 흐름을 저장할 수 없어",
-        "error"
-      );
-
-      workspace.ui.setMode(
-        "canvas"
-      );
-
+      console.error('Pointer function save failed:',error);
+      setStatus(error?.message||'함수 저장 실패','error');
+      workspace.ui.setMode('canvas');
       return false;
     }
-
-    const description=
-      String(
-        descriptionInput
-          ?.value||
-        ""
-      )
-        .trim()
-        .slice(0,220);
-
-    const canvasState=
-      state.canvas
-        .getState();
-
-    let saved;
-
-    try{
-      saved=
-        Store.save({
-          id:
-            state.editingId||
-            undefined,
-          name,
-          description,
-          llmdesc:
-            description||
-            name+
-            " 작업을 수행하는 사용자 정의 함수.",
-          color:
-            state.color,
-          iconKey:
-            state.iconKey,
-          workflow:
-            validated.workflow,
-          boundary:
-            validated.boundary,
-          builder:{
-            messages:
-              state.messages,
-            viewport:
-              canvasState
-                .viewport
-          }
-        });
-    }catch(error){
-      console.error(
-        "Function Workspace save error:",
-        error
-      );
-
-      setStatus(
-        error?.message||
-        "함수를 저장하지 못했어",
-        "error"
-      );
-
-      return false;
-    }
-
-    state.editingId=
-      saved.id;
-
-    if(nameInput){
-      nameInput.value=
-        saved.name;
-    }
-    state.dirty=false;
-
-    if(deleteButton){
-      deleteButton.hidden=false;
-    }
-
-    renderRecords();
-    syncIdentity();
-
-    setStatus(
-      "v"+
-      saved.revision+
-      " · 저장됨",
-      "saved"
-    );
-
-    return true;
   }
 
+  async function draftRepository(){
+    const local=global.OvllPointerLocal,patcher=global.OvllPointerGraphPatch;
+    if(!local?.projectCanvasDraft||!patcher||!global.OvllPointerApi)
+      throw new Error('POINTER_BUILDER_UNAVAILABLE');
+    const {MemoryGraphRepository}=await import('/js/ovllPointerGraphCore.mjs');
+    const id=state.pointerDraftId||'g_builder_'+Date.now().toString(36);
+    const repo=new MemoryGraphRepository();
+    const snapshot=state.pointerDraft||
+      await local.projectCanvasDraft(state.canvas.getState(),id);
+    repo.restore('local',id,snapshot);
+    if(state.pointerDraft){
+      const diff=patcher.build(snapshot,state.canvas.getWorkflow());
+      if(diff)repo.apply('local',diff.patch);
+    }
+    state.pointerDraftId=id;
+    state.pointerDraft=repo.get('local',id);
+    return {repo,id};
+  }
   async function submitPrompt(
     raw
   ){
@@ -1151,50 +1092,30 @@ function createOvllFunctionWorkspace(
       .thinking?.();
 
     try{
-      const result=
-        await API
-          .planWorkflow(
-            text,
-            state.canvas
-              .getWorkflowIR(),
-            null,
-            {
-              history:
-                history(),
-              purpose:
-                "function-builder"
-            }
-          );
-
-      if(
-        result?.mode===
-          "workflow"&&
-        result.workflow
-      ){
-        state.canvas
-          .applyWorkflowIR(
-            result.workflow,
-            {
-              center:true
-            }
-          );
-
+      const {repo,id}=await draftRepository();
+      const proposal=await global.OvllPointerApi.localTurn({
+        snapshot:state.pointerDraft,requestText:text,
+        history:history().slice(-6).map(x=>x.role+': '+x.text),
+        extraContext:{surface:'function-builder',
+          purpose:'Compose and edit reusable work. Save only from the visible Save button.'}
+      });
+      const actions=global.OvllPointerLocalActions;
+      const facts=await actions.execute(proposal.actions||[],{
+        'ir.applyPatch':async action=>{
+          const result=repo.apply('local',action.args.patch);
+          return {status:'applied',createdRefs:result.createdRefs,
+            newRevision:result.graphRef.revision};
+        },
+        'question.ask':async action=>actions.question(action)
+      });
+      state.pointerDraft=repo.get('local',id);
+      if(facts.some(f=>f.status==='applied')){
+        global.OvllPointerProjection.applyGraph(state.canvas,state.pointerDraft,
+          {nodes:state.canvas.getWorkflow().nodes});
         markDirty();
       }
-
-      const answer=
-        [
-          String(
-            result?.message||
-            ""
-          ).trim(),
-          String(
-            result?.question||
-            ""
-          ).trim()
-        ]
-          .filter(Boolean)
-          .join("\n");
+      const answer=actions.present({facts,
+        messages:proposal.message?[proposal.message]:[],runs:[]});
 
       if(answer){
         pushMessage(
@@ -1231,7 +1152,7 @@ function createOvllFunctionWorkspace(
       return false;
     }
 
-    if(recordInUse(id)){
+    if(!id.startsWith('fn_')&&recordInUse(id)){
       setStatus(
         "캔버스에서 사용 중이라 먼저 빼야 해",
         "error"
@@ -1255,7 +1176,9 @@ function createOvllFunctionWorkspace(
       return false;
     }
 
-    Store.remove(id);
+    if(id.startsWith('fn_')){
+      if(!global.OvllPointerFunctions?.remove(id))return false;
+    }else Store.remove(id);
 
     void newDraft();
 

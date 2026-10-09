@@ -4,10 +4,10 @@
 OvllPointer는 **대문(판단) → 소통/IR 구성/실행/함수화 → 언어화**의 논리적 역할을 구현한다. 각 역할마다 별도의 모델 호출을 강제하지 않는다. 행동 제안, 저장된 그래프, 실제 수행 결과를 구분한다.
 
 ## 실행 구성
-- `server.js`: Express 진입점, 모니터링, 기존 HTTP 계약과 Pointer 라우트 연결
+- `server.js`: Express 진입점, 모니터링, 파일 API와 Pointer 모델 라우트 연결
 - `nodeCatalog.js`: 기존 UI 아이콘·기본 정의와 canonical Pointer 정의의 단일 원본 (`GET /api/pointer/local/catalog`)
-- `legacyCompatibility.js`: 저장된 이전 형식의 워크플로우와 함수 빌더를 깨지 않기 위한 **호환 어댑터**. 새로운 IR 생성·실행에 사용할 핵심 구조가 아님
-- `localHttp.js`/`localHost.js`: 사용자 상태를 저장하지 않는 모델 호출 및 ModelTurn·NodeOutput 검증. 정식 라우트 `/api/pointer/local/*`
+- `legacyCompatibility.js`와 `backend/ai/geminiExecution.js`: 이전 구현 코드. **현재 서버 진입점과 UI 요청/실행 경로에서는 사용하지 않음**
+- `localHttp.js`/`localHost.js`: 사용자 상태를 저장하지 않는 모델 호출 및 ModelTurn·NodeOutput 검증. 정식 라우트 `/api/pointer/local/{turn,node,response}`
 - `graph.js`, `executionPlan.js`, `validation.js`, `providers.js`: 동적 GraphPatch, 실행 계획, 데이터 계약, 공급자 독립 모델 인터페이스
 - `front/js/ovllPointer*.js`: 대화별 로컬 그래프 저장, 노드 실행, 결과 기록, 함수 초안·재실행
 - `sql/`, `durable.js`, `worker.js`: **비활성** PostgreSQL 기반 운영 모듈. `server.js`에 미연결. SQL이나 계정 생성은 현재 실행 조건이 아님
@@ -15,8 +15,13 @@ OvllPointer는 **대문(판단) → 소통/IR 구성/실행/함수화 → 언어
 ## 로컬 스토리지 호환성
 `WorkspaceStore`의 기존 `ovll:workspace:v1` 키를 유지한다. `vnextGraph`/`vnextRuns` 옛 필드는 로딩할 때 `pointerGraph`/`pointerRuns`로 읽는다. `ovll:vnext:functions:v1` 함수 초안도 새 `ovll:pointer:functions:v1`로 전환 후 접근 가능하다.
 
-## 호환 경계 — 제거하지 못한 기능
-이전 사용자 워크플로우의 `/api/chat`, `/api/workflow`, `/api/execute-group`, `/api/finalize-run` 계약은 아직 실제 UI에서 사용된다. 이를 삭제하면 기존 데이터 및 함수 편집기 UX가 깨지므로 `legacyCompatibility.js`로 **격리만 완료**, 기능 자체 제거는 미완료다. 서버의 정식 신규 요청은 Pointer 라우트를 이용한다.
+## 이전 워크플로우 이관 경계
+`/api/chat`, `/api/workflow`, `/api/execute-group`, `/api/finalize-run`은 더 이상 서버에서 제공하지 않는다. 채팅/실행은 Pointer를 사용한다.
+이전 대화의 기본 노드는 첫 복원에서 의미/연결/ID/파일 메타데이터를 검사해 Pointer 그래프로 변환한 다음 원래 UI 위치를 복원한다. 원본 캔버스 상태는 삭제하지 않는다. 함수 편집기도 Pointer의 제안·Patch와 `OvllPointerFunctions` 저장을 사용하며, 이전 편집기 레코드는 삭제하지 않고 호환 가능한 내용만 새 계약으로 저장한다.
+의미를 검증할 수 없는 구형 커스텀 서브플로우 등의 자동 변환은 **실패로 종료하고 원본을 보존한다**. 레거시 모델/실행기로 우회하지 않는다. 해당 자산의 동등성 보장·완전한 데이터 이관은 별도 후속 작업으로 남는다.
+
+## 언어화
+직접 대화는 판단 모델의 `message`를 사용한다. 사용자에게 이미 완성된 검증 출력이 있으면 그대로 전달한다. 실패·대기처럼 별도 설명이 필요한 상황에서만 `layer.response`와 `response.present`를 호출하고, 호출 실패 시 실제 상태의 결정적 표현으로 대체한다.
 
 로컬 Pointer는 모델 작업, 업로드 파일의 저장된 텍스트/메타데이터 전달, 기존 artifact API를 통한 파일 출력, 명시된 `branch.exclusive` 분기, named input을 바인딩하는 `function.run`을 지원한다. 파일 전달은 전체 PDF/이미지 파싱을 의미하지 않으며 미리보기 축약 표시를 유지한다. 범용 도구, 라이브 검색, 서브그래프 실행, 조건부 병합, 활성 Run 채택, 저장 함수 버전 수정은 미구현이다.
 

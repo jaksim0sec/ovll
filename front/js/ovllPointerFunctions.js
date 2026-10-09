@@ -21,7 +21,7 @@ function exposedInputs(snapshot,targets){
   }
   return exposed;
 }
-function save({purpose,snapshot,targets,inputs=[],outputs=[],invariants=[],inputMap}={}){
+function save({purpose,snapshot,targets,inputs=[],outputs=[],invariants=[],inputMap,presentation}={}){
   if(typeof purpose!=="string"||!purpose.trim()||purpose.length>2400||
     !snapshot?.graph?.graphId||!Number.isInteger(snapshot.graph.revision)||
     !Array.isArray(snapshot.graph.nodes)||!Array.isArray(snapshot.definitions)||
@@ -46,11 +46,15 @@ function save({purpose,snapshot,targets,inputs=[],outputs=[],invariants=[],input
   const a=read();if(a.length>=30)throw new Error("LOCAL_FUNCTION_LIMIT");
   const item={id:"fn_"+global.crypto.randomUUID().replace(/-/g,""),version:1,purpose:purpose.trim(),
     snapshot:clone(snapshot),targets:[...new Set(targets)],inputs:clone(inputs),inputMap:clone(mapping),outputs:clone(outputs),
-    invariants:clone(invariants),verificationStatus:"draft",createdAt:Date.now()};
+    invariants:clone(invariants),verificationStatus:"draft",createdAt:Date.now(),
+    ...(presentation&&typeof presentation==="object"?{presentation:clone(presentation)}:{})};
   global.localStorage.setItem(KEY,JSON.stringify([...a,item]));
   return clone(item);
 }
 const list=()=>clone(read().map(({snapshot,...rest})=>rest));
+function remove(id){const all=read(),remaining=all.filter(item=>item.id!==id);
+  if(remaining.length===all.length)return false;
+  global.localStorage.setItem(KEY,JSON.stringify(remaining));return true;}
 const get=id=>{const x=read().find(a=>a.id===id);return x?clone(x):null;};
 function saveDraft(draft,snapshot){
   if(draft?.procedure?.kind==='model_task'){
@@ -92,5 +96,5 @@ function bind(fn,bindings={}){
   }
   return {snapshot,targets:clone(fn.targets),requestText:fn.purpose,invariants:clone(fn.invariants||[])};
 }
-global.OvllPointerFunctions=Object.freeze({save,saveDraft,list,get,bind,storageKey:KEY});
+global.OvllPointerFunctions=Object.freeze({save,saveDraft,list,get,bind,remove,storageKey:KEY});
 })(window);

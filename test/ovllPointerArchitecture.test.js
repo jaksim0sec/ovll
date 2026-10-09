@@ -17,11 +17,12 @@ test('OvllPointer owns the canonical node catalog and legacy builder contracts',
   assert.equal(typeof planWorkflow,'function');
   assert.equal(typeof geminiHttpFailure,'function');
 });
-test('server entry delegates graph catalog and compatibility planner to Pointer',()=>{
+test('server entry serves only the canonical Pointer model runtime',()=>{
   const server=readFileSync(new URL('../server.js',import.meta.url),'utf8');
   const config=readFileSync(new URL('../front/runtime-config.js',import.meta.url),'utf8');
   assert.match(server,/backend\/ovllPointer\/nodeCatalog\.js/);
-  assert.match(server,/backend\/ovllPointer\/legacyCompatibility\.js/);
+  assert.doesNotMatch(server,/backend\/ovllPointer\/legacyCompatibility\.js/);
+  assert.doesNotMatch(server,/\/api\/(chat|workflow|execute-group|finalize-run)/);
   assert.match(server,/mountLocalPointerRoutes\(app\)/);
   assert.doesNotMatch(server,/const\s+SYSTEM_PROMPT\s*=/);
   assert.doesNotMatch(server,/const\s+PLANNER_SCHEMA\s*=/);

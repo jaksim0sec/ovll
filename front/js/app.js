@@ -21,7 +21,6 @@
   const PreviewSandbox = global.OvllPreviewSandbox;
   const PreviewEngine = global.OvllPreviewEngine;
   const SvgLibrary = global.OvllSvgLibrary;
-  const Execution = global.OvllExecutionEngine;
   const mountCanvasNode = global.mountCanvasNode;
   const createWorkspace =
     global.createOvllWorkspace;
@@ -60,7 +59,6 @@
     !PreviewEngine ||
     !SvgLibrary ||
     !Execution ||
-    typeof Execution.RuntimeEngine !== "function" ||
     typeof mountCanvasNode !== "function" ||
     typeof createWorkspace !== "function" ||
     !workspaceShell
@@ -110,6 +108,7 @@
     pointerGraphSnapshot: null,
     pointerHydrating: false,
     pointerLocalReady: false,
+    pointerMigrationError: null,
     pointerEditTimer: null,
     pointerEditInFlight: false,
     pointerEventCursor: 0,
@@ -6228,7 +6227,7 @@
       state.pointerLocalReady=(await PointerAPI.localReady({signal:controller.signal}))?.ready===true;
     }catch(error){
       state.pointerLocalReady=false;
-      console.warn('OvllPointer local model not ready; keeping legacy runtime',error?.code||error);
+      console.warn('OvllPointer model readiness check unavailable',error?.code||error);
     }finally{clearTimeout(timeout);}
   }
 
@@ -6239,10 +6238,6 @@
       const conversationId=currentConversationId();
       const conversation=conversationId?WorkspaceStore.getConversation(conversationId):null;
       if(!conversation||!global.OvllPointerLocal)return null;
-      // Existing legacy-only workflows stay on the compatibility path. Pointer ownership
-      // never depends on a transient readiness request or remote catalog availability.
-      if(!conversation.state?.pointerGraph&&conversation.state?.canvas?.workflow?.nodes?.length)
-        return null;
       return {conversationId,graphId:global.OvllPointerLocal.graphId(conversationId),storageMode:'local'};
     }
     return settings.pointerStorageMode==='postgres'&&PointerAPI&&
@@ -6460,6 +6455,7 @@
   async function runLocalPrompt(text,options={}){
     if(state.destroyed||state.busy)return;
     const value=String(text??'').trim(),scope=pointerScope();
+    if(state.pointerMigrationError){showErrorNotice(state.pointerMigrationError,{scope:'작업 이관 오류',fallback:'이전 작업을 안전하게 전환할 수 없어 실행을 중단했어.'});return;}
     if(!value||!scope)return;
     if(options.addUserMessage!==false){
       addUserMessage(value);composerInput.value='';resizeComposer();scheduleComposerDraftSave(0);
@@ -6546,7 +6542,24 @@
         }
       });
       if(facts.some(r=>['applied','completed'].includes(r.status)))state.workflowUserRequest=value;
-      addAssistantMessage(actions.present({facts,messages,runs}));
+      let reply=actions.present({facts,messages,runs});
+      if(actions.needsLanguage({facts,messages,runs})){
+        const actionResults=facts.map(({run,...fact})=>({...fact,...(run?{run:{
+          status:run.status,targets:run.targets,nodes:(run.nodes||[]).map(n=>({
+            nodeId:n.nodeId,status:n.status,error:n.error||'',toolEffectStarted:!!n.toolEffectStarted
+          }))
+        }}:{})}));
+        try{
+          const snapshot=(await global.OvllPointerLocal.state(conversationId)).graph;
+          const language=await PointerAPI.localResponse({snapshot,requestText:value,
+            history:contextHistory,actionResults});
+          if(currentConversationId()===conversationId&&language?.message?.trim())
+            reply=language.message.trim();
+        }catch(error){
+          console.warn('Pointer language fallback used',error?.code||error);
+        }
+      }
+      if(currentConversationId()===conversationId)addAssistantMessage(reply);
     }catch(error){
       upsertRuntimeStep('__local_error__','요청 처리 실패','failed',
         userFacingError(error,'작업을 처리하지 못했어.'));
@@ -6661,273 +6674,19 @@
     }
   }
 
-  async function runPrompt(text, options = {}) {
-    if(pointerScope()?.storageMode==='local')return runLocalPrompt(text,options);
-    if(pointerScope()?.storageMode==='postgres')return runPointerPrompt(text,options);
-    if(state.canvas?.getWorkflow?.()?.nodes?.some(n=>String(n.type||'').startsWith('pointer:'))){
-      showErrorNotice(new Error('POINTER_WORKSPACE_UNAVAILABLE'),{
-        scope:'노드 실행 경로 오류',
-        fallback:'이 작업의 동적 노드는 Pointer 실행기로만 처리할 수 있습니다. 새로고침 후 다시 시도해 주세요.'});
+  async function runPrompt(text,options={}){
+    if(state.pointerMigrationError){
+      showErrorNotice(state.pointerMigrationError,{scope:'작업 이관 오류',
+        fallback:'저장된 작업을 안전하게 전환하지 못했어. 원본은 보존됐어.'});
       return;
     }
-    if (state.destroyed || state.busy) return;
-
-    const value =
-      String(text ?? "").trim();
-
-    if (!value) return;
-
-    state.lastUserRequest =
-      value;
-
-    if (
-      options.addUserMessage !== false
-    ) {
-      addUserMessage(value);
-
-      composerInput.value = "";
-      resizeComposer();
-      scheduleComposerDraftSave(0);
+    const scope=pointerScope();
+    if(!scope){
+      showErrorNotice(new Error('POINTER_WORKSPACE_UNAVAILABLE'),{
+        scope:'작업 환경 오류',fallback:'OvllPointer 작업 환경에 연결하지 못했어.'});
+      return;
     }
-
-    setBusy(true);
-
-    Presence.thinking();
-
-    const thinkingStartedAt =
-      performance.now();
-
-    try {
-      const workflow =
-        syncWorkflow();
-
-      const history =
-        recentAiConversation(
-          value
-        );
-
-      let result;
-
-      if (
-        likelyWorkflowRequest(
-          value,
-          workflow
-        )
-      ) {
-        result =
-          await plan(
-            value,
-            history
-          );
-      } else {
-        const chat =
-          await API.chat(
-            value,
-            {
-              history,
-              workflow,
-              memory:
-                state.conversationMemory
-            }
-          );
-
-        if (
-          chat?.mode ===
-            "workflow"
-        ) {
-          result =
-            await plan(
-              value,
-              history
-            );
-        } else {
-          result = {
-            mode:
-              "conversation",
-            workflow:
-              clone(workflow),
-            message:
-              String(
-                chat?.message ||
-                ""
-              ),
-            blocks: [],
-            question: "",
-            memory: null
-          };
-        }
-      }
-
-      const elapsed =
-        performance.now() -
-        thinkingStartedAt;
-
-      const remaining =
-        Math.max(
-          0,
-          650 - elapsed
-        );
-
-      if (remaining > 0) {
-        await new Promise(resolve =>
-          setTimeout(
-            resolve,
-            remaining
-          )
-        );
-      }
-
-      Presence.settle();
-
-      const execution =
-        result.workflowExecution;
-
-      if (
-        execution?.mode ===
-          "auto" &&
-        execution.pivot
-      ) {
-        let accepted = true;
-
-        if (
-          result.workflowProposalId
-        ) {
-          accepted =
-            acceptWorkflowProposal(
-              result.workflowProposalId,
-              {
-                silent: true
-              }
-            );
-        }
-
-        if (accepted) {
-          const runResult =
-            await runCanvasNode(
-              execution.pivot,
-              "target",
-              {
-                addUserMessage:
-                  false,
-                userRequest:
-                  value,
-                source:
-                  "workflow-auto"
-              }
-            );
-
-          if (runResult) {
-            syncWorkflow();
-            return;
-          }
-
-          execution.mode =
-            "confirm";
-          execution.reason =
-            "auto-run-not-started";
-        } else {
-          execution.mode =
-            "confirm";
-          execution.reason =
-            "proposal-not-available";
-        }
-      }
-
-      if (
-        result.message ||
-        result.question ||
-        result.workflowProposalId ||
-        result.workflowExecution
-      ) {
-        const assistantText =
-          result.message ||
-          (
-            result
-              .workflowExecution
-              ?.mode ===
-              "confirm"
-              ? result.workflowProposalId
-                ? "바뀐 부분만 실행할 준비가 됐어."
-                : "현재 워크플로우를 실행할 준비가 됐어."
-              : result
-                  .workflowExecution
-                  ?.mode ===
-                  "manual"
-                ? "실행 범위가 커서 먼저 확인해줘."
-                : result.workflowProposalId
-                  ? "노드 구성을 바꿔봤어."
-                  : ""
-          );
-
-        const message =
-          addAssistantMessage(
-            assistantText,
-            {
-              question:
-                result.question,
-              showCanvasView:
-                result.mode ===
-                "workflow",
-              workflowProposalId:
-                result.workflowProposalId,
-              workflowExecution:
-                result.workflowExecution,
-              blocks:
-                result.blocks,
-              presenceSpeech:
-                presenceSpeechText(
-                  result.question ||
-                  assistantText
-                )
-            }
-          );
-
-        if (message) {
-          await new Promise(resolve =>
-            setTimeout(
-              resolve,
-              revealAssistantMessage(
-                message,
-                assistantText
-              )
-            )
-          );
-        }
-      }
-
-      syncWorkflow();
-    } catch (error) {
-      Presence.settle();
-
-      console.error(
-        "ovll Request Error:",
-        error
-      );
-
-      showErrorNotice(
-        error,
-        {
-          scope:
-            "요청 처리 오류",
-          fallback:
-            "요청을 처리하지 못했습니다.",
-          onRetry:
-            () => {
-              void runPrompt(
-                value,
-                {
-                  addUserMessage:
-                    false
-                }
-              );
-            }
-        }
-      );
-    } finally {
-      setBusy(false);
-      resizeComposer();
-      focusComposerForDesktop();
-    }
+    return scope.storageMode==='local'?runLocalPrompt(text,options):runPointerPrompt(text,options);
   }
 
   async function handleSubmit(event) {
@@ -7569,322 +7328,22 @@
     return subject + " 실행해줘";
   }
 
-  async function runCanvasNode(
-    nodeId,
-    mode = "closed",
-    options = {}
-  ) {
-    if(String(state.canvas?.getNode?.(nodeId)?.type||'').startsWith('pointer:')){
-      showErrorNotice(new Error('POINTER_RUNTIME_REQUIRED'),{
-        scope:'노드 실행 경로 오류',
-        fallback:'동적 노드는 Pointer 실행기로만 실행할 수 있습니다.'});
+  async function runCanvasNode(nodeId,mode='closed'){
+    if(state.pointerMigrationError){
+      showErrorNotice(state.pointerMigrationError,{scope:'작업 이관 오류',
+        fallback:'저장된 작업을 안전하게 전환하지 못해 실행하지 않았어.'});
       return null;
     }
-    if (
-      !state.canvas ||
-      !state.runtime ||
-      state.runGate.locked ||
-      state.runtime.isRunning()
-    ) {
-      return null;
-    }
-
-    setRunGate(
-      true,
-      0,
-      nodeId
-    );
-
-    let started = false;
-
-    try {
-      const visibleWorkflow =
-        state.canvas.getWorkflow();
-
-      const runMode =
-        typeof Execution
-          .normalizeExecutionMode ===
-          "function"
-          ? Execution
-              .normalizeExecutionMode(
-                mode
-              )
-          : (
-              mode === "open" ||
-              mode === "spread"
-                ? "spread"
-                : "target"
-            );
-
-      const prepared =
-        typeof state.canvas
-          .prepareRuntime ===
-          "function"
-          ? state.canvas
-              .prepareRuntime(
-                nodeId,
-                {
-                  mode:
-                    runMode
-                }
-              )
-          : {
-              workflow:
-                visibleWorkflow,
-              pivotId:
-                nodeId,
-              visiblePivot:
-                nodeId,
-              resolveVisibleNodeId:
-                id=>String(id||""),
-              project:
-                event=>[event]
-            };
-
-      const workflow =
-        prepared.workflow;
-
-      const runtimeNodeId =
-        prepared.pivotId;
-
-      state.runtimeProjection =
-        prepared;
-
-      const readiness =
-        typeof Execution
-          .validateExecutionReadiness ===
-          "function"
-          ? Execution
-              .validateExecutionReadiness(
-                workflow,
-                runtimeNodeId,
-                {
-                  mode:
-                    runMode,
-                  userRequest:
-                    String(
-                      options.userRequest ||
-                      state.workflowUserRequest ||
-                      state.lastUserRequest ||
-                      ""
-                    )
-                }
-              )
-          : {
-              ok: true,
-              emptyNodes: []
-            };
-
-      if (!readiness.ok) {
-        const invalid =
-          readiness.emptyNodes?.[0];
-
-        const visibleInvalidId =
-          prepared
-            .resolveVisibleNodeId?.(
-              invalid?.id
-            ) ||
-          String(
-            invalid?.id || ""
-          );
-
-        const invalidNode =
-          visibleWorkflow.nodes.find(
-            node =>
-              node.id ===
-              visibleInvalidId
-          );
-
-        if (invalidNode) {
-          state.canvas
-            ?.selectNode?.(
-              invalidNode.id
-            );
-
-          if (
-            !invalidNode.expanded
-          ) {
-            state.canvas
-              ?.toggleNodeExpanded?.(
-                invalidNode.id
-              );
-          }
-        }
-
-        return null;
-      }
-
-      dismissErrorNotice();
-
-      if (
-        options.addUserMessage !==
-          false
-      ) {
-        const runUserText =
-          canvasRunUserText(
-            nodeId,
-            visibleWorkflow
-          );
-
-        addUserMessage(
-          runUserText
-        );
-      }
-
-      scheduleWorkspaceSave();
-
-      started = true;
-
-      const result =
-        await state.runtime.run(
-          workflow,
-          runtimeNodeId,
-          {
-            mode:
-              runMode,
-            cacheContext: {
-              conversationId:
-                currentConversationId(),
-              userRequest:
-                String(
-                  options.userRequest ||
-                  state.workflowUserRequest ||
-                  state.lastUserRequest ||
-                  ""
-                ),
-              memory:
-                state.conversationMemory
-                  ? clone(
-                      state.conversationMemory
-                    )
-                  : null
-            }
-          }
-        );
-
-      if (
-        result?.status ===
-          "CANCELLED"
-      ) {
-        Presence.settle();
-        return result;
-      }
-
-      await finalizeRuntimeRun(
-        result
-      );
-
-      return result;
-    } catch (error) {
-      clearRuntimeConnections();
-
-      console.error(
-        "ovll runtime failed:",
-        error
-      );
-
-      finishRuntimeActivity({
-        failed: true
-      });
-
-      Presence.settle();
-
-      const presentation =
-        errorPresentation(
-          error,
-          "실행을 완료하지 못했습니다."
-        );
-
-      Presence.canvasStatus?.(
-        presentation.title,
-        {
-          hold: 2200
-        }
-      );
-
-      showErrorNotice(
-        error,
-        {
-          scope:
-            "실행 오류",
-          fallback:
-            "실행을 완료하지 못했습니다.",
-          onRetry:
-            () => {
-              void runCanvasNode(
-                nodeId,
-                mode,
-                options
-              );
-            }
-        }
-      );
-
-      return null;
-    } finally {
-      state.runtimeProjection = null;
-
-      setRunGate(
-        false,
-        started
-          ? 650
-          : 0
-      );
-    }
+    return runPointerCanvasNode(nodeId,mode==='spread'?'open':mode==='target'?'closed':mode);
   }
 
-  function handleCanvasNodeRun(payload) {
-    const nodeId =
-      String(
-        payload?.id || ""
-      );
-
-    if (!nodeId) {
-      return;
-    }
-    if(pointerScope()){
-      void runPointerCanvasNode(nodeId,payload?.mode);
-      return;
-    }
-
-    void runCanvasNode(
-      nodeId,
-      payload?.mode || "closed"
-    );
+  function handleCanvasNodeRun(payload){
+    const nodeId=String(payload?.id||'');
+    if(nodeId)void runCanvasNode(nodeId,payload?.mode||'closed');
   }
-
-  function handleCanvasNodeRunCancel(
-    payload
-  ) {
-    const nodeId =
-      String(
-        payload?.id || ""
-      );
-
-    if(pointerScope()){
-      if(nodeId)void cancelPointerCanvasNode(nodeId);
-      return;
-    }
-
-    if (
-      !nodeId ||
-      !state.runtime
-        ?.isRunning?.()
-    ) {
-      return;
-    }
-
-    const cancelled =
-      state.runtime.cancel?.();
-
-    if (cancelled) {
-      Presence.canvasStatus?.(
-        "실행 중단 중",
-        {
-          hold: 0
-        }
-      );
-    }
+  function handleCanvasNodeRunCancel(payload){
+    const nodeId=String(payload?.id||'');
+    if(nodeId)void cancelPointerCanvasNode(nodeId);
   }
 
   function openConversation(
@@ -7965,6 +7424,7 @@
           state.pointerEditTimer=null;
           state.pointerGraphSnapshot=null;
           state.pointerGraphRevision=-1;
+          state.pointerMigrationError=null;
           state.pointerWatch?.();
           state.pointerWatch = null;
           state.pointerRuns.clear();
@@ -8071,6 +7531,18 @@
               });
           }
 
+          if(global.OVLL_RUNTIME?.pointerEnabled===true &&
+            global.OVLL_RUNTIME?.pointerStorageMode==='local' &&
+            !conversation.state?.pointerGraph && canvasState?.workflow?.nodes?.length){
+            try{
+              await global.OvllPointerLocal.migrateConversation(id,canvasState);
+            }catch(error){
+              state.pointerMigrationError=error;
+              console.warn('Legacy graph migration blocked; saved data left intact',error?.code||error);
+              showErrorNotice(error,{scope:'이전 작업 이관',
+                fallback:'이전 작업에 새 실행기로 전환할 수 없는 노드가 있어. 원본은 보존했어.'});
+            }
+          }
           const messages =
             await hydrateStoredMessages(
               conversation
@@ -8158,7 +7630,7 @@
             false;
         }
 
-        if(pointerScope()){
+        if(pointerScope()&&!state.pointerMigrationError){
           state.pointerGraphRevision=-1;
           await connectPointer();
         }
@@ -8271,258 +7743,6 @@
 
     state.canvas = canvas;
 
-    const localExecutor =
-      new Execution.LocalNodeExecutor();
-
-    function runtimeInputValues(
-      inputs
-    ) {
-      return Object.values(
-        inputs || {}
-      )
-        .flatMap(
-          value =>
-            Array.isArray(value)
-              ? value
-              : [value]
-        )
-        .map(
-          item =>
-            item?.value
-        )
-        .filter(
-          value =>
-            value !==
-              undefined
-        );
-    }
-
-    function beginMascotWorkSequence(
-      ids
-    ) {
-      const nodeIds =
-        Array.isArray(ids)
-          ? ids
-              .map(String)
-              .filter(Boolean)
-          : [];
-
-      let index = 0;
-      let timer = null;
-      let stopped = false;
-
-      const visit = () => {
-        if (
-          stopped ||
-          index >=
-            nodeIds.length
-        ) {
-          return;
-        }
-
-        Presence.workAtNode?.(
-          nodeIds[index],
-          true
-        );
-
-        index++;
-
-        if (
-          index <
-            nodeIds.length
-        ) {
-          timer =
-            setTimeout(
-              visit,
-              900
-            );
-        }
-      };
-
-      visit();
-
-      return () => {
-        stopped = true;
-        clearTimeout(
-          timer
-        );
-
-        Presence.workAtNode?.(
-          nodeIds[
-            Math.max(
-              0,
-              index - 1
-            )
-          ] || null,
-          false
-        );
-      };
-    }
-
-    function resolveArtifactRequest(
-      params
-    ) {
-      const resolver =
-        global
-          .OvllArtifactRequest
-          ?.resolve;
-
-      if (
-        typeof resolver !==
-          "function"
-      ) {
-        throw new Error(
-          "파일 요청 해석기를 불러오지 못했습니다."
-        );
-      }
-
-      return resolver(
-        params
-      );
-    }
-
-    const runtimeExecutor = {
-      async run(
-        node,
-        inputs,
-        context
-      ) {
-        Presence.workAtNode?.(
-          node?.id,
-          true
-        );
-
-        try {
-          if (
-            node?.type ===
-              "createFile"
-          ) {
-            const params =
-              node?.data?.params ||
-              node?.params ||
-              {};
-
-            const artifactRequest =
-              resolveArtifactRequest(
-                params
-              );
-
-            const response =
-              await API
-                .createArtifact(
-                  {
-                    format:
-                      artifactRequest
-                        .format,
-                    filename:
-                      artifactRequest
-                        .filename,
-                    targetPages:
-                      artifactRequest
-                        .targetPages,
-                    sources:
-                      runtimeInputValues(
-                        inputs
-                      )
-                  },
-                  {
-                    signal:
-                      context?.signal
-                  }
-                );
-
-            const artifact =
-              response?.artifact;
-
-            if (!artifact) {
-              throw new Error(
-                "파일 생성 결과가 없습니다."
-              );
-            }
-
-            await persistArtifactLocally(
-              artifact,
-              "generated"
-            );
-
-            return {
-              outputs: {},
-              artifact,
-              report:
-                `${artifact.name} 생성 완료`
-            };
-          }
-
-          return await localExecutor.run(
-            node,
-            inputs,
-            context
-          );
-        } finally {
-          Presence.workAtNode?.(
-            node?.id,
-            false
-          );
-        }
-      },
-
-      async runGroup(
-        group,
-        context = {}
-      ) {
-        const stopMascot =
-          beginMascotWorkSequence(
-            group?.nodes?.map(
-              node => node.id
-            ) || []
-          );
-
-        try {
-          const response =
-            await API.executeGroup(
-              group,
-              {
-                userRequest:
-                  context?.cacheContext
-                    ?.userRequest ||
-                  state.workflowUserRequest ||
-                  state.lastUserRequest,
-                memory:
-                  state.conversationMemory
-              },
-              {
-                signal:
-                  context?.signal
-              }
-            );
-
-          return {
-            results:
-              response.results
-          };
-        } finally {
-          stopMascot();
-        }
-      }
-    };
-
-    state.runtime =
-      new Execution.RuntimeEngine({
-        executor:
-          runtimeExecutor,
-        onEvent:
-          handleRuntimeEvent,
-        measureGroupInputChars:
-          (
-            group,
-            context
-          ) =>
-            API
-              .measureExecutionPayloadChars(
-                group,
-                context
-              )
-      });
 
     ensureMainWorkspace()
       .bindCanvas(
@@ -8797,7 +8017,8 @@ listen(composerInput, "keydown", handleComposerKeydown);
     },
 
     getLastRun() {
-      return state.runtime?.getLastRun?.() || null;
+      const runs=WorkspaceStore.getConversation(currentConversationId())?.state?.pointerRuns||[];
+      return runs[runs.length-1]||null;
     },
 
     getNodeDefinitions() {
@@ -8858,16 +8079,7 @@ listen(composerInput, "keydown", handleComposerKeydown);
     addSystemMessage,
 
     async plan(text) {
-      if (state.busy) return null;
-
-      setBusy(true);
-
-      try {
-        return await plan(text);
-      } finally {
-        setBusy(false);
-        resizeComposer();
-      }
+      return runPrompt(text);
     },
 
     destroy() {

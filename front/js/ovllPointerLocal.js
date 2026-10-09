@@ -36,6 +36,84 @@
       if(!conversation)throw new Error("CONVERSATION_NOT_FOUND");
       return conversation;
     };
+    // Upgrade saved canvas graphs without invoking the retired planner. On any
+    // unsupported shape leave the original conversation untouched.
+    function migratedCanvas(canvas,graphId,definitions){
+      const workflow=canvas?.workflow;
+      if(!Array.isArray(workflow?.nodes)||!Array.isArray(workflow?.connections))
+        throw new Error('LEGACY_GRAPH_INVALID');
+      if(workflow.nodes.length>64||workflow.connections.length>128)
+        throw new Error('LEGACY_GRAPH_TOO_LARGE');
+      const catalog=new Map(definitions.map(d=>[d.definitionId,d]));
+      const nodes=[],connections=[],seen=new Set(),types=new Map();
+      for(const node of workflow.nodes){
+        if(!safe(node?.id)||seen.has(node.id))throw new Error('LEGACY_GRAPH_NODE_INVALID');
+        seen.add(node.id);
+        if(node.type==='start')continue;
+        const def=catalog.get('builtin:'+node.type);
+        if(!def)throw new Error('LEGACY_GRAPH_REQUIRES_REVIEW');
+        types.set(node.id,def);
+        const params=node.data?.params||node.params||{};
+        const request=typeof params.request==='string'&&params.request.trim()
+          ?params.request.trim():Object.entries(params).filter(([key,value])=>
+            key!=='request'&&typeof value==='string'&&value.trim()).map(([key,value])=>
+            key+': '+value.trim()).join('\n');
+        const settings={request:request.slice(0,2400)};
+        if(node.type==='file'){
+          const file={};
+          for(const key of ['source','localFileId','name','mime','size','lastModified',
+            'downloadUrl','previewUrl','textPreview','textTruncated']){
+            if(node.data?.[key]!==undefined)file[key]=node.data[key];
+          }
+          if(file.textPreview)file.textPreview=String(file.textPreview).slice(0,12000);
+          settings.file=file;
+        }
+        nodes.push({nodeId:node.id,
+          definitionRef:{definitionId:def.definitionId,version:def.version},
+          inputBindings:{},settings});
+      }
+      for(const [index,link] of workflow.connections.entries()){
+        const from=link?.from,to=link?.to;
+        if(!seen.has(from?.node)||!seen.has(to?.node)||
+          !safe(from?.port)||!safe(to?.port))throw new Error('LEGACY_GRAPH_LINK_INVALID');
+        if(!types.has(from.node)){
+          if(workflow.nodes.some(n=>n.id===from.node&&n.type==='start'))continue;
+          throw new Error('LEGACY_GRAPH_LINK_INVALID');
+        }
+        if(!types.has(to.node))throw new Error('LEGACY_GRAPH_LINK_INVALID');
+        const source=types.get(from.node),target=types.get(to.node);
+        const dataCompatible=source.outputs.some(p=>p.name===from.port)&&
+          target.inputs.some(p=>p.name===to.port);
+        const requestedKind=link.data?.kind;
+        const kind=requestedKind==='flow'||requestedKind==='data'
+          ?requestedKind:dataCompatible?'data':'flow';
+        if(kind==='data'&&!dataCompatible)throw new Error('LEGACY_GRAPH_PORT_MISMATCH');
+        connections.push({id:'migrated_link_'+index,kind,
+          from:{nodeId:from.node,port:from.port},
+          to:{nodeId:to.node,port:to.port}});
+      }
+      return {graph:{graphId,revision:1,nodes,connections},definitions};
+    }
+    async function projectCanvasDraft(canvas,graphId){
+      if(!safe(graphId))throw new Error('INVALID_DRAFT_GRAPH_ID');
+      const base={graph:{graphId,revision:0,nodes:[],connections:[]},definitions:[]};
+      const seeded=await seed(base);
+      return migratedCanvas(canvas,graphId,seeded.definitions);
+    }
+    async function migrateConversation(conversationId,canvas){
+      const graphId=graphIdFor(conversationId);
+      const conversation=conversationFor(conversationId,graphId);
+      if(conversation.state?.pointerGraph)return false;
+      const legacy=canvas||conversation.state?.canvas;
+      if(!legacy?.workflow?.nodes?.length)return false;
+      const empty={graph:{graphId,revision:0,nodes:[],connections:[]},definitions:[]};
+      const seeded=await seed(empty);
+      const converted=migratedCanvas(legacy,graphId,seeded.definitions);
+      const {MemoryGraphRepository}=await loadCore(),repo=new MemoryGraphRepository();
+      repo.restore('local',graphId,converted);
+      workspaceStore.updateConversationPointerGraph(conversationId,repo.get('local',graphId));
+      return true;
+    }
     async function repository(conversationId,graphId){
       const conversation=conversationFor(conversationId,graphId);
       const {MemoryGraphRepository}=await loadCore();
@@ -194,7 +272,7 @@
       return JSON.parse(JSON.stringify(record));
     }
 
-    return Object.freeze({graphId:graphIdFor,state,turn,run});
+    return Object.freeze({graphId:graphIdFor,state,turn,run,migrateConversation,projectCanvasDraft});
   }
   global.createOvllPointerLocal=create;
   global.OvllPointerLocal=create();

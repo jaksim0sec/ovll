@@ -115,7 +115,21 @@ export function createLocalPointerHost({gateway,resolveModel,validation=createCo
         values:Object.fromEntries(checked.map(x=>[x.port.name,{inline:x.value}]))},
       provenance:Object.fromEntries(Array.isArray(checked)?checked.map(x=>[x.port.name,x.sourceRefs]):[]),validatedPorts:checked.length||0};
   }
-  return Object.freeze({turn,node});
+  async function response({snapshot,requestRef,requestText,actionResults=[],history=[],signal}={}){
+    if(!Array.isArray(actionResults)||actionResults.length>32||
+      Buffer.byteLength(JSON.stringify(actionResults),'utf8')>24000)
+      fail('INVALID_LOCAL_RESPONSE_FACTS');
+    const {context}=prepare({snapshot,requestRef,requestText,history,
+      capabilities:[]});
+    const result=await invoke({context,modules:['layer.response','response.present'],
+      extraContext:{actionResults:clone(actionResults)},signal});
+    const message=result.turn.message;
+    if(typeof message!=='string'||!message.trim()||
+      result.turn.actions?.length||result.turn.needs?.length||result.turn.outputs)
+      fail('INVALID_LOCAL_RESPONSE');
+    return {message};
+  }
+  return Object.freeze({turn,node,response});
 }
 export function createConfiguredLocalPointerHost({env=process.env,fetchImpl=fetch}={}){
   const merged=(env.OVLL_POINTER_MODEL_ENDPOINT||env.OVLL_VNEXT_MODEL_ENDPOINT)?env:{
