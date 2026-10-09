@@ -34,8 +34,8 @@ test('retired execution modules are absent and saved workflow migration remains'
 
 test('application startup never requires a retired execution engine',()=>{
   const app=read('front/js/app.js');
-  assert.doesNotMatch(app,/\\bExecution\\b/);
-  assert.match(app,/global\\.dispatchEvent\\(/);
+  assert.doesNotMatch(app,/\bExecution\b/);
+  assert.match(app,/global\.dispatchEvent\(/);
   assert.match(app,/ovll:app-ready/);
 });
 test('synchronous script evaluation failure visibly ends the boot spinner',()=>{
