@@ -29,14 +29,14 @@ test('local application hooks model proposals to stored graph and executes model
  assert.match(app,/PointerAPI\.localTurn\(/);
  assert.match(app,/OvllPointerLocal\.turn\(/);
  assert.match(app,/OvllPointerLocal\.run\(/);
- assert.match(boot,/\.\/js\/pointerFunctions\.js/);
+ assert.match(boot,/\.\/js\/ovllPointerFunctions\.js/);
  assert.match(config,/pointerEnabled:true/);
 });
 
 test('preserves saved function drafts created before OvllPointer rename',()=>{
   const cache=new Map(),storage={getItem:k=>cache.get(k)||null,setItem:(k,v)=>cache.set(k,v)};
   cache.set('ovll:vnext:functions:v1',JSON.stringify([{id:'fn_old',purpose:'기존 초안',version:1,
-    snapshot:{graph:{graphId:'g_old',revision:1,nodes:[{nodeId:'a'}],connections:[]},definitions:[]},targets:['a']}])));
+    snapshot:{graph:{graphId:'g_old',revision:1,nodes:[{nodeId:'a'}],connections:[]},definitions:[]},targets:['a']}]));
   const window={localStorage:storage,crypto:{randomUUID:()=> 'abcd'}};
   vm.runInNewContext(script,{window});
   assert.equal(window.OvllPointerFunctions.list()[0].purpose,'기존 초안');

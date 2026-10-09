@@ -63,7 +63,7 @@ test('local mode is default and SQL-dependent runtime stays opt-in',()=>{
   const config=read('front/runtime-config.js'),server=read('server.js');
   assert.match(config,/pointerStorageMode:"local"/);
   assert.match(config,/pointerEnabled:true/);
-  assert.doesNotMatch(server,/from ['"]\.\/backend\/pointer\/durable/);
+  assert.doesNotMatch(server,/from ['"]\.\/backend\/ovllPointer\/durable/);
   assert.match(read('backend/ovllPointer/runtime.js'),/PostgresPointerStore/);
 });
 

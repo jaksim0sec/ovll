@@ -1,4 +1,4 @@
-import {KernelError,computeScope} from './pointerGraphCore.mjs';
+import {KernelError,computeScope} from './ovllPointerGraphCore.mjs';
 const reject=(code,status=422)=>{throw new KernelError(code,code,status);};
 export function buildExecutionPlan(snapshot, run) {
   if (!snapshot?.graph || !Array.isArray(snapshot.definitions) || !run?.graphRef) reject('INVALID_EXECUTION_CONTEXT');
