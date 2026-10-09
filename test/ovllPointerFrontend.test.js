@@ -48,3 +48,26 @@ test('SSE retains durable cursor and suppresses duplicate events',async()=>{
   assert.deepEqual(got,[1,2]);
   assert.equal(stream.closed,true);
 });
+
+test('frontend keeps local provider retry timing without exposing upstream messages',async()=>{
+ const window={OVLL_RUNTIME:{},crypto:{randomUUID:()=> 'uuid'},
+   fetch:async()=>({ok:false,status:429,json:async()=>({
+     error:{code:'PROVIDER_RATE_LIMIT',retryAfterSeconds:9,debug:'private upstream response'}
+   })})};
+ vm.runInNewContext(source,{window});
+ await assert.rejects(window.OvllPointerApi.localTurn({snapshot:{},requestText:'hello'}),error=>
+   error.code==='PROVIDER_RATE_LIMIT'&&error.retryAfterSeconds===9&&
+   !String(error.message).includes('private'));
+});
+test('runtime activity layout keeps full-width labels on narrow screens',()=>{
+ const css=readFileSync(new URL('../front/css/chat.css',import.meta.url),'utf8');
+ const step=css.match(/\.ovll-runtime-step \{([^}]+)\}/)?.[1]||'';
+ const content=css.match(/\.ovll-runtime-step-content \{([^}]+)\}/)?.[1]||'';
+ const label=css.match(/\.ovll-runtime-step-label \{([^}]+)\}/)?.[1]||'';
+ assert.match(step,/display: flex;/);
+ assert.match(step,/max-width: 100%/);
+ assert.match(content,/flex: 1 1 auto/);
+ assert.match(label,/width: 100%/);
+ assert.doesNotMatch(step,/grid-template-columns/);
+ assert.match(css,/\.ovll-runtime-step-icon\[hidden\] \{\s*display: none;/);
+});

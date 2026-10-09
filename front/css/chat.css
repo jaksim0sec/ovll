@@ -1071,6 +1071,8 @@ tr:last-child td {
 
 .ovll-runtime-activity {
   width: 100%;
+  min-width: 0;
+  align-self: stretch;
   max-width: 42.5rem;
   margin-bottom: -.32rem;
   padding: 0;
@@ -1194,7 +1196,10 @@ tr:last-child td {
 
 .ovll-runtime-activity-steps {
   width: 100%;
-  display: grid;
+  min-width: 0;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
   gap: .18rem;
   max-height: 32rem;
   padding:
@@ -1222,10 +1227,9 @@ tr:last-child td {
 .ovll-runtime-step {
   width: 100%;
   min-width: 0;
-  display: grid;
-  grid-template-columns:
-    1.16rem
-    minmax(0,1fr);
+  max-width: 100%;
+  display: flex;
+  flex-direction: row;
   gap: .44rem;
   align-items: start;
   padding: .14rem 0;
@@ -1246,6 +1250,7 @@ tr:last-child td {
 .ovll-runtime-step-icon {
   width: 1.16rem;
   height: 1.16rem;
+  flex: 0 0 1.16rem;
   display: grid;
   place-items: center;
   margin-top: .04rem;
@@ -1258,7 +1263,7 @@ tr:last-child td {
 }
 
 .ovll-runtime-step-icon[hidden] {
-  visibility: hidden;
+  display: none;
 }
 
 .ovll-runtime-step-icon svg {
@@ -1303,14 +1308,20 @@ tr:last-child td {
 }
 
 .ovll-runtime-step-content {
-  width: 100%;
+  flex: 1 1 auto;
+  width: auto;
   min-width: 0;
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: .08rem;
 }
 
 .ovll-runtime-step-label {
+  display: block;
+  width: 100%;
   min-width: 0;
+  white-space: normal;
+  word-break: normal;
   color:
     color-mix(
       in srgb,
@@ -1321,11 +1332,13 @@ tr:last-child td {
   font-weight: 530;
   line-height: 1.46;
   letter-spacing: -.012em;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .ovll-runtime-step-detail {
-  max-width: 38rem;
+  display: block;
+  max-width: 100%;
+  min-width: 0;
   color:
     color-mix(
       in srgb,

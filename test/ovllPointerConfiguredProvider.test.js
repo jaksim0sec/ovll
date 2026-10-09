@@ -36,3 +36,48 @@ test('provider truncation is explicit rather than retried as a JSON typo',async(
  const adapter=openAIChatAdapter({endpoint:'https://unit.test',apiKey:'test',fetchImpl:async()=>({ok:true,json:async()=>({choices:[{finish_reason:'length',message:{content:'{"actions":['}}]})})});
  await assert.rejects(adapter.complete({model:'test',messages:[],output:'json'}),error=>error.code==='MODEL_OUTPUT_TRUNCATED');
 });
+
+test('provider 429 without retry metadata is surfaced once, not retried in a burst',async()=>{
+ const {openAIChatAdapter}=await import('../backend/ovllPointer/providers.js');
+ let calls=0;
+ const adapter=openAIChatAdapter({endpoint:'https://unit.test',apiKey:'secret',
+   fetchImpl:async()=>{calls++;return{ok:false,status:429};}});
+ await assert.rejects(adapter.complete({model:'x',messages:[]}),error=>
+   error.code==='PROVIDER_RATE_LIMIT'&&error.status===429);
+ assert.equal(calls,1);
+});
+test('provider honors short Retry-After once and succeeds without changing request contents',async()=>{
+ const {openAIChatAdapter}=await import('../backend/ovllPointer/providers.js');
+ let calls=0;
+ const requestBodies=[];
+ const adapter=openAIChatAdapter({endpoint:'https://unit.test',apiKey:'secret',
+   fetchImpl:async(_url,options)=>{
+     calls++;requestBodies.push(options.body);
+     if(calls===1)return{ok:false,status:429,headers:{get:key=>key==='retry-after'?'0.1':null}};
+     return{ok:true,json:async()=>({choices:[{message:{content:'{"message":"ok"}'}}]})};
+   }});
+ const result=await adapter.complete({model:'x',messages:[{role:'user',content:'test'}],output:'json'});
+ assert.equal(result.text,'{"message":"ok"}');
+ assert.equal(calls,2);
+ assert.equal(requestBodies[0],requestBodies[1]);
+});
+test('provider remembers a long quota cooldown and suppresses repeated HTTP calls',async()=>{
+ const {openAIChatAdapter}=await import('../backend/ovllPointer/providers.js');
+ let calls=0;
+ const adapter=openAIChatAdapter({endpoint:'https://unit.test',apiKey:'secret',
+   fetchImpl:async()=>{calls++;return{ok:false,status:429,headers:{get:()=> '180'}};}});
+ for(let i=0;i<2;i++)await assert.rejects(
+   adapter.complete({model:'x',messages:[]}),
+   error=>error.code==='PROVIDER_RATE_LIMIT'&&error.retryAfterSeconds>0);
+ assert.equal(calls,1);
+});
+test('abort during quota wait does not retry or leak work',async()=>{
+ const {openAIChatAdapter}=await import('../backend/ovllPointer/providers.js');
+ const abort=new AbortController();let calls=0;
+ const adapter=openAIChatAdapter({endpoint:'https://unit.test',apiKey:'secret',
+   fetchImpl:async()=>{calls++;return{ok:false,status:429,headers:{get:()=> '1'}};}});
+ const pending=adapter.complete({model:'x',messages:[],signal:abort.signal});
+ setTimeout(()=>abort.abort(),10);
+ await assert.rejects(pending,error=>error.code==='MODEL_REQUEST_CANCELLED');
+ assert.equal(calls,1);
+});

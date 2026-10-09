@@ -1,8 +1,35 @@
 // Provider-independent gateway: typed request/result and a separate vendor wire adapter.
 export class ProviderError extends Error {
-  constructor(code, detail = code, status = 502) { super(detail); this.code = code; this.status = status; }
+  constructor(code, detail = code, status = 502, retryAfterSeconds = null) {
+    super(detail);
+    this.code = code;
+    this.status = status;
+    if (Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0)
+      this.retryAfterSeconds = Math.ceil(retryAfterSeconds);
+  }
 }
 const fail = (code, status) => { throw new ProviderError(code, code, status); };
+function readRetryAfter(headers) {
+  const value = headers?.get?.('retry-after');
+  if (!value) return null;
+  const number = Number(value);
+  const seconds = Number.isFinite(number) ? number : (Date.parse(value) - Date.now()) / 1000;
+  return Number.isFinite(seconds) && seconds > 0 ? Math.min(3600, Math.ceil(seconds)) : null;
+}
+async function waitForRetry(seconds, signal) {
+  if (signal?.aborted) fail('MODEL_REQUEST_CANCELLED', 499);
+  await new Promise((resolve, reject) => {
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(new ProviderError('MODEL_REQUEST_CANCELLED', 'MODEL_REQUEST_CANCELLED', 499));
+    };
+    const timer = setTimeout(() => {
+      signal?.removeEventListener?.('abort', onAbort);
+      resolve();
+    }, seconds * 1000);
+    signal?.addEventListener?.('abort', onAbort, { once: true });
+  });
+}
 export class ModelGateway {
   #providers = new Map();
   register(providerId, adapter, capabilities = {}) {
@@ -29,26 +56,42 @@ export class ModelGateway {
 }
 export function openAIChatAdapter({ endpoint, apiKey, fetchImpl = fetch } = {}) {
   if (!endpoint || !apiKey || typeof fetchImpl !== 'function') fail('PROVIDER_CONFIGURATION_REQUIRED');
-  // endpoint and secret must be supplied from trusted server configuration, never ModelTurn.
+  // A short, explicitly signalled quota reset can recover; never blindly reissue on unknown limits.
+  let blockedUntil = 0;
   return {
     async complete({ model, messages, output, signal, maxOutputTokens }) {
+      const remaining = Math.ceil((blockedUntil - Date.now()) / 1000);
+      if (remaining > 0) throw new ProviderError('PROVIDER_RATE_LIMIT', 'PROVIDER_RATE_LIMIT', 429, remaining);
       const body = { model, messages, stream: false };
       if (maxOutputTokens !== undefined) body.max_completion_tokens = maxOutputTokens;
       if (output === 'json') body.response_format = { type: 'json_object' };
-      let response;
-      try {
-        response = await fetchImpl(endpoint, { method: 'POST', signal, headers: { Authorization: 'Bearer ' + apiKey, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-      } catch (e) {
-        if (signal?.aborted) fail('MODEL_REQUEST_CANCELLED', 499);
-        fail('PROVIDER_NETWORK_ERROR', 502);
+      for (let attempt = 0; attempt < 2; attempt++) {
+        let response;
+        try {
+          response = await fetchImpl(endpoint, { method: 'POST', signal, headers: { Authorization: 'Bearer ' + apiKey, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        } catch {
+          if (signal?.aborted) fail('MODEL_REQUEST_CANCELLED', 499);
+          fail('PROVIDER_NETWORK_ERROR', 502);
+        }
+        if (response.status === 429) {
+          const retryAfterSeconds = readRetryAfter(response.headers);
+          if (attempt === 0 && retryAfterSeconds !== null && retryAfterSeconds <= 8) {
+            await waitForRetry(retryAfterSeconds, signal);
+            continue;
+          }
+          if (retryAfterSeconds !== null) blockedUntil = Date.now() + retryAfterSeconds * 1000;
+          throw new ProviderError('PROVIDER_RATE_LIMIT', 'PROVIDER_RATE_LIMIT', 429, retryAfterSeconds);
+        }
+        if (!response.ok) fail('PROVIDER_HTTP_ERROR', response.status);
+        let parsed;
+        try { parsed = await response.json(); } catch { fail('PROVIDER_INVALID_JSON'); }
+        const choice = parsed?.choices?.[0];
+        if (choice?.finish_reason === 'length') fail('MODEL_OUTPUT_TRUNCATED');
+        if (typeof choice?.message?.content !== 'string') fail('PROVIDER_INVALID_OUTPUT');
+        blockedUntil = 0;
+        return { text: choice.message.content, usage: parsed.usage || null, requestId: parsed.id || null };
       }
-      if (!response.ok) fail(response.status === 429 ? 'PROVIDER_RATE_LIMIT' : 'PROVIDER_HTTP_ERROR', response.status);
-      let parsed;
-      try { parsed = await response.json(); } catch { fail('PROVIDER_INVALID_JSON'); }
-      const choice = parsed?.choices?.[0];
-      if(choice?.finish_reason==='length')fail('MODEL_OUTPUT_TRUNCATED');
-      if (typeof choice?.message?.content !== 'string') fail('PROVIDER_INVALID_OUTPUT');
-      return { text: choice.message.content, usage: parsed.usage || null, requestId: parsed.id || null };
+      fail('PROVIDER_RATE_LIMIT', 429);
     }
   };
 }

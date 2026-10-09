@@ -576,6 +576,19 @@
         ""
       );
 
+    const rateLimited =
+      status === 429 ||
+      [
+        "PROVIDER_RATE_LIMIT",
+        "LOCAL_MODEL_RATE_LIMIT",
+        "LOCAL_MODEL_DAILY_BUDGET"
+      ].includes(code);
+
+    const retryAfter =
+      Number(
+        error?.retryAfterSeconds
+      );
+
     const noisy =
       /(?:Groq|Gemini) API (?:오류|error):?\s*\d+\s*[\[{]/i
         .test(
@@ -586,12 +599,12 @@
       "작업 오류";
 
     if (
-      status === 429 ||
+      rateLimited ||
       /rate limit|quota|too many requests/i
         .test(rawMessage)
     ) {
       title =
-        "요청이 많아";
+        "모델 요청 제한";
     } else if (
       status === 413 ||
       code ===
@@ -641,10 +654,21 @@
     }
 
     const detail =
-      !noisy &&
-      rawMessage
-        ? rawMessage
-        : fallback;
+      code ===
+        "LOCAL_MODEL_DAILY_BUDGET"
+        ? "오늘의 모델 사용 한도에 도달했어. 다음 한도 갱신 후 다시 시도해 줘."
+        : rateLimited
+          ? Number.isFinite(retryAfter) &&
+            retryAfter > 0 &&
+            retryAfter <= 120
+            ? `모델 요청이 잠시 제한됐어. 약 ${Math.ceil(retryAfter)}초 후 다시 시도해 줘.`
+            : "모델 제공자의 요청 한도에 걸렸어. 잠시 후 다시 시도해 줘."
+          : code === "LOCAL_MODEL_BUSY"
+            ? "현재 작업이 몰려 대기 공간이 찼어. 잠시 후 다시 시도해 줘."
+            : !noisy &&
+              rawMessage
+                ? rawMessage
+                : fallback;
 
     return {
       title,
@@ -6524,8 +6548,11 @@
       if(facts.some(r=>['applied','completed'].includes(r.status)))state.workflowUserRequest=value;
       addAssistantMessage(actions.present({facts,messages,runs}));
     }catch(error){
-      upsertRuntimeStep('__local_error__','요청 처리 실패','failed',error?.code||error?.message||'');
-      showErrorNotice(error,{scope:'로컬 OvllPointer 오류',fallback:'작업을 처리하지 못했어.'});
+      upsertRuntimeStep('__local_error__','요청 처리 실패','failed',
+        userFacingError(error,'작업을 처리하지 못했어.'));
+      showErrorNotice(error,{scope:error?.status===429?undefined:'로컬 OvllPointer 오류',
+        fallback:'작업을 처리하지 못했어.',
+        ...(error?.status===429?{onRetry:()=>runLocalPrompt(value,{addUserMessage:false})}:{})});
     }finally{
       finishRuntimeActivity({removeImmediately:!state.runtimeActivity?.order?.length});
       Presence.settle();setBusy(false);

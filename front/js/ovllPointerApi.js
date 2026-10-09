@@ -16,7 +16,13 @@
     }catch(error){throw makeError(signal?.aborted?'REQUEST_ABORTED':'NETWORK_ERROR',signal?.aborted?499:0);}
     let data;
     try{data=await response.json();}catch{throw makeError('INVALID_SERVER_RESPONSE',response.status);}
-    if(!response.ok)throw makeError(data?.error?.code||'API_REQUEST_FAILED',response.status);
+    if(!response.ok){
+      const error=makeError(data?.error?.code||'API_REQUEST_FAILED',response.status);
+      const retryAfterSeconds=Number(data?.error?.retryAfterSeconds);
+      if(Number.isFinite(retryAfterSeconds)&&retryAfterSeconds>0)
+        error.retryAfterSeconds=Math.ceil(retryAfterSeconds);
+      throw error;
+    }
     return data;
   }
   const uniqueId=()=>{if(typeof global.crypto?.randomUUID!=='function')throw makeError('SECURE_REQUEST_ID_UNAVAILABLE',503);
