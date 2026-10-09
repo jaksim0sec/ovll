@@ -1,5 +1,8 @@
+import {askQuestion,answerQuestion,cancelRun,retryRun,completeTask} from './lifecycle.js';
 import { randomUUID, createHash } from 'node:crypto';
 import { MemoryGraphRepository, KernelError, computeScope } from './graph.js';
+import {createContractValidation} from './validation.js';
+const taskValidation=createContractValidation();
 
 const deny = (code, status = 422) => { throw new KernelError(code, code, status); };
 const id = s => typeof s === 'string' && /^[A-Za-z0-9_.:-]{1,160}$/.test(s);
@@ -9,6 +12,14 @@ const stable = value => JSON.stringify(value, (_key, v) =>
     Object.fromEntries(Object.entries(v).sort(([a], [b]) => a.localeCompare(b))) : v);
 const digest = value => createHash('sha256').update(stable(value)).digest('hex');
 const clone = x => structuredClone(x);
+const actionRef=(scope,key)=>'a_'+digest([scope.workspaceRef,scope.actorRef,scope.requestRef,key]).slice(0,40);
+const ledgerKey=(requestRef,key)=>JSON.stringify([requestRef,key]);
+async function ledgerEntry(c,scope,key){
+  const canonical=ledgerKey(scope.requestRef,key),legacy=scope.requestRef+':'+key;
+  const rows=await c.query('SELECT idempotency_key,signature,result FROM ov_action_ledger WHERE workspace_id=$1 AND actor_ref=$2 AND idempotency_key=ANY($3::text[])',[scope.workspaceRef,scope.actorRef,[canonical,legacy]]);
+  // Delimiter keys from older versions may alias other valid identifiers. Compare their original Action ID.
+  return rows.rows.find(r=>r.idempotency_key===canonical)||rows.rows.find(r=>r.result?.actionId===actionRef(scope,key));
+}
 function actionsInOrder(actions) {
   if (!Array.isArray(actions) || actions.length > 32) deny('ACTION_LIMIT');
   const byKey = new Map();
@@ -61,10 +72,10 @@ function expiredOrBadLease(row, token) {
   if (!row || row.status !== 'leased' || row.lease_token !== token || new Date(row.leased_until).getTime() <= Date.now()) deny('STALE_LEASE',409);
 }
 export class PostgresVNextStore {
-  #pool; #validate; #verifyRunEvidence;
-  constructor({ pool, validateTurn, verifyRunEvidence } = {}) {
+  #pool; #validate; #verifyRunEvidence; #verifyTaskOutcomes; #maxTaskValidationMs;
+  constructor({ pool, validateTurn, verifyRunEvidence, verifyTaskOutcomes, maxTaskValidationMs=5000 } = {}) {
     if (!pool || typeof pool.connect !== 'function' || typeof validateTurn !== 'function') deny('DURABLE_DEPENDENCIES_REQUIRED',500);
-    this.#pool=pool; this.#validate=validateTurn; this.#verifyRunEvidence=verifyRunEvidence;
+    this.#pool=pool; this.#validate=validateTurn; this.#verifyRunEvidence=verifyRunEvidence; this.#verifyTaskOutcomes=verifyTaskOutcomes; this.#maxTaskValidationMs=maxTaskValidationMs;
   }
   // Provisioning is an internal admin operation; never expose to an untrusted HTTP request.
   async provisionWorkspace(workspaceRef, ownerRef) {
@@ -113,6 +124,7 @@ export class PostgresVNextStore {
     if (typeof objective !== 'string' || !objective.trim()) deny('BAD_OBJECTIVE');
     if (!Array.isArray(constraintRefs)||!Array.isArray(requiredOutcomes)) deny('BAD_TASK');
     const state={taskId,requestRef,objective,constraintRefs,requiredOutcomes,status:'active'};
+    if(!taskValidation.validate('Task',state))deny('BAD_TASK');
     return transaction(this.#pool, async c => {
       await member(c,scope,true);
       await c.query("INSERT INTO ov_tasks(workspace_id,task_id,status,snapshot) VALUES($1,$2,'active',$3::jsonb)",[scope.workspaceRef,taskId,JSON.stringify(state)]);
@@ -125,24 +137,32 @@ export class PostgresVNextStore {
     checkId(scope?.requestRef);
     if (turn?.needs?.length && (turn.actions?.length || turn.outputs)) deny('NEEDS_ACTION_BARRIER');
     if (!turn?.actions?.length) return {message:turn?.message,needs:turn?.needs||[],results:[]};
-    const ordered=actionsInOrder(turn.actions), done=new Map();
+    const ordered=actionsInOrder(turn.actions),done=new Map();
+    const knownActions=new Map(ordered.map(a=>[a.localKey,actionRef(scope,a.localKey)]));
     for (const action of ordered) {
-      const actionId='a_'+digest([scope.workspaceRef,scope.actorRef,scope.requestRef,action.localKey]).slice(0,40);
+      const actionId=actionRef(scope,action.localKey);
       if ((action.dependsOn||[]).some(k=>!['applied','scheduled','duplicate'].includes(done.get(k)?.status))) {
         done.set(action.localKey,{actionId,status:'rejected',error:{code:'DEPENDENCY_NOT_APPLIED',retryable:false}});continue;
       }
       try {
         const result=await transaction(this.#pool,async c => {
           await member(c,scope,true);
-          const ledgerKey=scope.requestRef+':'+action.localKey;
-          // Serialize same request/action key across concurrent server instances.
-          await c.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',[scope.workspaceRef+':'+scope.actorRef+':'+ledgerKey]);
-          const signature=digest({kind:action.kind,args:action.args,dependsOn:action.dependsOn||[]});
-          const prior=await c.query('SELECT signature,result FROM ov_action_ledger WHERE workspace_id=$1 AND actor_ref=$2 AND idempotency_key=$3',[scope.workspaceRef,scope.actorRef,ledgerKey]);
-          if (prior.rows.length) {
-            if (prior.rows[0].signature!==signature) deny('IDEMPOTENCY_CONFLICT',409);
-            return {...prior.rows[0].result,status:'duplicate',originalActionId:prior.rows[0].result.actionId};
+          const key=ledgerKey(scope.requestRef,action.localKey);
+          // Serialize a turn's actions, including future Question blockers, across instances.
+          await c.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',[JSON.stringify([scope.workspaceRef,scope.actorRef,scope.requestRef])]);
+          const signature=digest({taskRef:scope.taskRef||null,graphId:scope.graphId||null,kind:action.kind,args:action.args,dependsOn:action.dependsOn||[]});
+          const prior=await ledgerEntry(c,scope,action.localKey);
+          if (prior) {
+            if (prior.signature!==signature) deny('IDEMPOTENCY_CONFLICT',409);
+            return {...prior.result,status:'duplicate',originalActionId:prior.result.actionId};
           }
+          if(scope.taskRef){
+            checkId(scope.taskRef);
+            const task=await c.query('SELECT task_id FROM ov_tasks WHERE workspace_id=$1 AND task_id=$2 FOR UPDATE',[scope.workspaceRef,scope.taskRef]);
+            if(!task.rows.length)deny('TASK_NOT_FOUND',404);
+          }
+          const blocked=await c.query("SELECT 1 FROM ov_questions WHERE workspace_id=$1 AND status='open' AND snapshot->'blockedActionRefs' ? $2 LIMIT 1",[scope.workspaceRef,actionId]);
+          if(blocked.rows.length)deny('ACTION_BLOCKED_BY_QUESTION',409);
           let outcome;
           if (action.kind==='ir.applyPatch') {
             const patch=action.args?.patch;
@@ -161,7 +181,7 @@ export class PostgresVNextStore {
             await event(c,scope.workspaceRef,'graph.applied',{graphId:patch.graphId,revision:applied.graphRef.revision,actionId});
           } else if (action.kind==='run.start') {
             checkId(scope.graphId);checkId(scope.taskRef);
-            const task=await c.query('SELECT status FROM ov_tasks WHERE workspace_id=$1 AND task_id=$2',[scope.workspaceRef,scope.taskRef]);
+            const task=await c.query('SELECT status FROM ov_tasks WHERE workspace_id=$1 AND task_id=$2 FOR UPDATE',[scope.workspaceRef,scope.taskRef]);
             if (!task.rows.length || task.rows[0].status!=='active') deny('TASK_NOT_ACTIVE',409);
             const graph=(await graphRow(c,scope.workspaceRef,scope.graphId,true)).snapshot;
             const depPatches=(action.dependsOn||[]).map(k=>done.get(k)).filter(x=>x?.newRevision!==undefined);
@@ -188,9 +208,26 @@ export class PostgresVNextStore {
             await c.query("INSERT INTO ov_run_queue(workspace_id,run_id,status,external_effect) VALUES($1,$2,'queued',$3)",[scope.workspaceRef,runId,externalEffect]);
             outcome={actionId,status:'scheduled',runRef:runId};
             await event(c,scope.workspaceRef,'run.queued',{runRef:runId,graphRef:spec.graphRef,actionId});
+          } else if(action.kind==='question.ask'){
+            for(const key of action.args.blockedActions||[]){
+              if(!knownActions.has(key))deny('UNKNOWN_BLOCKED_ACTION');
+              if(ordered.findIndex(a=>a.localKey===key)<=ordered.indexOf(action))deny('BLOCKER_NOT_FUTURE_ACTION',409);
+              if(await ledgerEntry(c,scope,key))deny('BLOCKER_ALREADY_APPLIED',409);
+            }
+            const questionRef=await askQuestion(c,scope,action.args,{emit:event,knownActions});
+            outcome={actionId,status:'applied',createdRefs:{questionRef}};
+          } else if(action.kind==='run.cancel'){
+            await cancelRun(c,scope,action.args.runRef,{emit:event});
+            outcome={actionId,status:'applied',runRef:action.args.runRef};
+          } else if(action.kind==='run.retry'){
+            const runRef=await retryRun(c,scope,action.args,{emit:event});
+            outcome={actionId,status:'scheduled',runRef};
+          } else if(action.kind==='task.complete'){
+            await completeTask(c,scope,action.args.outcomeRefs,{emit:event,verifyTaskOutcomes:this.#verifyTaskOutcomes,maxValidationMs:this.#maxTaskValidationMs});
+            outcome={actionId,status:'applied'};
           } else deny('ACTION_NOT_IMPLEMENTED',501);
           await c.query('INSERT INTO ov_action_ledger(workspace_id,actor_ref,idempotency_key,signature,result) VALUES($1,$2,$3,$4,$5::jsonb)',
-            [scope.workspaceRef,scope.actorRef,ledgerKey,signature,JSON.stringify(outcome)]);
+            [scope.workspaceRef,scope.actorRef,key,signature,JSON.stringify(outcome)]);
           return outcome;
         });
         done.set(action.localKey,result);
@@ -267,20 +304,27 @@ export class PostgresVNextStore {
     if (!result.rows.length) deny('STALE_LEASE',409);
     return true;
   }
-  async cancelRun(scope,runRef) {
-    checkId(runRef);
+  async cancelRun(scope,runRef){
+    return transaction(this.#pool,async c=>{await member(c,scope,true);await cancelRun(c,scope,runRef,{emit:event});return {runRef,status:'cancelled'};});
+  }
+  async answerQuestion(scope,questionRef,answer){
+    return transaction(this.#pool,async c=>{await member(c,scope,true);return answerQuestion(c,scope,questionRef,answer,{emit:event});});
+  }
+  async readTask(scope,taskRef){
+    checkId(taskRef);
     return transaction(this.#pool,async c=>{
-      await member(c,scope,true);
-      const queue=await c.query('SELECT status FROM ov_run_queue WHERE workspace_id=$1 AND run_id=$2 FOR UPDATE',[scope.workspaceRef,runRef]);
-      if (!queue.rows.length) deny('RUN_NOT_FOUND',404);
-      const r=await c.query('SELECT status FROM ov_runs WHERE workspace_id=$1 AND run_id=$2 FOR UPDATE',[scope.workspaceRef,runRef]);
-      if (!r.rows.length) deny('RUN_NOT_FOUND',404);
-      if (r.rows[0].status==='completed') deny('RUN_ALREADY_COMPLETED',409);
-      if (r.rows[0].status==='cancelled') return {runRef,status:'cancelled'};
-      await c.query("UPDATE ov_run_queue SET status='cancelled',execution_token=NULL,lease_token=NULL,leased_until=NULL,updated_at=now() WHERE workspace_id=$1 AND run_id=$2",[scope.workspaceRef,runRef]);
-      await c.query("UPDATE ov_runs SET status='cancelled',snapshot=jsonb_set(snapshot,'{status}',to_jsonb('cancelled'::text)) WHERE workspace_id=$1 AND run_id=$2",[scope.workspaceRef,runRef]);
-      await event(c,scope.workspaceRef,'run.cancelled',{runRef});
-      return {runRef,status:'cancelled'};
+      await member(c,scope);const r=await c.query('SELECT snapshot FROM ov_tasks WHERE workspace_id=$1 AND task_id=$2',[scope.workspaceRef,taskRef]);
+      if(!r.rows.length)deny('TASK_NOT_FOUND',404);return r.rows[0].snapshot;
+    });
+  }
+  async readQuestion(scope,questionRef){
+    checkId(questionRef);
+    return transaction(this.#pool,async c=>{
+      await member(c,scope);const r=await c.query(`SELECT q.snapshot,a.answer_id,a.value FROM ov_questions q
+        LEFT JOIN ov_question_answers a ON a.workspace_id=q.workspace_id AND a.question_id=q.question_id
+        WHERE q.workspace_id=$1 AND q.question_id=$2`,[scope.workspaceRef,questionRef]);
+      if(!r.rows.length)deny('QUESTION_NOT_FOUND',404);
+      const row=r.rows[0];return {question:row.snapshot,...(row.answer_id?{answer:{ref:row.answer_id,value:row.value}}:{})};
     });
   }
   async readArtifact(scope,valueRef){

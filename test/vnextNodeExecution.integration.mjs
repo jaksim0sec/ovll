@@ -33,7 +33,7 @@ async function fixture({conditional=false,toolRoot=false}={}){
   assert.deepEqual(result.results.map(x=>x.status),['applied','scheduled']);
   return {...scope,scope,graphId,taskId,createdRefs:result.results[0].createdRefs,runRef:result.results[1].runRef,store:s};
 }
-before(async()=>{for(const file of ['001_initial.sql','002_node_evidence.sql']){
+before(async()=>{for(const file of ['001_initial.sql','002_node_evidence.sql','003_lifecycle.sql']){
   await pool.query(await readFile(new URL('../backend/vnext/sql/'+file,import.meta.url),'utf8'));
 }});
 after(async()=>{await pool.end();});

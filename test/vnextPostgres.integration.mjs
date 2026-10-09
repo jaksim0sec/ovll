@@ -24,7 +24,7 @@ async function setup() {
   await store.createTask(scope,{taskId,requestRef:ident('req'),objective:'Summarize documents'});
   return {store,scope,graphId,taskId,callScope:(requestRef=ident('request'))=>({...scope,graphId,taskRef:taskId,requestRef})};
 }
-before(async()=>{for(const name of ['001_initial.sql','002_node_evidence.sql'])await pool.query(await readFile(new URL('../backend/vnext/sql/'+name,import.meta.url),'utf8'));});
+before(async()=>{for(const name of ['001_initial.sql','002_node_evidence.sql','003_lifecycle.sql'])await pool.query(await readFile(new URL('../backend/vnext/sql/'+name,import.meta.url),'utf8'));});
 after(async()=>{await pool.end();});
 
 test('durable graph and immutable revision survive store recreation',async()=>{

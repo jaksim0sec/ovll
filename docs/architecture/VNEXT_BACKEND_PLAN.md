@@ -122,13 +122,29 @@ P0는 **새 코어 단독 테스트 통과**까지만 뜻하며 '운영 가능�
 - [x] 기존 전체 테스트 296/308. 실패 이름 12개는 변경 전과 동일하며 별도로 남긴다.
 
 ### 다음 P1 순서와 미완성 조건
-1. [ ] Task/Question 상태 머신과 실제 대기/응답/재개 위치 영속화, 모델 행동으로 제안된 Retry/Cancel의 멱등 적용.
+1. [x] Task/Question 상태 머신, 질문·불변 응답 영속화, 답변 후 동일 요청 재제출 경로, Retry/Cancel의 멱등 적용을 구현했다. 제안 payload 자동 재실행은 별도 미완성이다. 네이티브 CI 수용 조건은9절을 따른다.
 2. [ ] 조건 branch/merge와 subgraph 실행, 분기 포트의 명시적 의미, 실행 중 그래프 수정의 안전한 planEpoch 채택·부분 무효화.
 3. [ ] FunctionVersion draft 저장 → 근거 기반 별도 검증 → 고정 버전에서 새로운 입력으로 재실행. 저장을 verified로 표시하지 않는다.
 4. [ ] 일반 Artifact/파일 참조 InputBinding, blob 저장소·파싱 범위·출처, 검증된 도구 효과/권한 카탈로그.
 5. [ ] Task별 토큰/비용/재시도/질문/재계획 예산, 운영 인증·TLS/driver pin·배포 worker 수명/백업/복구.
 6. [ ] P2 실제 Provider 호출·Prompt Composer·사용량/캐시/품질 측정 후 P3 Canvas 어댑터를 검증한다.
 
-현재 입력 바인딩은 선언된 포트별 inline JSON만 의미한다. 결과 ref는 이미 공급한 input artifact만 해석한다. 전문 representation은 신뢰 가능한 검증기 없이는 거부한다. provider/프롬프트/실행기/검증 정책 변경 시 executionProfileId를 올린다. 조건 분기와 subgraph는 성공으로 가장하지 않고 사전 거부한다. 기존 `server.js`는 버전 `2026.10.09.11`만 변경했으며 서비스 연결은 하지 않았다.
+현재 입력 바인딩은 선언된 포트별 inline JSON만 의미한다. 결과 ref는 이미 공급한 input artifact만 해석한다. 전문 representation은 신뢰 가능한 검증기 없이는 거부한다. provider/프롬프트/실행기/검증 정책 변경 시 executionProfileId를 올린다. 조건 분기와 subgraph는 성공으로 가장하지 않고 사전 거부한다. 기존 `server.js`는 버전 `2026.10.09.12`만 변경했으며 서비스 연결은 하지 않았다.
 
 참조: [노드 실행·정책·검증 README](../../backend/vnext/README.md), [Ajv Draft 2020-12](https://ajv.js.org/json-schema.html), [PostgreSQL locking](https://www.postgresql.org/docs/16/explicit-locking.html).
+
+## 9. Task·질문·재시도·취소 — 2026-10-09
+
+- [x] Question + Task.waiting + Ledger + Event를 원자적으로 저장한다. 지정한 미래 Action은 답변 전 거부하며, 과거/자기/알 수 없는 Action 참조는 차단한다.
+- [x] 답변은 불변 fact로 저장하고 마지막 열린 질문의 응답 후에만 Task.active로 복귀한다. 자동 모델 호출 대신 동일 요청 재제출로 이어간다.
+- [x] ActionLedger 키를 JSON tuple로 분리하고 Task/Graph 범위를 signature에 포함한다. 기존 범위 없는 signature는 재실행 없이 충돌 처리한다.
+- [x] 최신 실패 노드의 명시적 Retry는 성공 선행 노드를 보존하고 generation을 추가한다. 외부 효과가 포함된 Run은 재시도하지 않는다.
+- [x] Cancel은 늦은 결과를 차단하고 실제 실행 중인 Definition 종류에 따라 모델 cancelled / tool outcome_unknown으로 기록한다.
+- [x] Task.completed는 같은 Task의 완료 Run·성공 Attempt·실제 Artifact와 별도 검증기를 필요로 한다. 열린 질문/진행 Run/가짜 근거/검증 시간 초과는 완료를 막는다.
+- [x] Task 생성에 동결 schema를 적용하고 질문+답변 읽기를 단일 statement로 일치시킨다. 인증·권한·CSRF HTTP 경계를 검증한다.
+- [x] 새 단위74/74, SQL smoke13/13+25/25, lifecycle25/26(네이티브 동시성1건 제외). 전체 앱296/308이며 실패12개 이름은 기준과 같다.
+- [ ] 이번 main 묶음의 PostgreSQL16 CI: lifecycle26/26을 포함한 전체138개 green이 수용 조건이다. 로컬 단일 세션 결과로 대체하지 않는다.
+
+다음 진행은 조건 분기/merge의 실행 의미와 영속 routing fact를 먼저 정하고 planEpoch 채택·부분 무효화를 검증한다. subgraph는 고정 FunctionVersion 저장·검증·재실행 기반에 의존하므로 그 기반과 함께 구현한다. 아직 지원하지 않는 경로는 현재 사전 거부를 유지한다. 질문 payload 자동 재생, 실제 provider의 답변 context 조립, 운영 인증·비용 예산도 미완성으로 남긴다.
+
+세부 체크리스트: [lifecycle plan](VNEXT_LIFECYCLE_PLAN.md).
