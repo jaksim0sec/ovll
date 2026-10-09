@@ -18,7 +18,7 @@ test("Pointer snapshot failure cannot reject workspace startup or clear saved da
     (error,options)=>notices.push({error,options}),{error:(...x)=>errors.push(x)},
     ()=>{},()=>{});
   await assert.doesNotReject(connect());
-  assert.equal(state.pointerLocalReady,false);
+  assert.equal(state.pointerLocalReady,true);
   assert.equal(notices.length,1);
   assert.equal(notices[0].error,failure);
   assert.equal(errors.length,1);

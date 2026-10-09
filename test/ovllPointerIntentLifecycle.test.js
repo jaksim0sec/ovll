@@ -17,7 +17,7 @@ test('configured local Pointer never falls back to legacy because a readiness pr
   const store={getConversation:()=>conversation};
   const get=new Function('global','state','WorkspaceStore','currentConversationId','PointerAPI',
     app.slice(begin,end)+'\nreturn pointerScope;');
-  const scope=()=>get(window,state,store,()=>'c1',{});
+  const scope=()=>get(window,state,store,()=>'c1',{})();
   assert.equal(scope().graphId,'g_c1');
   conversation={state:{canvas:{workflow:{nodes:[]}}}};
   assert.equal(scope().storageMode,'local');
@@ -59,7 +59,7 @@ test('Pointer coordinator reports actual action start, completion and dependent 
     onActionStart:a=>events.push(['start',a.localKey]),
     onActionResult:(a,fact)=>events.push(['result',a.localKey,fact.status])
   });
-  assert.deepEqual(result.map(x=>x.status),['failed','skipped']);
+  assert.deepEqual(Array.from(result,x=>x.status),['failed','skipped']);
   assert.equal(JSON.stringify(events),JSON.stringify([
     ['start','new'],['result','new','failed'],['result','run','skipped']]));
 });
