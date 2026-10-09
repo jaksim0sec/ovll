@@ -40,6 +40,6 @@ test("saved conversation errors are isolated from the final app-ready signal",()
   const i=source.indexOf("async function initialize()");
   const tail=source.slice(i,source.indexOf("  const app = {",i));
   assert.match(tail,/try\s*\{\s*await openConversation\(active\.id,\{skipSave:true\}\)/);
-  assert.match(tail,/catch\(error\)\s*\{[\s\\S]*?state\.pointerLocalReady=false/);
-  assert.match(tail,/dispatchEvent\([\s\\S]*?"ovll:app-ready"/);
+  assert.match(tail,/catch\(error\)\s*\{[\s\S]*?state\.pointerLocalReady=false/);
+  assert.match(tail,/dispatchEvent\([\s\S]*?"ovll:app-ready"/);
 });
