@@ -1804,7 +1804,7 @@ function mount(world,canvas,options={}){
         const next=pendingOrbitId;
         pendingOrbitId=null;
         orbitId=null;
-        startOrbit(next,{approach:false});
+        startOrbit(next,{approach:true});
       }
     }
 
