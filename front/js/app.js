@@ -11,6 +11,7 @@
   const UI = global.AstraUI;
   const Navigation = global.OvllNavigation;
   const API = global.AstraAPI;
+  const VNextAPI = global.OvllVNextApi;
   const Presence = global.OvllPresence;
   const WorkspaceStore = global.OvllWorkspaceStore;
   const FileStore = global.OvllFileStore;
@@ -97,6 +98,9 @@
     runtimeProjection: null,
     runtimeConnections: new Set(),
     runtimeActivity: null,
+    vnextWatch: null,
+    vnextRuns: new Set(),
+    vnextRequestRef: null,
     runGate: {
       locked: false,
       pivot: null,
@@ -6137,7 +6141,76 @@
     return result;
   }
 
-  async function runPrompt(text, options = {}) {
+
+  // Only enabled by an authenticated vNext host; legacy chat/canvas remains the default.
+  async function runVNextPrompt(text,options={}) {
+    if(state.destroyed||state.busy)return;
+    const value=String(text??'').trim();
+    if(!value)return;
+    if(!VNextAPI)throw new Error('vNext API adapter is unavailable');
+    state.lastUserRequest=value;
+    if(options.addUserMessage!==false){
+      addUserMessage(value);
+      composerInput.value='';
+      resizeComposer();
+      scheduleComposerDraftSave(0);
+    }
+    setBusy(true);
+    Presence.thinking();
+    state.vnextWatch?.();
+    state.vnextRuns.clear();
+    const requestRef=VNextAPI.uniqueId(),conversationId=state.activeConversationId;
+    state.vnextRequestRef=requestRef;
+    beginRuntimeActivity('요청 확인 중');
+    try{
+      state.vnextWatch=VNextAPI.watch({
+        onEvent:event=>{
+          if(state.destroyed||state.activeConversationId!==conversationId)return;
+          const data=event.data||{};
+          if(event.type.startsWith('controller.')&&data.requestRef===requestRef){
+            if(event.type==='controller.model_requested')setRuntimeActivity('모델 작업 중',{id:'__prepare__'});
+            if(event.type==='controller.context_requested')setRuntimeActivity('맥락 확인 중',{id:'__prepare__'});
+            if(event.type==='controller.failed')setRuntimeActivity('요청 실패',{id:'__finalize__'});
+          }
+          if(!data.runRef||!state.vnextRuns.has(data.runRef))return;
+          if(event.type==='node.started')setRuntimeActivity('노드 실행 중',{id:data.nodeId});
+          if(event.type==='node.success')completeRuntimeStep(data.nodeId,{text:'노드 실행 완료'});
+          if(event.type==='node.failed'||event.type==='node.blocked'||event.type==='node.outcome_unknown')
+            completeRuntimeStep(data.nodeId,{failed:true,text:'노드 작업 실패'});
+          if(event.type==='run.completed'||event.type==='run.failed'||event.type==='run.cancelled'||
+            event.type==='run.waiting'){
+            state.vnextRuns.delete(data.runRef);
+            setRuntimeActivity(event.type==='run.completed'?'실행 완료':'실행 확인 필요',{id:'__finalize__'});
+            if(!state.vnextRuns.size)finishRuntimeActivity();
+          }
+        },
+        onResync:()=>setRuntimeActivity('서버 상태 재동기화 필요',{id:'__prepare__'}),
+        onError:()=>setRuntimeActivity('연결 복구 중',{id:'__prepare__'})
+      });
+      const config=global.OVLL_RUNTIME||{};
+      const result=await VNextAPI.submit({requestRef,requestText:value,
+        ...(config.vnextGraphId?{graphId:config.vnextGraphId}:{}),
+        ...(config.vnextTaskRef?{taskRef:config.vnextTaskRef}:{})});
+      const runs=(result.results||[]).filter(r=>r.status==='scheduled'&&r.runRef);
+      for(const run of runs){state.vnextRuns.add(run.runRef);setRuntimeActivity('서버 실행 예약됨',{id:run.runRef});}
+      const rejected=(result.results||[]).filter(r=>r.status==='rejected');
+      const message=String(result.message||'')||
+        (result.needs?.length?'추가 자료가 필요해. 아직 실행하지 않았어.':
+          rejected.length?'요청한 변경 중 일부가 거절됐어.':
+          runs.length?'서버에 실행을 예약했어. 결과는 아직 확정되지 않았어.':
+          result.results?.length?'서버에서 변경을 적용했어.':'서버에서 응답을 받지 못했어.');
+      addAssistantMessage(message);
+      if(!runs.length)finishRuntimeActivity({removeImmediately:true});
+      Presence.settle();
+    }catch(error){
+      Presence.settle();
+      showErrorNotice(error,{scope:'vNext 요청 오류',fallback:'서버 요청을 처리하지 못했습니다.'});
+      finishRuntimeActivity({removeImmediately:true});
+    }finally{setBusy(false);resizeComposer();focusComposerForDesktop();}
+  }
+
+  async function runPrompt(text, options = {
+    if(global.OVLL_RUNTIME?.vnextEnabled===true)return runVNextPrompt(text,options);}) {
     if (state.destroyed || state.busy) return;
 
     const value =
@@ -7414,6 +7487,9 @@
           true;
 
         try {
+          state.vnextWatch?.();
+          state.vnextWatch = null;
+          state.vnextRuns.clear();
           clearRuntimeConnections();
 
           finishRuntimeActivity({

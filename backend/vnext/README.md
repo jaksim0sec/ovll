@@ -45,6 +45,12 @@ The integration suite uses an isolated disposable test database, not user data.
 - `createVNextRuntime({modelGateway,loadModelContext,resolveModel,...})` uses this executor when no explicit `executeNode` was injected. Legacy behavior is unchanged; vNext remains opt-in.
 - `onModelUsage` is only optional telemetry and is not durable usage/cost accounting. No paid provider call, live quality evaluation, general needs loop or production cutover has occurred.
 
+## Model-neutral controller and browser event contract (opt-in)
+- `turnController.js` composes Core + entry by default, with trusted `selectTurnModules` supporting the other four behavior layers, context reads, and optional result-language stage. It validates ModelTurn and delegates proposals to the durable action service. It does not select a vendor-specific protocol; the supplied ModelGateway owns that.
+- Host supplies `prepareTurnContext`, `resolveTurnModel` and optionally `fulfillTurnNeeds` (trusted, scoped and validated). Missing needs remain pending; no fabricated retrieval. `languageAfterActions` is optional and never certifies success.
+- Server progress is emitted to the existing durable workspace event journal with membership checks. HTTP `POST /api/vnext/requests` is installed only when trusted controller dependencies exist and uses the existing authenticate + CSRF middleware; browser SSE uses a single `event: ovll` envelope with a monotonic cursor. Snapshot queries and polling stay available.
+- `front/js/vnextApi.js` supports authenticated commands and cursor replay with SSE and polling. `app.js` connects an opt-in progress display behind `OVLL_RUNTIME.vnextEnabled`. This flag is **off by default**. Current Canvas geometry is not automatically mapped to vNext GraphRevision, nor have real provider/Auth/DB host deployments been configured. Do not switch production traffic before those integrations are verified.
+
 ## Remaining gate before frontend cutover
 1. Production session/auth provider + migrations/connection pool/deployment storage strategy and backup/restore.
 2. General artifact/file InputBinding resolution, conditional flow semantics and verified capability catalog. Frozen Draft 2020-12 form validation is implemented; it does not prove semantic safety or external truth.

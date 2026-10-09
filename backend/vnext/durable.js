@@ -237,6 +237,21 @@ export class PostgresVNextStore {
     }
     return {message:turn?.message,needs:[],results:[...done.values()]};
   }
+
+  async assertEditor(scope) {
+    return transaction(this.#pool,async c=>{await member(c,scope,true);return true;});
+  }
+  async recordControllerEvent(scope,{requestRef,state,...details}={}) {
+    checkId(requestRef);
+    if(!['started','model_requested','context_requested','needs_pending','actions_rejected',
+      'actions_settled','responded','failed'].includes(state))deny('INVALID_CONTROLLER_EVENT');
+    const payload={requestRef,...details};
+    if(Buffer.byteLength(JSON.stringify(payload),'utf8')>4096)deny('EVENT_TOO_LARGE');
+    return transaction(this.#pool,async c=>{
+      await member(c,scope,true);
+      return event(c,scope.workspaceRef,'controller.'+state,payload);
+    });
+  }
   async readEvents(scope, after=0, limit=100) {
     if (!Number.isSafeInteger(after)||after<0||!Number.isInteger(limit)||limit<1||limit>500) deny('INVALID_CURSOR');
     return transaction(this.#pool,async c=>{

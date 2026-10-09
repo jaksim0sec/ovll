@@ -3,7 +3,7 @@ import { KernelError } from './graph.js';
 
 const error = (code,status=422) => { throw new KernelError(code,code,status); };
 const safeId = s => typeof s === 'string' && /^[A-Za-z0-9_.:-]{1,160}$/.test(s);
-export function createDurableVNextApp({ store, authenticate, verifyMutation }={}) {
+export function createDurableVNextApp({ store, authenticate, verifyMutation, handleRequest }={}) {
   if (!store || typeof authenticate!=='function' || typeof verifyMutation!=='function') error('AUTHENTICATION_AND_CSRF_REQUIRED',500);
   const app=express();
   app.disable('x-powered-by');
@@ -42,6 +42,14 @@ export function createDurableVNextApp({ store, authenticate, verifyMutation }={}
     if (taskRef!==undefined && !safeId(taskRef)) error('BAD_TASK_ID');
     res.json(await store.submit(req.body?.turn,{...scope,requestRef,graphId,taskRef}));
   }));
+  if (handleRequest) app.post('/api/vnext/requests',handler(async(req,res)=>{
+    const scope=await mutation(req),requestRef=req.get('Idempotency-Key');
+    if(!safeId(requestRef))error('IDEMPOTENCY_KEY_REQUIRED');
+    res.set('Cache-Control','no-store').json(await handleRequest({
+      scope,requestRef,requestText:req.body?.requestText,
+      taskRef:req.body?.taskRef,graphId:req.body?.graphId
+    }));
+  }));
   app.get('/api/vnext/tasks/:taskRef',handler(async(req,res)=>{
     res.set('Cache-Control','no-store').json(await store.readTask(await session(req),req.params.taskRef));
   }));
@@ -73,7 +81,7 @@ export function createDurableVNextApp({ store, authenticate, verifyMutation }={}
     res.writeHead(200,{'Content-Type':'text/event-stream; charset=utf-8',
       'Cache-Control':'no-cache, no-transform','Connection':'keep-alive','X-Accel-Buffering':'no'});
     res.write('retry: 3000\n\n');
-    const push=e=>res.write('id: '+e.id+'\nevent: '+e.type+'\ndata: '+JSON.stringify(e)+'\n\n');
+    const push=e=>res.write('id: '+e.id+'\nevent: ovll\ndata: '+JSON.stringify(e)+'\n\n');
     const emit=batch=>{
       if(batch.resetRequired){res.write('event: resync_required\ndata: {}\n\n');res.end();return false;}
       for(const event of batch.events){push(event);cursor=event.id;}
