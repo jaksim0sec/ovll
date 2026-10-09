@@ -58,7 +58,6 @@
     !PreviewSandbox ||
     !PreviewEngine ||
     !SvgLibrary ||
-    !Execution ||
     typeof mountCanvasNode !== "function" ||
     typeof createWorkspace !== "function" ||
     !workspaceShell

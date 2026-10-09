@@ -10,6 +10,7 @@ const RUNTIME=
 
 const IS_NATIVE=
   RUNTIME.native===true;
+let bootComplete=false;
 
 const API_ORIGIN=
   typeof RUNTIME.apiOrigin==="string"
@@ -17,6 +18,7 @@ const API_ORIGIN=
     :"";
 
 function finishBoot(){
+  bootComplete=true;
   const root=
     document.documentElement;
 
@@ -67,6 +69,11 @@ global.addEventListener(
   failBoot,
   {once:true}
 );
+
+// A script can load successfully yet throw before it dispatches app-ready.
+global.addEventListener("error",()=>{
+  if(!bootComplete)failBoot();
+});
 
 document
   .querySelector("#boot-retry")
