@@ -46,7 +46,7 @@ jobs:
         run: |
           for f in backend/vnext/*.js test/vnext*.mjs test/vnext*.test.js; do node --check "$f"; done
       - name: Existing vNext foundation
-        run: node --test test/vnextFoundation.test.js test/vnextExecutionPlan.test.js test/vnextNodeOutput.test.js test/vnextValidation.test.js test/vnextRuntime.test.js test/vnextPromptComposer.test.js test/vnextController.test.js test/vnextFrontend.test.js
+        run: node --test test/vnextFoundation.test.js test/vnextExecutionPlan.test.js test/vnextNodeOutput.test.js test/vnextValidation.test.js test/vnextRuntime.test.js test/vnextPromptComposer.test.js test/vnextController.test.js test/vnextFrontend.test.js test/vnextGraphPatch.test.js test/vnextConfiguredProvider.test.js
       - name: Real PostgreSQL persistence and recovery integration
         run: node --test test/vnextPostgres.integration.mjs
       - name: Real PostgreSQL node attempts and evidence integration

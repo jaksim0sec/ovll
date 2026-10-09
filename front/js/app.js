@@ -13,6 +13,7 @@
   const API = global.AstraAPI;
   const VNextAPI = global.OvllVNextApi;
   const VNextProjection = global.OvllVNextProjection;
+  const VNextGraphPatch = global.OvllVNextGraphPatch;
   const Presence = global.OvllPresence;
   const WorkspaceStore = global.OvllWorkspaceStore;
   const FileStore = global.OvllFileStore;
@@ -106,6 +107,11 @@
     vnextRunRefs: new Set(),
     vnextRunTargets: new Map(),
     vnextLocalView: null,
+    vnextGraphSnapshot: null,
+    vnextHydrating: false,
+    vnextEditTimer: null,
+    vnextEditInFlight: false,
+    vnextEventCursor: 0,
     runGate: {
       locked: false,
       pivot: null,
@@ -5765,6 +5771,45 @@
     return true;
   }
 
+  function queueVNextEdit(){
+    if(!vnextScope()||!state.vnextGraphSnapshot||state.vnextHydrating||state.destroyed||
+      state.vnextEditInFlight||state.restoringConversation)return;
+    clearTimeout(state.vnextEditTimer);
+    state.vnextEditTimer=setTimeout(()=>{state.vnextEditTimer=null;void commitVNextCanvasEdit();},700);
+  }
+
+  async function commitVNextCanvasEdit(){
+    const scope=vnextScope(),snapshot=state.vnextGraphSnapshot,canvas=state.canvas;
+    if(!scope||!snapshot||!canvas||state.vnextEditInFlight||state.vnextHydrating)return;
+    state.vnextEditInFlight=true;
+    const enabled=canvas.isInteractionEnabled?.()!==false;
+    const local=canvas.getWorkflow();
+    try{
+      const diff=VNextGraphPatch.build(snapshot,local);
+      if(!diff)return;
+      canvas.setInteractionEnabled?.(false);
+      const result=await VNextAPI.turn({...scope,requestRef:VNextAPI.uniqueId(),actions:[
+        {localKey:'edit',kind:'ir.applyPatch',args:{patch:diff.patch}}
+      ]});
+      const decision=result.results?.[0];
+      if(decision?.status!=='applied'&&decision?.status!=='duplicate')
+        throw Object.assign(new Error(decision?.error?.code||'PATCH_REJECTED'),
+          {code:decision?.error?.code||'PATCH_REJECTED'});
+      state.vnextLocalView=VNextGraphPatch.resolvedView(local,decision.createdRefs,diff.newNodeKeys);
+      await refreshVNextCanvas({force:true});
+    }catch(error){
+      state.vnextLocalView=null;
+      try{await refreshVNextCanvas({force:true});}catch(reloadError){
+        console.error('vNext reload failed',reloadError);
+      }
+      showErrorNotice(error,{scope:'그래프 저장 오류',
+        fallback:'서버에서 변경을 적용하지 못했습니다. 서버 상태로 복원합니다.'});
+    }finally{
+      canvas.setInteractionEnabled?.(enabled);
+      state.vnextEditInFlight=false;
+    }
+  }
+
   function handleCanvasChange(workflow) {
     if (!workflow) return;
 
@@ -5772,6 +5817,7 @@
       clone(workflow);
 
     scheduleWorkspaceSave();
+    queueVNextEdit();
   }
 
   function handleCanvasWorkflowApplied(workflow) {
@@ -5785,6 +5831,7 @@
         ?.applying
     ) {
       scheduleWorkspaceSave();
+      queueVNextEdit();
     }
   }
 
@@ -6154,17 +6201,23 @@
       {graphId:settings.vnextGraphId,taskRef:settings.vnextTaskRef||undefined}:null;
   }
 
-  async function refreshVNextCanvas(){
+  async function refreshVNextCanvas({force=false}={}){
+    if(!force&&(state.vnextEditInFlight||state.vnextEditTimer))return state.vnextEventCursor||0;
     const scope=vnextScope();
     if(!scope||!state.canvas)return 0;
     const conversation=state.activeConversationId;
     const snapshot=await VNextAPI.state(scope.graphId,scope.taskRef);
     if(state.destroyed||conversation!==state.activeConversationId)return snapshot.eventCursor;
+    state.vnextEventCursor=snapshot.eventCursor;
     if(snapshot.graph?.graph?.revision>=state.vnextGraphRevision){
-      global.OvllVNextProjection.applyGraph(state.canvas,snapshot.graph,state.vnextLocalView);
-      state.vnextLocalView=null;
-      state.vnextGraphRevision=snapshot.graph.graph.revision;
-      state.workflow=getCurrentWorkflow();
+      state.vnextHydrating=true;
+      try{
+        global.OvllVNextProjection.applyGraph(state.canvas,snapshot.graph,state.vnextLocalView);
+        state.vnextLocalView=null;
+        state.vnextGraphRevision=snapshot.graph.graph.revision;
+        state.vnextGraphSnapshot=snapshot.graph;
+        state.workflow=getCurrentWorkflow();
+      }finally{state.vnextHydrating=false;}
     }
     for(const run of snapshot.runs||[]){
       if(!run.runId)continue;
@@ -7628,6 +7681,10 @@
           true;
 
         try {
+          clearTimeout(state.vnextEditTimer);
+          state.vnextEditTimer=null;
+          state.vnextGraphSnapshot=null;
+          state.vnextGraphRevision=-1;
           state.vnextWatch?.();
           state.vnextWatch = null;
           state.vnextRuns.clear();
@@ -8532,6 +8589,8 @@ listen(composerInput, "keydown", handleComposerKeydown);
       if (state.destroyed) return;
 
       state.destroyed = true;
+      clearTimeout(state.vnextEditTimer);
+      state.vnextEditTimer=null;
       state.vnextWatch?.();
       state.vnextWatch=null;
       state.vnextRuns.clear();

@@ -89,6 +89,7 @@ const APP_SCRIPTS=[
   "./js/api.js",
   "./js/vnextApi.js",
   "./js/vnextProjection.js",
+  "./js/vnextGraphPatch.js",
   "./js/canvasNode.js",
   "./js/runtimeEngine.js",
   "./js/navigation.js",
