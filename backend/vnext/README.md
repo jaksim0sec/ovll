@@ -39,6 +39,12 @@ VNEXT_TEST_DATABASE_URL=postgresql://... node --test test/vnextLifecycle.integra
 ```
 The integration suite uses an isolated disposable test database, not user data.
 
+## Opt-in Prompt Composer and model node gateway
+- `promptComposer.js` composes registered modules as stable Core → relevant layers → selected micro-instructions → separately serialized and schema-validated ContextBundle. Module IDs and paths are registry-controlled, not taken from model/user text.
+- `modelExecutor.js` maps a pinned dynamic `model_task` to the injected ModelGateway. The trusted host must supply `loadModelContext` (including actual permitted source content) and `resolveModel`. Returned ModelTurn and NodeOutput must match the declared node port contract. Unknown capabilities and tool effects are never inferred.
+- `createVNextRuntime({modelGateway,loadModelContext,resolveModel,...})` uses this executor when no explicit `executeNode` was injected. Legacy behavior is unchanged; vNext remains opt-in.
+- `onModelUsage` is only optional telemetry and is not durable usage/cost accounting. No paid provider call, live quality evaluation, general needs loop or production cutover has occurred.
+
 ## Remaining gate before frontend cutover
 1. Production session/auth provider + migrations/connection pool/deployment storage strategy and backup/restore.
 2. General artifact/file InputBinding resolution, conditional flow semantics and verified capability catalog. Frozen Draft 2020-12 form validation is implemented; it does not prove semantic safety or external truth.

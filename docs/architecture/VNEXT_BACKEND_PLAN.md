@@ -148,3 +148,11 @@ P0는 **새 코어 단독 테스트 통과**까지만 뜻하며 '운영 가능�
 다음 진행은 조건 분기/merge의 실행 의미와 영속 routing fact를 먼저 정하고 planEpoch 채택·부분 무효화를 검증한다. subgraph는 고정 FunctionVersion 저장·검증·재실행 기반에 의존하므로 그 기반과 함께 구현한다. 아직 지원하지 않는 경로는 현재 사전 거부를 유지한다. 질문 payload 자동 재생, 실제 provider의 답변 context 조립, 운영 인증·비용 예산도 미완성으로 남긴다.
 
 세부 체크리스트: [lifecycle plan](VNEXT_LIFECYCLE_PLAN.md).
+
+## 10. vNext 조립형 프롬프트/실행 어댑터 (2026-10-09)
+
+- [x] 25개 지침 레지스트리의 Core/역할/마이크로 의존 조립, 실제 ContextBundle 스키마 검사, 원문 자료 분리.
+- [x] 동적 model_task의 purpose/instruction/포트 및 실제 제공 입력으로 ModelGateway 호출하는 독립 경로 추가. ModelTurn/NodeOutput 실패 반례 테스트 추가.
+- [x] 기존 executeNode가 있을 때 변경 없는 opt-in 런타임 조립. 기존 server.js 서비스 전환 없음.
+- [ ] GitHub Actions 실제 CI와 PostgreSQL 전체 회귀 확인.
+- [ ] 실제 공급자 호출·영속 사용량/토큰 예산·needs 추가조회·함수 버전 재사용·UX 이관은 아직 미완성.
