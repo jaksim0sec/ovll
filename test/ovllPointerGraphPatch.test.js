@@ -13,7 +13,7 @@ const snapshot={graph:{graphId:'g',revision:4,nodes:[
   connections:[{id:'l1',kind:'flow',from:{nodeId:'n1',port:'result'},to:{nodeId:'n2',port:'in'}}]},
   definitions:[d]};
 const ui=()=>({nodes:['n1','n2'].map(id=>({id,type:'pointer:d1:1',x:0,y:0,
-  data:{params:{request:'Summarize notes'},pointer:{inputBindings:{}}}})),
+  data:{params:{request:''},pointer:{inputBindings:{}}}})),
   connections:[{from:{node:'n1',port:'result'},to:{node:'n2',port:'in'},data:{kind:'flow'}}]});
 test('movement and view-only changes do not issue any server mutation',()=>{
   const v=ui();v.nodes[0].x=300;v.nodes[0].expanded=true;
