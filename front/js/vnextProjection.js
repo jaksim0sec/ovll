@@ -48,10 +48,10 @@
     return {graphId:snapshot.graph.graphId,revision:snapshot.graph.revision,
       definitions,workflow:{nodes,links,data}};
   }
-  function applyGraph(canvas,snapshot){
+  function applyGraph(canvas,snapshot,restoredView){
     if(!canvas?.getWorkflow||!canvas?.getBaseNodeDefinitions||
       !canvas?.setNodeDefinitions||!canvas?.applyWorkflowIR)throw new Error('VNEXT_CANVAS_UNAVAILABLE');
-    const projected=projectGraph(snapshot,canvas.getWorkflow());
+    const projected=projectGraph(snapshot,Array.isArray(restoredView?.nodes)?restoredView:canvas.getWorkflow());
     const legacy=Object.fromEntries(Object.entries(canvas.getBaseNodeDefinitions())
       .filter(([type])=>!type.startsWith('vnext:')));
     canvas.setNodeDefinitions({...legacy,...projected.definitions});

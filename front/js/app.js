@@ -105,6 +105,7 @@
     vnextGraphRevision: -1,
     vnextRunRefs: new Set(),
     vnextRunTargets: new Map(),
+    vnextLocalView: null,
     runGate: {
       locked: false,
       pivot: null,
@@ -6160,7 +6161,8 @@
     const snapshot=await VNextAPI.state(scope.graphId,scope.taskRef);
     if(state.destroyed||conversation!==state.activeConversationId)return snapshot.eventCursor;
     if(snapshot.graph?.graph?.revision>=state.vnextGraphRevision){
-      global.OvllVNextProjection.applyGraph(state.canvas,snapshot.graph);
+      global.OvllVNextProjection.applyGraph(state.canvas,snapshot.graph,state.vnextLocalView);
+      state.vnextLocalView=null;
       state.vnextGraphRevision=snapshot.graph.graph.revision;
       state.workflow=getCurrentWorkflow();
     }
@@ -6177,6 +6179,7 @@
     if(!VNextAPI||!runRef)return;
     const result=await VNextAPI.runState(runRef);
     if(state.destroyed||conversation!==state.activeConversationId)return;
+    state.vnextRunTargets.set(runRef,result.run.targets||[]);
     global.OvllVNextProjection.applyRunState(state.canvas,result);
     // Load the actual authorized output values, never infer file URLs from opaque refs.
     for(const node of result.nodes||[]){
@@ -6294,6 +6297,24 @@
       showErrorNotice(error,{scope:'vNext 요청 오류',fallback:'서버 요청을 처리하지 못했습니다.'});
       finishRuntimeActivity({removeImmediately:true});
     }finally{setBusy(false);resizeComposer();focusComposerForDesktop();}
+  }
+
+  async function cancelVNextCanvasNode(nodeId){
+    const scope=vnextScope();
+    if(!scope)return;
+    const runRef=[...state.vnextRuns].find(ref=>(state.vnextRunTargets.get(ref)||[]).includes(nodeId));
+    if(!runRef)return;
+    try{
+      const response=await VNextAPI.turn({...scope,requestRef:VNextAPI.uniqueId(),actions:[
+        {localKey:'cancel',kind:'run.cancel',args:{runRef}}
+      ]});
+      if(response.results?.[0]?.status!=='applied')throw new Error(
+        response.results?.[0]?.error?.code||'RUN_CANCEL_REJECTED');
+      Presence.canvasStatus?.('실행 중단 요청 완료',{hold:1200});
+      await refreshVNextRun(runRef);
+    }catch(error){
+      showErrorNotice(error,{scope:'실행 중단 오류',fallback:'서버에서 실행을 중단하지 못했습니다.'});
+    }
   }
 
   async function runVNextCanvasNode(nodeId,mode='closed'){
@@ -7507,6 +7528,11 @@
         payload?.id || ""
       );
 
+    if(vnextScope()){
+      if(nodeId)void cancelVNextCanvasNode(nodeId);
+      return;
+    }
+
     if (
       !nodeId ||
       !state.runtime
@@ -7677,6 +7703,9 @@
                 .state
                 ?.canvas
             );
+
+          state.vnextLocalView=vnextScope()&&Array.isArray(canvasState?.workflow?.nodes)?
+            {nodes:clone(canvasState.workflow.nodes)}:null;
 
           if (
             canvasState &&

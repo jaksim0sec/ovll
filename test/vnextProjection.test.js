@@ -27,6 +27,15 @@ test('dynamic definitions and port identities survive frontend projection',()=>{
   assert.equal(result.workflow.data[0][1],'n2.source');
   assert.equal(result.workflow.nodes[1].x,undefined,'new nodes use layout engine');
 });
+test('persisted frontend-only view coordinates survive server graph rehydration',()=>{
+  const captured=[];
+  const canvas={getWorkflow:()=>({nodes:[]}),getBaseNodeDefinitions:()=>({}),
+    setNodeDefinitions:x=>captured.push(x),applyWorkflowIR:x=>captured.push(x)};
+  p.applyGraph(canvas,snapshot,{nodes:[{id:'n2',x:82,y:94,expanded:true}]});
+  assert.equal(captured[1].nodes[1].x,82);
+  assert.equal(captured[1].nodes[1].y,94);
+  assert.equal(captured[1].nodes[1].expanded,true);
+});
 test('projection rejects unknown definition and edge instead of dropping meaningful state',()=>{
   const broken=JSON.parse(JSON.stringify(snapshot));broken.graph.nodes[0].definitionRef.version=99;
   assert.throws(()=>p.projectGraph(broken),/UNRESOLVED_NODE_DEFINITION/);
