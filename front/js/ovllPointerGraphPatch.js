@@ -8,7 +8,10 @@
   function settingsFor(node,prior={}){
     const settings={...prior};
     const request=node.data?.params?.request;
-    if(typeof request==='string'){if(request.length>2400)fail('INVALID_NODE_INSTRUCTION');settings.request=request;}
+    if(typeof request==='string'){
+      if(request.length>2400)fail('INVALID_NODE_INSTRUCTION');
+      if(request.length||Object.hasOwn(prior,'request'))settings.request=request;
+    }
     if(node.type==='file'){
       const file={};for(const k of ['localFileId','name','mime','size','downloadUrl','previewUrl','textPreview','textTruncated'])
         if(node.data?.[k]!==undefined)file[k]=node.data[k];
@@ -45,7 +48,8 @@
     const desired=new Map();
     for(const link of workflow.connections){
       const source=defs.get(after.get(link?.from?.node)?.type),destination=defs.get(after.get(link?.to?.node)?.type);
-      const kind=link?.data?.kind||
+      const declared=link?.data?.kind;
+      const kind=declared==='links'?'flow':declared||
         (source?.outputs.some(p=>p.name===link?.from?.port)&&destination?.inputs.some(p=>p.name===link?.to?.port)?'data':'flow');
       const f=link?.from,t=link?.to;
       if(!safe(f?.node)||!safe(t?.node)||!safe(f.port)||!safe(t.port)||
@@ -78,8 +82,7 @@
       if(uiBindings!==undefined&&!same(uiBindings,prior.inputBindings||{}))
         changes.inputBindings=uiBindings;
       const settings=settingsFor(node,prior.settings||{});
-      const baseline={...(prior.settings||{}),request:prior.settings?.request??prevDef.instruction};
-      if(!same(settings,baseline)&&!(same(settings,prior.settings||{})))changes.settings=settings;
+      if(!same(settings,prior.settings||{}))changes.settings=settings;
       if(Object.keys(changes).length)operations.push({op:'node.update',nodeId:id,...changes});
     }
     for(const [k,link] of desired)if(!original.has(k)){

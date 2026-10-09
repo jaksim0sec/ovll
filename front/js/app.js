@@ -663,6 +663,11 @@
             : "모델 제공자의 요청 한도에 걸렸어. 잠시 후 다시 시도해 줘."
           : code === "LOCAL_MODEL_BUSY"
             ? "현재 작업이 몰려 대기 공간이 찼어. 잠시 후 다시 시도해 줘."
+            : code === "INVALID_MODEL_TURN" || code === "MODEL_INVALID_JSON"
+              ? "모델 응답이 작업 형식 검증을 통과하지 못했어. 작업 변경은 적용되지 않았어."+
+                (error?.validationIssues?.[0]?.missing
+                  ? " 누락 항목: "+String(error.validationIssues[0].missing).slice(0,60)
+                  : "")
             : code === "PROVIDER_HTTP_ERROR"
               ? status===400
                 ? "모델 요청 형식이 올바르지 않아 거부됐어. 요청 설정을 확인해야 해. (HTTP 400)"

@@ -70,3 +70,27 @@ test('local wire examples include existing reuse, dynamic work, scoped requests 
  const core=received[0].messages[0].content;
  assert.match(core,/capabilit/i);assert.match(core,/internal implementation/i);
 });
+
+test('empty optional action and need arrays do not invalidate a useful direct reply',async()=>{
+  const received=[];
+  const host=create([{message:'새 파일 요청을 확인했어.',actions:[],needs:[],outputs:null}],received);
+  const result=await host.turn({snapshot,requestRef:'r_empty_optional',requestText:'앞의 요청을 계속해'});
+  assert.deepEqual(result,{message:'새 파일 요청을 확인했어.'});
+  assert.equal(received.length,1,'no unnecessary repair request');
+});
+test('failed contract retains only safe schema issues and never applies invalid actions',async()=>{
+  const received=[],host=create([{actions:[{kind:'ir.applyPatch',localKey:'p',args:{patch:{
+    graphId:'g',expectedGraphRevision:0,definitions:[{localKey:'x',purpose:'write',
+      executorKind:'model_task',instruction:'write',inputs:[],outputs:[{
+        name:'result',representation:'text'}]}],operations:[]}}}]},
+    {message:'ok',actions:[{kind:'ir.applyPatch',localKey:'p',args:{patch:{
+      graphId:'g',expectedGraphRevision:0,definitions:[{localKey:'x',purpose:'write',
+        executorKind:'model_task',instruction:'write',inputs:[],outputs:[{
+          name:'result',representation:'text'}]}],operations:[]}}}]}],received);
+  await assert.rejects(host.turn({snapshot,requestRef:'r_missing_role',requestText:'workflow'}),
+    error=>error.code==='INVALID_MODEL_TURN'&&
+      Array.isArray(error.validationIssues)&&error.validationIssues.length>0&&
+      error.validationIssues.every(item=>typeof item.path==='string'&&typeof item.rule==='string'));
+  assert.equal(received.length,2);
+  assert.equal(repo.get('local','g').graph.nodes.length,0);
+});

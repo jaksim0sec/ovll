@@ -83,8 +83,17 @@ export function mountLocalPointerRoutes(app,{createHost=()=>createConfiguredLoca
         const retryAfterSeconds=Number(error?.retryAfterSeconds);
         if(Number.isFinite(retryAfterSeconds)&&retryAfterSeconds>0)
           res.set('Retry-After',String(Math.ceil(retryAfterSeconds)));
+        const validationIssues=Array.isArray(error?.validationIssues)?
+          error.validationIssues.slice(0,4).map(item=>({
+            path:typeof item.path==='string'&&/^\/(?:[A-Za-z0-9_]+\/?)*$/.test(item.path)?
+              item.path.slice(0,120):'/',
+            rule:typeof item.rule==='string'&&/^[A-Za-z]+$/.test(item.rule)?item.rule:'invalid',
+            ...(typeof item.missing==='string'&&/^[A-Za-z_][A-Za-z0-9_]{0,60}$/.test(item.missing)?
+              {missing:item.missing}:{})
+          })):null;
         res.status(error.status>=400&&error.status<600?error.status:502)
           .json({error:{code:error.code||'LOCAL_MODEL_REQUEST_FAILED',
+            ...(validationIssues?.length?{validationIssues}:{}),
             ...(typeof error.providerStatus==='string'&&
               /^[A-Z_]{2,48}$/.test(error.providerStatus)?
               {providerStatus:error.providerStatus}:{}),

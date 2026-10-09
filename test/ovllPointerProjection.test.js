@@ -71,34 +71,35 @@ test('server node evidence status maps to existing canvas runtime state without 
   assert.equal(entries[1][1].status,'FAILED');
   assert.equal(entries[0][1].result.downloadUrl,undefined);
 });
-test('semantic in and next ports retain separate compatible control ports through canvas patches',()=>{
+test('existing one-in one-out node layout remains unchanged and flow edges reuse those ports',()=>{
   const definitions=getPointerCatalog().definitions;
   const graph={graphId:'g_controls',revision:1,nodes:['write','organize'].map(type=>({nodeId:type,
     definitionRef:{definitionId:'builtin:'+type,version:1},settings:{},inputBindings:{}})),connections:[]};
   const snapshot={graph,definitions},projected=p.projectGraph(snapshot);
-  const output=projected.definitions.write.outputs.find(port=>port.type==='flow');
-  const input=projected.definitions.organize.inputs.find(port=>port.type==='flow');
-  assert.ok(input,'canonical nodes need a control entry alongside semantic in');
-  assert.equal(projected.definitions.organize.inputs.find(port=>port.id==='in').type,'json');
+  assert.deepEqual(projected.definitions.write.inputs.map(port=>port.id),['in']);
+  assert.deepEqual(projected.definitions.write.outputs.map(port=>port.id),['result']);
+  assert.deepEqual(projected.definitions.organize.inputs.map(port=>port.id),['in']);
+  assert.deepEqual(projected.definitions.organize.outputs.map(port=>port.id),['result']);
+  assert.equal(projected.workflow.nodes[0].params.request,'');
   const canvasSource=readFileSync(new URL('../front/js/canvasNode.js',import.meta.url),'utf8');
   const compatible=vm.runInNewContext('('+canvasSource.slice(canvasSource.indexOf('function compatible('),canvasSource.indexOf('function wouldCycle(')).trim()+')');
-  assert.equal(compatible(output,input),true);
+  assert.equal(compatible(projected.definitions.write.outputs[0],projected.definitions.organize.inputs[0]),true);
   const w={};vm.runInNewContext(readFileSync(new URL('../front/js/ovllPointerGraphPatch.js',import.meta.url),'utf8'),{window:w});
   const edit=w.OvllPointerGraphPatch.build(snapshot,{nodes:projected.workflow.nodes,
-    connections:[{from:{node:'write',port:output.id},to:{node:'organize',port:input.id}}]});
+    connections:[{from:{node:'write',port:'result'},to:{node:'organize',port:'in'},data:{kind:'links'}}]});
   assert.equal(edit.patch.operations[0].kind,'flow');
   const repo=new MemoryGraphRepository();repo.restore('local',graph.graphId,snapshot);
   repo.apply('local',JSON.parse(JSON.stringify(edit.patch)));
-  assert.equal(repo.get('local',graph.graphId).graph.connections[0].to.port,input.id);
-  const legacy={...snapshot,graph:{...graph,connections:[{id:'old_flow',kind:'flow',from:{nodeId:'write',port:'result'},to:{nodeId:'organize',port:'in'}}]}};
-  const restored=p.projectGraph(legacy);
+  const saved=repo.get('local',graph.graphId);
+  assert.equal(saved.graph.connections[0].to.port,'in');
+  const restored=p.projectGraph(saved);
   assert.deepEqual(Array.from(restored.workflow.links[0]),['write.result','organize.in']);
-  assert.equal(w.OvllPointerGraphPatch.build(legacy,{nodes:restored.workflow.nodes,connections:[{
+  assert.equal(w.OvllPointerGraphPatch.build(saved,{nodes:restored.workflow.nodes,connections:[{
     from:{node:'write',port:'result'},to:{node:'organize',port:'in'},data:{kind:'flow'}}]}),null);
-  const collision={...definitions[0],definitionId:'custom_controls',inputs:[{name:'in',role:'data',representation:'text'},{name:'flow_in',role:'more data',representation:'text'}],outputs:[{name:'next',role:'result',representation:'text'}]};
+  const collision={...definitions[0],definitionId:'custom_controls',
+    inputs:[{name:'in',role:'data',representation:'text'},{name:'flow_in',role:'more data',representation:'text'}],
+    outputs:[{name:'next',role:'result',representation:'text'}]};
   const custom=p.projectGraph({definitions:[collision],graph:{...graph,nodes:[{nodeId:'custom',definitionRef:{definitionId:collision.definitionId,version:1}}]}}).definitions['pointer:custom_controls:1'];
-  for(const ports of [custom.inputs,custom.outputs]){
-    assert.equal(new Set(ports.map(port=>port.id)).size,ports.length);
-    assert.ok(ports.some(port=>port.type==='flow'));
-  }
+  assert.deepEqual(custom.inputs.map(port=>port.id),['in','flow_in']);
+  assert.deepEqual(custom.outputs.map(port=>port.id),['next']);
 });

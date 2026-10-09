@@ -48,3 +48,31 @@ test('client preserves safe provider status and hides raw upstream errors',async
   assert.match(app,/status===401\|\|status===403/);
   assert.match(app,/status===404/);
 });
+
+test('invalid ModelTurn returns only schema keywords and no user or model content',async()=>{
+  const app=express();app.use(express.json());
+  mountLocalPointerRoutes(app,{enabled:()=>true,createHost:()=>({
+    turn:async()=>{
+      const e=new Error('INVALID_MODEL_TURN');e.code='INVALID_MODEL_TURN';e.status=422;
+      e.validationIssues=[{path:'/actions/0',rule:'required',missing:'role',
+        secret:'Never leak original model output'},{
+        path:'/unsafe <private>',rule:'format',missing:'user prompt here'
+      }];
+      throw e;
+    }
+  })});
+  const server=app.listen(0,'127.0.0.1');
+  await new Promise(resolve=>server.once('listening',resolve));
+  try{
+    const response=await fetch('http://127.0.0.1:'+server.address().port+'/api/pointer/local/turn',{
+      method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requestText:'private'})
+    });
+    assert.equal(response.status,422);
+    const payload=await response.json();
+    assert.equal(payload.error.code,'INVALID_MODEL_TURN');
+    assert.equal(payload.error.validationIssues[0].missing,'role');
+    assert.equal(payload.error.validationIssues[1].path,'/');
+    assert.equal(payload.error.validationIssues[1].missing,undefined);
+    assert.doesNotMatch(JSON.stringify(payload),/Never leak|user prompt here/);
+  }finally{await new Promise(resolve=>server.close(resolve));}
+});

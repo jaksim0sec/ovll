@@ -384,6 +384,22 @@ function normalizePointerGraph(value){
   return clone(value);
 }
 
+// Reusable Pointer definitions belong to the workspace, not to a chat instance.
+function collectPointerDefinitions(...sources){
+  const map=new Map();
+  for(const source of sources){
+    for(const def of Array.isArray(source)?source:[]){
+      if(!def||typeof def.definitionId!=='string'||def.definitionId.startsWith('builtin:')||
+        !Number.isInteger(def.version)||def.version<1||
+        typeof def.purpose!=='string'||!Array.isArray(def.inputs)||
+        !Array.isArray(def.outputs))continue;
+      const key=def.definitionId+':'+def.version;
+      if(!map.has(key))map.set(key,clone(def));
+    }
+  }
+  return [...map.values()];
+}
+
 function normalizePointerRuns(value){
   if(!Array.isArray(value))return [];
   return value.slice(-12).filter(x=>x&&typeof x.runId==='string'&&
@@ -507,7 +523,8 @@ function createDefaultState(){
     },
     sections:[section],
     conversations:[conversation],
-    contextBundles:[context]
+    contextBundles:[context],
+    pointerDefinitions:[]
   };
 }
 
@@ -702,7 +719,11 @@ function normalizeState(raw){
     },
     sections,
     conversations,
-    contextBundles
+    contextBundles,
+    pointerDefinitions:collectPointerDefinitions(
+      source.pointerDefinitions,
+      ...conversations.map(c=>c.state.pointerGraph?.definitions)
+    )
   };
 }
 
@@ -1286,12 +1307,21 @@ function updateConversationPointerGraph(conversationId,snapshot){
   const next=normalizePointerGraph(snapshot);
   if(snapshot!==null&&!next)throw new Error("INVALID_POINTER_GRAPH");
   const previous=conversation.state.pointerGraph;
+  const previousDefinitions=state.pointerDefinitions;
   conversation.state.pointerGraph=next;
+  state.pointerDefinitions=collectPointerDefinitions(
+    previousDefinitions,next?.definitions
+  );
   if(!persist("conversation:pointer-graph")){
     conversation.state.pointerGraph=previous;
+    state.pointerDefinitions=previousDefinitions;
     throw new Error("LOCAL_GRAPH_SAVE_FAILED");
   }
   return clone(next);
+}
+
+function getPointerDefinitions(){
+  return clone(state.pointerDefinitions||[]);
 }
 
 function updateConversationPointerRuns(conversationId,runs){
@@ -1562,6 +1592,7 @@ const api = {
   assignContextBundle,
   updateConversationState,
   updateConversationPointerGraph,
+  getPointerDefinitions,
   updateConversationPointerRuns,
   updateConversationDraft,
   deleteConversation,

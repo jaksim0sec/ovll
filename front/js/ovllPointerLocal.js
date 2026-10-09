@@ -22,8 +22,14 @@
         }
       }
       const builtins=catalog?.definitions||[];
-      return {...snapshot,definitions:[...snapshot.definitions.filter(d=>!builtins.some(b=>
-        b.definitionId===d.definitionId&&b.version===d.version)),...builtins]};
+      const saved=snapshot.definitions||[];
+      const shared=workspaceStore.getPointerDefinitions?.()||[];
+      const match=(a,b)=>a.definitionId===b.definitionId&&a.version===b.version;
+      return {...snapshot,definitions:[
+        ...shared.filter(d=>!saved.some(s=>match(s,d))&&!builtins.some(b=>match(b,d))),
+        ...saved.filter(d=>!builtins.some(b=>match(b,d))),
+        ...builtins
+      ]};
     }
     const safe=s=>typeof s==="string"&&/^[A-Za-z0-9_.:-]{1,150}$/.test(s);
     const graphIdFor=id=>{
