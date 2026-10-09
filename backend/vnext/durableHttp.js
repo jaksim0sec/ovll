@@ -59,6 +59,14 @@ export function createDurableVNextApp({ store, authenticate, verifyMutation, han
   app.post('/api/vnext/questions/:questionRef/answer',handler(async(req,res)=>{
     res.json(await store.answerQuestion(await mutation(req),req.params.questionRef,req.body?.answer));
   }));
+  app.get('/api/vnext/state',handler(async(req,res)=>{
+    const scope=await session(req),graphId=req.query.graphId,taskRef=req.query.taskRef;
+    if(!safeId(graphId)||(taskRef!==undefined&&!safeId(taskRef)))error('BAD_GRAPH_SCOPE');
+    res.set('Cache-Control','no-store').json(await store.readCanvasState(scope,graphId,taskRef));
+  }));
+  app.get('/api/vnext/runs/:runRef/state',handler(async(req,res)=>{
+    res.set('Cache-Control','no-store').json(await store.readRunState(await session(req),req.params.runRef));
+  }));
   app.get('/api/vnext/runs/:runRef',handler(async(req,res)=>{
     res.set('Cache-Control','no-store').json(await store.inspectRun(await session(req),req.params.runRef));
   }));

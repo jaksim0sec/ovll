@@ -62,6 +62,18 @@ test('HTTP natural request -> vendor-neutral gateway -> durable Patch/Run -> rep
     assert.ok(streamData.events.some(e=>e.type==='controller.model_requested'&&e.data.requestRef===requestRef));
     assert.ok(streamData.events.some(e=>e.type==='graph.applied'));
     assert.ok(streamData.events.some(e=>e.type==='run.queued'));
+    const canvas=await fetch(base+'/state?graphId='+graphId+'&taskRef='+taskRef,
+      {headers:{'x-user':actorRef}});
+    assert.equal(canvas.status,200);
+    const view=await canvas.json();
+    assert.equal(view.graph.graph.revision,1);
+    assert.ok(view.runs.some(r=>r.runId===result.results[1].runRef));
+    assert.ok(view.eventCursor>=streamData.latestId);
+    const state=await fetch(base+'/runs/'+result.results[1].runRef+'/state',
+      {headers:{'x-user':actorRef}});
+    assert.equal(state.status,200);
+    assert.equal((await state.json()).run.status,'queued');
+    assert.equal((await fetch(base+'/state?graphId='+graphId)).status,401);
     assert.ok(calls>=3);
     const ctrl=new AbortController();
     const stream=await fetch(base+'/events/stream?after=0',{headers:{'x-user':actorRef},signal:ctrl.signal});

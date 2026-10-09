@@ -88,6 +88,7 @@ const APP_SCRIPTS=[
   "./js/previewSandbox.js",
   "./js/api.js",
   "./js/vnextApi.js",
+  "./js/vnextProjection.js",
   "./js/canvasNode.js",
   "./js/runtimeEngine.js",
   "./js/navigation.js",

@@ -28,6 +28,14 @@ test('vNext POST is session-aware, uses idempotency and CSRF, and does not post 
   assert.equal(x.calls[0].init.headers['X-CSRF-Token'],'csrf');
   assert.deepEqual(JSON.parse(x.calls[0].init.body),{requestText:'hello'});
 });
+test('state and action routes use JSON, scoped graph and no direct AI authority',async()=>{
+  const x=client([{graph:{graph:{revision:3}},eventCursor:8,runs:[]},{results:[{status:'scheduled',runRef:'r1'}]}]);
+  const snapshot=await x.OvllVNextApi.state('g1','t1');
+  assert.equal(snapshot.eventCursor,8);
+  await x.OvllVNextApi.turn({graphId:'g1',taskRef:'t1',actions:[{kind:'run.start',localKey:'run',args:{targets:[{nodeId:'n1'}]}}]});
+  assert.match(x.calls[0].url,/state\?graphId=g1&taskRef=t1/);
+  assert.match(x.calls[1].url,/turns$/);
+});
 test('SSE retains durable cursor and suppresses duplicate events',async()=>{
   const x=client([{events:[{id:1,type:'run.queued',data:{runRef:'r'}}],latestId:1,hasMore:false}]);
   const got=[],stop=x.OvllVNextApi.watch({onEvent:e=>got.push(e.id)});

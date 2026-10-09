@@ -12,6 +12,7 @@
   const Navigation = global.OvllNavigation;
   const API = global.AstraAPI;
   const VNextAPI = global.OvllVNextApi;
+  const VNextProjection = global.OvllVNextProjection;
   const Presence = global.OvllPresence;
   const WorkspaceStore = global.OvllWorkspaceStore;
   const FileStore = global.OvllFileStore;
@@ -101,6 +102,9 @@
     vnextWatch: null,
     vnextRuns: new Set(),
     vnextRequestRef: null,
+    vnextGraphRevision: -1,
+    vnextRunRefs: new Set(),
+    vnextRunTargets: new Map(),
     runGate: {
       locked: false,
       pivot: null,
@@ -6142,12 +6146,107 @@
   }
 
 
-  // Only enabled by an authenticated vNext host; legacy chat/canvas remains the default.
-  async function runVNextPrompt(text,options={}) {
+  function vnextScope(){
+    const settings=global.OVLL_RUNTIME||{};
+    return settings.vnextEnabled===true&&VNextAPI&&global.OvllVNextProjection&&
+      typeof settings.vnextGraphId==='string'&&settings.vnextGraphId?
+      {graphId:settings.vnextGraphId,taskRef:settings.vnextTaskRef||undefined}:null;
+  }
+
+  async function refreshVNextCanvas(){
+    const scope=vnextScope();
+    if(!scope||!state.canvas)return 0;
+    const conversation=state.activeConversationId;
+    const snapshot=await VNextAPI.state(scope.graphId,scope.taskRef);
+    if(state.destroyed||conversation!==state.activeConversationId)return snapshot.eventCursor;
+    if(snapshot.graph?.graph?.revision>=state.vnextGraphRevision){
+      global.OvllVNextProjection.applyGraph(state.canvas,snapshot.graph);
+      state.vnextGraphRevision=snapshot.graph.graph.revision;
+      state.workflow=getCurrentWorkflow();
+    }
+    for(const run of snapshot.runs||[]){
+      if(!run.runId)continue;
+      state.vnextRunRefs.add(run.runId);
+      state.vnextRunTargets.set(run.runId,run.targets||[]);
+      await refreshVNextRun(run.runId,conversation);
+    }
+    return snapshot.eventCursor;
+  }
+
+  async function refreshVNextRun(runRef,conversation=state.activeConversationId){
+    if(!VNextAPI||!runRef)return;
+    const result=await VNextAPI.runState(runRef);
+    if(state.destroyed||conversation!==state.activeConversationId)return;
+    global.OvllVNextProjection.applyRunState(state.canvas,result);
+    if(['completed','failed','cancelled','waiting'].includes(result.run.status)){
+      state.vnextRuns.delete(runRef);
+      if(state.runtimeActivity){
+        setRuntimeActivity(result.run.status==='completed'?'서버 실행 완료':'실행 확인 필요',
+          {id:'__finalize__'});
+        if(!state.vnextRuns.size)finishRuntimeActivity();
+      }
+    }else {
+      state.vnextRuns.add(runRef);
+    }
+  }
+
+  async function handleVNextServerEvent(event){
+    const scope=vnextScope();
+    if(!scope||!event||typeof event.type!=='string')return;
+    const data=event.data||{};
+    if(event.type==='graph.applied'&&data.graphId===scope.graphId){
+      await refreshVNextCanvas();
+      return;
+    }
+    if(event.type==='run.queued'&&data.graphRef?.graphId===scope.graphId){
+      state.vnextRunRefs.add(data.runRef);
+      state.vnextRuns.add(data.runRef);
+      await refreshVNextRun(data.runRef);
+      return;
+    }
+    if(event.type==='node.started'||event.type==='node.success'||
+      event.type==='node.failed'||event.type==='node.blocked'||event.type==='node.outcome_unknown'||
+      event.type.startsWith('run.')){
+      if(!data.runRef||!state.vnextRunRefs.has(data.runRef))return;
+      if(event.type==='node.started'){
+        state.canvas?.setRuntimeNodeState?.(data.nodeId,{status:'RUNNING'});
+        setRuntimeActivity('노드 실행 중',{id:data.nodeId});
+      }
+      if(event.type==='node.success'){
+        state.canvas?.setRuntimeNodeState?.(data.nodeId,{status:'SUCCESS',report:'결과 저장 완료'});
+        completeRuntimeStep(data.nodeId,{text:'노드 실행 완료'});
+      }
+      if(['node.failed','node.blocked','node.outcome_unknown'].includes(event.type)){
+        state.canvas?.setRuntimeNodeState?.(data.nodeId,{status:'FAILED',report:data.reason||'노드 작업 실패'});
+        completeRuntimeStep(data.nodeId,{failed:true,text:'노드 작업 실패'});
+      }
+      if(event.type.startsWith('run.')&&event.type!=='run.queued')await refreshVNextRun(data.runRef);
+    }
+  }
+
+  async function connectVNext(){
+    const scope=vnextScope();
+    if(!scope||!state.canvas)return;
+    state.vnextWatch?.();state.vnextWatch=null;
+    const cursor=await refreshVNextCanvas();
+    state.vnextWatch=VNextAPI.watch({
+      after:cursor,
+      onEvent:event=>{
+        if(event.type.startsWith('controller.')&&event.data?.requestRef===state.vnextRequestRef){
+          if(event.type==='controller.model_requested')setRuntimeActivity('모델 작업 중',{id:'__prepare__'});
+          if(event.type==='controller.context_requested')setRuntimeActivity('맥락 확인 중',{id:'__prepare__'});
+        }
+        void handleVNextServerEvent(event).catch(error=>console.error('vNext event error',error));
+      },
+      onResync:async()=>refreshVNextCanvas(),
+      onError:error=>console.warn('vNext event replay error',error)
+    });
+  }
+
+  async function runVNextPrompt(text,options={}){
     if(state.destroyed||state.busy)return;
     const value=String(text??'').trim();
     if(!value)return;
-    if(!VNextAPI)throw new Error('vNext API adapter is unavailable');
     state.lastUserRequest=value;
     if(options.addUserMessage!==false){
       addUserMessage(value);
@@ -6155,58 +6254,58 @@
       resizeComposer();
       scheduleComposerDraftSave(0);
     }
-    setBusy(true);
-    Presence.thinking();
-    state.vnextWatch?.();
-    state.vnextRuns.clear();
-    const requestRef=VNextAPI.uniqueId(),conversationId=state.activeConversationId;
+    setBusy(true);Presence.thinking();
+    const requestRef=VNextAPI.uniqueId(),scope=vnextScope();
     state.vnextRequestRef=requestRef;
     beginRuntimeActivity('요청 확인 중');
     try{
-      state.vnextWatch=VNextAPI.watch({
-        onEvent:event=>{
-          if(state.destroyed||state.activeConversationId!==conversationId)return;
-          const data=event.data||{};
-          if(event.type.startsWith('controller.')&&data.requestRef===requestRef){
-            if(event.type==='controller.model_requested')setRuntimeActivity('모델 작업 중',{id:'__prepare__'});
-            if(event.type==='controller.context_requested')setRuntimeActivity('맥락 확인 중',{id:'__prepare__'});
-            if(event.type==='controller.failed')setRuntimeActivity('요청 실패',{id:'__finalize__'});
-          }
-          if(!data.runRef||!state.vnextRuns.has(data.runRef))return;
-          if(event.type==='node.started')setRuntimeActivity('노드 실행 중',{id:data.nodeId});
-          if(event.type==='node.success')completeRuntimeStep(data.nodeId,{text:'노드 실행 완료'});
-          if(event.type==='node.failed'||event.type==='node.blocked'||event.type==='node.outcome_unknown')
-            completeRuntimeStep(data.nodeId,{failed:true,text:'노드 작업 실패'});
-          if(event.type==='run.completed'||event.type==='run.failed'||event.type==='run.cancelled'||
-            event.type==='run.waiting'){
-            state.vnextRuns.delete(data.runRef);
-            setRuntimeActivity(event.type==='run.completed'?'실행 완료':'실행 확인 필요',{id:'__finalize__'});
-            if(!state.vnextRuns.size)finishRuntimeActivity();
-          }
-        },
-        onResync:()=>setRuntimeActivity('서버 상태 재동기화 필요',{id:'__prepare__'}),
-        onError:()=>setRuntimeActivity('연결 복구 중',{id:'__prepare__'})
-      });
-      const config=global.OVLL_RUNTIME||{};
       const result=await VNextAPI.submit({requestRef,requestText:value,
-        ...(config.vnextGraphId?{graphId:config.vnextGraphId}:{}),
-        ...(config.vnextTaskRef?{taskRef:config.vnextTaskRef}:{})});
-      const runs=(result.results||[]).filter(r=>r.status==='scheduled'&&r.runRef);
-      for(const run of runs){state.vnextRuns.add(run.runRef);setRuntimeActivity('서버 실행 예약됨',{id:run.runRef});}
+        ...(scope?{graphId:scope.graphId,taskRef:scope.taskRef}:{})});
+      const scheduled=(result.results||[]).filter(r=>r.status==='scheduled'&&r.runRef);
+      for(const item of scheduled){state.vnextRunRefs.add(item.runRef);state.vnextRuns.add(item.runRef);
+        setRuntimeActivity('서버 실행 예약됨',{id:item.runRef});}
+      if(scope&&result.results?.some(r=>r.status==='applied'&&Number.isInteger(r.newRevision)))
+        await refreshVNextCanvas();
       const rejected=(result.results||[]).filter(r=>r.status==='rejected');
       const message=String(result.message||'')||
         (result.needs?.length?'추가 자료가 필요해. 아직 실행하지 않았어.':
           rejected.length?'요청한 변경 중 일부가 거절됐어.':
-          runs.length?'서버에 실행을 예약했어. 결과는 아직 확정되지 않았어.':
+          scheduled.length?'서버에 실행을 예약했어. 결과는 아직 확정되지 않았어.':
           result.results?.length?'서버에서 변경을 적용했어.':'서버에서 응답을 받지 못했어.');
       addAssistantMessage(message);
-      if(!runs.length)finishRuntimeActivity({removeImmediately:true});
+      for(const item of scheduled)void refreshVNextRun(item.runRef).catch(error=>
+        console.warn('vNext run refresh failed',error));
+      if(!scheduled.length)finishRuntimeActivity({removeImmediately:true});
       Presence.settle();
     }catch(error){
       Presence.settle();
       showErrorNotice(error,{scope:'vNext 요청 오류',fallback:'서버 요청을 처리하지 못했습니다.'});
       finishRuntimeActivity({removeImmediately:true});
     }finally{setBusy(false);resizeComposer();focusComposerForDesktop();}
+  }
+
+  async function runVNextCanvasNode(nodeId,mode='closed'){
+    const scope=vnextScope();
+    if(!scope||!scope.taskRef||!state.vnextGraphRevision||!state.canvas?.getNode?.(nodeId)){
+      showErrorNotice(new Error('SERVER_RUN_SCOPE_UNAVAILABLE'),{scope:'서버 실행',fallback:'서버 작업을 확인할 수 없습니다.'});
+      return;
+    }
+    const requestRef=VNextAPI.uniqueId();
+    try{
+      beginRuntimeActivity('서버 실행 예약 중');
+      const response=await VNextAPI.turn({...scope,requestRef,actions:[{
+        localKey:'run',kind:'run.start',args:{targets:[{nodeId}],damMode:mode==='open'?'open':'closed'}
+      }]});
+      const run=response.results?.find(x=>x.status==='scheduled');
+      if(!run?.runRef)throw new Error(response.results?.[0]?.error?.code||'RUN_NOT_SCHEDULED');
+      state.vnextRunRefs.add(run.runRef);state.vnextRuns.add(run.runRef);
+      state.vnextRunTargets.set(run.runRef,[nodeId]);
+      setRuntimeActivity('서버 실행 예약됨',{id:run.runRef});
+      await refreshVNextRun(run.runRef);
+    }catch(error){
+      showErrorNotice(error,{scope:'서버 실행 오류',fallback:'서버에서 실행을 예약하지 못했습니다.'});
+      finishRuntimeActivity({removeImmediately:true});
+    }
   }
 
   async function runPrompt(text, options = {}) {
@@ -7377,6 +7476,10 @@
     if (!nodeId) {
       return;
     }
+    if(vnextScope()){
+      void runVNextCanvasNode(nodeId,payload?.mode);
+      return;
+    }
 
     void runCanvasNode(
       nodeId,
@@ -7675,6 +7778,10 @@
             false;
         }
 
+        if(vnextScope()){
+          state.vnextGraphRevision=-1;
+          await connectVNext();
+        }
         global.OvllShellMenu
           ?.refresh?.();
 
@@ -8232,6 +8339,7 @@ listen(composerInput, "keydown", handleComposerKeydown);
       );
     } else {
       Presence.showStart();
+      if(vnextScope())await connectVNext();
     }
 
     resizeComposer();
@@ -8381,6 +8489,8 @@ listen(composerInput, "keydown", handleComposerKeydown);
       if (state.destroyed) return;
 
       state.destroyed = true;
+      state.vnextWatch?.();
+      state.vnextWatch=null;
 
       clearTimeout(
         state.workspaceSaveTimer

@@ -354,6 +354,45 @@ export class PostgresVNextStore {
         content:{representation:value.representation,value:value.value},validationStatus:value.validation_status};
     });
   }
+
+  // Atomic read model: view state and event cursor come from the same MVCC snapshot.
+  async readCanvasState(scope,graphId,taskRef) {
+    checkId(graphId);
+    if(taskRef!==undefined)checkId(taskRef);
+    return transaction(this.#pool,async c=>{
+      await c.query('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY');
+      await member(c,scope);
+      const graph=await graphRow(c,scope.workspaceRef,graphId);
+      const cursor=await c.query('SELECT event_cursor FROM ov_workspaces WHERE workspace_id=$1',[scope.workspaceRef]);
+      const recent=await c.query(`SELECT r.run_id,r.status,r.snapshot FROM ov_runs r
+        JOIN ov_run_queue q ON q.workspace_id=r.workspace_id AND q.run_id=r.run_id
+        WHERE r.workspace_id=$1 AND r.graph_id=$2 AND ($3::text IS NULL OR r.task_id=$3)
+        ORDER BY q.updated_at DESC,r.run_id DESC LIMIT 25`,
+        [scope.workspaceRef,graphId,taskRef||null]);
+      return {graph:clone(graph.snapshot),eventCursor:Number(cursor.rows[0].event_cursor),
+        runs:recent.rows.map(row=>({...row.snapshot,status:row.status}))};
+    });
+  }
+  async readRunState(scope,runRef) {
+    checkId(runRef);
+    return transaction(this.#pool,async c=>{
+      await c.query('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY');
+      await member(c,scope);
+      const run=await c.query('SELECT snapshot,status,plan_epoch FROM ov_runs WHERE workspace_id=$1 AND run_id=$2',
+        [scope.workspaceRef,runRef]);
+      if(!run.rows.length)deny('RUN_NOT_FOUND',404);
+      const row=run.rows[0];
+      const attempts=await c.query(`SELECT DISTINCT ON (node_id)
+        node_id,status,attempt_id,output_refs,result,generation
+        FROM ov_attempts WHERE workspace_id=$1 AND run_id=$2 AND plan_epoch=$3
+        ORDER BY node_id,generation DESC`,[scope.workspaceRef,runRef,row.plan_epoch]);
+      return {run:{...row.snapshot,status:row.status},
+        nodes:attempts.rows.map(a=>({nodeId:a.node_id,status:a.status,
+          attemptRef:a.attempt_id,outputRefs:a.output_refs||[],
+          ...(a.result?.reason?{reason:a.result.reason}:{}),
+          ...(a.result?.code?{code:a.result.code}:{})}))};
+    });
+  }
   async inspectRun(scope,runRef) {
     checkId(runRef);
     return transaction(this.#pool,async c=>{
