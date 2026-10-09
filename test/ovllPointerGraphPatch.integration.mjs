@@ -42,7 +42,7 @@ test('real server commits semantic canvas edits with a pinned revision, immutabl
   assert.equal(graph.graph.revision,1);
   const d=graph.definitions[0];
   const nodes=graph.graph.nodes.map(n=>({id:n.nodeId,type:'pointer:'+n.definitionRef.definitionId+':'+n.definitionRef.version,
-    data:{params:{request:d.instruction},pointer:{inputBindings:n.inputBindings}}}));
+    data:{params:{request:''},pointer:{inputBindings:n.inputBindings}}}));
   const links=graph.graph.connections.map(l=>({from:{node:l.from.nodeId,port:l.from.port},
     to:{node:l.to.nodeId,port:l.to.port},data:{kind:l.kind}}));
   const canvas={nodes,connections:links};
