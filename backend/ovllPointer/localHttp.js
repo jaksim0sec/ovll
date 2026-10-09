@@ -3,10 +3,13 @@ import {getPointerCatalog} from './nodeCatalog.js';
 const allowed=new Set(['turn','node','response']);
 export function localModelReady(env=process.env){
   if(env.OVLL_POINTER_LOCAL_MODEL_ENABLED==='false')return false;
-  const configured=!!((env.OVLL_POINTER_MODEL_ENDPOINT||env.OVLL_VNEXT_MODEL_ENDPOINT)&&
-    (env.OVLL_POINTER_MODEL_API_KEY||env.OVLL_VNEXT_MODEL_API_KEY)&&
-    (env.OVLL_POINTER_MODEL_ID||env.OVLL_VNEXT_MODEL_ID));
-  return configured||!!env.GROQ_API_KEY;
+  const selected=env.OVLL_POINTER_PROVIDER_ID||env.OVLL_VNEXT_PROVIDER_ID;
+  const endpoint=env.OVLL_POINTER_MODEL_ENDPOINT||env.OVLL_VNEXT_MODEL_ENDPOINT;
+  const key=env.OVLL_POINTER_MODEL_API_KEY||env.OVLL_VNEXT_MODEL_API_KEY;
+  const model=env.OVLL_POINTER_MODEL_ID||env.OVLL_VNEXT_MODEL_ID;
+  if(selected==='gemini')return !!(env.GEMINI_API_KEY||key);
+  if(endpoint)return !!(key&&model);
+  return (!selected||selected==='groq')&&!!(key||env.GROQ_API_KEY);
 }
 export function mountLocalPointerRoutes(app,{createHost=()=>createConfiguredLocalPointerHost(),
   enabled=()=>localModelReady()}={}){

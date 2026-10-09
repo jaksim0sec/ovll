@@ -132,12 +132,16 @@ export function createLocalPointerHost({gateway,resolveModel,validation=createCo
   return Object.freeze({turn,node,response});
 }
 export function createConfiguredLocalPointerHost({env=process.env,fetchImpl=fetch}={}){
-  const merged=(env.OVLL_POINTER_MODEL_ENDPOINT||env.OVLL_VNEXT_MODEL_ENDPOINT)?env:{
+  const selected=env.OVLL_POINTER_PROVIDER_ID||env.OVLL_VNEXT_PROVIDER_ID;
+  const endpoint=env.OVLL_POINTER_MODEL_ENDPOINT||env.OVLL_VNEXT_MODEL_ENDPOINT;
+  // Preserve the Groq default, but never override an explicit Gemini selection.
+  const useGroqDefault=!endpoint&&(!selected||selected==='groq');
+  const merged=useGroqDefault?{
     ...env,OVLL_POINTER_MODEL_ENDPOINT:'https://api.groq.com/openai/v1/chat/completions',
-    OVLL_POINTER_MODEL_API_KEY:env.GROQ_API_KEY,
-    OVLL_POINTER_MODEL_ID:env.GROQ_MODEL||'openai/gpt-oss-120b',
+    OVLL_POINTER_MODEL_API_KEY:env.OVLL_POINTER_MODEL_API_KEY||env.GROQ_API_KEY,
+    OVLL_POINTER_MODEL_ID:env.OVLL_POINTER_MODEL_ID||env.GROQ_MODEL||'openai/gpt-oss-120b',
     OVLL_POINTER_PROVIDER_ID:'groq'
-  };
+  }:env;
   const {modelGateway,resolveModel}=createConfiguredModelProvider({env:merged,fetchImpl});
   return createLocalPointerHost({gateway:modelGateway,resolveModel});
 }

@@ -9,14 +9,14 @@ export class ProviderError extends Error {
   }
 }
 const fail = (code, status) => { throw new ProviderError(code, code, status); };
-function readRetryAfter(headers) {
+export function readRetryAfter(headers) {
   const value = headers?.get?.('retry-after');
   if (!value) return null;
   const number = Number(value);
   const seconds = Number.isFinite(number) ? number : (Date.parse(value) - Date.now()) / 1000;
   return Number.isFinite(seconds) && seconds > 0 ? Math.min(3600, Math.ceil(seconds)) : null;
 }
-async function waitForRetry(seconds, signal) {
+export async function waitForRetry(seconds, signal) {
   if (signal?.aborted) fail('MODEL_REQUEST_CANCELLED', 499);
   await new Promise((resolve, reject) => {
     const onAbort = () => {
