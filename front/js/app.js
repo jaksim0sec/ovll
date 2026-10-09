@@ -667,6 +667,9 @@
               ? "모델 응답이 작업 형식 검증을 통과하지 못했어. 작업 변경은 적용되지 않았어."+
                 (error?.validationIssues?.[0]?.missing
                   ? " 누락 항목: "+String(error.validationIssues[0].missing).slice(0,60)
+                  : "")+
+                (error?.validationIssues?.[0]?.path?.startsWith?.("/actions/")
+                  ? " 오류 위치: "+String(error.validationIssues[0].path).slice(0,140)
                   : "")
             : code === "PROVIDER_HTTP_ERROR"
               ? status===400

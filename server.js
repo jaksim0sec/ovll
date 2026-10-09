@@ -177,7 +177,7 @@ function serverRuntimeHealth() {
  * The frontend compares this server value with its locally stored version
  * before loading application assets.
  */
-const APP_VERSION = '2026.10.10.11';
+const APP_VERSION = '2026.10.10.12';
 
 /* =========================================================
    GENERATED ARTIFACT API

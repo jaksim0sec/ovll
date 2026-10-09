@@ -1,0 +1,124 @@
+// Converts only unambiguous, non-semantic ModelTurn omissions into the wire contract.
+// Draft node keys are local graph-patch handles, not persistent identities.
+// This module never invents nodes, links, definitions, run targets or effects.
+const isKey=value=>typeof value==='string'&&/^[a-zA-Z0-9_.:-]{1,160}$/.test(value);
+const isObject=value=>value!==null&&typeof value==='object'&&!Array.isArray(value);
+function patchOf(action){
+  return action?.kind==='ir.applyPatch'&&isObject(action.args?.patch)?action.args.patch:null;
+}
+function localRefs(patch,actionKey,actions){
+  const refs=[];
+  for(const op of patch.operations||[]){
+    if(op?.op!=='link.add')continue;
+    for(const endpoint of [op.from,op.to]){
+      if(isKey(endpoint?.node?.localNodeKey))refs.push(endpoint.node.localNodeKey);
+    }
+  }
+  for(const action of actions){
+    if(action?.kind!=='run.start'||!(action.dependsOn||[]).includes(actionKey))continue;
+    for(const target of action.args?.targets||[]){
+      if(target?.fromAction===actionKey&&isKey(target.localNodeKey))
+        refs.push(target.localNodeKey);
+    }
+  }
+  return refs;
+}
+function allocateKeys(patch,actionKey,actions){
+  if(!Array.isArray(patch.operations))return patch;
+  const adds=patch.operations.filter(op=>op?.op==='node.add');
+  const unnamed=adds.filter(op=>op.localNodeKey===undefined);
+  if(!unnamed.length)return patch;
+  // Never turn an invalid/unknown explicit key into a different node.
+  if(adds.some(op=>op.localNodeKey!==undefined&&!isKey(op.localNodeKey)))return patch;
+  const used=new Set(adds.map(op=>op.localNodeKey).filter(isKey));
+  if(used.size!==adds.length-unnamed.length)return patch;
+  const dangling=[...new Set(localRefs(patch,actionKey,actions).filter(key=>!used.has(key)))];
+  // Several unresolved references cannot be attributed to unnamed operations.
+  if(dangling.length>1||dangling.length===1&&unnamed.length!==1)return patch;
+  if(dangling.length&&!isKey(dangling[0]))return patch;
+  const assigned=new Map();
+  let seq=1;
+  for(const op of unnamed){
+    let key;
+    if(dangling.length){key=dangling[0];dangling.length=0;}
+    else{
+      do{key='node'+seq++;}while(used.has(key));
+    }
+    used.add(key);
+    assigned.set(op,key);
+  }
+  return {...patch,operations:patch.operations.map(op=>assigned.has(op)?
+    {...op,localNodeKey:assigned.get(op)}:op)};
+}
+export function normalizeModelTurn(value){
+  if(!isObject(value))return value;
+  const turn={...value};
+  for(const key of ['actions','needs'])
+    if(Array.isArray(turn[key])&&turn[key].length===0)delete turn[key];
+  for(const key of ['message','actions','needs','outputs'])
+    if(turn[key]===null)delete turn[key];
+  if(turn.message===''&&Object.keys(turn).length>1)delete turn.message;
+  if(!Array.isArray(turn.actions))return turn;
+  const actions=turn.actions;
+  turn.actions=actions.map(action=>{
+    const source=patchOf(action);
+    if(!source)return action;
+    let patch={...source};
+    if(Array.isArray(patch.operations)&&patch.definitions===undefined)patch.definitions=[];
+    if(Array.isArray(patch.definitions)&&patch.operations===undefined)patch.operations=[];
+    patch=allocateKeys(patch,action.localKey,actions);
+    return {...action,args:{...action.args,patch}};
+  });
+  const patches=new Map(turn.actions.filter(action=>patchOf(action))
+    .map(action=>[action.localKey,action.args.patch]));
+  turn.actions=turn.actions.map(action=>{
+    if(action?.kind!=='run.start'||!Array.isArray(action.args?.targets))return action;
+    const targets=action.args.targets.map(target=>{
+      if(!isObject(target)||!isKey(target.fromAction)||target.localNodeKey!==undefined||
+        !(action.dependsOn||[]).includes(target.fromAction))return target;
+      const added=patches.get(target.fromAction)?.operations?.filter(op=>op?.op==='node.add');
+      if(added?.length!==1||!isKey(added[0].localNodeKey))return target;
+      return {...target,localNodeKey:added[0].localNodeKey};
+    });
+    return {...action,args:{...action.args,targets}};
+  });
+  return turn;
+}
+// AJV oneOf reports errors for branches that were not intended by the model.
+// Report a missing temporary key only when its actual operation or target lacks it.
+export function diagnoseModelTurn(value,issues=[]){
+  const detected=[];
+  for(const [i,action] of (Array.isArray(value?.actions)?value.actions:[]).entries()){
+    const base='/actions/'+i+'/args/';
+    const patch=patchOf(action);
+    if(patch&&Array.isArray(patch.operations)){
+      for(const [j,op] of patch.operations.entries()){
+        const prefix=base+'patch/operations/'+j+'/';
+        if(op?.op==='node.add'&&!isKey(op.localNodeKey))
+          detected.push(op.localNodeKey===undefined?
+            {path:prefix+'localNodeKey',rule:'required',missing:'localNodeKey'}:
+            {path:prefix+'localNodeKey',rule:'invalid'});
+        if(op?.op==='link.add'){
+          for(const side of ['from','to']){
+            const node=op[side]?.node;
+            if(isObject(node)&&!isKey(node.nodeId)&&!isKey(node.localNodeKey))
+              detected.push({path:prefix+side+'/node',rule:'oneOf'});
+          }
+        }
+      }
+    }
+    if(action?.kind==='run.start'&&Array.isArray(action.args?.targets)){
+      for(const [j,target] of action.args.targets.entries()){
+        if(isObject(target)&&isKey(target.fromAction)&&!isKey(target.localNodeKey))
+          detected.push(target.localNodeKey===undefined?
+            {path:base+'targets/'+j+'/localNodeKey',rule:'required',missing:'localNodeKey'}:
+            {path:base+'targets/'+j+'/localNodeKey',rule:'invalid'});
+      }
+    }
+  }
+  if(detected.length)return detected.slice(0,4);
+  const trustworthy=issues.filter(e=>e&&
+    !['localNodeKey','nodeId'].includes(e.missing)&&e.rule!=='oneOf');
+  return trustworthy.length?trustworthy.slice(0,4):
+    [{path:'/',rule:'schemaMismatch'}];
+}

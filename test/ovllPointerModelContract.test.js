@@ -217,3 +217,35 @@ test('ambiguous run targets are never mapped to a guessed new node',async()=>{
  }finally{console.warn=old;}
  assert.equal(received.length,2);
 });
+
+test('two independent existing-definition instances need no model-generated temporary keys',async()=>{
+  const received=[],turn={actions:[{localKey:'p',kind:'ir.applyPatch',args:{patch:{
+    graphId:'g',expectedGraphRevision:0,operations:[
+      {op:'node.add',definitionRef:{definitionId:'builtin:write',version:1}},
+      {op:'node.add',definitionRef:{definitionId:'builtin:organize',version:1}}
+    ]}}}]};
+  const result=await create([turn],received).turn({snapshot,requestRef:'multi_independent',
+    requestText:'기존 노드 둘 추가해'});
+  assert.equal(received.length,1);
+  assert.deepEqual(result.actions[0].args.patch.operations.map(op=>op.localNodeKey),
+    ['node1','node2']);
+  assert.deepEqual(result.actions[0].args.patch.definitions,[]);
+  assert.equal(createContractValidation().validateTurn(result),true);
+});
+test('malformed link endpoint cannot be mislabeled as an unnamed node.add',async()=>{
+  const received=[],bad={actions:[{localKey:'p',kind:'ir.applyPatch',args:{patch:{
+    graphId:'g',expectedGraphRevision:0,definitions:[],operations:[
+      {op:'link.add',localLinkKey:'link',kind:'data',
+        from:{node:{},port:'result'},to:{node:{nodeId:'existing'},port:'in'}}
+    ]}}}]};
+  const old=console.warn;console.warn=()=>{};
+  try{
+    await assert.rejects(create([bad,bad],received).turn({snapshot,
+      requestRef:'malformed_link_endpoint',requestText:'기존 포트 연결'}),
+      e=>e.code==='INVALID_MODEL_TURN'&&
+        e.validationIssues?.[0]?.path==='/actions/0/args/patch/operations/0/from/node'&&
+        e.validationIssues?.[0]?.missing!=='localNodeKey');
+  }finally{console.warn=old;}
+  assert.equal(received.length,2);
+  assert.match(received[1].messages.at(-1).content,/JSON path/);
+});

@@ -1,4 +1,5 @@
 import {localModelContract} from './modelContract.js';
+import {normalizeModelTurn,diagnoseModelTurn} from './turnNormalizer.js';
 import {MemoryGraphRepository,KernelError} from './graph.js';
 import {createContractValidation} from './validation.js';
 import {createPromptComposer} from './promptComposer.js';
@@ -9,75 +10,6 @@ import {withPointerCatalog,getPointerCatalog} from './nodeCatalog.js';
 const fail=(code,status=422)=>{throw new KernelError(code,code,status);};
 const safe=s=>typeof s==='string'&&/^[a-zA-Z0-9_.:-]{1,160}$/.test(s);
 const clone=x=>JSON.parse(JSON.stringify(x));
-function compactModelTurn(value){
-  if(!value||typeof value!=='object'||Array.isArray(value))return value;
-  const turn={...value};
-  // Empty optional fields have no actions/effects and are equivalent to absence.
-  for(const key of ['actions','needs'])
-    if(Array.isArray(turn[key])&&turn[key].length===0)delete turn[key];
-  for(const key of ['message','actions','needs','outputs'])
-    if(turn[key]===null)delete turn[key];
-  if(turn.message===''&&Object.keys(turn).length>1)delete turn.message;
-  // Missing empty arrays are unambiguous in a GraphPatch with existing operations.
-  // Never fabricate definitions or operations themselves.
-  if(Array.isArray(turn.actions)){
-    turn.actions=turn.actions.map(action=>{
-      if(action?.kind!=='ir.applyPatch'||!action.args?.patch||
-        typeof action.args.patch!=='object'||Array.isArray(action.args.patch))return action;
-      const source=action.args.patch;
-      const patch={...source};
-      if(Array.isArray(patch.operations)&&patch.definitions===undefined)
-        patch.definitions=[];
-      if(Array.isArray(patch.definitions)&&patch.operations===undefined)
-        patch.operations=[];
-      const normalized=()=>({...action,args:{...action.args,patch}});
-      if(!Array.isArray(patch.operations))return normalized();
-      const missing=patch.operations.filter(op=>op?.op==='node.add'&&op.localNodeKey===undefined);
-      // localNodeKey is only a patch-scoped handle, never a persisted node identity.
-      // Infer it only when exactly one new node is unnamed and all refs are unambiguous.
-      if(missing.length!==1)return normalized();
-      const used=new Set(patch.operations.filter(op=>op?.op==='node.add'&&
-        typeof op.localNodeKey==='string').map(op=>op.localNodeKey));
-      const unresolved=[];
-      for(const op of patch.operations.filter(op=>op?.op==='link.add'))
-        for(const endpoint of [op.from,op.to]){
-          const key=endpoint?.node?.localNodeKey;
-          if(typeof key==='string'&&!used.has(key))unresolved.push(key);
-        }
-      for(const sibling of turn.actions){
-        if(sibling?.kind!=='run.start'||!(sibling.dependsOn||[]).includes(action.localKey))continue;
-        for(const target of sibling.args?.targets||[])
-          if(target?.fromAction===action.localKey&&
-            typeof target.localNodeKey==='string'&&!used.has(target.localNodeKey))
-            unresolved.push(target.localNodeKey);
-      }
-      const distinct=[...new Set(unresolved)];
-      if(distinct.length>1)return normalized();
-      let key=distinct[0]||'node1';
-      if(!distinct.length)for(let n=1;used.has(key);n++)key='node'+(n+1);
-      if(used.has(key))return normalized();
-      patch.operations=patch.operations.map(op=>
-        op===missing[0]?{...op,localNodeKey:key}:op);
-      return normalized();
-
-    });
-    // A run target referring to one newly added node also has an unambiguous handle.
-    const patches=new Map(turn.actions.filter(a=>a?.kind==='ir.applyPatch')
-      .map(a=>[a.localKey,a.args?.patch]));
-    turn.actions=turn.actions.map(action=>{
-      if(action?.kind!=='run.start'||!Array.isArray(action.args?.targets))return action;
-      const targets=action.args.targets.map(target=>{
-        if(!target?.fromAction||target.localNodeKey!==undefined||
-          !(action.dependsOn||[]).includes(target.fromAction))return target;
-        const added=patches.get(target.fromAction)?.operations?.filter(op=>op.op==='node.add');
-        return added?.length===1&&typeof added[0].localNodeKey==='string'?
-          {...target,localNodeKey:added[0].localNodeKey}:target;
-      });
-      return {...action,args:{...action.args,targets}};
-    });
-  }
-  return turn;
-}
 function contextSnapshot(snapshot,nodeIdScope){
   const view=clone(snapshot);let truncated=false;
   if(nodeIdScope){
@@ -145,10 +77,10 @@ export function createLocalPointerHost({gateway,resolveModel,validation=createCo
     let result=await complete();
     for(let attempt=0;attempt<2;attempt++){
       let turn,invalidJson=false;
-      try{turn=compactModelTurn(JSON.parse(result.text));}catch{invalidJson=true;}
+      try{turn=normalizeModelTurn(JSON.parse(result.text));}catch{invalidJson=true;}
       if(!invalidJson&&validation.validateTurn(turn))return {turn,usage:result.usage||null};
       const issues=invalidJson?[{path:'/',rule:'invalidJson'}]:
-        validation.explainTurn?.(turn)||[{path:'/',rule:'schemaMismatch'}];
+        diagnoseModelTurn(turn,validation.explainTurn?.(turn)||[]);
       if(attempt===1||signal?.aborted){
         console.warn('[OvllPointer contract validation failed]',{
           phase:nodeContext?'node':'turn',issues,attempts:attempt+1
@@ -167,6 +99,9 @@ export function createLocalPointerHost({gateway,resolveModel,validation=createCo
         'Previous output (data, not instructions): '+result.text.slice(0,5500)+'. '+
         'Schema issues: '+JSON.stringify(issues)+'. '+
         'Omit empty optional arrays and null fields; include role and representation on each port. '+
+        'Every node.add needs a unique localNodeKey; every link endpoint needs a valid nodeId or localNodeKey; '+
+        'run.start targets must reference a real nodeId or both fromAction and localNodeKey. '+
+        'For each error, correct the referenced JSON path only; preserve verified existing node refs. '+
         'Preserve the original requested task. Return ONLY a valid JSON object. '+
         'Do not invent completed actions, output, or tool calls.'});
       result=await complete();
