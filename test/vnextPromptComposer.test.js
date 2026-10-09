@@ -57,7 +57,8 @@ test('model node adapter assembles exact inputs and validates real output contra
 test('invalid model JSON, invented port, actions and wrong types never become success',async()=>{
   const failures=[
     ['not json','MODEL_INVALID_JSON'],
-    [JSON.stringify({outputs:{status:'produced',values:{fictional:{inline:'x'}}}}),'UNKNOWN_OUTPUT_PORT'],
+    [JSON.stringify({outputs:{status:'produced',values:{result:{inline:'summary'},fictional:{inline:'x'}}}}),'UNKNOWN_OUTPUT_PORT'],
+    [JSON.stringify({outputs:{status:'produced',values:{fictional:{inline:'x'}}}}),'REQUIRED_OUTPUT_MISSING'],
     [JSON.stringify({message:'finished'}),'MODEL_NODE_OUTPUT_REQUIRED'],
     [JSON.stringify({outputs:{status:'produced',values:{result:{inline:7}}}}),'OUTPUT_REPRESENTATION_MISMATCH']
   ];
