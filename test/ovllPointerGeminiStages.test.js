@@ -22,7 +22,7 @@ test('Gemini uses one selected provider for entry, node execution and final lang
   const calls=[];
   const host=createConfiguredLocalPointerHost({env:{
     OVLL_POINTER_PROVIDER_ID:'gemini',GEMINI_API_KEY:'test-key',
-    OVLL_POINTER_MODEL_ID:'gemini-2.5-flash-lite'
+    OVLL_POINTER_MODEL_ID:'gemini-3.5-flash-lite'
   },fetchImpl:async(url,options)=>{
     const body=JSON.parse(options.body);
     calls.push({url,body});

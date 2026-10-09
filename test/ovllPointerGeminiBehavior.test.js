@@ -11,7 +11,7 @@ test('Gemini returns only response text, not internal thought parts',async()=>{
     body=JSON.parse(init.body);
     return ok({parts:[{text:'internal',thought:true},{text:'user answer'}]});
   }});
-  const result=await adapter.complete({model:'gemini-2.5-flash-lite',
+  const result=await adapter.complete({model:'gemini-3.5-flash-lite',
     messages:[{role:'user',content:'hi'}],output:'text'});
   assert.equal(result.text,'user answer');
   assert.equal(body.generationConfig,undefined);
@@ -24,7 +24,7 @@ test('Gemini truncation and blocked output have explicit errors',async()=>{
       'PROVIDER_OUTPUT_BLOCKED']
   ]){
     const adapter=geminiNativeAdapter({apiKey:'key',fetchImpl:async()=>response});
-    await assert.rejects(adapter.complete({model:'gemini-2.5-flash-lite',
+    await assert.rejects(adapter.complete({model:'gemini-3.5-flash-lite',
       messages:[],output:'json'}),error=>error.code===code);
   }
 });
@@ -37,7 +37,7 @@ test('Gemini native rate limit retries briefly and stops excessive calls',async(
     }]}})};
     return ok();
   }});
-  await adapter.complete({model:'gemini-2.5-flash-lite',messages:[],output:'json'});
+  await adapter.complete({model:'gemini-3.5-flash-lite',messages:[],output:'json'});
   assert.equal(calls,2);
   let quotaCalls=0;
   const limited=geminiNativeAdapter({apiKey:'key',fetchImpl:async()=>{
@@ -46,7 +46,7 @@ test('Gemini native rate limit retries briefly and stops excessive calls',async(
     }]}})};
   }});
   for(let i=0;i<2;i++)await assert.rejects(
-    limited.complete({model:'gemini-2.5-flash-lite',messages:[]}),
+    limited.complete({model:'gemini-3.5-flash-lite',messages:[]}),
     error=>error.code==='PROVIDER_RATE_LIMIT'&&error.retryAfterSeconds>0);
   assert.equal(quotaCalls,1);
 });
@@ -54,12 +54,12 @@ test('Gemini HTTP error and cancellation do not expose credentials',async()=>{
   const denied=geminiNativeAdapter({apiKey:'private-key',fetchImpl:async()=>({
     ok:false,status:403
   })});
-  await assert.rejects(denied.complete({model:'gemini-2.5-flash-lite',messages:[]}),
+  await assert.rejects(denied.complete({model:'gemini-3.5-flash-lite',messages:[]}),
     error=>error.code==='PROVIDER_HTTP_ERROR'&&error.status===403&&
       !String(error.message).includes('private-key'));
   const abort=new AbortController();
   abort.abort();
   const adapter=geminiNativeAdapter({apiKey:'key',fetchImpl:async()=>{throw Error('called');}});
-  await assert.rejects(adapter.complete({model:'gemini-2.5-flash-lite',
+  await assert.rejects(adapter.complete({model:'gemini-3.5-flash-lite',
     messages:[],signal:abort.signal}),error=>error.code==='MODEL_REQUEST_CANCELLED');
 });

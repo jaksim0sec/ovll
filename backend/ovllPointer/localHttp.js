@@ -1,15 +1,15 @@
 import {createConfiguredLocalPointerHost} from './localHost.js';
+import {resolveLocalPointerProvider} from './configuredProvider.js';
 import {getPointerCatalog} from './nodeCatalog.js';
 const allowed=new Set(['turn','node','response']);
 export function localModelReady(env=process.env){
   if(env.OVLL_POINTER_LOCAL_MODEL_ENABLED==='false')return false;
-  const selected=env.OVLL_POINTER_PROVIDER_ID||env.OVLL_VNEXT_PROVIDER_ID;
-  const endpoint=env.OVLL_POINTER_MODEL_ENDPOINT||env.OVLL_VNEXT_MODEL_ENDPOINT;
+  const selected=resolveLocalPointerProvider(env);
   const key=env.OVLL_POINTER_MODEL_API_KEY||env.OVLL_VNEXT_MODEL_API_KEY;
-  const model=env.OVLL_POINTER_MODEL_ID||env.OVLL_VNEXT_MODEL_ID;
   if(selected==='gemini')return !!(env.GEMINI_API_KEY||key);
-  if(endpoint)return !!(key&&model);
-  return (!selected||selected==='groq')&&!!(key||env.GROQ_API_KEY);
+  if(selected==='groq')return !!(env.GROQ_API_KEY||key);
+  return !!((env.OVLL_POINTER_MODEL_ENDPOINT||env.OVLL_VNEXT_MODEL_ENDPOINT)&&
+    key&&(env.OVLL_POINTER_MODEL_ID||env.OVLL_VNEXT_MODEL_ID));
 }
 export function mountLocalPointerRoutes(app,{createHost=()=>createConfiguredLocalPointerHost(),
   enabled=()=>localModelReady()}={}){
@@ -75,12 +75,19 @@ export function mountLocalPointerRoutes(app,{createHost=()=>createConfiguredLoca
       if(!res.headersSent)res.json(result);
     }catch(error){
       if(error?.code==='LOCAL_MODEL_BUSY')admitted=false;
+      if(error?.code==='PROVIDER_HTTP_ERROR')
+        console.warn('[OvllPointer upstream HTTP]',{
+          status:error.status,providerStatus:error.providerStatus||'UNKNOWN'
+        });
       if(!res.headersSent){
         const retryAfterSeconds=Number(error?.retryAfterSeconds);
         if(Number.isFinite(retryAfterSeconds)&&retryAfterSeconds>0)
           res.set('Retry-After',String(Math.ceil(retryAfterSeconds)));
         res.status(error.status>=400&&error.status<600?error.status:502)
           .json({error:{code:error.code||'LOCAL_MODEL_REQUEST_FAILED',
+            ...(typeof error.providerStatus==='string'&&
+              /^[A-Z_]{2,48}$/.test(error.providerStatus)?
+              {providerStatus:error.providerStatus}:{}),
             ...(Number.isFinite(retryAfterSeconds)&&retryAfterSeconds>0?
               {retryAfterSeconds:Math.ceil(retryAfterSeconds)}:{})}});
       }

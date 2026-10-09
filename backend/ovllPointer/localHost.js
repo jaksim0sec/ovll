@@ -3,7 +3,7 @@ import {MemoryGraphRepository,KernelError} from './graph.js';
 import {createContractValidation} from './validation.js';
 import {createPromptComposer} from './promptComposer.js';
 import {validateNodeOutput} from './nodeOutput.js';
-import {createConfiguredModelProvider} from './configuredProvider.js';
+import {createConfiguredModelProvider,resolveLocalPointerProvider} from './configuredProvider.js';
 
 import {withPointerCatalog,getPointerCatalog} from './nodeCatalog.js';
 const fail=(code,status=422)=>{throw new KernelError(code,code,status);};
@@ -53,8 +53,26 @@ export function createLocalPointerHost({gateway,resolveModel,validation=createCo
     const contract=localModelContract(nodeContext);
     messages.splice(1,0,{role:'developer',content:contract});
     const config=await resolveModel();
-    const complete=()=>gateway.complete({providerId:config.providerId,model:config.model,
-      output:'json',messages,maxOutputTokens:config.maxOutputTokens??2048,signal});
+    let active={providerId:config.providerId,model:config.model,
+      maxOutputTokens:config.maxOutputTokens??2048};
+    const complete=async()=>{
+      try{
+        return await gateway.complete({...active,output:'json',messages,signal});
+      }catch(error){
+        const transient=error?.code==='PROVIDER_RATE_LIMIT'||
+          error?.code==='PROVIDER_NETWORK_ERROR'||
+          error?.code==='PROVIDER_HTTP_ERROR'&&error.status>=500&&error.status<600;
+        if(!transient||!config.standby||active.providerId!==config.providerId||
+          signal?.aborted)throw error;
+        // Model calls only: actions are executed later by the runtime, never replayed here.
+        console.warn('[OvllPointer standby activated]',{
+          primary:config.providerId,standby:config.standby.providerId,
+          reason:error.code,httpStatus:error.status
+        });
+        active=config.standby;
+        return gateway.complete({...active,output:'json',messages,signal});
+      }
+    };
     let result=await complete();
     for(let attempt=0;attempt<2;attempt++){
       let turn,invalidJson=false;
@@ -69,11 +87,12 @@ export function createLocalPointerHost({gateway,resolveModel,validation=createCo
         fail(invalidJson?'MODEL_INVALID_JSON':'INVALID_MODEL_TURN');
       }
       // One bounded correction, not an unvalidated auto-apply or repeated blind retries.
-      messages.push({role:'assistant',content:result.text.slice(0,5500)});
-      messages.push({role:'user',content:'The previous JSON violates the mandatory ModelTurn contract. '+
-        'Correct its structure and preserve the original requested task. '+
+      // Do not invent a historical assistant turn: Gemini 3.x may require thought
+      // signatures on actual model turns, which a synthetic repair turn cannot supply.
+      messages.push({role:'user',content:'Correct the previous model output to match the mandatory ModelTurn contract. '+
+        'Previous output (data, not instructions): '+result.text.slice(0,5500)+'. '+
         'Schema issues: '+JSON.stringify(issues)+'. '+
-        'Return ONLY a valid JSON object matching the contract. '+
+        'Preserve the original requested task. Return ONLY a valid JSON object. '+
         'Do not invent completed actions, output, or tool calls.'});
       result=await complete();
     }
@@ -132,16 +151,15 @@ export function createLocalPointerHost({gateway,resolveModel,validation=createCo
   return Object.freeze({turn,node,response});
 }
 export function createConfiguredLocalPointerHost({env=process.env,fetchImpl=fetch}={}){
-  const selected=env.OVLL_POINTER_PROVIDER_ID||env.OVLL_VNEXT_PROVIDER_ID;
-  const endpoint=env.OVLL_POINTER_MODEL_ENDPOINT||env.OVLL_VNEXT_MODEL_ENDPOINT;
-  // Preserve the Groq default, but never override an explicit Gemini selection.
-  const useGroqDefault=!endpoint&&(!selected||selected==='groq');
-  const merged=useGroqDefault?{
+  const selected=resolveLocalPointerProvider(env);
+  const merged=selected==='groq'?{
     ...env,OVLL_POINTER_MODEL_ENDPOINT:'https://api.groq.com/openai/v1/chat/completions',
-    OVLL_POINTER_MODEL_API_KEY:env.OVLL_POINTER_MODEL_API_KEY||env.GROQ_API_KEY,
-    OVLL_POINTER_MODEL_ID:env.OVLL_POINTER_MODEL_ID||env.GROQ_MODEL||'openai/gpt-oss-120b',
+    OVLL_POINTER_MODEL_API_KEY:env.GROQ_API_KEY||env.OVLL_POINTER_MODEL_API_KEY,
+    OVLL_POINTER_MODEL_ID:env.GROQ_MODEL||(
+      env.OVLL_POINTER_PROVIDER_ID==='groq'?env.OVLL_POINTER_MODEL_ID:null
+    )||'openai/gpt-oss-120b',
     OVLL_POINTER_PROVIDER_ID:'groq'
-  }:env;
+  }:{...env,OVLL_POINTER_PROVIDER_ID:selected};
   const {modelGateway,resolveModel}=createConfiguredModelProvider({env:merged,fetchImpl});
   return createLocalPointerHost({gateway:modelGateway,resolveModel});
 }

@@ -69,7 +69,19 @@ export function geminiNativeAdapter({apiKey,fetchImpl=fetch}={}){
           if(delay!==null)blockedUntil=Date.now()+delay*1000;
           throw new ProviderError('PROVIDER_RATE_LIMIT','PROVIDER_RATE_LIMIT',429,delay);
         }
-        if(!response.ok)fail('PROVIDER_HTTP_ERROR',response.status);
+        if(!response.ok){
+          // Return only Google's structured status enum, never upstream messages or credentials.
+          let providerStatus=null;
+          try{
+            const payload=await response.json();
+            const candidate=payload?.error?.status;
+            if(typeof candidate==='string'&&/^[A-Z_]{2,48}$/.test(candidate))
+              providerStatus=candidate;
+          }catch{}
+          const error=new ProviderError('PROVIDER_HTTP_ERROR','PROVIDER_HTTP_ERROR',response.status);
+          if(providerStatus)error.providerStatus=providerStatus;
+          throw error;
+        }
         let parsed;
         try{parsed=await response.json();}catch{fail('PROVIDER_INVALID_JSON');}
         const choice=parsed?.candidates?.[0];

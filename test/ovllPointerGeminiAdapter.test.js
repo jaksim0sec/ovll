@@ -9,7 +9,7 @@ const mock=text=>({ok:true,status:200,json:async()=>({
 test('Gemini native mode preserves all message roles and JSON output contract',async()=>{
   let endpoint,request;
   const env={OVLL_POINTER_PROVIDER_ID:'gemini',GEMINI_API_KEY:'test-gemini-key',
-    OVLL_POINTER_MODEL_ID:'gemini-2.5-flash-lite',
+    OVLL_POINTER_MODEL_ID:'gemini-3.5-flash-lite',
     OVLL_POINTER_MODEL_ENDPOINT:'https://api.groq.com/openai/v1/chat/completions',
     OVLL_POINTER_MODEL_API_KEY:'old-provider-key'};
   const host=createConfiguredModelProvider({env,fetchImpl:async(url,init)=>{
@@ -22,7 +22,7 @@ test('Gemini native mode preserves all message roles and JSON output contract',a
     {role:'user',content:'revise'}
   ]});
   assert.equal(model.providerId,'gemini');
-  assert.match(endpoint,/generativelanguage\.googleapis\.com\/v1beta\/models\/gemini-2\.5-flash-lite:generateContent$/);
+  assert.match(endpoint,/generativelanguage\.googleapis\.com\/v1beta\/models\/gemini-3\.5-flash-lite:generateContent$/);
   assert.equal(request.headers['x-goog-api-key'],'test-gemini-key');
   assert.equal(request.headers.Authorization,undefined);
   const body=JSON.parse(request.body);

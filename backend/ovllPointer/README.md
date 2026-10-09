@@ -31,13 +31,16 @@ OvllPointer는 **대문(판단) → 소통/IR 구성/실행/함수화 → 언어
 기존 `GROQ_API_KEY`, 선택한 Gemini 공급자의 `GEMINI_API_KEY`, 또는 명시적 `OVLL_POINTER_MODEL_*` 설정으로만 모델 호출을 사용한다. 기존 `OVLL_VNEXT_MODEL_*` 환경변수도 이관 중 읽는다. 새 SQL/인증/유료 모델 의존성은 승인 없이 도입하지 않는다.
 
 ## 모델 공급자 교체
-모델 역할은 대문·소통·IR 구성·실행·함수화·언어화를 유지하고, 별도의 계층별 모델 설정 없이 공통 `ModelGateway`를 사용한다. 별도 키를 프론트에 넣지 않는다.
+대문·소통·IR 구성·실행·함수화·언어화는 같은 `ModelGateway`를 쓰며, 지침/작업 정의는 모델 공급자에서 독립적이다. API 키는 백엔드에만 보관한다.
 
-- **Groq 기본값**: `GROQ_API_KEY`와 선택적 `GROQ_MODEL`을 사용한다. `OVLL_POINTER_PROVIDER_ID`가 지정되지 않으면 기존 기본값이 유지된다.
-- **Gemini 네이티브 API**: 서버 환경변수 `OVLL_POINTER_PROVIDER_ID=gemini`, `GEMINI_API_KEY=<key>`, `OVLL_POINTER_MODEL_ID=gemini-2.5-flash-lite`를 설정한다. 모델 ID를 생략하면 `GEMINI_MODEL`, 그것도 없으면 `gemini-2.5-flash-lite`를 쓴다.
-- Gemini는 `v1beta/models/{model}:generateContent`와 `x-goog-api-key`를 사용한다. 예전 OpenAI 호환 `OVLL_POINTER_MODEL_ENDPOINT`는 Gemini 선택 시 **사용하지 않는다**. 기존 Groq용 endpoint가 남아 있어도 네이티브 Gemini 요청에 쓰이지 않는다.
-- 그 밖의 OpenAI Chat Completions 호환 공급자는 기존 `OVLL_POINTER_MODEL_ENDPOINT`, `OVLL_POINTER_MODEL_API_KEY`, `OVLL_POINTER_MODEL_ID`, `OVLL_POINTER_PROVIDER_ID` 설정을 쓴다. 비호환 공급자는 전용 어댑터를 추가해야 한다.
-- Gemini 출력은 `ModelGateway`의 JSON/텍스트 계약에 맞춰 변환하고, 공급자 오류·토큰 초과·요청 취소·429 재시도 및 쿨다운을 구분한다. 실제 외부 모델 품질과 요금은 테스트 키 없이 보장할 수 없다.
+- **1순위 (서버 기본값)**: `Gemini 3.5 Flash-Lite` / `gemini-3.5-flash-lite`. `GEMINI_API_KEY`가 있으면 별도 공급자 설정 없이 Gemini를 선택한다. 명시적 선택은 `OVLL_POINTER_PROVIDER_ID=gemini`.
+- **Groq 대기 공급자**: `GROQ_API_KEY`가 함께 있으면 Gemini의 429·연결 실패·서버 5xx에 한해 동일한 모델 요청을 **한 번만** `GROQ_MODEL` 또는 기본 `openai/gpt-oss-120b`로 대신 처리한다. Gemini의 400·401·403·404, 출력 차단·출력 한도·계약 검증 실패는 자동 전환하지 않는다. 별도 API 키가 없으면 대기 공급자도 없다.
+- **기존 Groq 단독 설치**: `GEMINI_API_KEY`가 없고 `GROQ_API_KEY`만 있으면 이전 설치를 위해 Groq를 사용한다. Groq를 명시적으로 고르려면 `OVLL_POINTER_PROVIDER_ID=groq`. 그렇지 않으면 새 서버의 기본 공급자는 Gemini다.
+- **Gemini 모델 교체**: `OVLL_POINTER_MODEL_ID`가 있으면 **그 명시값이 항상 우선**이다. 없을 때 `GEMINI_MODEL` → `gemini-3.5-flash-lite` 순서다. 기존 환경변수 `OVLL_POINTER_MODEL_ID=gemini-2.5-flash-lite`는 배포 환경에서 직접 `gemini-3.5-flash-lite`로 바꿔야 한다. 코드는 명시된 모델을 임의로 덮어쓰지 않는다.
+- Gemini는 Google 네이티브 `v1beta/models/{model}:generateContent` 및 `x-goog-api-key`를 사용한다. 이전 Groq endpoint 변수는 Gemini 요청에 사용되지 않는다.
+- 다른 OpenAI Chat Completions 호환 공급자는 `OVLL_POINTER_PROVIDER_ID`, `OVLL_POINTER_MODEL_ENDPOINT`, `OVLL_POINTER_MODEL_API_KEY`, `OVLL_POINTER_MODEL_ID`를 모두 지정한다. 독립된 API는 별도 어댑터가 필요하다.
+- 제공자 HTTP 오류는 사용자에게 상태코드로 구분해 알리고, 서버 로그에는 HTTP 상태와 허용된 구조화된 오류 이름만 남긴다. API 키나 원문 요청·오류 메시지를 로그·클라이언트에 전달하지 않는다.
+- 계약 재시도에서 가짜 과거 assistant 응답을 추가하지 않는다. Gemini 3.x에서 필요한 thought signature가 없는 모형 이전 턴을 만들지 않기 위함이다. 수행된 작업을 다시 실행하는 것이 아니라 모델 출력만 다시 검증한다.
 
 ## 검증
 `npm test`; `ovll-pointer-foundation`; `ovll-pointer-postgres-integration`(SQL 격리 테스트 전용); 실제 브라우저 통합·모델 품질 검사. 단위 테스트 통과는 실서비스 완성의 증명이 아니다.

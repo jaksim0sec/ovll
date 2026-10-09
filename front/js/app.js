@@ -663,6 +663,16 @@
             : "모델 제공자의 요청 한도에 걸렸어. 잠시 후 다시 시도해 줘."
           : code === "LOCAL_MODEL_BUSY"
             ? "현재 작업이 몰려 대기 공간이 찼어. 잠시 후 다시 시도해 줘."
+            : code === "PROVIDER_HTTP_ERROR"
+              ? status===400
+                ? "모델 요청 형식이 올바르지 않아 거부됐어. 요청 설정을 확인해야 해. (HTTP 400)"
+                : status===401||status===403
+                  ? "모델 API 키·접근 권한을 확인해야 해. (HTTP "+status+")"
+                  : status===404
+                    ? "요청한 모델 ID를 찾을 수 없거나 접근할 수 없어. (HTTP 404)"
+                    : status>=500
+                      ? "모델 서버가 응답하지 못했어. (HTTP "+status+")"
+                      : "모델 제공자가 요청을 거부했어. (HTTP "+status+")"
             : !noisy &&
               rawMessage
                 ? rawMessage

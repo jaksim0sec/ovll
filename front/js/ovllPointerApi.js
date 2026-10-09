@@ -18,6 +18,8 @@
     try{data=await response.json();}catch{throw makeError('INVALID_SERVER_RESPONSE',response.status);}
     if(!response.ok){
       const error=makeError(data?.error?.code||'API_REQUEST_FAILED',response.status);
+      if(typeof data?.error?.providerStatus==='string'&&/^[A-Z_]{2,48}$/.test(data.error.providerStatus))
+        error.providerStatus=data.error.providerStatus;
       const retryAfterSeconds=Number(data?.error?.retryAfterSeconds);
       if(Number.isFinite(retryAfterSeconds)&&retryAfterSeconds>0)
         error.retryAfterSeconds=Math.ceil(retryAfterSeconds);
