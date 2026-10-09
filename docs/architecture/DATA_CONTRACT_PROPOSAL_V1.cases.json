@@ -1,0 +1,632 @@
+{
+  "description": "Schema form validation only. Domain/authorization checks must be implemented separately.",
+  "cases": [
+    {
+      "name": "plain conversation",
+      "target": "ModelTurn",
+      "valid": true,
+      "data": {
+        "message": "현재 작업은 설명으로 충분합니다."
+      }
+    },
+    {
+      "name": "canvas read from communication",
+      "target": "ModelTurn",
+      "valid": true,
+      "data": {
+        "needs": [
+          {
+            "kind": "graph",
+            "selector": {
+              "scope": "current",
+              "depth": "semantic"
+            },
+            "purpose": "Explain node connections"
+          }
+        ]
+      }
+    },
+    {
+      "name": "IR Patch then run multiple actions",
+      "target": "ModelTurn",
+      "valid": true,
+      "data": {
+        "actions": [
+          {
+            "localKey": "p1",
+            "kind": "ir.applyPatch",
+            "args": {
+              "patch": {
+                "expectedGraphRevision": 7,
+                "definitions": [
+                  {
+                    "localKey": "def_compare",
+                    "purpose": "Compare conflicting evidence",
+                    "executorKind": "model_task",
+                    "inputs": [
+                      {
+                        "name": "evidence",
+                        "role": "source evidence",
+                        "representation": "evidence_bundle"
+                      }
+                    ],
+                    "outputs": [
+                      {
+                        "name": "comparison",
+                        "role": "comparison",
+                        "representation": "structured_text"
+                      }
+                    ],
+                    "instruction": "Compare evidence while preserving source references."
+                  }
+                ],
+                "operations": [
+                  {
+                    "op": "node.add",
+                    "localNodeKey": "tmp_compare",
+                    "definitionRef": {
+                      "localDefinitionKey": "def_compare"
+                    }
+                  },
+                  {
+                    "op": "link.add",
+                    "localLinkKey": "tmp_link",
+                    "kind": "data",
+                    "from": {
+                      "node": {
+                        "nodeId": "source1"
+                      },
+                      "port": "result"
+                    },
+                    "to": {
+                      "node": {
+                        "localNodeKey": "tmp_compare"
+                      },
+                      "port": "evidence"
+                    }
+                  }
+                ],
+                "adoption": "workspace_only"
+              }
+            }
+          },
+          {
+            "localKey": "e1",
+            "kind": "run.start",
+            "dependsOn": [
+              "p1"
+            ],
+            "args": {
+              "targets": [
+                {
+                  "fromAction": "p1",
+                  "localNodeKey": "tmp_compare"
+                }
+              ],
+              "damMode": "closed"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "node result output",
+      "target": "ModelTurn",
+      "valid": true,
+      "data": {
+        "outputs": {
+          "status": "produced",
+          "values": {
+            "comparison": {
+              "inline": "Comparison with source references"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "blocked node",
+      "target": "ModelTurn",
+      "valid": true,
+      "data": {
+        "outputs": {
+          "status": "blocked",
+          "reason": "No input evidence"
+        }
+      }
+    },
+    {
+      "name": "function directly from conversation",
+      "target": "ModelTurn",
+      "valid": true,
+      "data": {
+        "actions": [
+          {
+            "localKey": "f",
+            "kind": "function.save",
+            "args": {
+              "function": {
+                "purpose": "Compare document sets",
+                "inputs": [
+                  {
+                    "name": "docs",
+                    "role": "source",
+                    "representation": "file"
+                  }
+                ],
+                "outputs": [
+                  {
+                    "name": "report",
+                    "role": "deliverable",
+                    "representation": "document"
+                  }
+                ],
+                "invariants": [
+                  "Preserve source attribution"
+                ],
+                "procedure": {
+                  "kind": "model_task",
+                  "instruction": "Compare supplied documents and make a report."
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "schema disallows model-minted actor",
+      "target": "ModelTurn",
+      "valid": false,
+      "data": {
+        "message": "hello",
+        "actorRef": "admin"
+      }
+    },
+    {
+      "name": "no empty model turn",
+      "target": "ModelTurn",
+      "valid": false,
+      "data": {}
+    },
+    {
+      "name": "empty actions not a response",
+      "target": "ModelTurn",
+      "valid": false,
+      "data": {
+        "actions": []
+      }
+    },
+    {
+      "name": "missing run target",
+      "target": "ModelTurn",
+      "valid": false,
+      "data": {
+        "actions": [
+          {
+            "localKey": "run",
+            "kind": "run.start",
+            "args": {
+              "targets": []
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "new definition output contract missing",
+      "target": "ModelTurn",
+      "valid": false,
+      "data": {
+        "actions": [
+          {
+            "localKey": "p",
+            "kind": "ir.applyPatch",
+            "args": {
+              "patch": {
+                "expectedGraphRevision": 7,
+                "definitions": [
+                  {
+                    "localKey": "def_compare",
+                    "purpose": "Compare conflicting evidence",
+                    "executorKind": "model_task",
+                    "inputs": [
+                      {
+                        "name": "evidence",
+                        "role": "source evidence",
+                        "representation": "evidence_bundle"
+                      }
+                    ],
+                    "outputs": [],
+                    "instruction": "Compare evidence while preserving source references."
+                  }
+                ],
+                "operations": [
+                  {
+                    "op": "node.add",
+                    "localNodeKey": "tmp_compare",
+                    "definitionRef": {
+                      "localDefinitionKey": "def_compare"
+                    }
+                  },
+                  {
+                    "op": "link.add",
+                    "localLinkKey": "tmp_link",
+                    "kind": "data",
+                    "from": {
+                      "node": {
+                        "nodeId": "source1"
+                      },
+                      "port": "result"
+                    },
+                    "to": {
+                      "node": {
+                        "localNodeKey": "tmp_compare"
+                      },
+                      "port": "evidence"
+                    }
+                  }
+                ],
+                "adoption": "workspace_only"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "invalid unknown action kind",
+      "target": "ModelTurn",
+      "valid": false,
+      "data": {
+        "actions": [
+          {
+            "localKey": "delete",
+            "kind": "system.grantRoot",
+            "args": {}
+          }
+        ]
+      }
+    },
+    {
+      "name": "active run adoption without epoch",
+      "target": "ModelTurn",
+      "valid": false,
+      "data": {
+        "actions": [
+          {
+            "localKey": "p",
+            "kind": "ir.applyPatch",
+            "args": {
+              "patch": {
+                "expectedGraphRevision": 7,
+                "definitions": [
+                  {
+                    "localKey": "def_compare",
+                    "purpose": "Compare conflicting evidence",
+                    "executorKind": "model_task",
+                    "inputs": [
+                      {
+                        "name": "evidence",
+                        "role": "source evidence",
+                        "representation": "evidence_bundle"
+                      }
+                    ],
+                    "outputs": [
+                      {
+                        "name": "comparison",
+                        "role": "comparison",
+                        "representation": "structured_text"
+                      }
+                    ],
+                    "instruction": "Compare evidence while preserving source references."
+                  }
+                ],
+                "operations": [
+                  {
+                    "op": "node.add",
+                    "localNodeKey": "tmp_compare",
+                    "definitionRef": {
+                      "localDefinitionKey": "def_compare"
+                    }
+                  },
+                  {
+                    "op": "link.add",
+                    "localLinkKey": "tmp_link",
+                    "kind": "data",
+                    "from": {
+                      "node": {
+                        "nodeId": "source1"
+                      },
+                      "port": "result"
+                    },
+                    "to": {
+                      "node": {
+                        "localNodeKey": "tmp_compare"
+                      },
+                      "port": "evidence"
+                    }
+                  }
+                ],
+                "adoption": "active_run"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "forbid model claim of execution status",
+      "target": "ModelTurn",
+      "valid": false,
+      "data": {
+        "actions": [
+          {
+            "localKey": "r",
+            "kind": "run.start",
+            "args": {
+              "targets": [
+                {
+                  "nodeId": "n1"
+                }
+              ]
+            },
+            "status": "completed"
+          }
+        ]
+      }
+    },
+    {
+      "name": "server Envelope carries actor",
+      "target": "ActionEnvelope",
+      "valid": true,
+      "data": {
+        "actionId": "a_1",
+        "workspaceRef": "w_1",
+        "actorRef": "verified_user_1",
+        "idempotencyKey": "req_5",
+        "kind": "run.start",
+        "args": {
+          "targets": [
+            {
+              "nodeId": "n1"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Envelope rejects missing auth",
+      "target": "ActionEnvelope",
+      "valid": false,
+      "data": {
+        "actionId": "a_1",
+        "workspaceRef": "w_1",
+        "idempotencyKey": "req_5",
+        "kind": "run.start",
+        "args": {
+          "targets": [
+            {
+              "nodeId": "n1"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "applied server result",
+      "target": "ActionResult",
+      "valid": true,
+      "data": {
+        "actionId": "a_1",
+        "status": "applied",
+        "createdRefs": {
+          "tmp_compare": "node_90"
+        },
+        "newRevision": 8
+      }
+    },
+    {
+      "name": "rejected result requires reason",
+      "target": "ActionResult",
+      "valid": false,
+      "data": {
+        "actionId": "a_1",
+        "status": "rejected"
+      }
+    },
+    {
+      "name": "result denied unverified extra",
+      "target": "ActionResult",
+      "valid": false,
+      "data": {
+        "actionId": "a_1",
+        "status": "applied",
+        "fabricated": true
+      }
+    },
+    {
+      "name": "graph revision snapshot",
+      "target": "GraphRevision",
+      "valid": true,
+      "data": {
+        "graphId": "g_1",
+        "revision": 8,
+        "nodes": [
+          {
+            "nodeId": "n1",
+            "definitionRef": {
+              "definitionId": "compare",
+              "version": 1
+            }
+          }
+        ],
+        "connections": []
+      }
+    },
+    {
+      "name": "task completion status structurally allowed but semantic gate",
+      "target": "Task",
+      "valid": true,
+      "data": {
+        "taskId": "t1",
+        "requestRef": "req_1",
+        "objective": "Create report",
+        "constraintRefs": [],
+        "requiredOutcomes": [
+          {
+            "name": "report",
+            "evidenceRefs": []
+          }
+        ],
+        "status": "completed"
+      }
+    },
+    {
+      "name": "context carries actual scoped canvas data",
+      "target": "ContextBundle",
+      "valid": true,
+      "data": {
+        "requestRef": "req_1",
+        "requestText": "이 캔버스 설명해 줘",
+        "objective": "Explain current workflow",
+        "constraints": [],
+        "capabilities": [
+          "graph.read"
+        ],
+        "outputContract": "communication",
+        "materials": [
+          {
+            "ref": "g_1@8",
+            "kind": "graph",
+            "source": "server_state",
+            "content": {
+              "nodes": [
+                {
+                  "nodeId": "n1",
+                  "purpose": "compare sources"
+                }
+              ]
+            },
+            "truncated": false,
+            "provenanceRefs": [
+              "g_1@8"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "context cannot omit original request text",
+      "target": "ContextBundle",
+      "valid": false,
+      "data": {
+        "requestRef": "req_1",
+        "objective": "Explain graph",
+        "constraints": [],
+        "capabilities": [
+          "graph.read"
+        ],
+        "outputContract": "communication"
+      }
+    },
+    {
+      "name": "verified function requires evidence",
+      "target": "FunctionVersion",
+      "valid": false,
+      "data": {
+        "functionId": "f1",
+        "version": 1,
+        "purpose": "Compare",
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "result",
+            "role": "report",
+            "representation": "document"
+          }
+        ],
+        "invariants": [],
+        "procedure": {
+          "kind": "model_task",
+          "instruction": "Compare supplied files"
+        },
+        "verificationStatus": "verified"
+      }
+    },
+    {
+      "name": "draft function without graph is allowed",
+      "target": "FunctionVersion",
+      "valid": true,
+      "data": {
+        "functionId": "f1",
+        "version": 1,
+        "purpose": "Compare",
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "result",
+            "role": "report",
+            "representation": "document"
+          }
+        ],
+        "invariants": [],
+        "procedure": {
+          "kind": "model_task",
+          "instruction": "Compare supplied files"
+        },
+        "verificationStatus": "draft"
+      }
+    },
+    {
+      "name": "active run adoption requires run reference",
+      "target": "ModelTurn",
+      "valid": false,
+      "data": {
+        "actions": [
+          {
+            "localKey": "p",
+            "kind": "ir.applyPatch",
+            "args": {
+              "patch": {
+                "expectedGraphRevision": 8,
+                "definitions": [],
+                "operations": [],
+                "adoption": "active_run",
+                "expectedPlanEpoch": 2
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "active run adoption provides pinned run and epoch",
+      "target": "ModelTurn",
+      "valid": true,
+      "data": {
+        "actions": [
+          {
+            "localKey": "p",
+            "kind": "ir.applyPatch",
+            "args": {
+              "patch": {
+                "expectedGraphRevision": 8,
+                "definitions": [],
+                "operations": [
+                  {
+                    "op": "node.delete",
+                    "nodeId": "old"
+                  }
+                ],
+                "adoption": "active_run",
+                "runRef": "r_5",
+                "expectedPlanEpoch": 2
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

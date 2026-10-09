@@ -4,6 +4,8 @@
 
 - **[1차 동결 기준선 (2026-10-09)](BASELINE_2026-10-09.md)** — 확정된 계층·행동·맥락·서버 기록·데이터 경계와 이관 시 필수 제약
 - **[데이터 계약 vNext 초안](DATA_CONTRACT_VNEXT.md)** — 다음 단계의 최소 타입·상태·검증 설계 (미동결)
+- **[검증된 데이터 계약 제안 v1](DATA_CONTRACT_PROPOSAL_V1.md)** — 행동·객체 스키마, 27개 형식 사례 사전 검증, 추가 서버 검증 제약 (미동결)
+  - [JSON Schema](DATA_CONTRACT_PROPOSAL_V1.schema.json) · [검증 사례](DATA_CONTRACT_PROPOSAL_V1.cases.json)
 
 상위 기준은 [제품 비전](../VISION.md)이다. 기술은 비전을 실현하기 위한 수단이며 사용자 노동 감소, 모델 역량 보존, 양방향 소통과 동적 함수화를 판단 기준으로 삼는다.
 
