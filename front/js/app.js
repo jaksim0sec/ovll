@@ -6328,7 +6328,16 @@
     const scope=pointerScope();
     if(!scope||!state.canvas)return;
     state.pointerWatch?.();state.pointerWatch=null;
-    const cursor=await refreshPointerCanvas();
+    let cursor;
+    try{
+      cursor=await refreshPointerCanvas();
+    }catch(error){
+      console.error('OvllPointer workspace restore failed:',error);
+      if(scope.storageMode==='local')state.pointerLocalReady=false;
+      showErrorNotice(error,{scope:'작업 상태 불러오기',
+        fallback:'작업 상태를 불러오지 못했습니다. 채팅은 계속 이용할 수 있습니다.'});
+      return;
+    }
     if(scope.storageMode==='local')return;
     state.pointerWatch=PointerAPI.watch({
       after:cursor,
@@ -8602,12 +8611,15 @@ listen(composerInput, "keydown", handleComposerKeydown);
         .getActiveConversation?.();
 
     if (active) {
-      await openConversation(
-        active.id,
-        {
-          skipSave: true
-        }
-      );
+      try{
+        await openConversation(active.id,{skipSave:true});
+      }catch(error){
+        console.error('Saved conversation restore failed:',error);
+        state.pointerLocalReady=false;
+        Presence.showStart();
+        showErrorNotice(error,{scope:'대화 복구 오류',
+          fallback:'이전 대화를 표시하지 못했습니다. 다른 대화는 계속 이용할 수 있습니다.'});
+      }
     } else {
       Presence.showStart();
       if(pointerScope())await connectPointer();
