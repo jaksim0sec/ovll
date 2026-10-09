@@ -12,7 +12,7 @@ export function createConfiguredModelProvider({env=process.env,fetchImpl=fetch}=
   try{url=new URL(endpoint);}catch{throw new ProviderError('INVALID_MODEL_ENDPOINT');}
   if(url.protocol!=='https:'||url.username||url.password||url.hash||!url.hostname)
     throw new ProviderError('INSECURE_MODEL_ENDPOINT');
-  const raw=env.OVLL_POINTER_MAX_OUTPUT_TOKENS||env.OVLL_VNEXT_MAX_OUTPUT_TOKENS||'1200';
+  const raw=env.OVLL_POINTER_MAX_OUTPUT_TOKENS||env.OVLL_VNEXT_MAX_OUTPUT_TOKENS||'2048';
   if(!/^[1-9][0-9]{0,4}$/.test(raw)||Number(raw)>8192)
     throw new ProviderError('MODEL_BUDGET_INVALID');
   const gateway=new ModelGateway();

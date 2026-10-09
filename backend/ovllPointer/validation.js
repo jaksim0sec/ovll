@@ -17,5 +17,23 @@ export function createContractValidation({maxBytes=32768}={}){
       return validators.get(target)(value)===true;
     }catch{return false;}
   };
-  return {validate,validateTurn:value=>validate('ModelTurn',value)};
+  // Diagnose schema failures without exposing the user's text or untrusted model output.
+  const explain=(target,value)=>{
+    if(!validators.has(target))return [{path:'/',rule:'unknownContract'}];
+    try{assertJsonValue(value);}catch{return [{path:'/',rule:'invalidJsonValue'}];}
+    if(Buffer.byteLength(JSON.stringify(value),'utf8')>maxBytes)
+      return [{path:'/',rule:'maxBytes',limit:maxBytes}];
+    const validator=validators.get(target);
+    if(validator(value))return [];
+    return (validator.errors||[]).slice(0,8).map(error=>({
+      path:error.instancePath||'/',
+      rule:error.keyword,
+      ...(error.keyword==='required'?{missing:error.params?.missingProperty}:{}),
+      ...(error.keyword==='additionalProperties'?{extra:error.params?.additionalProperty}:{}),
+      ...(error.keyword==='enum'?{allowed:error.params?.allowedValues}:{}),
+      ...(error.keyword==='type'?{expected:error.params?.type}:{})
+    }));
+  };
+  return {validate,validateTurn:value=>validate('ModelTurn',value),
+    explainTurn:value=>explain('ModelTurn',value)};
 }
