@@ -6200,6 +6200,10 @@
     if(settings.vnextEnabled!==true||!global.OvllVNextProjection)return null;
     if(settings.vnextStorageMode==='local'){
       const conversationId=currentConversationId();
+      const conversation=WorkspaceStore.getConversation(conversationId);
+      // Never overwrite an existing legacy workflow with an empty opt-in vNext graph.
+      if(!conversation?.state?.vnextGraph&&conversation?.state?.canvas?.workflow?.nodes?.length)
+        return null;
       return conversationId&&global.OvllVNextLocal?
         {conversationId,graphId:global.OvllVNextLocal.graphId(conversationId),storageMode:'local'}:null;
     }

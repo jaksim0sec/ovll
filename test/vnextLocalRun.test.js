@@ -35,3 +35,19 @@ test('local storage holds a second read-after-write revision and blocks unsuppor
  store.reset();store.importJSON(exported);
  assert.equal(store.getConversation(id).state.vnextRuns[0].status,'completed');
 });
+
+test('cancellation never marks a late model response as successfully executed',async()=>{
+ const {store,local}=browser(),id=store.getActiveConversation().id,graphId=local.graphId(id);
+ await local.turn({conversationId:id,graphId,actions:[{localKey:'build',kind:'ir.applyPatch',
+  args:{patch:{graphId,expectedGraphRevision:0,definitions:[
+   {localKey:'d',purpose:'Test',executorKind:'model_task',instruction:'Test',inputs:[],
+    outputs:[{name:'result',representation:'text'}]}],
+   operations:[{op:'node.add',localNodeKey:'n',definitionRef:{localDefinitionKey:'d'}}]}}}]});
+ const nodeId=(await local.state(id)).graph.graph.nodes[0].nodeId;
+ const controller=new AbortController();
+ const result=await local.run({conversationId:id,targets:[nodeId],signal:controller.signal,
+   executeNode:async()=>{controller.abort();return {status:'success',
+    outputs:{status:'produced',values:{result:{inline:'late'}}}};}});
+ assert.equal(result.status,'cancelled');
+ assert.notEqual(result.nodes[0].status,'success');
+});

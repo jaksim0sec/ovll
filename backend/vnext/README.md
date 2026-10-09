@@ -133,3 +133,6 @@ Lifecycle verification:26 PostgreSQL cases, 25/26 local single-session smoke wit
 ## Local API opt-in and cancellation safeguards
 - The stateless model routes return `LOCAL_MODEL_DISABLED` unless the server operator explicitly sets `OVLL_VNEXT_LOCAL_MODEL_ENABLED=true`. The browser-side `vnextEnabled` remains false by default. This prevents experimental provider costs being introduced by ordinary production traffic while evaluating the product.
 - User-facing local runs propagate AbortSignal to the server call and record cancellation instead of success if interrupted. Local model actions are topologically ordered and reject cycles/missing dependencies. Saved-function results are shown directly in chat even when the saved pinned graph differs from the active canvas.
+
+## Migration safety
+- The local opt-in selector will not replace a conversation's legacy canvas when it has nodes but no vNext graph snapshot. Existing conversations continue on the original chat/canvas runtime; new empty conversations can use the opt-in vNext mode. No destructive legacy workflow conversion is attempted.
