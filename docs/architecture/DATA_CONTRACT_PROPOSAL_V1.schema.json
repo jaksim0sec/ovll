@@ -429,6 +429,22 @@
           "type": "object",
           "properties": {
             "op": {
+              "const": "definition.delete"
+            },
+            "definitionRef": {
+              "$ref": "#/$defs/DefinitionRef"
+            }
+          },
+          "required": [
+            "op",
+            "definitionRef"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
               "const": "link.add"
             },
             "localLinkKey": {

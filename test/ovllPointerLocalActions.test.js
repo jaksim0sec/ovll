@@ -92,3 +92,30 @@ test('full reads can retrieve an ordinary Korean source omitted from planner pre
  const result=a.readNeeds([{kind:'value',selector:{scope:'ref',ref:'binding:n:in',depth:'full'},purpose:'Read source'}],{snapshot:{graph:{nodes:[{nodeId:'n',inputBindings:{in:text}}]}}});
  assert.equal(result[0].content,text);assert.equal(result[0].truncated,false);
 });
+
+test('an actionless promise is retried once and never presented as completed deletion',async()=>{
+ const a=window.OvllPointerLocalActions;
+ let calls=0,applied=0;
+ const result=await a.coordinate({getContext:async()=>({snapshot:{graph:{graphId:'g'},definitions:[]}}),
+  request:async({extraContext})=>{
+   calls++;
+   if(calls===1)return{message:'중복 정의를 삭제하도록 패치를 구성하겠습니다. 잠시만 기다려 주세요.'};
+   assert.match(extraContext.actionCorrection,/no actions/);
+   return{actions:[{localKey:'delete',kind:'ir.applyPatch',args:{}}]};
+  },handlers:{'ir.applyPatch':async()=>{applied++;return{status:'applied'};}}});
+ assert.equal(calls,2);
+ assert.equal(applied,1);
+ assert.deepEqual(Array.from(result.messages),[]);
+ assert.match(a.present(result),/작업 구성을 반영/);
+ assert.doesNotMatch(a.present(result),/기다려/);
+});
+test('repeated actionless deletion claims finish with truthful no-change message',async()=>{
+ const a=window.OvllPointerLocalActions;let calls=0;
+ const result=await a.coordinate({getContext:async()=>({snapshot:{graph:{graphId:'g'},definitions:[]}}),
+  request:async()=>{calls++;return{message:'노드를 삭제했습니다. 잠시 기다려 주세요.'};},
+  handlers:{'ir.applyPatch':async()=>{throw Error('must not run');}}});
+ assert.equal(calls,3);
+ assert.equal(result.facts.length,0);
+ assert.match(a.present(result),/적용하지 못했어/);
+ assert.doesNotMatch(a.present(result),/삭제했습니다|기다려 주세요/);
+});

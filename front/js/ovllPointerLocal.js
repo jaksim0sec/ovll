@@ -143,8 +143,12 @@
           actions[0]?.args?.patch?.graphId!==graphId)
           throw new Error("LOCAL_GRAPH_PATCH_ONLY");
         const repo=await repository(conversationId,graphId);
-        const applied=repo.apply("local",actions[0].args.patch);
-        workspaceStore.updateConversationPointerGraph(conversationId,repo.get("local",graphId));
+        const patch=actions[0].args.patch;
+        const applied=repo.apply("local",patch);
+        const deletedDefinitions=(patch.operations||[]).filter(op=>op.op==='definition.delete')
+          .map(op=>op.definitionRef);
+        workspaceStore.updateConversationPointerGraph(conversationId,repo.get("local",graphId),
+          {deletedDefinitions});
         return {results:[{actionId:"local:"+actions[0].localKey,
           status:"applied",newRevision:applied.graphRef.revision,createdRefs:applied.createdRefs}]};
       });
@@ -160,7 +164,7 @@
       executeNode=({snapshot,nodeId,inputArtifacts,requestText,taskConstraints,signal})=>global.OvllPointerApi.localNode({
         snapshot,nodeId,inputArtifacts,requestText,taskConstraints,signal}),onProgress=()=>{},signal}={}){
       const snapshot=snapshotOverride||(await state(conversationId)).graph;
-      const {buildExecutionPlan}=await loadPlan();
+      const {buildExecutionPlan,matchesInputRepresentation}=await loadPlan();
       const targetIds=(targets||[]).map(x=>typeof x==='string'?x:x.nodeId);
       const plan=buildExecutionPlan(snapshot,{graphRef:{graphId:snapshot.graph.graphId,
         revision:snapshot.graph.revision},planEpoch:0,targets:targetIds,damMode});
@@ -209,6 +213,10 @@
               const source=resolved.get(link.from.nodeId)?.values?.[link.from.port];
               if(!source||!Object.prototype.hasOwnProperty.call(source,'inline'))
                 throw new Error('UPSTREAM_OUTPUT_NOT_AVAILABLE');
+              const input=item.definition.inputs.find(p=>p.name===link.to.port);
+              if(!input||typeof matchesInputRepresentation!=='function'||
+                !matchesInputRepresentation(input.representation,source.inline))
+                throw new Error('INPUT_REPRESENTATION_MISMATCH');
               return {port:link.to.port,sourceNodeId:link.from.nodeId,
                 sourcePort:link.from.port,valueRef:'local:'+runId+':'+link.from.nodeId+':'+link.from.port,
                 representation:snapshot.definitions.find(d=>d.definitionId===

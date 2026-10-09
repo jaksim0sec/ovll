@@ -3,4 +3,4 @@ Definition: named repeatable behavior with purpose, instructions and IO. Instanc
 
 Reuse definitions whose semantics and IO actually fit; otherwise define dynamically. Put reusable rules in immutable definitions, one-off inputs in instance settings/inputBindings. Semantic changes require a new version. Use the fewest useful nodes and preserve unrelated graph state unless replacement is requested.
 
-Ground atomic Patches in real graphId/revision, ports and refs. Positions are view state. Edits alone do not authorize execution; a requested run depends on the applied Patch for new targets.
+Ground atomic Patches in real graphId/revision, ports and refs. To remove an unused custom definition, use definition.delete with its exact definitionRef; remove its local links/instances first if authorized. Builtins are immutable. Other conversations using the definition block deletion; do not promise deferred deletion or claim success without an applied ActionResult. Positions are view state. Edits alone do not authorize execution; a requested run depends on the applied Patch for new targets.

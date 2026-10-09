@@ -1,4 +1,4 @@
-const CACHE = 'ovll-shell-v71';
+const CACHE = 'ovll-shell-v72';
 
 const SHELL = [
   '/home',
@@ -32,6 +32,7 @@ const SHELL = [
   '/js/ovllPointerFunctions.js',
   '/js/ovllPointerLocalActions.js',
   '/js/ovllPointerGraphCore.mjs',
+  '/js/ovllPointerPortTypes.mjs',
   '/js/ovllPointerPlanCore.mjs',
   '/js/libraryPage.js',
   '/js/shellMenu.js',

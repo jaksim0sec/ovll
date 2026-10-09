@@ -94,3 +94,24 @@ test('failed contract retains only safe schema issues and never applies invalid 
   assert.equal(received.length,2);
   assert.equal(repo.get('local','g').graph.nodes.length,0);
 });
+
+test('GraphPatch without optional empty definitions list is normalized only when operations exist',async()=>{
+ const received=[];
+ const patch={graphId:'g',expectedGraphRevision:0,operations:[
+   {op:'node.add',localNodeKey:'n',definitionRef:{definitionId:'builtin:write',version:1}}]};
+ const turn={actions:[{kind:'ir.applyPatch',localKey:'patch',args:{patch}}]};
+ const actual=await create([turn],received).turn({snapshot,requestRef:'no_defs',requestText:'기본 노드 추가'});
+ assert.equal(received.length,1,'no avoidable second model request');
+ assert.deepEqual(actual.actions[0].args.patch.definitions,[]);
+ assert.deepEqual(patch.definitions,undefined,'source JSON left unchanged');
+});
+test('deleting an unused custom definition is a valid GraphPatch ModelTurn proposal',async()=>{
+ const received=[];
+ const patch={graphId:'g',expectedGraphRevision:0,definitions:[],operations:[
+   {op:'definition.delete',definitionRef:{definitionId:'d_unused',version:1}}]};
+ const turn={actions:[{kind:'ir.applyPatch',localKey:'remove',args:{patch}}]};
+ const actual=await create([turn],received).turn({
+   snapshot,requestRef:'delete_unused',requestText:'중복 정의 하나 삭제해'});
+ assert.equal(actual.actions[0].args.patch.operations[0].op,'definition.delete');
+ assert.equal(received.length,1);
+});

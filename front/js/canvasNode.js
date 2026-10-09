@@ -2045,7 +2045,13 @@
         (
           accepts.includes('any') ||
           accepts.includes(output.type) ||
-          output.type === 'any'
+          output.type === 'any' ||
+          (input.type === 'json' &&
+            ['text','structured_text','document','boolean','number','object','array']
+              .includes(output.type)) ||
+          (output.type === 'json' &&
+            ['text','structured_text','document','boolean','number','object','array']
+              .includes(input.type))
         );
     }
     function wouldCycle(fromId, toId) {

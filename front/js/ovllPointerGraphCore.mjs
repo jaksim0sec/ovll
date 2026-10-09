@@ -1,3 +1,4 @@
+import {compatibleDataRepresentation} from './ovllPointerPortTypes.mjs';
 export class KernelError extends Error {
   constructor(code, message = code, status = 422) {
     super(message); this.code = code; this.status = status;
@@ -29,7 +30,7 @@ function validate(graph, definitions) {
     if (link.kind === 'data') {
       const out = a.outputs.find(x => x.name === link.from.port);
       const input = b.inputs.find(x => x.name === link.to.port);
-      if (!out || !input || out.representation !== input.representation) reject('PORT_MISMATCH');
+      if (!out || !input || !compatibleDataRepresentation(out.representation,input.representation)) reject('PORT_MISMATCH');
     }
     edges.get(link.from.nodeId).push(link.to.nodeId);
   }
@@ -167,6 +168,17 @@ export class MemoryGraphRepository {
         if (n < 0) reject('UNKNOWN_NODE');
         if (next.graph.connections.some(x => x.from.nodeId === op.nodeId || x.to.nodeId === op.nodeId)) reject('NODE_HAS_LINKS');
         next.graph.nodes.splice(n, 1);
+      } else if (op.op === 'definition.delete') {
+        const ref = op.definitionRef;
+        if (!ref || !validId(ref.definitionId) || !Number.isInteger(ref.version) || ref.version < 1)
+          reject('BAD_DEFINITION_REF');
+        if (ref.definitionId.startsWith('builtin:')) reject('BUILTIN_DEFINITION_IMMUTABLE');
+        const index = next.definitions.findIndex(d =>
+          d.definitionId === ref.definitionId && d.version === ref.version);
+        if (index < 0) reject('UNKNOWN_DEFINITION');
+        if (next.graph.nodes.some(node => node.definitionRef.definitionId === ref.definitionId &&
+          node.definitionRef.version === ref.version)) reject('DEFINITION_IN_USE');
+        next.definitions.splice(index, 1);
       } else if (op.op === 'link.add') {
         requireId(op.localLinkKey, 'localLinkKey');
         if (own(createdRefs, 'link:' + op.localLinkKey)) reject('DUPLICATE_LOCAL_LINK');

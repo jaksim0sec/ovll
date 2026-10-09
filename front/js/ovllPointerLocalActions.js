@@ -40,14 +40,19 @@ async function execute(actions,handlers,{isActive=()=>true,onActionStart,onActio
   }
   return results;
 }
+function uncommittedMutationClaim(message){
+  const text=String(message||'');
+  return /(잠시.{0,10}기다|기다려.{0,10}주|(?:삭제|제거|수정|변경|적용|반영|구성|실행|처리|생성|지우)(?:하겠|할게|하도록|했|됐|했습니다|해드리겠)|패치를.{0,16}(?:만들|구성)|완료했)/.test(text);
+}
 async function coordinate({getContext,request,handlers,isActive=()=>true,onActionStart,onActionResult}={}){
-  const facts=[],messages=[],runs=[],seenReads=new Set();let reads=[];
+  const facts=[],messages=[],runs=[],seenReads=new Set();let reads=[],correction='';
   for(let step=0;step<3&&isActive();step++){
     const context=await getContext();
     const actionResults=facts.map(({run,...fact})=>({...fact,...(run?{run:{runId:run.runId||'',status:run.status,
       nodes:run.nodes.map(n=>({nodeId:n.nodeId,status:n.status,error:n.error||'',reused:n.reused===true}))}}:{})}));
     const proposal=await request({snapshot:context.snapshot,history:context.history||[],
-      extraContext:{savedFunctions:context.savedFunctions||[],actionResults,reads}});
+      extraContext:{savedFunctions:context.savedFunctions||[],actionResults,reads,
+        ...(correction?{actionCorrection:correction}:{})}});
     if(!isActive())break;
     if(proposal.needs?.length){
       const key=JSON.stringify(proposal.needs.map(n=>({kind:n.kind,selector:n.selector})));
@@ -56,7 +61,20 @@ async function coordinate({getContext,request,handlers,isActive=()=>true,onActio
     }
     const results=await execute(proposal.actions||[],handlers,{isActive,onActionStart,onActionResult});
     facts.push(...results);runs.push(...results.filter(r=>r.run).map(r=>r.run));
-    if(!results.length){if(proposal.message)messages.push(proposal.message);break;}
+    if(!results.length){
+      if(uncommittedMutationClaim(proposal.message)){
+        if(step<2){
+          correction='The last response promised a graph change but proposed no actions. '+
+            'No work has been scheduled or applied. If the requested operation is supported, '+
+            'return a valid ir.applyPatch action with exact graph refs and all required fields; '+
+            'otherwise explain the blocker without claiming progress or asking the user to wait.';
+          continue;
+        }
+        messages.push('실행 가능한 변경 명령이 생성되지 않아 작업을 적용하지 못했어. '+
+          '기존 노드와 정의는 그대로 유지했어.');
+      }else if(proposal.message)messages.push(proposal.message);
+      break;
+    }
     if(results.some(r=>r.kind==='question.ask'&&r.status==='waiting'))break;
     const recoverable=results.some(r=>r.status==='waiting'||r.status==='failed'&&!r.run&&!['function.run','run.start'].includes(r.kind))&&
       !runs.some(run=>run.nodes.some(n=>n.toolEffectStarted));

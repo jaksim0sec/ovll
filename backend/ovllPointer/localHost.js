@@ -18,6 +18,20 @@ function compactModelTurn(value){
   for(const key of ['message','actions','needs','outputs'])
     if(turn[key]===null)delete turn[key];
   if(turn.message===''&&Object.keys(turn).length>1)delete turn.message;
+  // Missing empty arrays are unambiguous in a GraphPatch with existing operations.
+  // Never fabricate definitions or operations themselves.
+  if(Array.isArray(turn.actions)){
+    turn.actions=turn.actions.map(action=>{
+      if(action?.kind!=='ir.applyPatch'||!action.args?.patch||
+        typeof action.args.patch!=='object'||Array.isArray(action.args.patch))return action;
+      const patch=action.args.patch;
+      if(Array.isArray(patch.operations)&&patch.definitions===undefined)
+        return {...action,args:{...action.args,patch:{...patch,definitions:[]}}};
+      if(Array.isArray(patch.definitions)&&patch.operations===undefined)
+        return {...action,args:{...action.args,patch:{...patch,operations:[]}}};
+      return action;
+    });
+  }
   return turn;
 }
 function contextSnapshot(snapshot,nodeIdScope){

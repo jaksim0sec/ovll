@@ -1301,23 +1301,48 @@ function updateConversationState(
   return clone(conversation);
 }
 
-function updateConversationPointerGraph(conversationId,snapshot){
+function updateConversationPointerGraph(conversationId,snapshot,{deletedDefinitions=[]}={}){
   const conversation=getConversation(conversationId);
   if(!conversation)throw new Error("CONVERSATION_NOT_FOUND");
   const next=normalizePointerGraph(snapshot);
   if(snapshot!==null&&!next)throw new Error("INVALID_POINTER_GRAPH");
+  if(!Array.isArray(deletedDefinitions))throw new Error("INVALID_DEFINITION_DELETION");
+  const remove=new Set();
+  for(const ref of deletedDefinitions){
+    if(typeof ref?.definitionId!=='string'||!ref.definitionId||
+      ref.definitionId.startsWith('builtin:')||
+      !Number.isInteger(ref.version)||ref.version<1)
+      throw new Error("INVALID_DEFINITION_DELETION");
+    remove.add(ref.definitionId+':'+ref.version);
+  }
+  const key=ref=>ref?.definitionId+':'+ref?.version;
+  for(const record of state.conversations){
+    const graph=record===conversation?next?.graph:record.state.pointerGraph?.graph;
+    if((graph?.nodes||[]).some(node=>remove.has(key(node.definitionRef))))
+      throw new Error('DEFINITION_IN_USE_OTHER_CONVERSATION');
+  }
   const previous=conversation.state.pointerGraph;
   const previousDefinitions=state.pointerDefinitions;
-  conversation.state.pointerGraph=next;
-  state.pointerDefinitions=collectPointerDefinitions(
-    previousDefinitions,next?.definitions
-  );
-  if(!persist("conversation:pointer-graph")){
+  const changed=new Map();
+  try{
+    conversation.state.pointerGraph=next;
+    for(const record of state.conversations){
+      const saved=record.state.pointerGraph;
+      if(!saved||!remove.size||!saved.definitions.some(def=>remove.has(key(def))))continue;
+      if(record!==conversation)changed.set(record,saved);
+      record.state.pointerGraph={...saved,definitions:saved.definitions.filter(def=>!remove.has(key(def)))};
+    }
+    state.pointerDefinitions=collectPointerDefinitions(
+      (previousDefinitions||[]).filter(def=>!remove.has(key(def))),next?.definitions
+    );
+    if(!persist("conversation:pointer-graph"))throw new Error("LOCAL_GRAPH_SAVE_FAILED");
+  }catch(error){
     conversation.state.pointerGraph=previous;
+    for(const [record,saved] of changed)record.state.pointerGraph=saved;
     state.pointerDefinitions=previousDefinitions;
-    throw new Error("LOCAL_GRAPH_SAVE_FAILED");
+    throw error;
   }
-  return clone(next);
+  return clone(conversation.state.pointerGraph);
 }
 
 function getPointerDefinitions(){

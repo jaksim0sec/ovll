@@ -1,3 +1,5 @@
+import {compatibleDataRepresentation} from './ovllPointerPortTypes.mjs';
+export {matchesInputRepresentation} from './ovllPointerPortTypes.mjs';
 import {KernelError,computeScope} from './ovllPointerGraphCore.mjs';
 const reject=(code,status=422)=>{throw new KernelError(code,code,status);};
 export function buildExecutionPlan(snapshot, run) {
@@ -32,7 +34,7 @@ export function buildExecutionPlan(snapshot, run) {
       ports.add(link.to.port);
       const parent=nodes.get(link.from.nodeId),parentDef=defs.get(parent?.definitionRef.definitionId+':'+parent?.definitionRef.version);
       const out=parentDef?.outputs.find(p=>p.name===link.from.port),input=inputs.get(link.to.port);
-      if(!out||!input||out.representation!==input.representation)reject('PORT_MISMATCH');
+      if(!out||!input||!compatibleDataRepresentation(out.representation,input.representation))reject('PORT_MISMATCH');
     }
     for(const name of Object.keys(bound))if(!inputs.has(name))reject('UNKNOWN_INPUT_PORT');
     for(const port of inputs.values())if(port.required===true&&!ports.has(port.name)&&!Object.hasOwn(bound,port.name))reject('REQUIRED_INPUT_MISSING');
