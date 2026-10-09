@@ -6,7 +6,7 @@ global.OVLL_RUNTIME=
     native:false,
     apiOrigin:"",
     vnextStorageMode:"local",
-    vnextEnabled:false
+    vnextEnabled:true
   });
 
 })(window);

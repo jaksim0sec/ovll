@@ -136,3 +136,9 @@ Lifecycle verification:26 PostgreSQL cases, 25/26 local single-session smoke wit
 
 ## Migration safety
 - The local opt-in selector will not replace a conversation's legacy canvas when it has nodes but no vNext graph snapshot. Existing conversations continue on the original chat/canvas runtime; new empty conversations can use the opt-in vNext mode. No destructive legacy workflow conversion is attempted.
+
+## Local-first guarded cutover
+- Frontend requests `GET /api/vnext/local/ready` on startup and enables the browser-local vNext lane only if the **actual backend confirms availability**. A disabled/unreachable API leaves all existing conversations on the legacy, working service path. Existing conversations with nonempty legacy workflows are never overwritten by vNext.
+- The backend enables stateless local model calls when an existing `GROQ_API_KEY` (or explicitly configured compatible provider) is available, unless `OVLL_VNEXT_LOCAL_MODEL_ENABLED=false`; no SQL or user-account configuration is required. Basic per-IP/global daily model-call limits are in place. The backend never stores browser graphs.
+- The vNext-ready frontend uses localStorage, and drafts can be saved with `/함수저장 <purpose>`, listed with `/함수`, and rerun using `/함수실행 <number> <new input>` without new model planning. A plain-language function request can still generate `function.save` proposals, but saved items remain drafts until independently verified.
+- Browser+real-provider end-to-end quality still needs acceptance before calling this a production-ready full replacement. Conditional routing, subgraphs, tools and multi-user synchronization remain deliberately unsupported by the local-only adapter.

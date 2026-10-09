@@ -62,7 +62,7 @@ test('stale graph writes fail closed and distinct conversations never share grap
 test('local mode is default and SQL-dependent runtime stays opt-in',()=>{
   const config=read('front/runtime-config.js'),server=read('server.js');
   assert.match(config,/vnextStorageMode:"local"/);
-  assert.match(config,/vnextEnabled:false/);
+  assert.match(config,/vnextEnabled:true/);
   assert.doesNotMatch(server,/from ['"]\.\/backend\/vnext\/durable/);
   assert.match(read('backend/vnext/runtime.js'),/PostgresVNextStore/);
 });

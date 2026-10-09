@@ -30,5 +30,5 @@ test('local application hooks model proposals to stored graph and executes model
  assert.match(app,/OvllVNextLocal\.turn\(/);
  assert.match(app,/OvllVNextLocal\.run\(/);
  assert.match(boot,/\.\/js\/vnextFunctions\.js/);
- assert.match(config,/vnextEnabled:false/);
+ assert.match(config,/vnextEnabled:true/);
 });

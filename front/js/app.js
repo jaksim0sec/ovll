@@ -109,6 +109,7 @@
     vnextLocalView: null,
     vnextGraphSnapshot: null,
     vnextHydrating: false,
+    vnextLocalReady: false,
     vnextEditTimer: null,
     vnextEditInFlight: false,
     vnextEventCursor: 0,
@@ -6195,10 +6196,24 @@
   }
 
 
+  async function verifyLocalVNextReady(){
+    const settings=global.OVLL_RUNTIME||{};
+    if(settings.vnextEnabled!==true||settings.vnextStorageMode!=='local')return;
+    const controller=new AbortController();
+    const timeout=setTimeout(()=>controller.abort(),4500);
+    try{
+      state.vnextLocalReady=(await VNextAPI.localReady({signal:controller.signal}))?.ready===true;
+    }catch(error){
+      state.vnextLocalReady=false;
+      console.warn('vNext local model not ready; keeping legacy runtime',error?.code||error);
+    }finally{clearTimeout(timeout);}
+  }
+
   function vnextScope(){
     const settings=global.OVLL_RUNTIME||{};
     if(settings.vnextEnabled!==true||!global.OvllVNextProjection)return null;
     if(settings.vnextStorageMode==='local'){
+      if(!state.vnextLocalReady)return null;
       const conversationId=currentConversationId();
       const conversation=WorkspaceStore.getConversation(conversationId);
       // Never overwrite an existing legacy workflow with an empty opt-in vNext graph.
@@ -6371,15 +6386,30 @@
     state.lastUserRequest=value;setBusy(true);Presence.thinking();
     beginRuntimeActivity('로컬 작업 준비 중');
     try{
-      if(value==='/함수'){
+      if(value==='/함수'||value==='함수 목록'){
         const items=global.OvllVNextFunctions?.list()||[];
-        addAssistantMessage(items.length?items.map(x=>x.purpose+' ('+x.id+')').join('\n'):
+        addAssistantMessage(items.length?items.map((x,i)=>(i+1)+'. '+x.purpose).join('\n'):
           '아직 저장된 함수가 없어.');
         return;
       }
+      if(value==='/함수저장'||value.startsWith('/함수저장 ')||value==='이 작업 함수로 저장해'){
+        const graph=(await global.OvllVNextLocal.state(scope.conversationId)).graph;
+        if(!graph.graph.nodes.length)throw new Error('LOCAL_FUNCTION_GRAPH_EMPTY');
+        const targets=graph.graph.nodes.filter(n=>!graph.graph.connections.some(l=>
+          l.kind==='flow'&&l.from.nodeId===n.nodeId)).map(n=>n.nodeId);
+        const purpose=value.startsWith('/함수저장 ')?
+          value.slice('/함수저장 '.length).trim():
+          state.workflowUserRequest||state.lastUserRequest||'새 함수';
+        const saved=global.OvllVNextFunctions.save({purpose,snapshot:graph,targets});
+        addAssistantMessage('함수 초안을 저장했어: '+saved.purpose+
+          '\n다시 실행하려면 `/함수실행 1 새로운 입력`처럼 요청하면 돼.');
+        return;
+      }
       if(value.startsWith('/함수실행 ')){
-        const [id,...args]=value.slice(6).trim().split(/\s+/);
-        const fn=global.OvllVNextFunctions?.get(id);
+        const [id,...args]=value.slice('/함수실행 '.length).trim().split(/\s+/);
+        const all=global.OvllVNextFunctions?.list()||[];
+        const selected=/^[1-9][0-9]*$/.test(id)?all[Number(id)-1]:all.find(x=>x.id===id);
+        const fn=selected?global.OvllVNextFunctions.get(selected.id):null;
         if(!fn)throw new Error('LOCAL_FUNCTION_NOT_FOUND');
         const run=await runLocalNodes({snapshotOverride:fn.snapshot,targets:fn.targets,
           requestText:args.join(' ')});
@@ -6387,8 +6417,12 @@
           '함수 실행이 '+run.status+' 상태에서 종료됐어.\n'+localRunSummary(run));return;
       }
       const graph=(await global.OvllVNextLocal.state(scope.conversationId)).graph;
+      const savedFunctions=(global.OvllVNextFunctions?.list()||[]).slice(0,10);
+      const contextHistory=recentAiConversation(value).slice(-5).map(x=>x.role+': '+x.text);
+      if(savedFunctions.length)contextHistory.push('Saved local function drafts (ids and purposes): '+
+        savedFunctions.map((fn,i)=>(i+1)+'. '+fn.id+' '+fn.purpose).join('; ').slice(0,750));
       const proposal=await VNextAPI.localTurn({snapshot:graph,requestText:value,
-        history:recentAiConversation(value).slice(-6).map(x=>x.role+': '+x.text)});
+        history:contextHistory});
       if(proposal.needs?.length){addAssistantMessage(proposal.message||'추가 자료가 필요해.');return;}
       const applied=new Map(),summary=[];
       const ordered=global.OvllVNextLocalActions.order(proposal.actions||[]);
@@ -8560,6 +8594,7 @@ listen(composerInput, "keydown", handleComposerKeydown);
     }
 
     await initializeCanvas();
+    await verifyLocalVNextReady();
 
     renderNodeBuilderOptions();
 

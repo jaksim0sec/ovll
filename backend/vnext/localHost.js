@@ -28,6 +28,9 @@ export function createLocalVNextHost({gateway,resolveModel,validation=createCont
     fail('LOCAL_MODEL_NOT_CONFIGURED',503);
   async function invoke({context,modules,nodeContext,signal}){
     const {messages}=composer.assemble({moduleIds:modules,context,nodeContext});
+    messages.splice(1,0,{role:'developer',content:nodeContext?
+      'Return exactly one JSON object with outputs.status produced or blocked and declared port values. No fabricated tool use.':
+      'Return exactly one valid JSON ModelTurn object. For ordinary conversation use only message. For a reusable task create dynamic model_task definitions with text output ports and an ir.applyPatch action scoped to the given graphId and expectedGraphRevision. You may include run.start dependent on the patch, targeting the new node through fromAction and localNodeKey. Do not claim any action applied before confirmation. Suggest function.save only when the user asks to reuse the work. Do not invent tool execution or capability access.'});
     const config=await resolveModel();
     const result=await gateway.complete({providerId:config.providerId,model:config.model,
       output:'json',messages,maxOutputTokens:config.maxOutputTokens??1500,signal});
