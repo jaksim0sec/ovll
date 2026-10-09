@@ -3,7 +3,7 @@
   // Browser-owned graph snapshots, scoped to the existing local WorkspaceStore.
   // No SQL, login, server state or external execution is involved.
   function create({workspaceStore=global.OvllWorkspaceStore,
-    loadCore=()=>import("/js/vnextGraphCore.mjs")}={}){
+    loadCore=()=>import("/js/vnextGraphCore.mjs"),loadPlan=()=>import("/js/vnextPlanCore.mjs")}={}){
     if(!workspaceStore || typeof workspaceStore.updateConversationVNextGraph!=="function")
       throw new Error("LOCAL_WORKSPACE_UNAVAILABLE");
     const pending=new Map();
@@ -52,11 +52,11 @@
       return current;
     }
 
-    async function run({conversationId,targets,damMode='closed',requestText='',
+    async function run({conversationId,targets,damMode='closed',requestText='',snapshotOverride,
       executeNode=({snapshot,nodeId,inputArtifacts,requestText})=>global.OvllVNextApi.localNode({
         snapshot,nodeId,inputArtifacts,requestText}),onProgress=()=>{},signal}={}){
-      const snapshot=(await state(conversationId)).graph;
-      const {buildExecutionPlan}=await import('/js/vnextPlanCore.mjs');
+      const snapshot=snapshotOverride||(await state(conversationId)).graph;
+      const {buildExecutionPlan}=await loadPlan();
       const targetIds=(targets||[]).map(x=>typeof x==='string'?x:x.nodeId);
       const plan=buildExecutionPlan(snapshot,{graphRef:{graphId:snapshot.graph.graphId,
         revision:snapshot.graph.revision},planEpoch:0,targets:targetIds,damMode});

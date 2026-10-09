@@ -11,7 +11,7 @@ function browser(){
  vm.runInNewContext(script('front/js/workspaceStore.js'),{window,localStorage:storage,console});
  vm.runInNewContext(script('front/js/vnextLocal.js'),{window,console});
  const store=window.OvllWorkspaceStore;
- const local=window.createOvllVNextLocal({workspaceStore:store,loadCore:async()=>core});
+ const local=window.createOvllVNextLocal({workspaceStore:store,loadCore:async()=>core,loadPlan:async()=>plan});
  // ESM dynamic imports run inside the adapter; callback injection lets tests avoid browser URL resolution.
  return {store,local,map};
 }
@@ -26,4 +26,12 @@ test('local storage holds a second read-after-write revision and blocks unsuppor
   operations:[{op:'node.add',localNodeKey:'a',definitionRef:{localDefinitionKey:'d'}}]};
  await local.turn({conversationId:id,graphId,actions:[{localKey:'patch',kind:'ir.applyPatch',args:{patch}}]});
  assert.equal((await local.state(id)).graph.graph.revision,1);
+ const nodeId=(await local.state(id)).graph.graph.nodes[0].nodeId;
+ const run=await local.run({conversationId:id,targets:[nodeId],
+  executeNode:async()=>({status:'success',outputs:{status:'produced',values:{result:{inline:'done'}}}})});
+ assert.equal(run.status,'completed');
+ assert.equal(run.nodes[0].outputs.values.result.inline,'done');
+ const exported=store.exportJSON();
+ store.reset();store.importJSON(exported);
+ assert.equal(store.getConversation(id).state.vnextRuns[0].status,'completed');
 });

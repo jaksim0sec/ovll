@@ -6228,6 +6228,10 @@
         state.workflow=getCurrentWorkflow();
       }finally{state.vnextHydrating=false;}
     }
+    if(scope.storageMode==='local'){
+      for(const run of WorkspaceStore.getConversation(scope.conversationId)?.state.vnextRuns||[])
+        if(run.graphRef?.graphId===scope.graphId)showLocalRun(run);
+    }
     for(const run of snapshot.runs||[]){
       if(!run.runId)continue;
       state.vnextRunRefs.add(run.runId);
@@ -6321,6 +6325,97 @@
     });
   }
 
+  function showLocalRun(run){
+    for(const n of run.nodes||[]){
+      const status={running:'RUNNING',success:'SUCCESS',failed:'FAILED',
+        blocked:'FAILED',cancelled:'SKIPPED'}[n.status];
+      if(!status)continue;
+      const report=Object.entries(n.outputs?.values||{}).map(([k,v])=>k+': '+
+        String(typeof v?.inline==='string'?v.inline:JSON.stringify(v?.inline)||'')).join(' · ').slice(0,350);
+      state.canvas?.setRuntimeNodeState?.(n.nodeId,{status,report:report||n.error||'',
+        ...(n.status==='success'?{result:{report}}:{})});
+    }
+  }
+  async function runLocalNodes({targets,damMode='closed',requestText='',snapshotOverride}={}){
+    const scope=vnextScope();
+    if(scope?.storageMode!=='local')throw new Error('LOCAL_SCOPE_UNAVAILABLE');
+    return global.OvllVNextLocal.run({conversationId:scope.conversationId,targets,damMode,
+      requestText,snapshotOverride,onProgress:showLocalRun});
+  }
+  async function runLocalPrompt(text,options={}){
+    if(state.destroyed||state.busy)return;
+    const value=String(text??'').trim(),scope=vnextScope();
+    if(!value||!scope)return;
+    if(options.addUserMessage!==false){
+      addUserMessage(value);composerInput.value='';resizeComposer();scheduleComposerDraftSave(0);
+    }
+    state.lastUserRequest=value;setBusy(true);Presence.thinking();
+    beginRuntimeActivity('로컬 작업 준비 중');
+    try{
+      if(value==='/함수'){
+        const items=global.OvllVNextFunctions?.list()||[];
+        addAssistantMessage(items.length?items.map(x=>x.purpose+' ('+x.id+')').join('\n'):
+          '아직 저장된 함수가 없어.');
+        return;
+      }
+      if(value.startsWith('/함수실행 ')){
+        const [id,...args]=value.slice(6).trim().split(/\s+/);
+        const fn=global.OvllVNextFunctions?.get(id);
+        if(!fn)throw new Error('LOCAL_FUNCTION_NOT_FOUND');
+        const run=await runLocalNodes({snapshotOverride:fn.snapshot,targets:fn.targets,
+          requestText:args.join(' ')});
+        addAssistantMessage(run.status==='completed'?'저장된 함수 실행 완료. 캔버스에서 결과를 확인해줘.':
+          '함수 실행이 '+run.status+' 상태에서 종료됐어.');return;
+      }
+      const graph=(await global.OvllVNextLocal.state(scope.conversationId)).graph;
+      const proposal=await VNextAPI.localTurn({snapshot:graph,requestText:value,
+        history:recentAiConversation(value).slice(-6).map(x=>x.role+': '+x.text)});
+      if(proposal.needs?.length){addAssistantMessage(proposal.message||'추가 자료가 필요해.');return;}
+      const applied=new Map(),summary=[];
+      if((proposal.actions||[]).length>32)throw new Error('LOCAL_ACTION_LIMIT');
+      for(const action of proposal.actions||[]){
+        if(applied.has(action.localKey))throw new Error('DUPLICATE_LOCAL_ACTION');
+        if((action.dependsOn||[]).some(key=>!applied.has(key))){
+          summary.push(action.kind+' 선행 행동이 적용되지 않았어.');continue;
+        }
+        if(action.kind==='ir.applyPatch'){
+          const data=await global.OvllVNextLocal.turn({...scope,actions:[action]});
+          if(data.results[0].status!=='applied')throw new Error('LOCAL_PATCH_REJECTED');
+          applied.set(action.localKey,data.results[0]);
+          await refreshVNextCanvas({force:true});summary.push('그래프 변경 반영');
+        }else if(action.kind==='run.start'){
+          const targets=action.args.targets.map(x=>x.nodeId||
+            applied.get(x.fromAction)?.createdRefs?.['node:'+x.localNodeKey]);
+          if(!targets.length||targets.some(x=>!x))throw new Error('LOCAL_TARGET_UNRESOLVED');
+          const run=await runLocalNodes({targets,damMode:action.args.damMode||'closed',
+            requestText:value});
+          applied.set(action.localKey,run);
+          summary.push(run.status==='completed'?'노드 실행 완료':'노드 실행 '+run.status);
+        }else if(action.kind==='function.save'){
+          const draft=action.args.function;
+          const current=(await global.OvllVNextLocal.state(scope.conversationId)).graph;
+          if(draft?.procedure?.kind!=='graph'||draft.procedure.graphRef?.graphId!==current.graph.graphId||
+            draft.procedure.graphRef.revision!==current.graph.revision)throw new Error('LOCAL_FUNCTION_GRAPH_MISMATCH');
+          const targets=current.graph.nodes.filter(n=>!current.graph.connections.some(l=>
+            l.kind==='flow'&&l.from.nodeId===n.nodeId)).map(n=>n.nodeId);
+          const saved=global.OvllVNextFunctions.save({purpose:draft.purpose,snapshot:current,
+            targets,inputs:draft.inputs,outputs:draft.outputs,invariants:draft.invariants});
+          applied.set(action.localKey,saved);
+          summary.push('함수 초안 저장: '+saved.id);
+        }else if(action.kind==='question.ask'){
+          summary.push(action.args.question);applied.set(action.localKey,action);
+        }else summary.push(action.kind+'은(는) 로컬 모드에서 지원되지 않아.');
+      }
+      addAssistantMessage([proposal.message||'',...summary].filter(Boolean).join('\n')||
+        '모델 응답을 받았지만 실행된 변경은 없어.');
+    }catch(error){
+      showErrorNotice(error,{scope:'로컬 vNext 오류',fallback:'작업을 처리하지 못했어.'});
+    }finally{
+      finishRuntimeActivity({removeImmediately:true});Presence.settle();setBusy(false);
+      resizeComposer();focusComposerForDesktop();scheduleWorkspaceSave();
+    }
+  }
+
   async function runVNextPrompt(text,options={}){
     if(state.destroyed||state.busy)return;
     const value=String(text??'').trim();
@@ -6365,11 +6460,7 @@
   async function cancelVNextCanvasNode(nodeId){
     const scope=vnextScope();
     if(!scope)return;
-    if(scope.storageMode==='local'){
-      showErrorNotice(new Error('LOCAL_RUN_UNAVAILABLE'),{scope:'실행 중단',
-        fallback:'로컬 vNext 노드 실행은 아직 연결되지 않았습니다.'});
-      return;
-    }
+    if(scope.storageMode==='local')return;
     const runRef=[...state.vnextRuns].find(ref=>(state.vnextRunTargets.get(ref)||[]).includes(nodeId));
     if(!runRef)return;
     try{
@@ -6388,8 +6479,11 @@
   async function runVNextCanvasNode(nodeId,mode='closed'){
     const scope=vnextScope();
     if(scope?.storageMode==='local'){
-      showErrorNotice(new Error('LOCAL_RUN_UNAVAILABLE'),{scope:'서버 실행',
-        fallback:'로컬 vNext 실행기는 준비 중입니다. 기본 오블 실행기는 계속 사용할 수 있습니다.'});
+      try{
+        const run=await runLocalNodes({targets:[nodeId],damMode:mode});
+        addAssistantMessage(run.status==='completed'?'노드 실행 완료. 캔버스에서 결과를 확인해줘.':
+          '노드 실행 상태: '+run.status);
+      }catch(error){showErrorNotice(error,{scope:'로컬 노드 실행',fallback:'노드 실행 실패'});}
       return;
     }
     if(!scope||!scope.taskRef||!state.vnextGraphRevision||!state.canvas?.getNode?.(nodeId)){
@@ -6415,6 +6509,7 @@
   }
 
   async function runPrompt(text, options = {}) {
+    if(vnextScope()?.storageMode==='local')return runLocalPrompt(text,options);
     if(vnextScope()?.storageMode==='postgres')return runVNextPrompt(text,options);
     if (state.destroyed || state.busy) return;
 
