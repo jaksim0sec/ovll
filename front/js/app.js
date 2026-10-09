@@ -3897,38 +3897,33 @@
     `;
   }
 
-  function runtimeStepPresentation(
-    id
-  ) {
-    const key =
-      String(id || "");
-
-    const node =
-      state.canvas?.getNode?.(
-        key
-      );
-
-    const type =
-      String(
-        node?.type ||
-        ""
-      );
-
-    const definition =
-      state.canvas?.getNodeDefinitions?.()?.[type] ||
+  function runtimeStepPresentation(id, options = {}) {
+    const key=String(id||"");
+    const nodeId=String(options.nodeId||(
+      key.startsWith("node:")?key.slice(5):key));
+    const node=state.canvas?.getNode?.(nodeId);
+    const type=String(node?.type||options.nodeType||"");
+    const definition=state.canvas?.getNodeDefinitions?.()?.[type]||
       state.nodeDefinitions?.[type];
-
+    const stage=key.startsWith("action:")?key.split(":").at(-1):"";
+    const systemIcons={
+      define:"custom",add:"nodeAdd",edit:"pencil",delete:"pencil",
+      connect:"canvasLayout",run:"play",save:"folder",ask:"open-book"
+    };
+    const fallback=systemIcons[stage]||(
+      key.startsWith("action:")?"canvasLayout":
+      key.startsWith("node:")?"custom":""
+    );
+    const iconKey=String(options.iconKey||definition?.iconKey||fallback);
+    const icon=SvgLibrary.get(iconKey)||(
+      fallback?SvgLibrary.get(fallback):""
+    );
+    const color=String(options.color||definition?.color||"");
     return {
-      type:
-        type || "node",
-      icon:
-        global.OvllSvgLibrary?.get?.(definition?.iconKey)||
-        (typeof definition?.icon==="string"?definition.icon:""),
-      color:
-        String(
-          definition?.color ||
-          ""
-        )
+      type:type||String(options.nodeType||"node"),
+      iconKey:icon?iconKey:"",
+      icon,
+      color:/^#[0-9a-f]{6}$/i.test(color)?color:""
     };
   }
 
@@ -3962,6 +3957,10 @@
                 step.dataset
                   ?.nodeType || ""
               ),
+            iconKey:
+              String(step.dataset?.iconKey||""),
+            color:
+              String(step.dataset?.nodeColor||""),
             label:
               String(
                 step.querySelector(
@@ -4098,6 +4097,8 @@
         String(
           item.nodeType || "node"
         );
+      step.dataset.iconKey=String(item.iconKey||"");
+      step.dataset.nodeColor=String(item.color||"");
       step.dataset.status =
         String(
           item.status || "done"
@@ -4107,7 +4108,8 @@
 
       const presentation =
         runtimeStepPresentation(
-          item.id
+          item.id,
+          {iconKey:item.iconKey,nodeType:item.nodeType,color:item.color}
         );
       const icon =
         step.querySelector(
@@ -4382,7 +4384,8 @@
     id,
     text,
     status = "running",
-    detail = ""
+    detail = "",
+    presentationOptions = {}
   ) {
     const activity =
       state.runtimeActivity ||
@@ -4418,11 +4421,16 @@
 
       const presentation =
         runtimeStepPresentation(
-          key
+          key,
+          presentationOptions
         );
 
       step.dataset.nodeType =
         presentation.type;
+      step.dataset.iconKey =
+        presentation.iconKey;
+      step.dataset.nodeColor =
+        presentation.color;
 
       const icon =
         step.querySelector(
@@ -6012,24 +6020,53 @@
   function pointerActionStages(action){
     const key='action:'+String(action.localKey||'unknown');
     const patch=action.kind==='ir.applyPatch'?action.args?.patch:null;
-    const operations=patch?.operations||[],stages=[];
-    if(patch?.definitions?.length)stages.push({id:key+':define',label:'노드 정의'});
-    if(operations.some(x=>x.op==='node.add'))stages.push({id:key+':add',label:'노드 생성'});
-    if(operations.some(x=>x.op==='node.update'))stages.push({id:key+':edit',label:'노드 수정'});
-    if(operations.some(x=>x.op==='node.delete'))stages.push({id:key+':delete',label:'노드 삭제'});
-    if(operations.some(x=>x.op?.startsWith('link.')))stages.push({id:key+':connect',label:'노드 연결 변경'});
-    if(!stages.length)stages.push({id:key,label:{
-      'ir.applyPatch':'작업 구성 반영','run.start':'워크플로우 실행',
-      'function.run':'저장된 함수 실행','function.save':'함수 저장',
-      'question.ask':'추가 정보 요청'
-    }[action.kind]||'요청 처리'});
+    const operations=patch?.operations||[],drafts=patch?.definitions||[],stages=[];
+    const catalog=state.pointerGraphSnapshot?.definitions||[];
+    const definitionFor=ref=>ref?.localDefinitionKey?
+      drafts.find(d=>d.localKey===ref.localDefinitionKey):
+      catalog.find(d=>d.definitionId===ref?.definitionId&&d.version===ref?.version);
+    const appearance=ref=>{
+      const def=definitionFor(ref),type=ref?.definitionId?.startsWith('builtin:')?
+        ref.definitionId.slice(8):'';
+      const ui=state.canvas?.getNodeDefinitions?.()?.[type]||
+        state.nodeDefinitions?.[type];
+      return {iconKey:def?.presentation?.iconKey||ui?.iconKey||'custom',
+        color:def?.presentation?.color||ui?.color||''};
+    };
+    const stage=(suffix,label,options={})=>stages.push({
+      id:key+':'+suffix,label,...options
+    });
+    if(drafts.length)stage('define','노드 정의',
+      drafts.length===1?appearance({localDefinitionKey:drafts[0].localKey}):{iconKey:'custom'});
+    const added=operations.filter(x=>x.op==='node.add');
+    if(added.length)stage('add','노드 생성',
+      added.length===1?appearance(added[0].definitionRef):{iconKey:'nodeAdd'});
+    const updated=operations.find(x=>x.op==='node.update');
+    if(updated)stage('edit','노드 수정',{nodeId:updated.nodeId,iconKey:'pencil'});
+    const removed=operations.find(x=>x.op==='node.delete');
+    if(removed)stage('delete','노드 삭제',{nodeId:removed.nodeId,iconKey:'pencil'});
+    const removedDefinition=operations.find(x=>x.op==='definition.delete');
+    if(removedDefinition)stage('removeDefinition','노드 정의 삭제',
+      appearance(removedDefinition.definitionRef));
+    if(operations.some(x=>x.op?.startsWith('link.')))
+      stage('connect','노드 연결 변경',{iconKey:'canvasLayout'});
+    if(!stages.length){
+      const behavior={
+        'ir.applyPatch':['작업 구성 반영','canvasLayout'],
+        'run.start':['워크플로우 실행','play'],
+        'function.run':['저장된 함수 실행','play'],
+        'function.save':['함수 저장','folder'],
+        'question.ask':['추가 정보 요청','open-book']
+      }[action.kind]||['요청 처리','sparkle'];
+      stages.push({id:key,label:behavior[0],iconKey:behavior[1]});
+    }
     return stages;
   }
   function pointerActionStarted(action){
     Presence.settle();
     upsertRuntimeStep('__thinking__','생각 완료','done');
     for(const step of pointerActionStages(action))
-      upsertRuntimeStep(step.id,step.label+' 중','running');
+      upsertRuntimeStep(step.id,step.label+' 중','running','',step);
   }
   function pointerActionResult(action,fact){
     const done=['applied','completed','saved','answered'].includes(fact.status);
@@ -6037,7 +6074,7 @@
     const waiting=fact.status==='waiting';
     for(const step of pointerActionStages(action))
       upsertRuntimeStep(step.id,step.label+(done?' 완료':waiting?' 확인 필요':skipped?' 건너뜀':' 실패'),
-        done?'done':waiting||skipped?'skipped':'failed',fact.error||'');
+        done?'done':waiting||skipped?'skipped':'failed',fact.error||'',step);
   }
   function pointerNodeProgress(run){
     if(!state.runtimeActivity)return;

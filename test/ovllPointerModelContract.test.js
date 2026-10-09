@@ -115,3 +115,105 @@ test('deleting an unused custom definition is a valid GraphPatch ModelTurn propo
  assert.equal(actual.actions[0].args.patch.operations[0].op,'definition.delete');
  assert.equal(received.length,1);
 });
+
+test('single unnamed node.add gets a safe patch-local key without a second model call',async()=>{
+ const received=[];
+ const turn={actions:[{localKey:'p',kind:'ir.applyPatch',args:{patch:{
+  graphId:'g',expectedGraphRevision:0,definitions:[],operations:[
+   {op:'node.add',definitionRef:{definitionId:'builtin:write',version:1}}
+  ]}}}]};
+ const actual=await create([turn],received).turn({snapshot,requestRef:'safe_key',requestText:'기존 작성 노드로 만들어'});
+ assert.equal(received.length,1);
+ assert.equal(actual.actions[0].args.patch.operations[0].localNodeKey,'node1');
+ assert.equal(turn.actions[0].args.patch.operations[0].localNodeKey,undefined);
+ assert.equal(createContractValidation().validateTurn(actual),true);
+});
+test('new node temporary key is inferred only from one unambiguous run target',async()=>{
+ const received=[];
+ const turn={actions:[
+  {localKey:'p',kind:'ir.applyPatch',args:{patch:{
+   graphId:'g',expectedGraphRevision:0,definitions:[],operations:[
+    {op:'node.add',definitionRef:{definitionId:'builtin:write',version:1}}
+   ]}}},
+  {localKey:'r',kind:'run.start',dependsOn:['p'],args:{targets:[
+   {fromAction:'p',localNodeKey:'vocab'}
+  ],damMode:'closed'}}
+ ]};
+ const result=await create([turn],received).turn({snapshot,requestRef:'key_referenced',requestText:'작성해서 실행해'});
+ assert.equal(result.actions[0].args.patch.operations[0].localNodeKey,'vocab');
+ assert.equal(createContractValidation().validateTurn(result),true);
+ assert.equal(received.length,1);
+});
+test('ambiguous temporary node references still fail closed rather than invent a mapping',async()=>{
+ const bad={actions:[{localKey:'p',kind:'ir.applyPatch',args:{patch:{
+  graphId:'g',expectedGraphRevision:0,definitions:[],operations:[
+   {op:'node.add',definitionRef:{definitionId:'builtin:write',version:1}},
+   {op:'link.add',localLinkKey:'connect',kind:'data',from:{node:{localNodeKey:'one'},port:'result'},
+    to:{node:{localNodeKey:'two'},port:'in'}}
+  ]}}}]};
+ const received=[],old=console.warn;console.warn=()=>{};
+ try{
+  await assert.rejects(create([bad,bad],received).turn({snapshot,requestRef:'ambiguous_key',
+   requestText:'복잡한 연결'}),e=>e.code==='INVALID_MODEL_TURN');
+ }finally{console.warn=old;}
+ assert.equal(received.length,2);
+ assert.match(received[1].messages.at(-1).content,/localNodeKey/);
+ assert.equal(repo.get('local','g').graph.revision,0);
+});
+test('entry model contract instructs existing instance and definition reuse before new definitions',async()=>{
+ const received=[];await create([{message:'네'}],received).turn({
+  snapshot,requestRef:'reuse_policy',requestText:'기존 노드 재사용'});
+ const prompts=received[0].messages.map(m=>m.content).join(' ');
+ assert.match(prompts,/existing instances/);
+ assert.match(prompts,/existing compatible definition/);
+ assert.match(prompts,/ONLY if none/);
+ assert.match(prompts,/localNodeKey/);
+});
+
+test('safe key and missing empty definitions normalize in one pass',async()=>{
+ const received=[];
+ const action={localKey:'p',kind:'ir.applyPatch',args:{patch:{
+  graphId:'g',expectedGraphRevision:0,operations:[
+   {op:'node.add',definitionRef:{definitionId:'builtin:write',version:1}}
+  ]}}};
+ const result=await create([{actions:[action]}],received).turn({
+  snapshot,requestRef:'both_missing',requestText:'기존 정의로 생성'});
+ assert.equal(received.length,1);
+ assert.deepEqual(result.actions[0].args.patch.definitions,[]);
+ assert.equal(result.actions[0].args.patch.operations[0].localNodeKey,'node1');
+ assert.equal(createContractValidation().validateTurn(result),true);
+});
+
+test('unique run.start target safely inherits the sole created node key',async()=>{
+ const received=[];
+ const turn={actions:[
+  {localKey:'p',kind:'ir.applyPatch',args:{patch:{
+   graphId:'g',expectedGraphRevision:0,definitions:[],operations:[
+    {op:'node.add',localNodeKey:'one',definitionRef:{definitionId:'builtin:write',version:1}}
+   ]}}},
+  {localKey:'r',kind:'run.start',dependsOn:['p'],args:{targets:[
+    {fromAction:'p'}],damMode:'closed'}}
+ ]};
+ const actual=await create([turn],received).turn({snapshot,requestRef:'run_missing_key',
+  requestText:'이 노드 생성하고 실행'});
+ assert.equal(received.length,1);
+ assert.equal(actual.actions[1].args.targets[0].localNodeKey,'one');
+ assert.equal(createContractValidation().validateTurn(actual),true);
+});
+test('ambiguous run targets are never mapped to a guessed new node',async()=>{
+ const received=[];
+ const turn={actions:[
+  {localKey:'p',kind:'ir.applyPatch',args:{patch:{
+   graphId:'g',expectedGraphRevision:0,definitions:[],operations:[
+    {op:'node.add',localNodeKey:'one',definitionRef:{definitionId:'builtin:write',version:1}},
+    {op:'node.add',localNodeKey:'two',definitionRef:{definitionId:'builtin:write',version:1}}
+   ]}}},
+  {localKey:'r',kind:'run.start',dependsOn:['p'],args:{targets:[
+    {fromAction:'p'}],damMode:'closed'}}
+ ]};
+ const old=console.warn;console.warn=()=>{};
+ try{await assert.rejects(create([turn,turn],received).turn({snapshot,
+  requestRef:'ambiguous_run',requestText:'둘 중 하나 실행'}),e=>e.code==='INVALID_MODEL_TURN');
+ }finally{console.warn=old;}
+ assert.equal(received.length,2);
+});

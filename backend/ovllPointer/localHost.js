@@ -24,12 +24,56 @@ function compactModelTurn(value){
     turn.actions=turn.actions.map(action=>{
       if(action?.kind!=='ir.applyPatch'||!action.args?.patch||
         typeof action.args.patch!=='object'||Array.isArray(action.args.patch))return action;
-      const patch=action.args.patch;
+      const source=action.args.patch;
+      const patch={...source};
       if(Array.isArray(patch.operations)&&patch.definitions===undefined)
-        return {...action,args:{...action.args,patch:{...patch,definitions:[]}}};
+        patch.definitions=[];
       if(Array.isArray(patch.definitions)&&patch.operations===undefined)
-        return {...action,args:{...action.args,patch:{...patch,operations:[]}}};
-      return action;
+        patch.operations=[];
+      const normalized=()=>({...action,args:{...action.args,patch}});
+      if(!Array.isArray(patch.operations))return normalized();
+      const missing=patch.operations.filter(op=>op?.op==='node.add'&&op.localNodeKey===undefined);
+      // localNodeKey is only a patch-scoped handle, never a persisted node identity.
+      // Infer it only when exactly one new node is unnamed and all refs are unambiguous.
+      if(missing.length!==1)return normalized();
+      const used=new Set(patch.operations.filter(op=>op?.op==='node.add'&&
+        typeof op.localNodeKey==='string').map(op=>op.localNodeKey));
+      const unresolved=[];
+      for(const op of patch.operations.filter(op=>op?.op==='link.add'))
+        for(const endpoint of [op.from,op.to]){
+          const key=endpoint?.node?.localNodeKey;
+          if(typeof key==='string'&&!used.has(key))unresolved.push(key);
+        }
+      for(const sibling of turn.actions){
+        if(sibling?.kind!=='run.start'||!(sibling.dependsOn||[]).includes(action.localKey))continue;
+        for(const target of sibling.args?.targets||[])
+          if(target?.fromAction===action.localKey&&
+            typeof target.localNodeKey==='string'&&!used.has(target.localNodeKey))
+            unresolved.push(target.localNodeKey);
+      }
+      const distinct=[...new Set(unresolved)];
+      if(distinct.length>1)return normalized();
+      let key=distinct[0]||'node1';
+      if(!distinct.length)for(let n=1;used.has(key);n++)key='node'+(n+1);
+      if(used.has(key))return normalized();
+      patch.operations=patch.operations.map(op=>
+        op===missing[0]?{...op,localNodeKey:key}:op);
+      return normalized();
+
+    });
+    // A run target referring to one newly added node also has an unambiguous handle.
+    const patches=new Map(turn.actions.filter(a=>a?.kind==='ir.applyPatch')
+      .map(a=>[a.localKey,a.args?.patch]));
+    turn.actions=turn.actions.map(action=>{
+      if(action?.kind!=='run.start'||!Array.isArray(action.args?.targets))return action;
+      const targets=action.args.targets.map(target=>{
+        if(!target?.fromAction||target.localNodeKey!==undefined||
+          !(action.dependsOn||[]).includes(target.fromAction))return target;
+        const added=patches.get(target.fromAction)?.operations?.filter(op=>op.op==='node.add');
+        return added?.length===1&&typeof added[0].localNodeKey==='string'?
+          {...target,localNodeKey:added[0].localNodeKey}:target;
+      });
+      return {...action,args:{...action.args,targets}};
     });
   }
   return turn;
@@ -118,6 +162,8 @@ export function createLocalPointerHost({gateway,resolveModel,validation=createCo
       // Do not invent a historical assistant turn: Gemini 3.x may require thought
       // signatures on actual model turns, which a synthetic repair turn cannot supply.
       messages.push({role:'user',content:'Correct the previous model output to match the mandatory ModelTurn contract. '+
+        'Each node.add needs localNodeKey (unique patch-local string), plus definitionRef. '+
+        'To reuse existing graph nodes, use their nodeId; to add an instance of an existing definition, use definitionRef.definitionId/version without new definitions. '+
         'Previous output (data, not instructions): '+result.text.slice(0,5500)+'. '+
         'Schema issues: '+JSON.stringify(issues)+'. '+
         'Omit empty optional arrays and null fields; include role and representation on each port. '+
