@@ -1309,7 +1309,7 @@ tr:last-child td {
 
 .ovll-runtime-step-content {
   flex: 1 1 auto;
-  width: auto;
+  width: 100%;
   min-width: 0;
   display: flex;
   flex-direction: column;
