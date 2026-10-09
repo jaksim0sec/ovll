@@ -2,7 +2,7 @@
 "use strict";
 
 const STORAGE_KEY = "ovll:workspace:v1";
-const SCHEMA_VERSION = 7;
+const SCHEMA_VERSION = 8;
 const events = new Map();
 
 function clone(value){
@@ -139,8 +139,8 @@ function emptyConversationState(){
     composerDraft:"",
     lastUserRequest:"",
     workflowUserRequest:"",
-    vnextGraph:null,
-    vnextRuns:[]
+    pointerGraph:null,
+    pointerRuns:[]
   };
 }
 
@@ -373,7 +373,7 @@ function normalizeMessage(value){
   };
 }
 
-function normalizeVNextGraph(value){
+function normalizePointerGraph(value){
   if(value == null)return null;
   if(!value?.graph || typeof value.graph.graphId!=="string" ||
     !Number.isInteger(value.graph.revision) ||
@@ -384,7 +384,7 @@ function normalizeVNextGraph(value){
   return clone(value);
 }
 
-function normalizeVNextRuns(value){
+function normalizePointerRuns(value){
   if(!Array.isArray(value))return [];
   return value.slice(-12).filter(x=>x&&typeof x.runId==='string'&&
     typeof x.status==='string'&&Array.isArray(x.nodes)&&x.nodes.length<=64&&
@@ -431,8 +431,8 @@ function normalizeConversationState(value){
         source.workflowUserRequest ||
         ""
       ).slice(0,12000),
-    vnextGraph:normalizeVNextGraph(source.vnextGraph),
-    vnextRuns:normalizeVNextRuns(source.vnextRuns)
+    pointerGraph:normalizePointerGraph(source.pointerGraph ?? source.vnextGraph),
+    pointerRuns:normalizePointerRuns(source.pointerRuns ?? source.vnextRuns)
   };
 }
 
@@ -1241,16 +1241,16 @@ function updateConversationState(
     return null;
   }
 
-  const preservedGraph=conversation.state?.vnextGraph || null;
-  const preservedRuns=conversation.state?.vnextRuns || [];
+  const preservedGraph=conversation.state?.pointerGraph || null;
+  const preservedRuns=conversation.state?.pointerRuns || [];
   conversation.state =
     normalizeConversationState(
       nextState
     );
-  if(!Object.prototype.hasOwnProperty.call(nextState||{},"vnextGraph"))
-    conversation.state.vnextGraph=preservedGraph;
-  if(!Object.prototype.hasOwnProperty.call(nextState||{},"vnextRuns"))
-    conversation.state.vnextRuns=preservedRuns;
+  if(!Object.prototype.hasOwnProperty.call(nextState||{},"pointerGraph"))
+    conversation.state.pointerGraph=preservedGraph;
+  if(!Object.prototype.hasOwnProperty.call(nextState||{},"pointerRuns"))
+    conversation.state.pointerRuns=preservedRuns;
 
   conversation.updatedAt =
     now();
@@ -1280,30 +1280,30 @@ function updateConversationState(
   return clone(conversation);
 }
 
-function updateConversationVNextGraph(conversationId,snapshot){
+function updateConversationPointerGraph(conversationId,snapshot){
   const conversation=getConversation(conversationId);
   if(!conversation)throw new Error("CONVERSATION_NOT_FOUND");
-  const next=normalizeVNextGraph(snapshot);
-  if(snapshot!==null&&!next)throw new Error("INVALID_VNEXT_GRAPH");
-  const previous=conversation.state.vnextGraph;
-  conversation.state.vnextGraph=next;
-  if(!persist("conversation:vnext-graph")){
-    conversation.state.vnextGraph=previous;
+  const next=normalizePointerGraph(snapshot);
+  if(snapshot!==null&&!next)throw new Error("INVALID_POINTER_GRAPH");
+  const previous=conversation.state.pointerGraph;
+  conversation.state.pointerGraph=next;
+  if(!persist("conversation:pointer-graph")){
+    conversation.state.pointerGraph=previous;
     throw new Error("LOCAL_GRAPH_SAVE_FAILED");
   }
   return clone(next);
 }
 
-function updateConversationVNextRuns(conversationId,runs){
+function updateConversationPointerRuns(conversationId,runs){
   const conversation=getConversation(conversationId);
   if(!conversation)throw new Error("CONVERSATION_NOT_FOUND");
-  const next=normalizeVNextRuns(runs);
+  const next=normalizePointerRuns(runs);
   if(!Array.isArray(runs)||next.length!==Math.min(runs.length,12))
     throw new Error("INVALID_LOCAL_RUNS");
-  const previous=conversation.state.vnextRuns;
-  conversation.state.vnextRuns=next;
-  if(!persist("conversation:vnext-runs")){
-    conversation.state.vnextRuns=previous;
+  const previous=conversation.state.pointerRuns;
+  conversation.state.pointerRuns=next;
+  if(!persist("conversation:pointer-runs")){
+    conversation.state.pointerRuns=previous;
     throw new Error("LOCAL_RUN_SAVE_FAILED");
   }
   return clone(next);
@@ -1561,8 +1561,8 @@ const api = {
   moveConversation,
   assignContextBundle,
   updateConversationState,
-  updateConversationVNextGraph,
-  updateConversationVNextRuns,
+  updateConversationPointerGraph,
+  updateConversationPointerRuns,
   updateConversationDraft,
   deleteConversation,
   search,

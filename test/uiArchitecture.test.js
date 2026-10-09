@@ -615,7 +615,7 @@ test("new chat waiting state uses neutral polite copy only", () => {
 test("Groq planner honors one short rate-limit delay", () => {
   const server =
     read(
-      "server.js"
+      "backend/ovllPointer/legacyCompatibility.js"
     );
 
   assert.match(
@@ -1231,7 +1231,7 @@ test("artifact page targets are parsed and transported without confusing chapter
 test("planner keeps document length requirements on the upstream writer", () => {
   const server =
     read(
-      "server.js"
+      "backend/ovllPointer/legacyCompatibility.js"
     );
 
   assert.match(
@@ -1580,7 +1580,7 @@ test("ordinary conversation bypasses Groq planner and keeps raw history", () => 
   );
   assert.match(
     store,
-    /SCHEMA_VERSION\s*=\s*7/
+    /SCHEMA_VERSION\s*=\s*8/
   );
 });
 
@@ -1760,7 +1760,7 @@ test("explicit verification requests are promoted to workflow planning", () => {
     );
   const server =
     read(
-      "server.js"
+      "backend/ovllPointer/legacyCompatibility.js"
     );
 
   assert.match(
@@ -1793,7 +1793,7 @@ test("chat routing owns workflow decisions before planner execution", () => {
     );
   const server =
     read(
-      "server.js"
+      "backend/ovllPointer/legacyCompatibility.js"
     );
 
   assert.match(

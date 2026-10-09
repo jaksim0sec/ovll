@@ -11,9 +11,9 @@
   const UI = global.AstraUI;
   const Navigation = global.OvllNavigation;
   const API = global.AstraAPI;
-  const VNextAPI = global.OvllVNextApi;
-  const VNextProjection = global.OvllVNextProjection;
-  const VNextGraphPatch = global.OvllVNextGraphPatch;
+  const PointerAPI = global.OvllPointerApi;
+  const PointerProjection = global.OvllPointerProjection;
+  const PointerGraphPatch = global.OvllPointerGraphPatch;
   const Presence = global.OvllPresence;
   const WorkspaceStore = global.OvllWorkspaceStore;
   const FileStore = global.OvllFileStore;
@@ -100,19 +100,19 @@
     runtimeProjection: null,
     runtimeConnections: new Set(),
     runtimeActivity: null,
-    vnextWatch: null,
-    vnextRuns: new Set(),
-    vnextRequestRef: null,
-    vnextGraphRevision: -1,
-    vnextRunRefs: new Set(),
-    vnextRunTargets: new Map(),
-    vnextLocalView: null,
-    vnextGraphSnapshot: null,
-    vnextHydrating: false,
-    vnextLocalReady: false,
-    vnextEditTimer: null,
-    vnextEditInFlight: false,
-    vnextEventCursor: 0,
+    pointerWatch: null,
+    pointerRuns: new Set(),
+    pointerRequestRef: null,
+    pointerGraphRevision: -1,
+    pointerRunRefs: new Set(),
+    pointerRunTargets: new Map(),
+    pointerLocalView: null,
+    pointerGraphSnapshot: null,
+    pointerHydrating: false,
+    pointerLocalReady: false,
+    pointerEditTimer: null,
+    pointerEditInFlight: false,
+    pointerEventCursor: 0,
     runGate: {
       locked: false,
       pivot: null,
@@ -5772,43 +5772,43 @@
     return true;
   }
 
-  function queueVNextEdit(){
-    if(!vnextScope()||!state.vnextGraphSnapshot||state.vnextHydrating||state.destroyed||
-      state.vnextEditInFlight||state.restoringConversation)return;
-    clearTimeout(state.vnextEditTimer);
-    state.vnextEditTimer=setTimeout(()=>{state.vnextEditTimer=null;void commitVNextCanvasEdit();},700);
+  function queuePointerEdit(){
+    if(!pointerScope()||!state.pointerGraphSnapshot||state.pointerHydrating||state.destroyed||
+      state.pointerEditInFlight||state.restoringConversation)return;
+    clearTimeout(state.pointerEditTimer);
+    state.pointerEditTimer=setTimeout(()=>{state.pointerEditTimer=null;void commitPointerCanvasEdit();},700);
   }
 
-  async function commitVNextCanvasEdit(){
-    const scope=vnextScope(),snapshot=state.vnextGraphSnapshot,canvas=state.canvas;
-    if(!scope||!snapshot||!canvas||state.vnextEditInFlight||state.vnextHydrating)return;
-    state.vnextEditInFlight=true;
+  async function commitPointerCanvasEdit(){
+    const scope=pointerScope(),snapshot=state.pointerGraphSnapshot,canvas=state.canvas;
+    if(!scope||!snapshot||!canvas||state.pointerEditInFlight||state.pointerHydrating)return;
+    state.pointerEditInFlight=true;
     const enabled=canvas.isInteractionEnabled?.()!==false;
     const local=canvas.getWorkflow();
     try{
-      const diff=VNextGraphPatch.build(snapshot,local);
+      const diff=PointerGraphPatch.build(snapshot,local);
       if(!diff)return;
       canvas.setInteractionEnabled?.(false);
       const actions=[{localKey:'edit',kind:'ir.applyPatch',args:{patch:diff.patch}}];
       const result=scope.storageMode==='local'?
-        await global.OvllVNextLocal.turn({...scope,actions}):
-        await VNextAPI.turn({...scope,requestRef:VNextAPI.uniqueId(),actions});
+        await global.OvllPointerLocal.turn({...scope,actions}):
+        await PointerAPI.turn({...scope,requestRef:PointerAPI.uniqueId(),actions});
       const decision=result.results?.[0];
       if(decision?.status!=='applied'&&decision?.status!=='duplicate')
         throw Object.assign(new Error(decision?.error?.code||'PATCH_REJECTED'),
           {code:decision?.error?.code||'PATCH_REJECTED'});
-      state.vnextLocalView=VNextGraphPatch.resolvedView(local,decision.createdRefs,diff.newNodeKeys);
-      await refreshVNextCanvas({force:true});
+      state.pointerLocalView=PointerGraphPatch.resolvedView(local,decision.createdRefs,diff.newNodeKeys);
+      await refreshPointerCanvas({force:true});
     }catch(error){
-      state.vnextLocalView=null;
-      try{await refreshVNextCanvas({force:true});}catch(reloadError){
-        console.error('vNext reload failed',reloadError);
+      state.pointerLocalView=null;
+      try{await refreshPointerCanvas({force:true});}catch(reloadError){
+        console.error('OvllPointer reload failed',reloadError);
       }
       showErrorNotice(error,{scope:'그래프 저장 오류',
         fallback:'서버에서 변경을 적용하지 못했습니다. 서버 상태로 복원합니다.'});
     }finally{
       canvas.setInteractionEnabled?.(enabled);
-      state.vnextEditInFlight=false;
+      state.pointerEditInFlight=false;
     }
   }
 
@@ -5819,7 +5819,7 @@
       clone(workflow);
 
     scheduleWorkspaceSave();
-    queueVNextEdit();
+    queuePointerEdit();
   }
 
   function handleCanvasWorkflowApplied(workflow) {
@@ -5833,7 +5833,7 @@
         ?.applying
     ) {
       scheduleWorkspaceSave();
-      queueVNextEdit();
+      queuePointerEdit();
     }
   }
 
@@ -6196,117 +6196,117 @@
   }
 
 
-  async function verifyLocalVNextReady(){
+  async function verifyLocalPointerReady(){
     const settings=global.OVLL_RUNTIME||{};
-    if(settings.vnextEnabled!==true||settings.vnextStorageMode!=='local')return;
+    if(settings.pointerEnabled!==true||settings.pointerStorageMode!=='local')return;
     const controller=new AbortController();
     const timeout=setTimeout(()=>controller.abort(),4500);
     try{
-      state.vnextLocalReady=(await VNextAPI.localReady({signal:controller.signal}))?.ready===true;
+      state.pointerLocalReady=(await PointerAPI.localReady({signal:controller.signal}))?.ready===true;
     }catch(error){
-      state.vnextLocalReady=false;
-      console.warn('vNext local model not ready; keeping legacy runtime',error?.code||error);
+      state.pointerLocalReady=false;
+      console.warn('OvllPointer local model not ready; keeping legacy runtime',error?.code||error);
     }finally{clearTimeout(timeout);}
   }
 
-  function vnextScope(){
+  function pointerScope(){
     const settings=global.OVLL_RUNTIME||{};
-    if(settings.vnextEnabled!==true||!global.OvllVNextProjection)return null;
-    if(settings.vnextStorageMode==='local'){
-      if(!state.vnextLocalReady)return null;
+    if(settings.pointerEnabled!==true||!global.OvllPointerProjection)return null;
+    if(settings.pointerStorageMode==='local'){
+      if(!state.pointerLocalReady)return null;
       const conversationId=currentConversationId();
       const conversation=WorkspaceStore.getConversation(conversationId);
-      // Never overwrite an existing legacy workflow with an empty opt-in vNext graph.
-      if(!conversation?.state?.vnextGraph&&conversation?.state?.canvas?.workflow?.nodes?.length)
+      // Never overwrite an existing legacy workflow with an empty opt-in OvllPointer graph.
+      if(!conversation?.state?.pointerGraph&&conversation?.state?.canvas?.workflow?.nodes?.length)
         return null;
-      return conversationId&&global.OvllVNextLocal?
-        {conversationId,graphId:global.OvllVNextLocal.graphId(conversationId),storageMode:'local'}:null;
+      return conversationId&&global.OvllPointerLocal?
+        {conversationId,graphId:global.OvllPointerLocal.graphId(conversationId),storageMode:'local'}:null;
     }
-    return settings.vnextStorageMode==='postgres'&&VNextAPI&&
-      typeof settings.vnextGraphId==='string'&&settings.vnextGraphId?
-      {graphId:settings.vnextGraphId,taskRef:settings.vnextTaskRef||undefined,storageMode:'postgres'}:null;
+    return settings.pointerStorageMode==='postgres'&&PointerAPI&&
+      typeof settings.pointerGraphId==='string'&&settings.pointerGraphId?
+      {graphId:settings.pointerGraphId,taskRef:settings.pointerTaskRef||undefined,storageMode:'postgres'}:null;
   }
 
-  async function refreshVNextCanvas({force=false}={}){
-    if(!force&&(state.vnextEditInFlight||state.vnextEditTimer))return state.vnextEventCursor||0;
-    const scope=vnextScope();
+  async function refreshPointerCanvas({force=false}={}){
+    if(!force&&(state.pointerEditInFlight||state.pointerEditTimer))return state.pointerEventCursor||0;
+    const scope=pointerScope();
     if(!scope||!state.canvas)return 0;
     const conversation=state.activeConversationId;
     const snapshot=scope.storageMode==='local'?
-      await global.OvllVNextLocal.state(scope.conversationId,scope.graphId):
-      await VNextAPI.state(scope.graphId,scope.taskRef);
+      await global.OvllPointerLocal.state(scope.conversationId,scope.graphId):
+      await PointerAPI.state(scope.graphId,scope.taskRef);
     if(state.destroyed||conversation!==state.activeConversationId)return snapshot.eventCursor;
-    state.vnextEventCursor=snapshot.eventCursor;
-    if(snapshot.graph?.graph?.revision>=state.vnextGraphRevision){
-      state.vnextHydrating=true;
+    state.pointerEventCursor=snapshot.eventCursor;
+    if(snapshot.graph?.graph?.revision>=state.pointerGraphRevision){
+      state.pointerHydrating=true;
       try{
-        global.OvllVNextProjection.applyGraph(state.canvas,snapshot.graph,state.vnextLocalView);
-        state.vnextLocalView=null;
-        state.vnextGraphRevision=snapshot.graph.graph.revision;
-        state.vnextGraphSnapshot=snapshot.graph;
+        global.OvllPointerProjection.applyGraph(state.canvas,snapshot.graph,state.pointerLocalView);
+        state.pointerLocalView=null;
+        state.pointerGraphRevision=snapshot.graph.graph.revision;
+        state.pointerGraphSnapshot=snapshot.graph;
         state.workflow=getCurrentWorkflow();
-      }finally{state.vnextHydrating=false;}
+      }finally{state.pointerHydrating=false;}
     }
     if(scope.storageMode==='local'){
-      for(const run of WorkspaceStore.getConversation(scope.conversationId)?.state.vnextRuns||[])
+      for(const run of WorkspaceStore.getConversation(scope.conversationId)?.state.pointerRuns||[])
         if(run.graphRef?.graphId===scope.graphId)showLocalRun(run);
     }
     for(const run of snapshot.runs||[]){
       if(!run.runId)continue;
-      state.vnextRunRefs.add(run.runId);
-      state.vnextRunTargets.set(run.runId,run.targets||[]);
-      await refreshVNextRun(run.runId,conversation);
+      state.pointerRunRefs.add(run.runId);
+      state.pointerRunTargets.set(run.runId,run.targets||[]);
+      await refreshPointerRun(run.runId,conversation);
     }
     return snapshot.eventCursor;
   }
 
-  async function refreshVNextRun(runRef,conversation=state.activeConversationId){
-    if(!VNextAPI||!runRef)return;
-    const result=await VNextAPI.runState(runRef);
+  async function refreshPointerRun(runRef,conversation=state.activeConversationId){
+    if(!PointerAPI||!runRef)return;
+    const result=await PointerAPI.runState(runRef);
     if(state.destroyed||conversation!==state.activeConversationId)return;
-    state.vnextRunTargets.set(runRef,result.run.targets||[]);
-    global.OvllVNextProjection.applyRunState(state.canvas,result);
+    state.pointerRunTargets.set(runRef,result.run.targets||[]);
+    global.OvllPointerProjection.applyRunState(state.canvas,result);
     // Load the actual authorized output values, never infer file URLs from opaque refs.
     for(const node of result.nodes||[]){
       if(node.status!=='success'||!Array.isArray(node.outputRefs)||!node.outputRefs.length)continue;
       const entries=await Promise.all(node.outputRefs.slice(0,3).map(ref=>
-        VNextAPI.artifact(ref).catch(()=>null)));
+        PointerAPI.artifact(ref).catch(()=>null)));
       if(state.destroyed||conversation!==state.activeConversationId)return;
-      const report=global.OvllVNextProjection.artifactPreview(entries.filter(Boolean));
+      const report=global.OvllPointerProjection.artifactPreview(entries.filter(Boolean));
       if(report)state.canvas?.setRuntimeNodeState?.(node.nodeId,{
         status:'SUCCESS',report,result:{report,outputRefs:node.outputRefs}
       });
     }
     if(['completed','failed','cancelled','waiting'].includes(result.run.status)){
-      state.vnextRuns.delete(runRef);
+      state.pointerRuns.delete(runRef);
       if(state.runtimeActivity){
         setRuntimeActivity(result.run.status==='completed'?'서버 실행 완료':'실행 확인 필요',
           {id:'__finalize__'});
-        if(!state.vnextRuns.size)finishRuntimeActivity();
+        if(!state.pointerRuns.size)finishRuntimeActivity();
       }
     }else {
-      state.vnextRuns.add(runRef);
+      state.pointerRuns.add(runRef);
     }
   }
 
-  async function handleVNextServerEvent(event){
-    const scope=vnextScope();
+  async function handlePointerServerEvent(event){
+    const scope=pointerScope();
     if(!scope||!event||typeof event.type!=='string')return;
     const data=event.data||{};
     if(event.type==='graph.applied'&&data.graphId===scope.graphId){
-      await refreshVNextCanvas();
+      await refreshPointerCanvas();
       return;
     }
     if(event.type==='run.queued'&&data.graphRef?.graphId===scope.graphId){
-      state.vnextRunRefs.add(data.runRef);
-      state.vnextRuns.add(data.runRef);
-      await refreshVNextRun(data.runRef);
+      state.pointerRunRefs.add(data.runRef);
+      state.pointerRuns.add(data.runRef);
+      await refreshPointerRun(data.runRef);
       return;
     }
     if(event.type==='node.started'||event.type==='node.success'||
       event.type==='node.failed'||event.type==='node.blocked'||event.type==='node.outcome_unknown'||
       event.type.startsWith('run.')){
-      if(!data.runRef||!state.vnextRunRefs.has(data.runRef))return;
+      if(!data.runRef||!state.pointerRunRefs.has(data.runRef))return;
       if(event.type==='node.started'){
         state.canvas?.setRuntimeNodeState?.(data.nodeId,{status:'RUNNING'});
         setRuntimeActivity('노드 실행 중',{id:data.nodeId});
@@ -6314,33 +6314,33 @@
       if(event.type==='node.success'){
         state.canvas?.setRuntimeNodeState?.(data.nodeId,{status:'SUCCESS',report:'결과 저장 완료'});
         completeRuntimeStep(data.nodeId,{text:'노드 실행 완료'});
-        await refreshVNextRun(data.runRef);
+        await refreshPointerRun(data.runRef);
       }
       if(['node.failed','node.blocked','node.outcome_unknown'].includes(event.type)){
         state.canvas?.setRuntimeNodeState?.(data.nodeId,{status:'FAILED',report:data.reason||'노드 작업 실패'});
         completeRuntimeStep(data.nodeId,{failed:true,text:'노드 작업 실패'});
       }
-      if(event.type.startsWith('run.')&&event.type!=='run.queued')await refreshVNextRun(data.runRef);
+      if(event.type.startsWith('run.')&&event.type!=='run.queued')await refreshPointerRun(data.runRef);
     }
   }
 
-  async function connectVNext(){
-    const scope=vnextScope();
+  async function connectPointer(){
+    const scope=pointerScope();
     if(!scope||!state.canvas)return;
-    state.vnextWatch?.();state.vnextWatch=null;
-    const cursor=await refreshVNextCanvas();
+    state.pointerWatch?.();state.pointerWatch=null;
+    const cursor=await refreshPointerCanvas();
     if(scope.storageMode==='local')return;
-    state.vnextWatch=VNextAPI.watch({
+    state.pointerWatch=PointerAPI.watch({
       after:cursor,
       onEvent:event=>{
-        if(event.type.startsWith('controller.')&&event.data?.requestRef===state.vnextRequestRef){
+        if(event.type.startsWith('controller.')&&event.data?.requestRef===state.pointerRequestRef){
           if(event.type==='controller.model_requested')setRuntimeActivity('모델 작업 중',{id:'__prepare__'});
           if(event.type==='controller.context_requested')setRuntimeActivity('맥락 확인 중',{id:'__prepare__'});
         }
-        void handleVNextServerEvent(event).catch(error=>console.error('vNext event error',error));
+        void handlePointerServerEvent(event).catch(error=>console.error('OvllPointer event error',error));
       },
-      onResync:async()=>refreshVNextCanvas(),
-      onError:error=>console.warn('vNext event replay error',error)
+      onResync:async()=>refreshPointerCanvas(),
+      onError:error=>console.warn('OvllPointer event replay error',error)
     });
   }
 
@@ -6357,13 +6357,13 @@
   }
   let localRunActive=null;
   async function runLocalNodes({targets,damMode='closed',requestText='',snapshotOverride}={}){
-    const scope=vnextScope();
+    const scope=pointerScope();
     if(scope?.storageMode!=='local')throw new Error('LOCAL_SCOPE_UNAVAILABLE');
     if(localRunActive)throw new Error('LOCAL_RUN_ALREADY_ACTIVE');
     const controller=new AbortController();
     localRunActive={conversationId:scope.conversationId,controller,nodeIds:new Set(targets)};
     try{
-      return await global.OvllVNextLocal.run({conversationId:scope.conversationId,targets,
+      return await global.OvllPointerLocal.run({conversationId:scope.conversationId,targets,
         damMode,requestText,snapshotOverride,signal:controller.signal,onProgress:run=>{
           if(localRunActive)localRunActive.nodeIds=new Set(run.nodes.map(x=>x.nodeId));
           if(currentConversationId()===scope.conversationId)showLocalRun(run);
@@ -6378,7 +6378,7 @@
   }
   async function runLocalPrompt(text,options={}){
     if(state.destroyed||state.busy)return;
-    const value=String(text??'').trim(),scope=vnextScope();
+    const value=String(text??'').trim(),scope=pointerScope();
     if(!value||!scope)return;
     if(options.addUserMessage!==false){
       addUserMessage(value);composerInput.value='';resizeComposer();scheduleComposerDraftSave(0);
@@ -6387,55 +6387,55 @@
     beginRuntimeActivity('로컬 작업 준비 중');
     try{
       if(value==='/함수'||value==='함수 목록'){
-        const items=global.OvllVNextFunctions?.list()||[];
+        const items=global.OvllPointerFunctions?.list()||[];
         addAssistantMessage(items.length?items.map((x,i)=>(i+1)+'. '+x.purpose).join('\n'):
           '아직 저장된 함수가 없어.');
         return;
       }
       if(value==='/함수저장'||value.startsWith('/함수저장 ')||value==='이 작업 함수로 저장해'){
-        const graph=(await global.OvllVNextLocal.state(scope.conversationId)).graph;
+        const graph=(await global.OvllPointerLocal.state(scope.conversationId)).graph;
         if(!graph.graph.nodes.length)throw new Error('LOCAL_FUNCTION_GRAPH_EMPTY');
         const targets=graph.graph.nodes.filter(n=>!graph.graph.connections.some(l=>
           l.kind==='flow'&&l.from.nodeId===n.nodeId)).map(n=>n.nodeId);
         const purpose=value.startsWith('/함수저장 ')?
           value.slice('/함수저장 '.length).trim():
           state.workflowUserRequest||state.lastUserRequest||'새 함수';
-        const saved=global.OvllVNextFunctions.save({purpose,snapshot:graph,targets});
+        const saved=global.OvllPointerFunctions.save({purpose,snapshot:graph,targets});
         addAssistantMessage('함수 초안을 저장했어: '+saved.purpose+
           '\n다시 실행하려면 `/함수실행 1 새로운 입력`처럼 요청하면 돼.');
         return;
       }
       if(value.startsWith('/함수실행 ')){
         const [id,...args]=value.slice('/함수실행 '.length).trim().split(/\s+/);
-        const all=global.OvllVNextFunctions?.list()||[];
+        const all=global.OvllPointerFunctions?.list()||[];
         const selected=/^[1-9][0-9]*$/.test(id)?all[Number(id)-1]:all.find(x=>x.id===id);
-        const fn=selected?global.OvllVNextFunctions.get(selected.id):null;
+        const fn=selected?global.OvllPointerFunctions.get(selected.id):null;
         if(!fn)throw new Error('LOCAL_FUNCTION_NOT_FOUND');
         const run=await runLocalNodes({snapshotOverride:fn.snapshot,targets:fn.targets,
           requestText:args.join(' ')});
         addAssistantMessage(run.status==='completed'?'저장된 함수 실행 완료.\n'+localRunSummary(run):
           '함수 실행이 '+run.status+' 상태에서 종료됐어.\n'+localRunSummary(run));return;
       }
-      const graph=(await global.OvllVNextLocal.state(scope.conversationId)).graph;
-      const savedFunctions=(global.OvllVNextFunctions?.list()||[]).slice(0,10);
+      const graph=(await global.OvllPointerLocal.state(scope.conversationId)).graph;
+      const savedFunctions=(global.OvllPointerFunctions?.list()||[]).slice(0,10);
       const contextHistory=recentAiConversation(value).slice(-5).map(x=>x.role+': '+x.text);
       if(savedFunctions.length)contextHistory.push('Saved local function drafts (ids and purposes): '+
         savedFunctions.map((fn,i)=>(i+1)+'. '+fn.id+' '+fn.purpose).join('; ').slice(0,750));
-      const proposal=await VNextAPI.localTurn({snapshot:graph,requestText:value,
+      const proposal=await PointerAPI.localTurn({snapshot:graph,requestText:value,
         history:contextHistory});
       if(proposal.needs?.length){addAssistantMessage(proposal.message||'추가 자료가 필요해.');return;}
       const applied=new Map(),summary=[];
-      const ordered=global.OvllVNextLocalActions.order(proposal.actions||[]);
+      const ordered=global.OvllPointerLocalActions.order(proposal.actions||[]);
       for(const action of ordered){
         if(applied.has(action.localKey))throw new Error('DUPLICATE_LOCAL_ACTION');
         if((action.dependsOn||[]).some(key=>!applied.has(key))){
           summary.push(action.kind+' 선행 행동이 적용되지 않았어.');continue;
         }
         if(action.kind==='ir.applyPatch'){
-          const data=await global.OvllVNextLocal.turn({...scope,actions:[action]});
+          const data=await global.OvllPointerLocal.turn({...scope,actions:[action]});
           if(data.results[0].status!=='applied')throw new Error('LOCAL_PATCH_REJECTED');
           applied.set(action.localKey,data.results[0]);
-          await refreshVNextCanvas({force:true});summary.push('그래프 변경 반영');
+          await refreshPointerCanvas({force:true});summary.push('그래프 변경 반영');
         }else if(action.kind==='run.start'){
           const targets=action.args.targets.map(x=>x.nodeId||
             applied.get(x.fromAction)?.createdRefs?.['node:'+x.localNodeKey]);
@@ -6447,12 +6447,12 @@
             '\n'+localRunSummary(run));
         }else if(action.kind==='function.save'){
           const draft=action.args.function;
-          const current=(await global.OvllVNextLocal.state(scope.conversationId)).graph;
+          const current=(await global.OvllPointerLocal.state(scope.conversationId)).graph;
           if(draft?.procedure?.kind!=='graph'||draft.procedure.graphRef?.graphId!==current.graph.graphId||
             draft.procedure.graphRef.revision!==current.graph.revision)throw new Error('LOCAL_FUNCTION_GRAPH_MISMATCH');
           const targets=current.graph.nodes.filter(n=>!current.graph.connections.some(l=>
             l.kind==='flow'&&l.from.nodeId===n.nodeId)).map(n=>n.nodeId);
-          const saved=global.OvllVNextFunctions.save({purpose:draft.purpose,snapshot:current,
+          const saved=global.OvllPointerFunctions.save({purpose:draft.purpose,snapshot:current,
             targets,inputs:draft.inputs,outputs:draft.outputs,invariants:draft.invariants});
           applied.set(action.localKey,saved);
           summary.push('함수 초안 저장: '+saved.id);
@@ -6463,14 +6463,14 @@
       addAssistantMessage([proposal.message||'',...summary].filter(Boolean).join('\n')||
         '모델 응답을 받았지만 실행된 변경은 없어.');
     }catch(error){
-      showErrorNotice(error,{scope:'로컬 vNext 오류',fallback:'작업을 처리하지 못했어.'});
+      showErrorNotice(error,{scope:'로컬 OvllPointer 오류',fallback:'작업을 처리하지 못했어.'});
     }finally{
       finishRuntimeActivity({removeImmediately:true});Presence.settle();setBusy(false);
       resizeComposer();focusComposerForDesktop();scheduleWorkspaceSave();
     }
   }
 
-  async function runVNextPrompt(text,options={}){
+  async function runPointerPrompt(text,options={}){
     if(state.destroyed||state.busy)return;
     const value=String(text??'').trim();
     if(!value)return;
@@ -6482,17 +6482,17 @@
       scheduleComposerDraftSave(0);
     }
     setBusy(true);Presence.thinking();
-    const requestRef=VNextAPI.uniqueId(),scope=vnextScope();
-    state.vnextRequestRef=requestRef;
+    const requestRef=PointerAPI.uniqueId(),scope=pointerScope();
+    state.pointerRequestRef=requestRef;
     beginRuntimeActivity('요청 확인 중');
     try{
-      const result=await VNextAPI.submit({requestRef,requestText:value,
+      const result=await PointerAPI.submit({requestRef,requestText:value,
         ...(scope?{graphId:scope.graphId,taskRef:scope.taskRef}:{})});
       const scheduled=(result.results||[]).filter(r=>r.status==='scheduled'&&r.runRef);
-      for(const item of scheduled){state.vnextRunRefs.add(item.runRef);state.vnextRuns.add(item.runRef);
+      for(const item of scheduled){state.pointerRunRefs.add(item.runRef);state.pointerRuns.add(item.runRef);
         setRuntimeActivity('서버 실행 예약됨',{id:item.runRef});}
       if(scope&&result.results?.some(r=>r.status==='applied'&&Number.isInteger(r.newRevision)))
-        await refreshVNextCanvas();
+        await refreshPointerCanvas();
       const rejected=(result.results||[]).filter(r=>r.status==='rejected');
       const message=String(result.message||'')||
         (result.needs?.length?'추가 자료가 필요해. 아직 실행하지 않았어.':
@@ -6500,42 +6500,42 @@
           scheduled.length?'서버에 실행을 예약했어. 결과는 아직 확정되지 않았어.':
           result.results?.length?'서버에서 변경을 적용했어.':'서버에서 응답을 받지 못했어.');
       addAssistantMessage(message);
-      for(const item of scheduled)void refreshVNextRun(item.runRef).catch(error=>
-        console.warn('vNext run refresh failed',error));
+      for(const item of scheduled)void refreshPointerRun(item.runRef).catch(error=>
+        console.warn('OvllPointer run refresh failed',error));
       if(!scheduled.length)finishRuntimeActivity({removeImmediately:true});
       Presence.settle();
     }catch(error){
       Presence.settle();
-      showErrorNotice(error,{scope:'vNext 요청 오류',fallback:'서버 요청을 처리하지 못했습니다.'});
+      showErrorNotice(error,{scope:'OvllPointer 요청 오류',fallback:'서버 요청을 처리하지 못했습니다.'});
       finishRuntimeActivity({removeImmediately:true});
     }finally{setBusy(false);resizeComposer();focusComposerForDesktop();}
   }
 
-  async function cancelVNextCanvasNode(nodeId){
-    const scope=vnextScope();
+  async function cancelPointerCanvasNode(nodeId){
+    const scope=pointerScope();
     if(!scope)return;
     if(scope.storageMode==='local'){
       if(localRunActive?.conversationId===scope.conversationId&&
         localRunActive.nodeIds.has(nodeId))localRunActive.controller.abort();
       return;
     }
-    const runRef=[...state.vnextRuns].find(ref=>(state.vnextRunTargets.get(ref)||[]).includes(nodeId));
+    const runRef=[...state.pointerRuns].find(ref=>(state.pointerRunTargets.get(ref)||[]).includes(nodeId));
     if(!runRef)return;
     try{
-      const response=await VNextAPI.turn({...scope,requestRef:VNextAPI.uniqueId(),actions:[
+      const response=await PointerAPI.turn({...scope,requestRef:PointerAPI.uniqueId(),actions:[
         {localKey:'cancel',kind:'run.cancel',args:{runRef}}
       ]});
       if(response.results?.[0]?.status!=='applied')throw new Error(
         response.results?.[0]?.error?.code||'RUN_CANCEL_REJECTED');
       Presence.canvasStatus?.('실행 중단 요청 완료',{hold:1200});
-      await refreshVNextRun(runRef);
+      await refreshPointerRun(runRef);
     }catch(error){
       showErrorNotice(error,{scope:'실행 중단 오류',fallback:'서버에서 실행을 중단하지 못했습니다.'});
     }
   }
 
-  async function runVNextCanvasNode(nodeId,mode='closed'){
-    const scope=vnextScope();
+  async function runPointerCanvasNode(nodeId,mode='closed'){
+    const scope=pointerScope();
     if(scope?.storageMode==='local'){
       try{
         const run=await runLocalNodes({targets:[nodeId],damMode:mode});
@@ -6544,22 +6544,22 @@
       }catch(error){showErrorNotice(error,{scope:'로컬 노드 실행',fallback:'노드 실행 실패'});}
       return;
     }
-    if(!scope||!scope.taskRef||!state.vnextGraphRevision||!state.canvas?.getNode?.(nodeId)){
+    if(!scope||!scope.taskRef||!state.pointerGraphRevision||!state.canvas?.getNode?.(nodeId)){
       showErrorNotice(new Error('SERVER_RUN_SCOPE_UNAVAILABLE'),{scope:'서버 실행',fallback:'서버 작업을 확인할 수 없습니다.'});
       return;
     }
-    const requestRef=VNextAPI.uniqueId();
+    const requestRef=PointerAPI.uniqueId();
     try{
       beginRuntimeActivity('서버 실행 예약 중');
-      const response=await VNextAPI.turn({...scope,requestRef,actions:[{
+      const response=await PointerAPI.turn({...scope,requestRef,actions:[{
         localKey:'run',kind:'run.start',args:{targets:[{nodeId}],damMode:mode==='open'?'open':'closed'}
       }]});
       const run=response.results?.find(x=>x.status==='scheduled');
       if(!run?.runRef)throw new Error(response.results?.[0]?.error?.code||'RUN_NOT_SCHEDULED');
-      state.vnextRunRefs.add(run.runRef);state.vnextRuns.add(run.runRef);
-      state.vnextRunTargets.set(run.runRef,[nodeId]);
+      state.pointerRunRefs.add(run.runRef);state.pointerRuns.add(run.runRef);
+      state.pointerRunTargets.set(run.runRef,[nodeId]);
       setRuntimeActivity('서버 실행 예약됨',{id:run.runRef});
-      await refreshVNextRun(run.runRef);
+      await refreshPointerRun(run.runRef);
     }catch(error){
       showErrorNotice(error,{scope:'서버 실행 오류',fallback:'서버에서 실행을 예약하지 못했습니다.'});
       finishRuntimeActivity({removeImmediately:true});
@@ -6567,8 +6567,8 @@
   }
 
   async function runPrompt(text, options = {}) {
-    if(vnextScope()?.storageMode==='local')return runLocalPrompt(text,options);
-    if(vnextScope()?.storageMode==='postgres')return runVNextPrompt(text,options);
+    if(pointerScope()?.storageMode==='local')return runLocalPrompt(text,options);
+    if(pointerScope()?.storageMode==='postgres')return runPointerPrompt(text,options);
     if (state.destroyed || state.busy) return;
 
     const value =
@@ -7735,8 +7735,8 @@
     if (!nodeId) {
       return;
     }
-    if(vnextScope()){
-      void runVNextCanvasNode(nodeId,payload?.mode);
+    if(pointerScope()){
+      void runPointerCanvasNode(nodeId,payload?.mode);
       return;
     }
 
@@ -7754,8 +7754,8 @@
         payload?.id || ""
       );
 
-    if(vnextScope()){
-      if(nodeId)void cancelVNextCanvasNode(nodeId);
+    if(pointerScope()){
+      if(nodeId)void cancelPointerCanvasNode(nodeId);
       return;
     }
 
@@ -7854,15 +7854,15 @@
           true;
 
         try {
-          clearTimeout(state.vnextEditTimer);
-          state.vnextEditTimer=null;
-          state.vnextGraphSnapshot=null;
-          state.vnextGraphRevision=-1;
-          state.vnextWatch?.();
-          state.vnextWatch = null;
-          state.vnextRuns.clear();
-          state.vnextRunRefs.clear();
-          state.vnextRunTargets.clear();
+          clearTimeout(state.pointerEditTimer);
+          state.pointerEditTimer=null;
+          state.pointerGraphSnapshot=null;
+          state.pointerGraphRevision=-1;
+          state.pointerWatch?.();
+          state.pointerWatch = null;
+          state.pointerRuns.clear();
+          state.pointerRunRefs.clear();
+          state.pointerRunTargets.clear();
           clearRuntimeConnections();
 
           finishRuntimeActivity({
@@ -7934,7 +7934,7 @@
                 ?.canvas
             );
 
-          state.vnextLocalView=vnextScope()&&Array.isArray(canvasState?.workflow?.nodes)?
+          state.pointerLocalView=pointerScope()&&Array.isArray(canvasState?.workflow?.nodes)?
             {nodes:clone(canvasState.workflow.nodes)}:null;
 
           if (
@@ -8051,9 +8051,9 @@
             false;
         }
 
-        if(vnextScope()){
-          state.vnextGraphRevision=-1;
-          await connectVNext();
+        if(pointerScope()){
+          state.pointerGraphRevision=-1;
+          await connectPointer();
         }
         global.OvllShellMenu
           ?.refresh?.();
@@ -8594,7 +8594,7 @@ listen(composerInput, "keydown", handleComposerKeydown);
     }
 
     await initializeCanvas();
-    await verifyLocalVNextReady();
+    await verifyLocalPointerReady();
 
     renderNodeBuilderOptions();
 
@@ -8613,7 +8613,7 @@ listen(composerInput, "keydown", handleComposerKeydown);
       );
     } else {
       Presence.showStart();
-      if(vnextScope())await connectVNext();
+      if(pointerScope())await connectPointer();
     }
 
     resizeComposer();
@@ -8763,13 +8763,13 @@ listen(composerInput, "keydown", handleComposerKeydown);
       if (state.destroyed) return;
 
       state.destroyed = true;
-      clearTimeout(state.vnextEditTimer);
-      state.vnextEditTimer=null;
-      state.vnextWatch?.();
-      state.vnextWatch=null;
-      state.vnextRuns.clear();
-      state.vnextRunRefs.clear();
-      state.vnextRunTargets.clear();
+      clearTimeout(state.pointerEditTimer);
+      state.pointerEditTimer=null;
+      state.pointerWatch?.();
+      state.pointerWatch=null;
+      state.pointerRuns.clear();
+      state.pointerRunRefs.clear();
+      state.pointerRunTargets.clear();
 
       clearTimeout(
         state.workspaceSaveTimer

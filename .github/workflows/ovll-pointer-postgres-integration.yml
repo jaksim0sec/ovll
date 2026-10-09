@@ -1,0 +1,59 @@
+name: ovll-pointer-postgres-integration
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/ovllPointer/**'
+      - 'test/ovllPointer*.js'
+      - 'test/ovllPointer*.mjs'
+      - '.github/workflows/pointer-postgres-integration.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  persistence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: ovll_test
+          POSTGRES_USER: ovll_test
+          POSTGRES_PASSWORD: ovll_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ovll_test -d ovll_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      POINTER_TEST_DATABASE_URL: postgresql://ovll_test:ovll_test@127.0.0.1:5432/ovll_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Install PostgreSQL test driver only
+        run: npm install --no-save --package-lock=false 'pg@8'
+      - name: Verify new-core syntax
+        run: |
+          for f in backend/ovllPointer/*.js test/ovllPointer*.mjs test/ovllPointer*.test.js; do node --check "$f"; done
+      - name: Existing OvllPointer foundation
+        run: node --test test/ovllPointerFoundation.test.js test/ovllPointerExecutionPlan.test.js test/ovllPointerNodeOutput.test.js test/ovllPointerValidation.test.js test/ovllPointerRuntime.test.js test/ovllPointerPromptComposer.test.js test/ovllPointerController.test.js test/ovllPointerFrontend.test.js test/ovllPointerGraphPatch.test.js test/ovllPointerConfiguredProvider.test.js
+      - name: Real PostgreSQL persistence and recovery integration
+        run: node --test test/ovllPointerPostgres.integration.mjs
+      - name: Real PostgreSQL node attempts and evidence integration
+        run: node --test test/ovllPointerNodeExecution.integration.mjs
+      - name: Real PostgreSQL Task Question retry cancel integration
+        run: node --test test/ovllPointerLifecycle.integration.mjs
+      - name: Real PostgreSQL model controller and event HTTP integration
+        run: node --test test/ovllPointerController.integration.mjs
+      - name: Real PostgreSQL canvas semantic edit acceptance
+        run: node --test test/ovllPointerGraphPatch.integration.mjs

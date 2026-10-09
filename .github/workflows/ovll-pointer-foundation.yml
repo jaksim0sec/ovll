@@ -1,0 +1,30 @@
+name: ovll-pointer-foundation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/ovllPointer/**'
+      - 'test/ovllPointerFoundation.test.js'
+      - '.github/workflows/pointer-foundation-check.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  foundation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Syntax
+        run: |
+          for p in backend/ovllPointer/*.js test/ovllPointerFoundation.test.js; do node --check "$p"; done
+      - name: Independent new-kernel tests
+        run: node --test test/ovllPointerFoundation.test.js

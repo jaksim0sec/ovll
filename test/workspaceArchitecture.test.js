@@ -95,7 +95,7 @@ test("function builder uses the shared workspace and isolated planner purpose", 
   const api =
     read("front/js/api.js");
   const server =
-    read("server.js");
+    read("backend/ovllPointer/legacyCompatibility.js");
   const page =
     read("front/js/customNodePage.js");
   const html =

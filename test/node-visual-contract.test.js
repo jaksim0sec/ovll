@@ -4,7 +4,7 @@ import fs from "node:fs";
 
 const css = fs.readFileSync(new URL("../front/css/node.css", import.meta.url), "utf8");
 const canvasNode = fs.readFileSync(new URL("../front/js/canvasNode.js", import.meta.url), "utf8");
-const server = fs.readFileSync(new URL("../server.js", import.meta.url), "utf8");
+const catalog = fs.readFileSync(new URL("../backend/ovllPointer/nodeCatalog.js", import.meta.url), "utf8");
 
 function cssBlock(selector) {
   const marker = `${selector} {`;
@@ -33,9 +33,9 @@ function cssBlock(selector) {
   return css.slice(open + 1, close);
 }
 function serverNodeIcon(type) {
-  const start=server.indexOf("const defaultNodeDef = {");
-  const end=server.indexOf("const CUSTOM_NODE_TYPE_RE",start);
-  const definitions=server.slice(start,end);
+  const start=catalog.indexOf("const defaultNodeDef = {");
+  const end=catalog.indexOf("const CUSTOM_NODE_TYPE_RE",start);
+  const definitions=catalog.slice(start,end);
   const from=definitions.indexOf(`\n  ${type}: {`);
   assert.notEqual(from,-1,`missing server definition: ${type}`);
   const to=definitions.indexOf("\n  },",from);
@@ -43,9 +43,9 @@ function serverNodeIcon(type) {
   const key=node.match(/iconKey:\s*['"]([^'"]+)['"]/)?.[1];
   assert.ok(key,`missing iconKey for ${type}`);
 
-  const libraryStart=server.indexOf("const iconSvg = Object.freeze({");
-  const libraryEnd=server.indexOf("\n});",libraryStart);
-  const library=server.slice(libraryStart,libraryEnd);
+  const libraryStart=catalog.indexOf("const iconSvg = Object.freeze({");
+  const libraryEnd=catalog.indexOf("\n});",libraryStart);
+  const library=catalog.slice(libraryStart,libraryEnd);
   const marker=`  ${key}: \``;
   const iconAt=library.indexOf(marker);
   assert.notEqual(iconAt,-1,`missing catalog icon: ${key}`);
@@ -220,9 +220,9 @@ test("server-owned node icons share one rounded monoline visual contract", () =>
 });
 
 test("approved custom icon selection is centralized without rejected icons",()=>{
-  const start=server.indexOf("const iconSvg = Object.freeze({");
-  const end=server.indexOf("\n});",start);
-  const text=server.slice(start,end);
+  const start=catalog.indexOf("const iconSvg = Object.freeze({");
+  const end=catalog.indexOf("\n});",start);
+  const text=catalog.slice(start,end);
   const names=[...text.matchAll(/^\s+(?:'([^']+)'|([a-z][a-zA-Z0-9]*)):\s*\`/gm)]
     .map(item=>item[1]||item[2]);
   assert.equal(names.length,19);
