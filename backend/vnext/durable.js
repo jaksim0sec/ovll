@@ -220,19 +220,19 @@ export class PostgresVNextStore {
         WHERE ($1::text IS NULL OR q.workspace_id=$1) AND (q.status='queued' OR (q.status='leased' AND q.leased_until<now()))
         ORDER BY q.updated_at FOR UPDATE OF q SKIP LOCKED LIMIT 1`,[workspaceRef]);
       if (!r.rows.length) return null;
-      const row=r.rows[0], workspaceRef=row.workspace_id,runRef=row.run_id;
+      const row=r.rows[0], claimedWorkspace=row.workspace_id,runRef=row.run_id;
       if (row.status==='leased' && row.external_effect) {
-        await c.query("UPDATE ov_run_queue SET status='outcome_unknown',lease_token=NULL,updated_at=now() WHERE workspace_id=$1 AND run_id=$2",[workspaceRef,runRef]);
-        await c.query("UPDATE ov_runs SET status='waiting',snapshot=jsonb_set(snapshot,'{status}','\"waiting\"') WHERE workspace_id=$1 AND run_id=$2",[workspaceRef,runRef]);
-        await event(c,workspaceRef,'run.outcome_unknown',{runRef});
+        await c.query("UPDATE ov_run_queue SET status='outcome_unknown',lease_token=NULL,updated_at=now() WHERE workspace_id=$1 AND run_id=$2",[claimedWorkspace,runRef]);
+        await c.query("UPDATE ov_runs SET status='waiting',snapshot=jsonb_set(snapshot,'{status}','\"waiting\"') WHERE workspace_id=$1 AND run_id=$2",[claimedWorkspace,runRef]);
+        await event(c,claimedWorkspace,'run.outcome_unknown',{runRef});
         return {outcomeUnknown:runRef};
       }
       const leaseToken=randomUUID();
       await c.query("UPDATE ov_run_queue SET status='leased',lease_token=$3,leased_until=now()+($4*interval '1 second'),attempts=attempts+1,updated_at=now() WHERE workspace_id=$1 AND run_id=$2",
-        [workspaceRef,runRef,leaseToken,leaseSeconds]);
-      await c.query("UPDATE ov_runs SET status='running',snapshot=jsonb_set(snapshot,'{status}','\"running\"') WHERE workspace_id=$1 AND run_id=$2",[workspaceRef,runRef]);
-      await event(c,workspaceRef,'run.running',{runRef,attempt:Number(row.attempts)+1});
-      return {workspaceRef,runRef,leaseToken,attempt:Number(row.attempts)+1,externalEffect:row.external_effect,run:{...row.snapshot,status:'running'}};
+        [claimedWorkspace,runRef,leaseToken,leaseSeconds]);
+      await c.query("UPDATE ov_runs SET status='running',snapshot=jsonb_set(snapshot,'{status}','\"running\"') WHERE workspace_id=$1 AND run_id=$2",[claimedWorkspace,runRef]);
+      await event(c,claimedWorkspace,'run.running',{runRef,attempt:Number(row.attempts)+1});
+      return {workspaceRef:claimedWorkspace,runRef,leaseToken,attempt:Number(row.attempts)+1,externalEffect:row.external_effect,run:{...row.snapshot,status:'running'}};
     });
   }
   async settleRun({workspaceRef,runRef,leaseToken,status,evidenceRefs=[]}) {

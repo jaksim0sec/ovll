@@ -183,3 +183,17 @@ test('worker refuses to manufacture successful Run when evidence gate missing',a
   const worker=createRunWorker({store,workerRef:ident('worker'),executeRun:async()=>({status:'completed',evidenceRefs:['fake']})});
   await assert.rejects(worker.workOnce({workspaceRef:scope.workspaceRef}),e=>e.code==='RUN_VERIFICATION_UNAVAILABLE');
 });
+
+test('unsharded worker claims a queued Run using the DB-selected tenant',async()=>{
+  const {store,graphId,callScope}=await setup();
+  await store.submit({actions:[
+    action('patch','ir.applyPatch',{patch:patch(graphId)}),
+    action('run','run.start',{targets:[{fromAction:'patch',localNodeKey:'n'}]},['patch'])
+  ]},callScope());
+  const job=await newStore().claimRun({workerRef:ident('global_worker')});
+  assert.equal(typeof job?.workspaceRef,'string');
+  assert.equal(typeof job?.leaseToken,'string');
+  const record=await pool.query('SELECT status,lease_token FROM ov_run_queue WHERE workspace_id=$1 AND run_id=$2',[job.workspaceRef,job.runRef]);
+  assert.equal(record.rows[0].status,'leased');
+  assert.equal(record.rows[0].lease_token,job.leaseToken);
+});
