@@ -86,3 +86,19 @@ OpenAI Responses의 스트리밍 이벤트, Claude Messages의 `content_block_de
 P0는 **새 코어 단독 테스트 통과**까지만 뜻하며 '운영 가능한 서버 완성'이 아니다. P1의 영속성·권한·큐·상태 머신, P2의 실제 provider·프롬프트 검증, P3의 UI 호환 전에는 서비스 코드 전환 금지. `server.js`는 프로젝트 버전 규칙 때문에 버전만 변경할 수 있으며, 핵심 구조는 새 backend에 만든다.
 
 참고: [OpenAI Responses SSE](https://developers.openai.com/api/reference/resources/responses/streaming-events), [Claude Messages 스트리밍](https://platform.claude.com/docs/en/build-with-claude/streaming), [Gemini 스트리밍](https://ai.google.dev/gemini-api/docs/streaming), [Groq API 호환성](https://console.groq.com/docs/openai).
+
+## 7. P1 진행 기록 — PostgreSQL 영속 기반 (2026-10-09)
+
+> **상태:** 운영 영속 저장 경계의 수직 기반 작업. 별도 새 서버이며 레거시 서비스 연결 금지. 실제 PostgreSQL CI 결과가 성공인 경우에만 P1의 해당 부분을 검증 완료로 표시한다.
+
+- [x] PostgreSQL 전용 `ov_*` 테이블: Workspace·권한·GraphRevision·Task·Run·queue·Attempt·FunctionVersion·ActionLedger·Event 기본 영속 스키마 작성.
+- [x] GraphPatch·Ledger·Event 원자적 트랜잭션, Advisory Lock 멱등성, GraphRevision 낙관적 충돌 검사 구현.
+- [x] 인증된 Workspace 읽기/쓰기 분리, CSRF 주입 경계, 정해진 Request ID로 행동 제안 처리.
+- [x] Run + Queue 같은 트랜잭션 예약, token lease·heartbeat·취소·외부 효과 불확정 차단 구현.
+- [x] PostgreSQL CI 재현 테스트 및 모듈별 제한·이관 체크리스트 작성.
+- [ ] Node별 Attempt/ValueArtifact **실제 생성·검증·저장**, 정교한 branch/merge, planEpoch/병렬 결과 보존.
+- [ ] 모든 Action 종류와 실 Task 완료·검증 함수 버전의 저장/재사용.
+- [ ] 운영 PostgreSQL과 driver pin/TLS/비밀키·백업 설정, session provider, 실제 인증/권한·타이밍 검증.
+- [ ] 실제 모델 호출 및 Prompt Composer의 출력 검증, 비용/캐시/품질 계측, Canvas 전환.
+
+세부 구현/사용 금지 조건: [P1 영속 코어 README](../../backend/vnext/README.md). 실제 CI 실패 시 구현·체크리스트를 재검토한다.

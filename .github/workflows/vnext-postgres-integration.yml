@@ -1,0 +1,50 @@
+name: vnext-postgres-integration
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/vnext/**'
+      - 'test/vnextPostgres.integration.mjs'
+      - '.github/workflows/vnext-postgres-integration.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  persistence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: ovll_test
+          POSTGRES_USER: ovll_test
+          POSTGRES_PASSWORD: ovll_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ovll_test -d ovll_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      VNEXT_TEST_DATABASE_URL: postgresql://ovll_test:ovll_test@127.0.0.1:5432/ovll_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Install PostgreSQL test driver only
+        run: npm install --no-save --package-lock=false 'pg@8'
+      - name: Verify new-core syntax
+        run: |
+          for f in backend/vnext/*.js test/vnextPostgres.integration.mjs; do node --check "$f"; done
+      - name: Existing vNext foundation
+        run: node --test test/vnextFoundation.test.js
+      - name: Real PostgreSQL persistence and recovery integration
+        run: node --test test/vnextPostgres.integration.mjs

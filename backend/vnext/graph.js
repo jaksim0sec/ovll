@@ -87,6 +87,17 @@ export class MemoryGraphRepository {
     if (!item) reject('GRAPH_NOT_FOUND', graphId, 404);
     return clone(item);
   }
+  // Database adapter only: reconstruct an immutable snapshot inside a disposable, isolated repository.
+  restore(workspaceId, graphId, snapshot) {
+    requireId(workspaceId, 'workspaceId'); requireId(graphId, 'graphId');
+    if (snapshot?.graph?.graphId !== graphId || !Number.isInteger(snapshot.graph.revision) ||
+        !Array.isArray(snapshot.graph.nodes) || !Array.isArray(snapshot.graph.connections) ||
+        !Array.isArray(snapshot.definitions)) reject('INVALID_PERSISTED_GRAPH');
+    validate(snapshot.graph, snapshot.definitions);
+    const k = graphKey(workspaceId, graphId), item = clone(snapshot);
+    this.#items.set(k, item);
+    this.#revisions.set(k, new Map([[item.graph.revision, clone(item)]]));
+  }
   getRevision(workspaceId, graphId, revision) {
     const value = this.#revisions.get(graphKey(workspaceId, graphId))?.get(revision);
     if (!value) reject('REVISION_NOT_FOUND', String(revision), 404);
