@@ -1,240 +1,53 @@
-import test from "node:test";
-import assert from "node:assert/strict";
-import fs from "node:fs";
-import vm from "node:vm";
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
 
-function loadApi(fetchImpl = async () => ({
-  ok: true,
-  status: 200,
-  async json() {
-    return { ok: true };
-  }
-})) {
-  const source = fs.readFileSync(
-    new URL("../front/js/api.js", import.meta.url),
-    "utf8"
-  );
-
-  const window = {};
-  const context = {
-    window,
-    fetch: fetchImpl,
-    console,
-    setTimeout,
-    clearTimeout
+function loadApi(fetchImpl){
+  const calls=[],memory=new Map(),localStorage={
+    getItem:key=>memory.get(key)||null,setItem:(key,value)=>memory.set(key,String(value))
   };
-
-  vm.runInNewContext(source, context, {
-    filename: "front/js/api.js"
-  });
-
-  return window.AstraAPI;
+  const window={OVLL_RUNTIME:{apiOrigin:'https://api.example.test'},setTimeout,clearTimeout,
+    OvllSvgLibrary:{setServerIcons:()=>true}};
+  const fetch=async(url,options)=>{calls.push({url,options});return fetchImpl(url,options)};
+  vm.runInNewContext(readFileSync(new URL('../front/js/api.js',import.meta.url),'utf8'),
+    {window,fetch,localStorage,AbortController,setTimeout,clearTimeout,console});
+  return {api:window.AstraAPI,calls};
 }
-
-function groupWithText(text) {
-  return {
-    nodes: [
-      {
-        id: "write",
-        type: "write",
-        params: {
-          request: "정리해"
-        },
-        inputs: {
-          source: {
-            value: {
-              file: {
-                text
-              }
-            }
-          }
-        }
-      }
-    ],
-    internalConnections: []
-  };
-}
-
-test("execution payload preserves markdown line structure", () => {
-  const api = loadApi();
-  const text = "## 제목\r\n\r\n- 하나\r\n- 둘";
-
-  const payload = api.buildExecutionPayload(
-    groupWithText(text),
-    {
-      userRequest: "  이걸 정리해\n\n표는 쓰지 마  ",
-      memory: {
-        flow: "  앞 흐름  ",
-        recent: "  최근   내용  ",
-        detail: "  세부   내용  "
-      }
-    }
-  );
-
-  assert.equal(
-    payload.nodes[0].inputs.source.value.file.text,
-    "## 제목\n\n- 하나\n- 둘"
-  );
-  assert.equal(
-    payload.context.userRequest,
-    "이걸 정리해\n\n표는 쓰지 마"
-  );
-  assert.equal(payload.context.memory.recent, "최근 내용");
+test('the frontend API exposes only active node catalog and artifact operations',()=>{
+  const {api}=loadApi(async()=>({ok:true,json:async()=>({ok:true})}));
+  assert.equal(typeof api.getNodeDefinitions,'function');
+  assert.equal(typeof api.createArtifact,'function');
+  for(const retired of ['chat','planWorkflow','executeGroup','finalizeRun','execute'])
+    assert.equal(api[retired],undefined,retired);
 });
-
-test("execution payload preserves code indentation", () => {
-  const api = loadApi();
-  const text = "function x() {\n  return 1;\n}";
-
-  const payload = api.buildExecutionPayload(
-    groupWithText(text)
-  );
-
-  assert.equal(
-    payload.nodes[0].inputs.source.value.file.text,
-    text
-  );
+test('node catalog uses server icon authority and retains data shape',async()=>{
+  const {api,calls}=loadApi(async()=>({ok:true,json:async()=>({
+    ok:true,nodes:{write:{name:'작성하기'}},iconSvg:{pen:'<svg></svg>'}
+  })}));
+  const nodes=await api.getNodeDefinitions();
+  assert.equal(nodes.write.name,'작성하기');
+  assert.match(calls[0].url,/\/api\/node-definitions$/);
 });
-
-test("nested execution text is not cut at the old 3000 character cap", () => {
-  const api = loadApi();
-  const text = "A".repeat(7000);
-
-  const payload = api.buildExecutionPayload(
-    groupWithText(text)
-  );
-
-  assert.ok(
-    payload.nodes[0].inputs.source.value.file.text.length > 3000
-  );
+test('artifact creation preserves requested format, page target and absolute download link',async()=>{
+  const {api,calls}=loadApi(async()=>({ok:true,json:async()=>({
+    ok:true,artifact:{downloadUrl:'/api/artifacts/abc',previewUrl:'/api/artifacts/abc?inline=1'}
+  })}));
+  const result=await api.createArtifact({format:'PDF',targetPages:3,
+    sources:[{text:'한글 원문 내용',title:'source'}]});
+  const body=JSON.parse(calls[0].options.body);
+  assert.equal(body.targetPages,3);
+  assert.equal(body.format,'PDF');
+  assert.ok(JSON.stringify(body.sources).includes('한글 원문 내용'));
+  assert.equal(result.artifact.downloadUrl,'https://api.example.test/api/artifacts/abc');
 });
-
-test("long structured truncation preserves both head and tail", () => {
-  const api = loadApi();
-  const text =
-    "HEAD\n" +
-    "x".repeat(50000) +
-    "\nTAIL";
-
-  const payload = api.buildExecutionPayload(
-    groupWithText(text)
-  );
-
-  const actual =
-    payload.nodes[0].inputs.source.value.file.text;
-
-  assert.match(actual, /^HEAD\n/);
-  assert.match(actual, /TAIL$/);
-  assert.match(actual, /omitted/i);
-});
-
-test("executeGroup sends the canonical execution payload", async () => {
-  let captured = null;
-
-  const api = loadApi(
-    async (_url, options) => {
-      captured = JSON.parse(options.body);
-      return {
-        ok: true,
-        status: 200,
-        async json() {
-          return {
-            ok: true,
-            results: []
-          };
-        }
-      };
-    }
-  );
-
-  const group = groupWithText("a\n  b");
-  const context = {
-    userRequest: "test"
-  };
-
-  const expected =
-    api.buildExecutionPayload(
-      group,
-      context
-    );
-
-  await api.executeGroup(
-    group,
-    context
-  );
-
-  assert.equal(
-    JSON.stringify(captured),
-    JSON.stringify(expected)
-  );
-  assert.equal(
-    api.measureExecutionPayloadChars(
-      group,
-      context
-    ),
-    JSON.stringify(expected).length
-  );
-});
-
-
-test("chat request sends bounded recent conversation and workflow context", async () => {
-  let captured = null;
-
-  const api =
-    loadApi(
-      async (_url, options) => {
-        captured =
-          JSON.parse(
-            options.body
-          );
-
-        return {
-          ok: true,
-          status: 200,
-          async json() {
-            return {
-              ok: true,
-              mode:
-                "conversation",
-              message:
-                "나는 오블이야"
-            };
-          }
-        };
-      }
-    );
-
-  await api.chat(
-    "너 이름 뭐야?",
-    {
-      history: [
-        {
-          role: "user",
-          text: "앞 대화"
-        },
-        {
-          role: "assistant",
-          text: "앞 답변"
-        }
-      ],
-      workflow: {
-        nodes: [],
-        links: [],
-        data: []
-      }
-    }
-  );
-
-  assert.equal(
-    captured.text,
-    "너 이름 뭐야?"
-  );
-  assert.equal(
-    captured.history.length,
-    2
-  );
-  assert.equal(
-    captured.history[0].text,
-    "앞 대화"
-  );
+test('mobile Enter keeps native multiline insertion while desktop Enter sends',()=>{
+  const app=readFileSync(new URL('../front/js/app.js',import.meta.url),'utf8');
+  const begin=app.indexOf('function handleComposerKeydown('),end=app.indexOf('/* =======================================================',begin);
+  const handler=app.slice(begin,end);
+  assert.match(handler,/event\.key !== "Enter"/);
+  assert.match(handler,/hover: none/);
+  assert.match(handler,/pointer: coarse/);
+  assert.match(handler,/composerForm\.requestSubmit\(\)/);
+  assert.ok(handler.indexOf('pointer: coarse')<handler.indexOf('event.preventDefault()'));
 });

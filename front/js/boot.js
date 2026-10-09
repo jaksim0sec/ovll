@@ -108,7 +108,6 @@ const APP_SCRIPTS=[
   "./js/shellMenu.js",
   "./js/workspacePresence.js",
   "./js/ovllPresence.js",
-  "./js/runtimeFinalization.js",
   "./js/mascot.js",
   "./js/app.js"
 ];

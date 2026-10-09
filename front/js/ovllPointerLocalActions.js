@@ -145,7 +145,7 @@ function present({facts=[],messages=[],runs=[]}={}){
     (runs.some(r=>r.status==='completed')?'작업을 완료했어.':'실행된 변경은 없어.');
 }
 function needsLanguage({facts=[],messages=[],runs=[]}={}){
-  if(messages.length||runs.some(run=>run.status==='completed'&&deliver(run).trim()))return false;
+  if(messages.length||runs.some(run=>deliver(run).trim()))return false;
   return facts.some(f=>['failed','rejected','waiting','skipped','cancelled'].includes(f.status)||
     f.run&&['failed','waiting','outcome_unknown'].includes(f.run.status));
 }

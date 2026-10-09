@@ -39,6 +39,8 @@ test('completed deliverables and direct model replies bypass a redundant languag
   const run={status:'completed',targets:['n'],nodes:[{nodeId:'n',status:'success',
     outputs:{values:{result:{inline:'User-ready complete answer'}}}}]};
   assert.equal(a.needsLanguage({runs:[run],facts:[{status:'completed'}]}),false);
+  assert.equal(a.needsLanguage({runs:[{...run,status:'failed'}],facts:[{status:'failed'}]}),false,
+    'a verified partial deliverable must never disappear behind a status-only model rewrite');
   assert.equal(a.needsLanguage({messages:['Direct answer'],facts:[]}),false);
   assert.equal(a.needsLanguage({facts:[{status:'failed',error:'MISSING_INPUT'}]}),true);
   assert.equal(a.needsLanguage({facts:[{status:'applied'}]}),false);

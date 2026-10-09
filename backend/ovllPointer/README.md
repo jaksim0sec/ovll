@@ -6,7 +6,7 @@ OvllPointer는 **대문(판단) → 소통/IR 구성/실행/함수화 → 언어
 ## 실행 구성
 - `server.js`: Express 진입점, 모니터링, 파일 API와 Pointer 모델 라우트 연결
 - `nodeCatalog.js`: 기존 UI 아이콘·기본 정의와 canonical Pointer 정의의 단일 원본 (`GET /api/pointer/local/catalog`)
-- `legacyCompatibility.js`와 `backend/ai/geminiExecution.js`: 이전 구현 코드. **현재 서버 진입점과 UI 요청/실행 경로에서는 사용하지 않음**
+- 구 Gemini/워크플로우 실행기는 제거됨. 저장된 구 캔버스 데이터는 `front/js/ovllPointerLocal.js`가 Pointer 그래프로 검사·이관하며, 원본 데이터는 보존함.
 - `localHttp.js`/`localHost.js`: 사용자 상태를 저장하지 않는 모델 호출 및 ModelTurn·NodeOutput 검증. 정식 라우트 `/api/pointer/local/{turn,node,response}`
 - `graph.js`, `executionPlan.js`, `validation.js`, `providers.js`: 동적 GraphPatch, 실행 계획, 데이터 계약, 공급자 독립 모델 인터페이스
 - `front/js/ovllPointer*.js`: 대화별 로컬 그래프 저장, 노드 실행, 결과 기록, 함수 초안·재실행

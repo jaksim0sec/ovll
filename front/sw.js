@@ -1,4 +1,4 @@
-const CACHE = 'ovll-shell-v66';
+const CACHE = 'ovll-shell-v67';
 
 const SHELL = [
   '/home',
@@ -22,7 +22,6 @@ const SHELL = [
   '/js/previewSandbox.js',
   '/js/api.js',
   '/js/canvasNode.js',
-  '/js/runtimeEngine.js',
   '/js/navigation.js',
   '/js/ui.js',
   '/js/workspaceStore.js',
@@ -37,7 +36,6 @@ const SHELL = [
   '/js/libraryPage.js',
   '/js/shellMenu.js',
   '/js/ovllPresence.js',
-  '/js/runtimeFinalization.js',
   '/js/app.js',
   '/js/mascot.js'
 ];

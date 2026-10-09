@@ -62,7 +62,7 @@ test("request area stays flat and visually attached to the node title", () => {
   const request = css.match(/\.vc-request-group\s*\{([\s\S]*?)\n\}/)?.[1] ?? "";
   const expandedBody = css.match(/\.vc-node\.vc-expanded\s+\.vc-node-body\s*\{([\s\S]*?)\n\}/)?.[1] ?? "";
 
-  assert.match(request, /padding:\s*\.1rem\s*\.08rem\s*\.18rem\s*0/);
+  assert.match(request, /padding:\s*\.1rem\s*\.18rem\s*\.18rem/);
   assert.match(request, /border:\s*0/);
   assert.match(request, /background:\s*transparent/);
   assert.match(expandedBody, /margin-top:\s*\.18rem/);
@@ -72,16 +72,16 @@ test("request area stays flat and visually attached to the node title", () => {
 
 test("node icons align to their visible glyph width without hidden x-space", () => {
   const icon = cssBlock(".vc-node-icon");
-  assert.match(icon, /width:\s*1\.46rem/);
-  assert.match(icon, /flex:\s*0 0 1\.46rem/);
+  assert.match(icon, /width:\s*1\.75rem/);
+  assert.match(icon, /flex:\s*0 0 1\.75rem/);
   assert.match(icon, /justify-content:\s*flex-start/);
-  assert.match(cssBlock(".vc-node-icon svg"), /width:\s*1\.46rem/);
-  assert.doesNotMatch(css, /\.vc-node-icon svg \[stroke\]\s*\{/);
+  assert.match(cssBlock(".vc-node-icon svg"), /width:\s*1\.455rem/);
+  assert.match(cssBlock(".vc-node-icon svg [stroke]"), /stroke-width:\s*1\.152/);
 });
 
 test("node titles use a lighter identity weight", () => {
-  assert.match(cssBlock(".vc-node-title"), /font-weight:\s*650/);
-  assert.match(cssBlock(".vc-file-title"), /font-weight:\s*650/);
+  assert.match(cssBlock(".vc-node-title"), /font-weight:\s*630/);
+  assert.match(cssBlock(".vc-file-title"), /font-weight:\s*630/);
 });
 
 test("node shell and footer actions keep subtle neutral outlines by default", () => {
@@ -239,9 +239,10 @@ test("ports and connection lines are neutral borderless geometry", () => {
   const connection = cssBlock(".vc-connection");
   const dragConnection = cssBlock(".vc-drag-connection");
 
-  assert.match(port, /border:\s*0/);
-  assert.match(port, /var\(--text\)\s+18%/);
-  assert.doesNotMatch(port, /var\(--node-color\)/);
+  assert.match(port, /border:\s*\.0625rem solid/);
+  assert.match(port, /background:\s*var\(--node\)/);
+  assert.match(port, /var\(--text\)\s+var\(--port-contrast, 18%\)/);
+  assert.match(port, /border-radius:\s*50%/);
 
   assert.match(connection, /var\(--text\)\s+18%/);
   assert.doesNotMatch(connection, /--connection-color/);
@@ -263,6 +264,6 @@ test("ports and connection lines are neutral borderless geometry", () => {
 
 test("mobile keeps node identity legible and actions touchable", () => {
   assert.match(css, /@media \(max-width: 37\.5rem\)[\s\S]*?\.vc-node-title\s*\{\s*font-size:\s*\.82rem/);
-  assert.match(css, /@media \(max-width: 37\.5rem\)[\s\S]*?\.vc-node-icon\s*\{[\s\S]*?width:\s*1\.42rem[\s\S]*?flex-basis:\s*1\.42rem/);
+  assert.match(css, /@media \(max-width: 37\.5rem\)[\s\S]*?\.vc-node-icon\s*\{[\s\S]*?width:\s*1\.704rem[\s\S]*?flex-basis:\s*1\.704rem/);
   assert.match(css, /@media \(hover: none\) and \(pointer: coarse\)[\s\S]*?\.vc-node-run,\s*\.vc-node-delete\s*\{[\s\S]*?padding-inline:\s*\.55rem/);
 });

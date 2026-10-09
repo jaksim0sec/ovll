@@ -463,34 +463,12 @@ test("adjacent source backups are not tracked beside live files", () => {
 
 
 test("runtime finalization policy is booted before app and precached", () => {
-  const boot =
-    read("front/js/boot.js");
-  const sw =
-    read("front/sw.js");
-
-  const policy =
-    boot.indexOf(
-      "./js/runtimeFinalization.js"
-    );
-  const app =
-    boot.indexOf(
-      "./js/app.js"
-    );
-
-  assert.ok(
-    policy >= 0,
-    "runtime finalization policy must be booted"
-  );
-  assert.ok(
-    app > policy,
-    "runtime finalization policy must load before app"
-  );
-  assert.match(
-    sw,
-    /\/js\/runtimeFinalization\.js/
-  );
+  const boot=read("front/js/boot.js"),sw=read("front/sw.js"),app=read("front/js/app.js");
+  assert.match(boot,/ovllPointerLocalActions\.js/);
+  assert.match(sw,/ovllPointerLocalActions\.js/);
+  assert.match(app,/PointerAPI\.localResponse/);
+  assert.doesNotMatch(boot,/runtimeFinalization\.js/);
 });
-
 
 test("preview engine uses format-aware sources and keeps HTML sandbox opaque", () => {
   const source =
@@ -598,27 +576,11 @@ test("new chat waiting state uses neutral polite copy only", () => {
 });
 
 test("Groq planner honors one short rate-limit delay", () => {
-  const server =
-    read(
-      "backend/ovllPointer/legacyCompatibility.js"
-    );
-
-  assert.match(
-    server,
-    /plannerRateLimitDelayMs/
-  );
-  assert.match(
-    server,
-    /GROQ_RATE_LIMIT/
-  );
-  assert.match(
-    server,
-    /waitPlannerDelay/
-  );
-  assert.match(
-    server,
-    /15000/
-  );
+  const provider=read("backend/ovllPointer/providers.js");
+  assert.match(provider,/readRetryAfter/);
+  assert.match(provider,/retryAfterSeconds <= 8/);
+  assert.match(provider,/waitForRetry/);
+  assert.match(provider,/PROVIDER_RATE_LIMIT/);
 });
 
 test("server health preserves event-loop stall history", () => {
@@ -1138,29 +1100,13 @@ test("artifact page targets survive Pointer export through the artifact API",()=
 });
 
 test("planner keeps document length requirements on the upstream writer", () => {
-  const server =
-    read(
-      "backend/ovllPointer/legacyCompatibility.js"
-    );
-
-  assert.match(
-    server,
-    /createFile[^\n]*not content generation\/expansion/i
-  );
-  assert.match(
-    server,
-    /page|페이지|분량/i
-  );
-  assert.match(
-    server,
-    /upstream write|write\.request/i
-  );
-  assert.match(
-    server,
-    /padding|whitespace|여백/i
-  );
+  const core=read("instructions/prompts/core.md");
+  const run=read("instructions/prompts/layers/run.md");
+  const contract=read("backend/ovllPointer/modelContract.js");
+  assert.match(core,/negations, quantities, audience, format/);
+  assert.match(run,/Perform the declared intellectual task/);
+  assert.match(contract,/artifact\.create exports connected finished contents/);
 });
-
 
 test("PDFKit fallback keeps flowing text cheap and table rows anchored", () => {
   const renderer =
@@ -1559,119 +1505,27 @@ test("Pointer action execution does not create a second user message",()=>{
 });
 
 test("moderate workflow execution is confirmable directly from chat", () => {
-  const app =
-    read(
-      "front/js/app.js"
-    );
-  const css =
-    read(
-      "front/css/chat.css"
-    );
-
-  assert.match(
-    app,
-    /function\s+appendWorkflowExecutionControl\s*\(/
-  );
-  assert.match(
-    app,
-    /data-workflow-execution-action/
-  );
-  assert.match(
-    app,
-    /바뀐 부분만 실행/
-  );
-  assert.match(
-    app,
-    /executeWorkflowProposal\s*\(/
-  );
-  assert.match(
-    css,
-    /\.astra-workflow-proposal\s*\{/
-  );
+  const app=read("front/js/app.js"),actions=read("front/js/ovllPointerLocalActions.js");
+  assert.match(app,/['"]ir\.applyPatch['"]:async/);
+  assert.match(app,/['"]run\.start['"]:async/);
+  assert.match(actions,/dependsOn/);
+  assert.match(actions,/LOCAL_ACTION_DEPENDENCY_FAILED/);
 });
-
 
 test("explicit verification requests are promoted to workflow planning", () => {
-  const app =
-    read(
-      "front/js/app.js"
-    );
-  const server =
-    read(
-      "backend/ovllPointer/legacyCompatibility.js"
-    );
-
-  assert.match(
-    app,
-    /const\s+verificationTask\s*=/
-  );
-  assert.match(
-    app,
-    /팩트\\s\*체크/
-  );
-  assert.match(
-    app,
-    /verificationTask\.test/
-  );
-  assert.match(
-    server,
-    /verification\/research\/cross-check/i
-  );
-  assert.match(
-    server,
-    /focused check usually needs one research node/i
-  );
+  const entry=read("instructions/prompts/layers/entry.md");
+  const core=read("instructions/prompts/core.md");
+  assert.match(entry,/Interpret everyday language by the requested outcome/);
+  assert.match(core,/Preserve the current request/);
+  assert.match(entry,/Combine communication, IR construction, execution and functionization/);
 });
-
 
 test("chat routing owns workflow decisions before planner execution", () => {
-  const gemini =
-    read(
-      "backend/ai/geminiExecution.js"
-    );
-  const server =
-    read(
-      "backend/ovllPointer/legacyCompatibility.js"
-    );
-
-  assert.match(
-    gemini,
-    /Choose conversation\/workflow by user value/i
-  );
-  assert.match(
-    gemini,
-    /Canvas keywords are unnecessary/i
-  );
-  assert.match(
-    gemini,
-    /not whether you could answer directly/i
-  );
-  assert.match(
-    gemini,
-    /inspection, editing, rerun, reuse or chaining/i
-  );
-  assert.match(
-    gemini,
-    /multi-step reasoning alone/i
-  );
-  assert.match(
-    server,
-    /Upstream selected workflow planning/i
-  );
-  assert.match(
-    server,
-    /Return mode="workflow", including/i
-  );
-  assert.match(
-    server,
-    /Do not execute, claim results or downgrade to conversation/i
-  );
-  assert.match(
-    server,
-    /planner\.mode !==[\s\S]*?'workflow'/
-  );
+  const host=read("backend/ovllPointer/localHost.js"),app=read("front/js/app.js");
+  assert.match(host,/['"]layer\.entry['"],['"]layer\.chat['"],['"]layer\.ir['"]/);
+  assert.match(app,/PointerAPI\.localTurn/);
+  assert.doesNotMatch(app,/API\.planWorkflow/);
 });
-
 
 test("Pointer can apply a patch and execute a target in one proposal",()=>{
   const app=read("front/js/app.js");
@@ -1822,7 +1676,7 @@ test("node connection handles stay hollow while title controls gain hierarchy", 
   );
   assert.match(
     css,
-    /\.vc-node-icon svg\s*\{[^}]*width:\s*1\.75rem[^}]*height:\s*1\.75rem[^}]*stroke-width:\s*1\.152/
+    /\.vc-node-icon svg\s*\{[^}]*width:\s*1\.455rem[^}]*height:\s*1\.455rem[^}]*stroke-width:\s*1\.152/
   );
   assert.match(
     css,

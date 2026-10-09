@@ -1283,23 +1283,11 @@
       node,
       options = {}
     ) {
-      const runtimeCheck =
-        global.OvllExecutionEngine
-          ?.isNodeReadyForExecution;
-
-      if (
-        typeof runtimeCheck ===
-          'function'
-      ) {
-        return !!runtimeCheck(
-          node,
-          options
-        );
-      }
-
       if (!node) {
         return false;
       }
+
+      if (String(node.type||'').startsWith('pointer:')) return true;
 
       if (node.type === 'start') {
         return true;
@@ -1342,42 +1330,7 @@
         return false;
       }
 
-      const runtime =
-        global.OvllExecutionEngine;
-
-      const executionMode =
-        typeof runtime
-          ?.normalizeExecutionMode ===
-          'function'
-          ? runtime
-              .normalizeExecutionMode(
-                mode
-              )
-          : (
-              mode === 'open' ||
-              mode === 'spread'
-                ? 'spread'
-                : 'target'
-            );
-
-      if (
-        typeof runtime
-          ?.validateExecutionReadiness ===
-          'function'
-      ) {
-        try {
-          return !!runtime
-            .validateExecutionReadiness(
-              getWorkflow(),
-              startId,
-              {
-                mode:
-                  executionMode
-              }
-            )
-            .ok;
-        } catch {}
-      }
+      const executionMode = mode === 'open' || mode === 'spread' ? 'spread' : 'target';
 
       const scope = new Set();
       const queue = [startId];
