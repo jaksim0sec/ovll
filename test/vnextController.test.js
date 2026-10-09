@@ -35,7 +35,7 @@ test('actions are submitted as proposals, never presented as verified',async()=>
   assert.ok(f.events.some(e=>e.state==='actions_rejected'));
 });
 test('needs barrier is resolved through host and returned for a second turn',async()=>{
-  const need={needs:[{kind:'graph',selector:{graphId:'g1'},purpose:'Inspect layout'}]};
+  const need={needs:[{kind:'graph',selector:{scope:'ref',ref:'g1',depth:'semantic'},purpose:'Inspect layout'}]};
   const f=setup([need,{message:'Read the graph'}],{fulfillNeeds:async({context})=>({...context,materials:[
     {ref:'graph1',kind:'graph',source:'server_state',content:{graphId:'g1'},truncated:false}]})});
   const result=await f.controller.run({scope,requestRef:'r1',requestText:'hello'});
@@ -44,7 +44,7 @@ test('needs barrier is resolved through host and returned for a second turn',asy
   assert.equal(f.submits.length,1);
 });
 test('unresolved needs do not submit actions',async()=>{
-  const f=setup([{needs:[{kind:'graph',selector:{graphId:'g1'},purpose:'Inspect layout'}]}]);
+  const f=setup([{needs:[{kind:'graph',selector:{scope:'ref',ref:'g1',depth:'semantic'},purpose:'Inspect layout'}]}]);
   const out=await f.controller.run({scope,requestRef:'r1',requestText:'hello'});
   assert.equal(out.needs.length,1);
   assert.equal(f.submits.length,0);

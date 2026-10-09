@@ -6209,8 +6209,8 @@
     }finally{setBusy(false);resizeComposer();focusComposerForDesktop();}
   }
 
-  async function runPrompt(text, options = {
-    if(global.OVLL_RUNTIME?.vnextEnabled===true)return runVNextPrompt(text,options);}) {
+  async function runPrompt(text, options = {}) {
+    if(global.OVLL_RUNTIME?.vnextEnabled===true)return runVNextPrompt(text,options);
     if (state.destroyed || state.busy) return;
 
     const value =
