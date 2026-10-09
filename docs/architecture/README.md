@@ -1,11 +1,13 @@
 # 기술·체계 설계
 
-> **상태:** 1차 논리 아키텍처 동결 / 상세 데이터 계약은 설계 중. [GitHub #22](https://github.com/jaksim0sec/ovll/issues/22)의 기존 세부 기술 제안 전체가 확정된 것은 아니다.
+> **상태:** 1차 논리 아키텍처 동결 / 상세 데이터 계약 v1 동결(정식 CI 검증 통과 조건). [GitHub #22](https://github.com/jaksim0sec/ovll/issues/22)의 기존 세부 기술 제안 전체가 확정된 것은 아니다.
 
 - **[1차 동결 기준선 (2026-10-09)](BASELINE_2026-10-09.md)** — 확정된 계층·행동·맥락·서버 기록·데이터 경계와 이관 시 필수 제약
 - **[데이터 계약 vNext 초안](DATA_CONTRACT_VNEXT.md)** — 다음 단계의 최소 타입·상태·검증 설계 (미동결)
-- **[검증된 데이터 계약 제안 v1](DATA_CONTRACT_PROPOSAL_V1.md)** — 행동·객체 스키마, 27개 형식 사례 사전 검증, 추가 서버 검증 제약 (미동결)
-  - [JSON Schema](DATA_CONTRACT_PROPOSAL_V1.schema.json) · [검증 사례](DATA_CONTRACT_PROPOSAL_V1.cases.json)
+- **[검증된 데이터 계약 제안 v1](DATA_CONTRACT_PROPOSAL_V1.md)** — 행동·객체 스키마, 34개 양성·음성 fixture 검증 대상, 추가 서버 검증 제약 (미동결)
+  - [JSON Schema](DATA_CONTRACT_PROPOSAL_V1.schema.json) · [검증 사례](DATA_CONTRACT_PROPOSAL_V1.cases.json) · [재현 검증기](validate_contract.py)
+- **[데이터 계약 v1 동결 기준](DATA_CONTRACT_V1_FREEZE.md)** — 필수 규칙과 실제 검증 범위·남은 구현 조건
+- **[프롬프트 제작 착수 명세](../../instructions/PROMPT_AUTHORING_START.md)** — 계층형 지침 작성 단계 입력 계약
 
 상위 기준은 [제품 비전](../VISION.md)이다. 기술은 비전을 실현하기 위한 수단이며 사용자 노동 감소, 모델 역량 보존, 양방향 소통과 동적 함수화를 판단 기준으로 삼는다.
 

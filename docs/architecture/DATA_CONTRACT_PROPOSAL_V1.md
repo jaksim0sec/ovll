@@ -1,6 +1,6 @@
 # Ovll 데이터 계약 제안 v1 — 검증본
 
-> **상태: 상세 설계 제안·미동결·미구현.** 상위 [1차 동결 기준선](BASELINE_2026-10-09.md)과 기존 [vNext 논의](DATA_CONTRACT_VNEXT.md)를 구체화한다. 사용자 승인 없이 동결 기준을 변경하지 않는다.
+> **상태: v1 제안 이력. 상세 계약 동결·검증 현황은 [상세 설계 동결 기준](DATA_CONTRACT_V1_FREEZE.md)에 기록한다. 실제 서버 이관 전.** 상위 [1차 동결 기준선](BASELINE_2026-10-09.md)과 기존 [vNext 논의](DATA_CONTRACT_VNEXT.md)를 구체화한다. 사용자 승인 없이 동결 기준을 변경하지 않는다.
 >
 > **검증 범위:** JSON Schema Draft 2020-12 형식 검증용 [단일 스키마](DATA_CONTRACT_PROPOSAL_V1.schema.json) 및 [양성·음성 사례](DATA_CONTRACT_PROPOSAL_V1.cases.json). 권한·의존 그래프·재시도 의미는 **서버 검증 구현이 필요**하며 이 테스트만으로 안전함을 보장하지 않는다.
 
@@ -23,7 +23,7 @@
 - **스키마 진입점:** 기본 `ModelTurn`; 서버 계약/도메인 계약 검증은 같은 문서의 `#/$defs/ActionEnvelope`, `#/$defs/ActionResult`, `#/$defs/GraphRevision`, `#/$defs/Task` 등 개별 참조를 이용한다. 내부 Domain JSON은 LLM 응답 그대로 신뢰하지 않는다.
 - **행동 명령:** `ir.applyPatch`, `run.start`, `run.revise`, `run.cancel`, `run.retry`, `function.save`, `question.ask`, `task.complete`. 단순 소통은 `message`, 맥락 조회는 `needs`이므로 불필요한 명령이 없다.
 - **참조:** 한 번의 모델 반환 내 행동은 `localKey`로 서로를 참조한다. Patch 내부의 `localNodeKey`와 `localDefinitionKey`는 임시 명칭이다. `run.start.targets[]`는 기존 `nodeId` 또는 선행 `fromAction+localNodeKey`를 사용한다. 서버의 `createdRefs`를 확인하기 전엔 최종 ID가 아니다.
-- **IR:** `GraphPatch`는 정의 생성/개정과 node/link operation을 한 원자적 그래프 변경으로 제안한다. 새 정의의 `executorKind`는 초기 `model_task/tool_task/subgraph`이며 **업무 의미는 purpose·IO·instruction으로 자유롭게 정의**된다. `tool_task`의 requiredCapabilities, `subgraph`의 procedureRef를 구조적으로 요구한다.
+- **IR:** `GraphPatch(graphId, expectedGraphRevision)`는 수정할 대상 그래프와 예상 버전을 명시하며 정의 생성/개정과 node/link operation을 한 원자적 그래프 변경으로 제안한다. 새 정의의 `executorKind`는 초기 `model_task/tool_task/subgraph`이며 **업무 의미는 purpose·IO·instruction으로 자유롭게 정의**된다. `tool_task`의 requiredCapabilities, `subgraph`의 procedureRef를 구조적으로 요구한다.
 - **함수:** `FunctionDraft.procedure`는 `graph` 또는 `model_task`. 대화에서 바로 함수화하더라도 억지로 캔버스를 만들지 않기 위한 대안이다. 저장 함수의 검증 상태는 서버 전용이어서 LLM이 마음대로 `verified`를 지정할 수 없다.
 - **노드 출력:** `outputs.status=produced`일 때 하나 이상의 출력 값, `blocked`이면 사유가 필수. 실제 포트 이름·형식·근거 적합성은 저장된 정의로 검증한다.
 - **보안:** LLM 반환에는 `actorRef`, 임의 권한, 성공한 `ActionResult`를 넣을 수 없다. 서버 ActionEnvelope의 인증 정보는 **반드시 신뢰 가능한 세션에서 생성**하고, 클라이언트/모델 입력을 그대로 복사해선 안 된다.
@@ -76,7 +76,7 @@
 
 [JSON 양성·음성 fixture](DATA_CONTRACT_PROPOSAL_V1.cases.json)는 단순 대화·캔버스 IR 조회·복합 Patch→Run·노드 출력·대화로부터 함수화와, 권한 위조 필드·빈 행동·정의 출력 누락·대문/행동 권한 혼동·실행 상태 위조를 포함한다. 형식 검사뿐 아니라 위 4장의 서버 의미·권한·동시성 반례도 실제 구현 전에 모두 통과시켜야 한다.
 
-**현재 단계 판정:** 구조 검증과 도메인 불변조건을 담은 **제안 버전**. 검토·반례 수정 후에만 상세 스키마를 동결한다. 아직 모델 호출/DB/권한/실제 실행 통합 테스트를 통과했다고 주장하지 않는다.
+**제안 당시 판정(이력):** 27개 형식 사례 사전 검증. 이후 보완된 34개 fixture와 정식 표준 검증 판정은 [동결 기준](DATA_CONTRACT_V1_FREEZE.md)을 따른다. 아직 모델 호출/DB/권한/실제 실행 통합 테스트를 통과했다고 주장하지 않는다.
 
 ## 7. 구현 이관 후 다음 단계
 
@@ -104,3 +104,11 @@
 - `Task.completed` 상태가 스키마를 통과하는 것은 **완료의 업무적 정당성을 보증하지 않는다**. 의도적으로 fixture에 구조상 허용 사례를 포함해 이 검증 경계를 분명히 한다.
 
 **판정:** 논리 아키텍처를 수정하지 않고도 상세 형식 계약을 제안할 수 있음. **제안 문서 검토 완료, 실제 구현 또는 상세 계약 동결 아님.**
+
+## 9. v1 상세 계약 보완(2026-10-09)
+
+- `GraphPatch.graphId` 필수: 대상 그래프를 Revision 숫자만으로 추측하지 않는다.
+- `ModelTurn.needs`가 있으면 v1에서는 `actions/outputs`를 함께 제출할 수 없다. 조회 장벽 이후 재평가한다.
+- `NodeDefinitionVersion`의 `tool_task`에는 `requiredCapabilities`, `subgraph`에는 `procedureRef` 필수.
+- `ContextBundle.materials`의 실제 내용·출처·축약·원문 요청 보존. 전체 payload 바이트/깊이는 별도 입구 검증으로 제한한다.
+- [규격 검증 스크립트](validate_contract.py)와 [검증 사례 34개](DATA_CONTRACT_PROPOSAL_V1.cases.json)를 검증 범위에 추가했다. 기존 27개 검증 이력은 원문 그대로 보존한다.

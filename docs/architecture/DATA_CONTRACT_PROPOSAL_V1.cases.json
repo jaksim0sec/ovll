@@ -86,7 +86,8 @@
                     }
                   }
                 ],
-                "adoption": "workspace_only"
+                "adoption": "workspace_only",
+                "graphId": "g_current"
               }
             }
           },
@@ -267,7 +268,8 @@
                     }
                   }
                 ],
-                "adoption": "workspace_only"
+                "adoption": "workspace_only",
+                "graphId": "g_current"
               }
             }
           }
@@ -348,7 +350,8 @@
                     }
                   }
                 ],
-                "adoption": "active_run"
+                "adoption": "active_run",
+                "graphId": "g_current"
               }
             }
           }
@@ -593,7 +596,8 @@
                 "definitions": [],
                 "operations": [],
                 "adoption": "active_run",
-                "expectedPlanEpoch": 2
+                "expectedPlanEpoch": 2,
+                "graphId": "g_current"
               }
             }
           }
@@ -621,11 +625,156 @@
                 ],
                 "adoption": "active_run",
                 "runRef": "r_5",
-                "expectedPlanEpoch": 2
+                "expectedPlanEpoch": 2,
+                "graphId": "g_current"
               }
             }
           }
         ]
+      }
+    },
+    {
+      "name": "needs cannot mutate before context resolution",
+      "target": "ModelTurn",
+      "valid": false,
+      "data": {
+        "needs": [
+          {
+            "kind": "graph",
+            "selector": {
+              "scope": "current",
+              "depth": "semantic"
+            },
+            "purpose": "Read graph"
+          }
+        ],
+        "actions": [
+          {
+            "localKey": "run1",
+            "kind": "run.start",
+            "args": {
+              "targets": [
+                {
+                  "nodeId": "n1"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "needs cannot publish partial node output",
+      "target": "ModelTurn",
+      "valid": false,
+      "data": {
+        "needs": [
+          {
+            "kind": "artifact",
+            "selector": {
+              "scope": "current",
+              "depth": "full"
+            },
+            "purpose": "Read attachment"
+          }
+        ],
+        "outputs": {
+          "status": "produced",
+          "values": {
+            "report": {
+              "inline": "ready"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "GraphPatch graphId mandatory",
+      "target": "GraphPatch",
+      "valid": false,
+      "data": {
+        "expectedGraphRevision": 7,
+        "definitions": [],
+        "operations": []
+      }
+    },
+    {
+      "name": "GraphPatch explicit graphId and version",
+      "target": "GraphPatch",
+      "valid": true,
+      "data": {
+        "graphId": "graph_12",
+        "expectedGraphRevision": 7,
+        "definitions": [],
+        "operations": [
+          {
+            "op": "node.delete",
+            "nodeId": "n1"
+          }
+        ]
+      }
+    },
+    {
+      "name": "tool_task definition version requires declared capabilities",
+      "target": "NodeDefinitionVersion",
+      "valid": false,
+      "data": {
+        "definitionId": "def1",
+        "version": 1,
+        "purpose": "Fetch URL",
+        "executorKind": "tool_task",
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "data",
+            "role": "output",
+            "representation": "text"
+          }
+        ],
+        "instruction": "Fetch data"
+      }
+    },
+    {
+      "name": "tool_task definition version with capabilities",
+      "target": "NodeDefinitionVersion",
+      "valid": true,
+      "data": {
+        "definitionId": "def1",
+        "version": 1,
+        "purpose": "Fetch URL",
+        "executorKind": "tool_task",
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "data",
+            "role": "output",
+            "representation": "text"
+          }
+        ],
+        "instruction": "Fetch data",
+        "requiredCapabilities": [
+          "web.read"
+        ]
+      }
+    },
+    {
+      "name": "subgraph definition must reference implementation",
+      "target": "NodeDefinitionVersion",
+      "valid": false,
+      "data": {
+        "definitionId": "def1",
+        "version": 1,
+        "purpose": "Compare sources",
+        "executorKind": "subgraph",
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "report",
+            "role": "output",
+            "representation": "document"
+          }
+        ],
+        "instruction": "Build report"
       }
     }
   ]

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://ovll.example/schemas/data-contract-proposal-v1",
+  "$id": "https://github.com/jaksim0sec/ovll/blob/main/docs/architecture/DATA_CONTRACT_PROPOSAL_V1.schema.json",
   "title": "Ovll proposed data contracts v1 (NOT runtime)",
   "description": "Top-level validates ModelTurn; server/domain contracts are addressed via $defs.",
   "$ref": "#/$defs/ModelTurn",
@@ -489,7 +489,7 @@
             "$ref": "#/$defs/DefinitionDraft"
           },
           "minItems": 0,
-          "maxItems": 512
+          "maxItems": 64
         },
         "operations": {
           "type": "array",
@@ -497,7 +497,7 @@
             "$ref": "#/$defs/PatchOperation"
           },
           "minItems": 0,
-          "maxItems": 512
+          "maxItems": 256
         },
         "adoption": {
           "type": "string",
@@ -514,9 +514,15 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 160
+        },
+        "graphId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
         }
       },
       "required": [
+        "graphId",
         "expectedGraphRevision",
         "definitions",
         "operations"
@@ -633,7 +639,7 @@
             "$ref": "#/$defs/Port"
           },
           "minItems": 0,
-          "maxItems": 512
+          "maxItems": 64
         },
         "outputs": {
           "type": "array",
@@ -641,7 +647,7 @@
             "$ref": "#/$defs/Port"
           },
           "minItems": 1,
-          "maxItems": 512
+          "maxItems": 64
         },
         "invariants": {
           "type": "array",
@@ -796,7 +802,8 @@
           "type": "object",
           "additionalProperties": {
             "$ref": "#/$defs/NodeValue"
-          }
+          },
+          "maxProperties": 64
         },
         "reason": {
           "type": "string",
@@ -882,7 +889,7 @@
             "maxLength": 160
           },
           "minItems": 0,
-          "maxItems": 512
+          "maxItems": 32
         }
       },
       "required": [
@@ -1194,7 +1201,7 @@
         "message": {
           "type": "string",
           "minLength": 1,
-          "maxLength": 2400
+          "maxLength": 6000
         },
         "actions": {
           "type": "array",
@@ -1218,7 +1225,25 @@
       },
       "required": [],
       "additionalProperties": false,
-      "minProperties": 1
+      "minProperties": 1,
+      "allOf": [
+        {
+          "not": {
+            "required": [
+              "needs",
+              "actions"
+            ]
+          }
+        },
+        {
+          "not": {
+            "required": [
+              "needs",
+              "outputs"
+            ]
+          }
+        }
+      ]
     },
     "ActionEnvelope": {
       "type": "object",
@@ -1791,7 +1816,7 @@
             "$ref": "#/$defs/ContextMaterial"
           },
           "minItems": 0,
-          "maxItems": 512
+          "maxItems": 48
         }
       },
       "required": [
@@ -2303,7 +2328,7 @@
             "maxLength": 160
           },
           "minItems": 0,
-          "maxItems": 512
+          "maxItems": 128
         }
       },
       "required": [
@@ -2592,7 +2617,55 @@
         "outputs",
         "instruction"
       ],
-      "additionalProperties": false
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "executorKind": {
+                "const": "tool_task"
+              }
+            },
+            "required": [
+              "executorKind"
+            ]
+          },
+          "then": {
+            "required": [
+              "requiredCapabilities"
+            ],
+            "properties": {
+              "requiredCapabilities": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 160
+                },
+                "minItems": 1,
+                "maxItems": 64
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "executorKind": {
+                "const": "subgraph"
+              }
+            },
+            "required": [
+              "executorKind"
+            ]
+          },
+          "then": {
+            "required": [
+              "procedureRef"
+            ]
+          }
+        }
+      ]
     }
   }
 }

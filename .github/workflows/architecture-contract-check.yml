@@ -1,0 +1,27 @@
+name: architecture-contract-check
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/architecture/**'
+      - '.github/workflows/architecture-contract-check.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  specification:
+    name: JSON Schema 2020-12 and contract probes
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install independent standards validator
+        run: python -m pip install 'jsonschema==4.26.0'
+      - name: Check schema and specification acceptance cases
+        run: python docs/architecture/validate_contract.py
