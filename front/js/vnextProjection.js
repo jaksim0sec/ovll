@@ -77,5 +77,16 @@
     }
     return result.run.status;
   }
-  global.OvllVNextProjection=Object.freeze({projectGraph,applyGraph,statusNode,applyRunState});
+  function artifactPreview(contents){
+    if(!Array.isArray(contents))throw new Error('INVALID_ARTIFACT_LIST');
+    return contents.slice(0,3).map(entry=>{
+      if(!isObject(entry?.artifact)||!isObject(entry?.content))return '';
+      const value=entry.content.value;
+      const raw=typeof value==='string'?value:JSON.stringify(value);
+      if(!raw)return '';
+      const role=entry.artifact.semanticRole||'결과';
+      return String(role).slice(0,35)+': '+raw.replace(/\s+/g,' ').slice(0,140);
+    }).filter(Boolean).join(' · ').slice(0,220);
+  }
+  global.OvllVNextProjection=Object.freeze({projectGraph,applyGraph,statusNode,applyRunState,artifactPreview});
 })(window);

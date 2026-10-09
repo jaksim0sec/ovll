@@ -74,6 +74,9 @@ test('HTTP natural request -> vendor-neutral gateway -> durable Patch/Run -> rep
     assert.equal(state.status,200);
     assert.equal((await state.json()).run.status,'queued');
     assert.equal((await fetch(base+'/state?graphId='+graphId)).status,401);
+    const memberFail=await fetch(base+'/runs/'+result.results[1].runRef+'/state',
+      {headers:{'x-user':'intruder'}});
+    assert.equal(memberFail.status,401);
     assert.ok(calls>=3);
     const ctrl=new AbortController();
     const stream=await fetch(base+'/events/stream?after=0',{headers:{'x-user':actorRef},signal:ctrl.signal});

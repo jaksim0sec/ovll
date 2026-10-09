@@ -41,6 +41,14 @@ test('graph renders via existing canvas methods without replacing legacy definit
   assert.equal(calls[0][1].file.name,'File');
   assert.equal(calls[1][1].nodes.length,2);
 });
+test('artifact previews read actual content without inventing download URLs',()=>{
+  const preview=p.artifactPreview([
+    {artifact:{semanticRole:'summary'},content:{representation:'text',value:'A useful result'}},
+    {artifact:{semanticRole:'metadata'},content:{representation:'json',value:{count:2}}}
+  ]);
+  assert.match(preview,/summary: A useful result/);
+  assert.match(preview,/metadata:.*count/);
+});
 test('server node evidence status maps to existing canvas runtime state without fake file links',()=>{
   const entries=[],canvas={setRuntimeNodeState:(...xs)=>entries.push(xs)};
   const state={run:{runId:'r1',status:'running'},nodes:[

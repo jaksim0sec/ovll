@@ -6178,6 +6178,17 @@
     const result=await VNextAPI.runState(runRef);
     if(state.destroyed||conversation!==state.activeConversationId)return;
     global.OvllVNextProjection.applyRunState(state.canvas,result);
+    // Load the actual authorized output values, never infer file URLs from opaque refs.
+    for(const node of result.nodes||[]){
+      if(node.status!=='success'||!Array.isArray(node.outputRefs)||!node.outputRefs.length)continue;
+      const entries=await Promise.all(node.outputRefs.slice(0,3).map(ref=>
+        VNextAPI.artifact(ref).catch(()=>null)));
+      if(state.destroyed||conversation!==state.activeConversationId)return;
+      const report=global.OvllVNextProjection.artifactPreview(entries.filter(Boolean));
+      if(report)state.canvas?.setRuntimeNodeState?.(node.nodeId,{
+        status:'SUCCESS',report,result:{report,outputRefs:node.outputRefs}
+      });
+    }
     if(['completed','failed','cancelled','waiting'].includes(result.run.status)){
       state.vnextRuns.delete(runRef);
       if(state.runtimeActivity){
@@ -6215,6 +6226,7 @@
       if(event.type==='node.success'){
         state.canvas?.setRuntimeNodeState?.(data.nodeId,{status:'SUCCESS',report:'결과 저장 완료'});
         completeRuntimeStep(data.nodeId,{text:'노드 실행 완료'});
+        await refreshVNextRun(data.runRef);
       }
       if(['node.failed','node.blocked','node.outcome_unknown'].includes(event.type)){
         state.canvas?.setRuntimeNodeState?.(data.nodeId,{status:'FAILED',report:data.reason||'노드 작업 실패'});
@@ -7593,6 +7605,8 @@
           state.vnextWatch?.();
           state.vnextWatch = null;
           state.vnextRuns.clear();
+          state.vnextRunRefs.clear();
+          state.vnextRunTargets.clear();
           clearRuntimeConnections();
 
           finishRuntimeActivity({
@@ -8491,6 +8505,9 @@ listen(composerInput, "keydown", handleComposerKeydown);
       state.destroyed = true;
       state.vnextWatch?.();
       state.vnextWatch=null;
+      state.vnextRuns.clear();
+      state.vnextRunRefs.clear();
+      state.vnextRunTargets.clear();
 
       clearTimeout(
         state.workspaceSaveTimer

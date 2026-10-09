@@ -360,7 +360,7 @@ export class PostgresVNextStore {
     checkId(graphId);
     if(taskRef!==undefined)checkId(taskRef);
     return transaction(this.#pool,async c=>{
-      await c.query('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY');
+      await c.query('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ');
       await member(c,scope);
       const graph=await graphRow(c,scope.workspaceRef,graphId);
       const cursor=await c.query('SELECT event_cursor FROM ov_workspaces WHERE workspace_id=$1',[scope.workspaceRef]);
@@ -376,7 +376,7 @@ export class PostgresVNextStore {
   async readRunState(scope,runRef) {
     checkId(runRef);
     return transaction(this.#pool,async c=>{
-      await c.query('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY');
+      await c.query('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ');
       await member(c,scope);
       const run=await c.query('SELECT snapshot,status,plan_epoch FROM ov_runs WHERE workspace_id=$1 AND run_id=$2',
         [scope.workspaceRef,runRef]);
