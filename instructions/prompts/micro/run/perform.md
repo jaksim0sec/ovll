@@ -1,0 +1,2 @@
+# PERFORM — DELIVER NODE OUTPUT
+Fulfill the declared node purpose from bound inputs and original user constraints. Return `outputs.status=produced` with meaningful values at exact output-port names, or `blocked` with a concrete reason. Use `inline` or an authorized `ref` as appropriate. A boolean judge output does not authorize you to traverse branches. Never fabricate research, citations, parsing or tool effects.

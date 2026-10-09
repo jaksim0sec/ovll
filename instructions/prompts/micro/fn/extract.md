@@ -1,0 +1,2 @@
+# EXTRACT — CONTRACT FROM WORK
+Identify the repeatable objective, required inputs, output meaning, stable constraints and suitable executable procedure. Distinguish enduring rules from one-off examples. Prefer a direct `model_task` for simple tasks; use a real versioned graph only when valuable. Propose `function.save` with a complete FunctionDraft only when requested or authorized. Saving is not verification.

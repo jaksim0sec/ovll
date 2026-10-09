@@ -1,0 +1,231 @@
+{
+  "status": "review_candidate_not_deployed",
+  "assemblyVersion": "0.2.0",
+  "source": "ALL_PROMPTS_REVIEW_v0.2.md",
+  "modules": [
+    {
+      "id": "core",
+      "path": "prompts/core.md",
+      "requires": [],
+      "order": 0,
+      "version": 2
+    },
+    {
+      "id": "layer.entry",
+      "path": "prompts/layers/entry.md",
+      "requires": [
+        "core"
+      ],
+      "order": 100,
+      "version": 2
+    },
+    {
+      "id": "layer.chat",
+      "path": "prompts/layers/chat.md",
+      "requires": [
+        "core"
+      ],
+      "order": 110,
+      "version": 2
+    },
+    {
+      "id": "layer.ir",
+      "path": "prompts/layers/ir.md",
+      "requires": [
+        "core"
+      ],
+      "order": 120,
+      "version": 2
+    },
+    {
+      "id": "layer.run",
+      "path": "prompts/layers/run.md",
+      "requires": [
+        "core"
+      ],
+      "order": 130,
+      "version": 2
+    },
+    {
+      "id": "layer.function",
+      "path": "prompts/layers/function.md",
+      "requires": [
+        "core"
+      ],
+      "order": 140,
+      "version": 2
+    },
+    {
+      "id": "layer.response",
+      "path": "prompts/layers/response.md",
+      "requires": [
+        "core"
+      ],
+      "order": 150,
+      "version": 2
+    },
+    {
+      "id": "shared.context-read",
+      "path": "prompts/shared/context-read.md",
+      "requires": [
+        "core"
+      ],
+      "order": 195,
+      "version": 2
+    },
+    {
+      "id": "chat.explain",
+      "path": "prompts/micro/chat/explain.md",
+      "requires": [
+        "layer.chat"
+      ],
+      "order": 300,
+      "version": 2
+    },
+    {
+      "id": "chat.clarify",
+      "path": "prompts/micro/chat/clarify.md",
+      "requires": [
+        "layer.chat"
+      ],
+      "order": 310,
+      "version": 2
+    },
+    {
+      "id": "chat.feedback",
+      "path": "prompts/micro/chat/feedback.md",
+      "requires": [
+        "layer.chat"
+      ],
+      "order": 320,
+      "version": 2
+    },
+    {
+      "id": "ir.inspect",
+      "path": "prompts/micro/ir/inspect.md",
+      "requires": [
+        "layer.ir"
+      ],
+      "order": 400,
+      "version": 2
+    },
+    {
+      "id": "ir.define",
+      "path": "prompts/micro/ir/define.md",
+      "requires": [
+        "layer.ir"
+      ],
+      "order": 410,
+      "version": 2
+    },
+    {
+      "id": "ir.patch",
+      "path": "prompts/micro/ir/patch.md",
+      "requires": [
+        "layer.ir"
+      ],
+      "order": 420,
+      "version": 2
+    },
+    {
+      "id": "ir.connect",
+      "path": "prompts/micro/ir/connect.md",
+      "requires": [
+        "layer.ir"
+      ],
+      "order": 430,
+      "version": 2
+    },
+    {
+      "id": "run.perform",
+      "path": "prompts/micro/run/perform.md",
+      "requires": [
+        "layer.run"
+      ],
+      "order": 500,
+      "version": 2
+    },
+    {
+      "id": "run.evaluate",
+      "path": "prompts/micro/run/evaluate.md",
+      "requires": [
+        "layer.run"
+      ],
+      "order": 510,
+      "version": 2
+    },
+    {
+      "id": "run.adapt",
+      "path": "prompts/micro/run/adapt.md",
+      "requires": [
+        "layer.run",
+        "run.evaluate"
+      ],
+      "order": 520,
+      "version": 2
+    },
+    {
+      "id": "run.recover",
+      "path": "prompts/micro/run/recover.md",
+      "requires": [
+        "layer.run"
+      ],
+      "order": 530,
+      "version": 2
+    },
+    {
+      "id": "fn.extract",
+      "path": "prompts/micro/fn/extract.md",
+      "requires": [
+        "layer.function"
+      ],
+      "order": 600,
+      "version": 2
+    },
+    {
+      "id": "fn.revise",
+      "path": "prompts/micro/fn/revise.md",
+      "requires": [
+        "layer.function"
+      ],
+      "order": 610,
+      "version": 2
+    },
+    {
+      "id": "fn.reuse",
+      "path": "prompts/micro/fn/reuse.md",
+      "requires": [
+        "layer.function"
+      ],
+      "order": 620,
+      "version": 2
+    },
+    {
+      "id": "fn.verify",
+      "path": "prompts/micro/fn/verify.md",
+      "requires": [
+        "layer.function"
+      ],
+      "order": 630,
+      "version": 2
+    },
+    {
+      "id": "response.present",
+      "path": "prompts/micro/response/present.md",
+      "requires": [
+        "layer.response"
+      ],
+      "order": 700,
+      "version": 2
+    },
+    {
+      "id": "response.status",
+      "path": "prompts/micro/response/status.md",
+      "requires": [
+        "layer.response"
+      ],
+      "order": 710,
+      "version": 2
+    }
+  ]
+}

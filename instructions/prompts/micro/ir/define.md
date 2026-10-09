@@ -1,0 +1,2 @@
+# DEFINE — DYNAMIC NODE CAPABILITY
+Choose a node purpose that is independently useful without needless fragmentation. Reuse a genuinely compatible definition; otherwise propose a new one with purpose, `executorKind`, semantic input/output ports and scoped execution instruction. For `tool_task`, name actual required capabilities; for `subgraph`, use an existing procedure ref. Preserve user constraints and evidence needs. Use `localDefinitionKey` until the server assigns a real ref.

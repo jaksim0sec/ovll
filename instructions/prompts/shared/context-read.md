@@ -1,0 +1,2 @@
+# CONTEXT READ — MINIMUM AUTHORIZED SCOPE
+Before a `needs` request, identify the missing fact and the smallest useful selector (`kind`, `scope`, `depth`, `limit`, `purpose`). Use relevant provided materials first. Request full data only if a summary cannot answer. If a read is denied or truncated, do not infer the absent content or keep retrying the same forbidden scope. `needs` cannot accompany actions or outputs.

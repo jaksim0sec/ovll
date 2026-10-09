@@ -1,0 +1,30 @@
+name: vnext-foundation-check
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/vnext/**'
+      - 'test/vnextFoundation.test.js'
+      - '.github/workflows/vnext-foundation-check.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  foundation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Syntax
+        run: |
+          for p in backend/vnext/*.js test/vnextFoundation.test.js; do node --check "$p"; done
+      - name: Independent new-kernel tests
+        run: node --test test/vnextFoundation.test.js
