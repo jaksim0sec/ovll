@@ -556,28 +556,13 @@ test("PDF preview loads eagerly with a normalized PDF MIME", () => {
   );
 });
 
-test("canvas execution is mirrored into persisted user chat", () => {
-  const app =
-    read(
-      "front/js/app.js"
-    );
-
-  assert.match(
-    app,
-    /function\s+canvasRunUserText/
-  );
-  assert.match(
-    app,
-    /addUserMessage\(\s*runUserText\s*\)/
-  );
-  assert.doesNotMatch(
-    app,
-    /state\.lastUserRequest\s*=\s*runUserText/
-  );
-  assert.match(
-    app,
-    /state\.workflowUserRequest\s*\|\|\s*state\.lastUserRequest/
-  );
+test("Pointer canvas execution persists a run and shows its result in chat",()=>{
+  const app=read("front/js/app.js"),local=read("front/js/ovllPointerLocal.js");
+  assert.match(app,/async function runPointerCanvasNode/);
+  assert.match(app,/addAssistantMessage\(\(run\.status/);
+  assert.match(app,/runLocalNodes\(\{targets:\[nodeId\]/);
+  assert.match(local,/workspaceStore\.updateConversationPointerRuns/);
+  assert.doesNotMatch(app,/addUserMessage\(\s*runUserText\s*\)/);
 });
 
 test("new chat waiting state uses neutral polite copy only", () => {
@@ -1136,68 +1121,20 @@ test("artifact preview surface is styled by resolved preview kind", () => {
 });
 
 
-test("artifact page targets are parsed and transported without confusing chapter labels", () => {
-  const policy =
-    read(
-      "front/js/artifactRequest.js"
-    );
-  const app =
-    read(
-      "front/js/app.js"
-    );
-  const api =
-    read(
-      "front/js/api.js"
-    );
-  const server =
-    read(
-      "server.js"
-    );
-  const boot =
-    read(
-      "front/js/boot.js"
-    );
-  const sw =
-    read(
-      "front/sw.js"
-    );
-
-  assert.match(
-    policy,
-    /targetPages/
-  );
-  assert.match(
-    policy,
-    /페이지|쪽/
-  );
-  assert.match(
-    policy,
-    /A4/
-  );
-  assert.match(
-    app,
-    /targetPages:\s*artifactRequest/
-  );
-  assert.match(
-    api,
-    /targetPages:\s*input\?\.targetPages/
-  );
-  assert.match(
-    server,
-    /targetPages:\s*req\.body\?\.targetPages/
-  );
-  assert.ok(
-    boot.indexOf(
-      "./js/artifactRequest.js"
-    ) <
-    boot.indexOf(
-      "./js/app.js"
-    )
-  );
-  assert.match(
-    sw,
-    /\/js\/artifactRequest\.js/
-  );
+test("artifact page targets survive Pointer export through the artifact API",()=>{
+  const policy=read("front/js/artifactRequest.js");
+  const local=read("front/js/ovllPointerLocal.js");
+  const api=read("front/js/api.js"),server=read("server.js");
+  const boot=read("front/js/boot.js"),sw=read("front/sw.js");
+  assert.match(policy,/targetPages/);
+  assert.match(policy,/페이지|쪽/);
+  assert.match(policy,/A4/);
+  assert.match(local,/resolveArtifactRequest\(\{request:/);
+  assert.match(local,/createArtifact\(\{\.\.\.params,sources\}/);
+  assert.match(api,/targetPages:\s*input\?\.targetPages/);
+  assert.match(server,/targetPages:\s*req\.body\?\.targetPages/);
+  assert.ok(boot.indexOf("./js/artifactRequest.js")<boot.indexOf("./js/app.js"));
+  assert.match(sw,/\/js\/artifactRequest\.js/);
 });
 
 test("planner keeps document length requirements on the upstream writer", () => {
@@ -1512,50 +1449,18 @@ test("chat markup renders markdown tables including bold-wrapped Gemini rows", (
 });
 
 
-test("ordinary conversation bypasses Groq planner and keeps raw history", () => {
-  const app =
-    read(
-      "front/js/app.js"
-    );
-  const api =
-    read(
-      "front/js/api.js"
-    );
-  const store =
-    read(
-      "front/js/workspaceStore.js"
-    );
-
-  assert.match(
-    app,
-    /function\s+recentAiConversation\s*\(/
-  );
-  assert.match(
-    app,
-    /function\s+likelyWorkflowRequest\s*\(/
-  );
-  assert.match(
-    app,
-    /await\s+API\.chat\s*\(/
-  );
-  assert.match(
-    app,
-    /chat\?\.mode\s*===\s*"workflow"/
-  );
-  assert.match(
-    api,
-    /async\s+function\s+chat\s*\(/
-  );
-  assert.match(
-    store,
-    /workflowUserRequest:/
-  );
-  assert.match(
-    store,
-    /SCHEMA_VERSION\s*=\s*8/
-  );
+test("ordinary conversation uses Pointer messaging and preserves conversation memory",()=>{
+  const app=read("front/js/app.js"),api=read("front/js/ovllPointerApi.js");
+  const store=read("front/js/workspaceStore.js");
+  assert.match(app,/function\s+recentAiConversation\s*\(/);
+  assert.match(app,/history:contextHistory/);
+  assert.match(app,/request:context=>PointerAPI\.localTurn/);
+  assert.match(app,/actions\.coordinate\(/);
+  assert.match(app,/addAssistantMessage\(reply\)/);
+  assert.match(api,/local\/turn/);
+  assert.match(store,/workflowUserRequest:/);
+  assert.match(store,/SCHEMA_VERSION\s*=\s*8/);
 });
-
 
 test("chat controls share one rounded SVG language", () => {
   const svg =
@@ -1632,64 +1537,25 @@ test("chat markup recognizes lightweight inline math without touching inline cod
 });
 
 
-test("workflow requests use deterministic delta execution gates", () => {
-  const app =
-    read(
-      "front/js/app.js"
-    );
-  const runtime =
-    read(
-      "front/js/runtimeEngine.js"
-    );
-
-  assert.match(
-    runtime,
-    /function\s+analyzeWorkflowExecutionDelta\s*\(/
-  );
-  assert.match(
-    runtime,
-    /small-isolated-delta/
-  );
-  assert.match(
-    runtime,
-    /decision-node/
-  );
-  assert.match(
-    app,
-    /Execution\s*\.analyzeWorkflowExecutionDelta/
-  );
-  assert.match(
-    app,
-    /execution\?\.mode\s*===\s*"auto"/
-  );
-  assert.match(
-    app,
-    /execution\.pivot,[\s\S]*?"target"/
-  );
+test("Pointer execution uses the deterministic target and dam-mode plan",()=>{
+  const app=read("front/js/app.js"),local=read("front/js/ovllPointerLocal.js");
+  const plan=read("front/js/ovllPointerPlanCore.mjs");
+  assert.match(local,/buildExecutionPlan\(snapshot,/);
+  assert.match(local,/targets:targetIds,damMode/);
+  assert.match(app,/runLocalNodes\(\{targets,damMode:/);
+  assert.match(plan,/buildExecutionPlan/);
 });
 
-test("automatic and confirmed workflow runs do not fabricate extra user messages", () => {
-  const app =
-    read(
-      "front/js/app.js"
-    );
-
-  assert.match(
-    app,
-    /options\.addUserMessage\s*!==\s*false/
-  );
-  assert.match(
-    app,
-    /source:\s*"workflow-auto"/
-  );
-  assert.match(
-    app,
-    /source:\s*"workflow-confirm"/
-  );
-  assert.match(
-    app,
-    /addUserMessage:\s*false/
-  );
+test("Pointer action execution does not create a second user message",()=>{
+  const app=read("front/js/app.js");
+  const start=app.indexOf("async function runLocalPrompt(");
+  const end=app.indexOf("async function runPointerPrompt(",start);
+  const body=app.slice(start,end);
+  assert.match(body,/options\.addUserMessage!==false/);
+  assert.match(body,/addUserMessage\(value\)/);
+  assert.match(body,/handlers:\s*\{/);
+  assert.match(body,/['"]run\.start['"]:async/);
+  assert.equal((body.match(/addUserMessage\(value\)/g)||[]).length,1);
 });
 
 test("moderate workflow execution is confirmable directly from chat", () => {

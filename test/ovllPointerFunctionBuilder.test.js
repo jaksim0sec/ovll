@@ -9,7 +9,7 @@ test('function builder uses Pointer action proposals instead of the retired work
   const builder=read('front/js/functionWorkspace.js');
   assert.doesNotMatch(builder,/\.planWorkflow\(/);
   assert.match(builder,/OvllPointerApi\.localTurn/);
-  assert.match(builder,/OvllPointerLocalActions\.execute/);
+  assert.match(builder,/actions\.execute\(proposal\.actions/);
   assert.match(builder,/OvllPointerFunctions\.save/);
   assert.match(builder,/OvllPointerProjection\.applyGraph/);
 });

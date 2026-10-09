@@ -89,27 +89,18 @@ test("workspace orchestrator and reusable node builder are available", () => {
   assert.match(boot,/\.\/js\/ovllWorkspace\.js/);
 });
 
-test("function builder uses the shared workspace and isolated planner purpose", () => {
-  const feature =
-    read("front/js/functionWorkspace.js");
-  const api =
-    read("front/js/api.js");
-  const server =
-    read("backend/ovllPointer/legacyCompatibility.js");
-  const page =
-    read("front/js/customNodePage.js");
-  const html =
-    read("front/index.html");
-
+test("function builder uses shared workspace with isolated Pointer graph and function storage",()=>{
+  const feature=read("front/js/functionWorkspace.js");
+  const local=read("front/js/ovllPointerLocal.js");
+  const page=read("front/js/customNodePage.js"),html=read("front/index.html");
   assert.match(feature,/createWorkspace\(/);
   assert.match(feature,/pluginContext:\s*"custom-builder"/);
   assert.match(feature,/mountNodeBuilder/);
   assert.match(feature,/workspace\.presence/);
-  assert.match(feature,/purpose:\s*"function-builder"/);
-  assert.match(api,/options\.purpose===\s*"function-builder"/);
-  assert.match(server,/FUNCTION_BUILDER_PROMPT/);
-  assert.match(server,/validateFunctionBuilderWorkflow/);
-  assert.match(server,/purpose ===\s*'function-builder'/);
+  assert.match(feature,/surface:'function-builder'/);
+  assert.match(feature,/OvllPointerApi\.localTurn/);
+  assert.match(feature,/OvllPointerFunctions\.save/);
+  assert.match(local,/projectCanvasDraft/);
   assert.match(page,/createOvllFunctionWorkspace/);
   assert.doesNotMatch(html,/ovll-custom-sidebar/);
   assert.match(html,/data-function-workspace-host/);
@@ -251,22 +242,12 @@ test("function builder keeps contextual identity out of the global topbar lane",
   );
 });
 
-test("function builder can save a valid unnamed draft and reports storage failures", () => {
-  const feature =
-    read("front/js/functionWorkspace.js");
-
-  assert.doesNotMatch(
-    feature,
-    /if\(!name\)\{[\s\S]*?return false/
-  );
-  assert.match(
-    feature,
-    /\|\|\s*"새 함수"/
-  );
-  assert.match(
-    feature,
-    /try\{[\s\S]*?Store\.save\([\s\S]*?catch\(error\)/
-  );
+test("function builder saves unnamed Pointer draft and reports failures",()=>{
+  const feature=read("front/js/functionWorkspace.js");
+  assert.doesNotMatch(feature,/if\(!name\)\{[\s\S]*?return false/);
+  assert.match(feature,/\|\|'새 함수'/);
+  assert.match(feature,/try\{[\s\S]*?OvllPointerFunctions\.save\([\s\S]*?catch\(error\)/);
+  assert.match(feature,/setStatus\(error\?\.message\|\|'함수 저장 실패','error'\)/);
 });
 
 test("standalone pages preserve a real back stack on docked desktop navigation", () => {
