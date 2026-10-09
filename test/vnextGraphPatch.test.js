@@ -30,7 +30,7 @@ test('node addition uses existing versioned definition and server remaps tempora
 test('deleted nodes remove links first and do not affect unrelated nodes',()=>{
   const v=ui();v.nodes.splice(1);v.connections=[];
   const result=build(snapshot,v);
-  assert.deepEqual(result.patch.operations.map(x=>x.op),['link.remove','node.delete']);
+  assert.deepEqual(Array.from(result.patch.operations,x=>x.op),['link.remove','node.delete']);
 });
 test('changing instruction creates a new immutable semantic definition version',()=>{
   const v=ui();v.nodes[0].data.params.request='Create a concise bilingual summary';

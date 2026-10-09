@@ -55,3 +55,5 @@ jobs:
         run: node --test test/vnextLifecycle.integration.mjs
       - name: Real PostgreSQL model controller and event HTTP integration
         run: node --test test/vnextController.integration.mjs
+      - name: Real PostgreSQL canvas semantic edit acceptance
+        run: node --test test/vnextGraphPatch.integration.mjs
