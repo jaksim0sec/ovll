@@ -143,18 +143,53 @@ export function normalizeModelTurn(value,{normalizations=[]}={}){
     patch=allocateKeys(patch,action.localKey,actions);
     return {...updated,args:{...updated.args,patch}};
   });
+  const validKeys=turn.actions.every(a=>isKey(a?.localKey))&&
+    new Set(turn.actions.map(a=>a.localKey)).size===turn.actions.length;
+  const actionsByKey=new Map(validKeys?turn.actions.map(a=>[a.localKey,a]):[]);
   const patches=new Map(turn.actions.filter(action=>patchOf(action))
     .map(action=>[action.localKey,action.args.patch]));
-  turn.actions=turn.actions.map(action=>{
+  // A missing dependency may only be restored for an explicitly referenced
+  // unique producer. Never repair an unknown/ambiguous producer or a cycle.
+  const canDepend=(producer,consumer)=>{
+    if(!validKeys||producer===consumer||!actionsByKey.has(producer))return false;
+    const stack=[producer],visited=new Set();
+    while(stack.length){
+      const key=stack.pop();
+      if(key===consumer)return false;
+      if(visited.has(key))continue;
+      visited.add(key);
+      const current=actionsByKey.get(key);
+      if(!current||current.dependsOn!==undefined&&
+        (!Array.isArray(current.dependsOn)||current.dependsOn.some(d=>!isKey(d))))return false;
+      stack.push(...(current.dependsOn||[]));
+    }
+    return true;
+  };
+  turn.actions=turn.actions.map((action,index)=>{
     if(action?.kind!=='run.start'||!Array.isArray(action.args?.targets))return action;
+    const depsValid=action.dependsOn===undefined||
+      Array.isArray(action.dependsOn)&&action.dependsOn.every(isKey);
+    if(!depsValid)return action;
+    const deps=Array.isArray(action.dependsOn)?[...action.dependsOn]:[];
+    let targetFixed=false,depFixed=false;
     const targets=action.args.targets.map(target=>{
-      if(!isObject(target)||!isKey(target.fromAction)||target.localNodeKey!==undefined||
-        !(action.dependsOn||[]).includes(target.fromAction))return target;
+      if(!isObject(target)||!isKey(target.fromAction)||target.nodeId!==undefined)return target;
       const added=patches.get(target.fromAction)?.operations?.filter(op=>op?.op==='node.add');
       if(added?.length!==1||!isKey(added[0].localNodeKey))return target;
-      return {...target,localNodeKey:added[0].localNodeKey};
+      const key=added[0].localNodeKey;
+      if(target.localNodeKey!==undefined&&target.localNodeKey!==key)return target;
+      if(!deps.includes(target.fromAction)){
+        if(!canDepend(target.fromAction,action.localKey))return target;
+        deps.push(target.fromAction);
+        depFixed=true;
+      }
+      if(target.localNodeKey!==undefined)return target;
+      targetFixed=true;
+      return {...target,localNodeKey:key};
     });
-    return {...action,args:{...action.args,targets}};
+    if(targetFixed)normalizations.push('targetKey@'+index);
+    if(depFixed)normalizations.push('dependsOn@'+index);
+    return {...action,...(depFixed?{dependsOn:deps}:{}),args:{...action.args,targets}};
   });
   return turn;
 }

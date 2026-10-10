@@ -155,3 +155,65 @@ test('structural telemetry never contains model values or arbitrary property nam
  assert.ok(!shape.includes('TOKEN-SECRET'));
  assert.ok(!shape.includes('privateProperty'));
 });
+
+test('single explicit producer target restores only the missing dependency',()=>{
+ const input={executionIntent:'requested',actions:[
+  action([{...nodeAdd(),localNodeKey:'writer'}]),
+  {localKey:'execute',kind:'run.start',args:{targets:[{fromAction:'patch',localNodeKey:'writer'}],damMode:'closed'}}
+ ]};
+ const events=[],out=normalizeModelTurn(input,{normalizations:events});
+ assert.deepEqual(out.actions[1].dependsOn,['patch']);
+ assert.deepEqual(out.actions[1].args.targets,[{fromAction:'patch',localNodeKey:'writer'}]);
+ assert.equal(input.actions[1].dependsOn,undefined);
+ assert.deepEqual(events,['dependsOn@1']);
+ assert.equal(validator.validateTurn(out),true);
+ assert.deepEqual(normalizeModelTurn(out),out);
+});
+test('single producer may infer missing target handle and dependency together',()=>{
+ const input={executionIntent:'requested',actions:[
+  action([{...nodeAdd(),localNodeKey:'writer'}]),
+  {localKey:'execute',kind:'run.start',args:{targets:[{fromAction:'patch'}]}}
+ ]};
+ const events=[],out=normalizeModelTurn(input,{normalizations:events});
+ assert.deepEqual(out.actions[1].dependsOn,['patch']);
+ assert.equal(out.actions[1].args.targets[0].localNodeKey,'writer');
+ assert.deepEqual(events,['targetKey@1','dependsOn@1']);
+ assert.equal(validator.validateTurn(out),true);
+});
+test('ambiguous multiple node additions never acquire a dependency or guessed target',()=>{
+ const input={actions:[
+  action([{...nodeAdd(),localNodeKey:'one'},{...nodeAdd(),localNodeKey:'two'}]),
+  {localKey:'execute',kind:'run.start',args:{targets:[{fromAction:'patch'}]}}
+ ]};
+ const out=normalizeModelTurn(input);
+ assert.equal(out.actions[1].dependsOn,undefined);
+ assert.equal(out.actions[1].args.targets[0].localNodeKey,undefined);
+});
+test('foreign targets and mismatched explicit keys are not rewritten',()=>{
+ const mismatch={actions:[action([{...nodeAdd(),localNodeKey:'good'}]),
+  {localKey:'execute',kind:'run.start',args:{targets:[{fromAction:'patch',localNodeKey:'wrong'}]}}]};
+ assert.equal(normalizeModelTurn(mismatch).actions[1].dependsOn,undefined);
+ const unknown={actions:[action([{...nodeAdd(),localNodeKey:'good'}]),
+  {localKey:'execute',kind:'run.start',args:{targets:[{fromAction:'not_patch',localNodeKey:'good'}]}}]};
+ assert.equal(normalizeModelTurn(unknown).actions[1].dependsOn,undefined);
+});
+test('cycle or duplicate action keys prevent inferred dependency',()=>{
+ const cycle={actions:[{...action([{...nodeAdd(),localNodeKey:'good'}]),dependsOn:['execute']},
+  {localKey:'execute',kind:'run.start',args:{targets:[{fromAction:'patch',localNodeKey:'good'}]}}]};
+ assert.equal(normalizeModelTurn(cycle).actions[1].dependsOn,undefined);
+ const duplicate={actions:[action([{...nodeAdd(),localNodeKey:'good'}]),
+  {localKey:'patch',kind:'ir.applyPatch',args:{patch:{graphId:'g',expectedGraphRevision:0,definitions:[],operations:[]}}},
+  {localKey:'execute',kind:'run.start',args:{targets:[{fromAction:'patch',localNodeKey:'good'}]}}]};
+ assert.equal(normalizeModelTurn(duplicate).actions[2].dependsOn,undefined);
+});
+test('existing node IDs, no-run intent and invalid dependency shapes remain unchanged',()=>{
+ const source=action([{...nodeAdd(),localNodeKey:'good'}]);
+ const explicit={actions:[source,{localKey:'execute',kind:'run.start',args:{targets:[{nodeId:'already_exists'}]}}]};
+ assert.equal(normalizeModelTurn(explicit).actions[1].dependsOn,undefined);
+ const invalid={actions:[source,{localKey:'execute',kind:'run.start',dependsOn:'bad',
+  args:{targets:[{fromAction:'patch',localNodeKey:'good'}]}}]};
+ assert.equal(normalizeModelTurn(invalid).actions[1].dependsOn,'bad');
+ const noRun={actions:[source]};
+ assert.equal(normalizeModelTurn(noRun).actions.length,1);
+ assert.equal(normalizeModelTurn(noRun).executionIntent,undefined);
+});
