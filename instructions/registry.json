@@ -1,6 +1,6 @@
 {
   "status": "active_local_runtime",
-  "assemblyVersion": "0.3.1",
+  "assemblyVersion": "0.4.0",
   "source": "prompts/",
   "modules": [
     {
@@ -8,7 +8,7 @@
       "path": "prompts/core.md",
       "requires": [],
       "order": 0,
-      "version": 3
+      "version": 4
     },
     {
       "id": "layer.entry",
@@ -17,7 +17,7 @@
         "core"
       ],
       "order": 100,
-      "version": 4
+      "version": 5
     },
     {
       "id": "layer.chat",
@@ -35,7 +35,7 @@
         "core"
       ],
       "order": 120,
-      "version": 4
+      "version": 5
     },
     {
       "id": "layer.run",
@@ -116,7 +116,7 @@
         "layer.ir"
       ],
       "order": 410,
-      "version": 4
+      "version": 5
     },
     {
       "id": "ir.patch",
@@ -125,7 +125,7 @@
         "layer.ir"
       ],
       "order": 420,
-      "version": 3
+      "version": 4
     },
     {
       "id": "ir.connect",
