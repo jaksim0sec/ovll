@@ -161,7 +161,7 @@ test('stored cosmetic alias versions are folded into the original without removi
     definitions:[base,alias,semantic]};
   store.importJSON(doc);
   const versions=store.getPointerDefinitions().filter(d=>d.definitionId==='d_legacy');
-  assert.deepEqual(versions.map(d=>d.version),[1,3]);
+  assert.deepEqual(Array.from(versions,d=>d.version),[1,3]);
   assert.equal(versions[0].presentation.name,'일본어 단어장');
   assert.equal(versions[1].instruction,'Make advanced list');
   const restored=(await local.state(a)).graph;

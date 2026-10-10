@@ -85,5 +85,7 @@ test('chat orchestration text is never reused as node execution content',()=>{
   const handler=src.slice(src.indexOf("'run.start':async(action,applied)=>"),src.indexOf("'function.run':async action=>"));
   assert.ok(handler.includes('runLocalNodes({targets'));
   assert.doesNotMatch(handler,/requestText:\s*value/);
-  assert.match(src,/const run=await runLocalNodes\(\{targets:\[nodeId\],damMode:mode,operation,taskContext,/);
+  assert.match(src,/const run=await runLocalNodes\(\{targets,damMode:action\.args\.damMode\|\|'closed',/);
+ assert.match(handler,/taskContext,taskConstraints:taskContext\.constraints,cache,operation/);
+ assert.doesNotMatch(handler,/requestText:\s*value/);
 });

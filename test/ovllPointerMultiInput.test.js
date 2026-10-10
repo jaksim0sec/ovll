@@ -45,8 +45,8 @@ test('two source nodes connect to one built-in input, execute independently, and
       invoked.push({id:args.nodeId,inputs:args.inputArtifacts});
       if(args.nodeId===target){
         assert.equal(args.inputArtifacts.length,2);
-        assert.deepEqual(args.inputArtifacts.map(x=>x.port),['in','in']);
-        assert.deepEqual(args.inputArtifacts.map(x=>x.value).sort(),['First material','Second material']);
+        assert.deepEqual(Array.from(args.inputArtifacts,x=>x.port),['in','in']);
+        assert.deepEqual(Array.from(args.inputArtifacts,x=>x.value).sort(),['First material','Second material']);
         assert.equal(new Set(args.inputArtifacts.map(x=>x.sourceNodeId)).size,2);
       }
       const value=args.nodeId===target?'Combined material':

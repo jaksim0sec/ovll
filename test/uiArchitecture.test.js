@@ -538,7 +538,7 @@ test("Pointer canvas execution persists a run and shows its result in chat",()=>
   const app=read("front/js/app.js"),local=read("front/js/ovllPointerLocal.js");
   assert.match(app,/async function runPointerCanvasNode/);
   assert.match(app,/addAssistantMessage\(delivery\.text,\{artifacts:delivery\.artifacts\}\)/);
-  assert.match(app,/runLocalNodes\(\{targets:\[nodeId\]/);
+  assert.match(app,/runLocalNodes\(\{targets:\[persistedNodeId\],damMode:mode,operation/);
   assert.match(local,/workspaceStore\.updateConversationPointerRuns/);
   assert.doesNotMatch(app,/addUserMessage\(\s*runUserText\s*\)/);
 });
@@ -1105,7 +1105,8 @@ test("planner keeps document length requirements on the upstream writer", () => 
   const contract=read("backend/ovllPointer/modelContract.js");
   assert.match(core,/negations, quantities, audience, format/);
   assert.match(run,/Perform the declared intellectual task/);
-  assert.match(contract,/artifact\.create exports connected finished contents/);
+  assert.match(contract,/Connect the actual existing source output by data link to builtin:createFile input/);
+  assert.match(contract,/never fabricate a replacement upstream node/);
 });
 
 test("PDFKit fallback keeps flowing text cheap and table rows anchored", () => {
@@ -1515,8 +1516,9 @@ test("moderate workflow execution is confirmable directly from chat", () => {
 test("explicit verification requests are promoted to workflow planning", () => {
   const entry=read("instructions/prompts/layers/entry.md");
   const core=read("instructions/prompts/core.md");
-  assert.match(entry,/Interpret everyday language by the requested outcome/);
-  assert.match(core,/Keep context\.objective as the original task/);
+  assert.match(entry,/Decide from current user intent/);
+  assert.match(core,/Treat context\.requestText and context\.objective as the current user turn/);
+  assert.match(entry,/Only an explicit run or computed deliverable requiring a run permits run\.start\/function\.run/);
   assert.match(entry,/Combine communication, IR construction, execution and functionization/);
 });
 

@@ -13,7 +13,9 @@ test('original task purpose, explicit constraints and digest survive a revision 
  const catalog=getPointerCatalog();const snap=snapshot();snap.definitions=catalog.definitions;snap.graph.nodes=[{nodeId:'w',definitionRef:{definitionId:'builtin:write',version:1}}];
  await host([{outputs:{status:'produced',values:{result:{inline:'report'}}}}],calls).node({snapshot:snap,requestRef:'n',requestText:'Shorten',nodeId:'w',taskContext,taskConstraints:['Preserve names']});
  const nodeData=JSON.parse(calls[1].messages.at(-1).content).context;
- assert.equal(nodeData.objective,taskContext.objective);assert.equal(nodeData.requestText,taskContext.requestText);assert.deepEqual(nodeData.constraints,['Keep citations','Do not run','Preserve names']);
+ assert.equal(nodeData.objective,'Shorten');assert.equal(nodeData.requestText,'Shorten');
+ assert.deepEqual(nodeData.constraints,['Preserve names']);
+ assert.equal(nodeData.extraContext?.taskContext?.objective,undefined,'unrelated orchestration objective must not leak into node execution');
 });
 test('catalog definitions are compact but available operations remain discoverable',async()=>{
  const calls=[];await host([{message:'ok'}],calls).turn({snapshot:snapshot(),requestRef:'r',requestText:'What can you do?'});
@@ -73,7 +75,10 @@ test('context and complete node evidence have independent UTF-8 budgets',async()
  const calls=[],snap=snapshot();snap.definitions=getPointerCatalog().definitions;snap.graph.nodes=[{nodeId:'w',definitionRef:{definitionId:'builtin:write',version:1}}];
  const constraints=Array.from({length:16},(_,i)=>i+':'+ 'q'.repeat(2300));const source='가'.repeat(15500);
  await host([{outputs:{status:'produced',values:{result:{inline:'summary'}}}}],calls).node({snapshot:snap,requestRef:'budget',requestText:'Summarize',nodeId:'w',taskContext:{objective:'Summarize evidence',constraints},inputArtifacts:[{port:'in',representation:'text',valueRef:'source',value:source}]});
- const data=JSON.parse(calls[0].messages.at(-1).content);assert.deepEqual(data.context.constraints,constraints);assert.equal(data.nodeContext.upstreamArtifacts[0].value,source);assert.ok(Buffer.byteLength(calls[0].messages.at(-1).content)>65536);
+ const data=JSON.parse(calls[0].messages.at(-1).content);assert.deepEqual(data.context.constraints,[],'node scope must not inherit orchestration constraints');
+ assert.equal(data.context.objective,'Summarize');
+ assert.equal(data.nodeContext.upstreamArtifacts[0].value,source);
+ assert.ok(Buffer.byteLength(calls[0].messages.at(-1).content)>Buffer.byteLength(source),'untruncated input must survive independent source byte budget');
 });
 test('pre-provider admission failures report zero calls and preserve source constraints',async()=>{
  const calls=[];
@@ -91,7 +96,15 @@ test('app task request history crosses every phase without losing accepted revis
  await host([{message:'ok'},{outputs:{status:'produced',values:{result:{inline:'done'}}}},{message:'done'}],calls).turn({snapshot:snap,requestRef:'t',requestText:taskContext.requestText,taskContext});
  await host([{outputs:{status:'produced',values:{result:{inline:'done'}}}}],calls).node({snapshot:snap,requestRef:'n',requestText:'Write summary',nodeId:'w',taskContext});
  await host([{message:'done'}],calls).response({snapshot:snap,requestRef:'s',requestText:'Show summary',actionResults:[],taskContext});
- for(const call of calls){const data=JSON.parse(call.messages.at(-1).content);assert.deepEqual(data.extraContext.taskContext.requestHistory,taskContext.requestHistory);}
+ for(const [index,call] of calls.entries()){
+  const data=JSON.parse(call.messages.at(-1).content);
+  if(index===1){
+   assert.equal(data.extraContext?.taskContext,undefined,'node phase must not carry unrelated chat history');
+   assert.equal(data.context.objective,'Write summary');
+  }else{
+   assert.deepEqual(data.extraContext.taskContext.requestHistory,taskContext.requestHistory);
+  }
+ }
 });
 
 test('canonical complete action example round-trips the provider wire projection',async()=>{
