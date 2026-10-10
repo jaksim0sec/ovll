@@ -1147,8 +1147,11 @@
   font-weight: 700;
 }
 
-:is(#canvas-node-builder,[data-canvas-node-builder]).is-empty {
-  display: none;
+.canvas-node-builder-empty {
+  padding: .875rem .5rem;
+  color: var(--muted);
+  font-size: .75rem;
+  text-align: center;
 }
 
 @media (max-width: 26.25rem) {

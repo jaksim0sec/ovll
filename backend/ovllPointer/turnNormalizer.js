@@ -1,4 +1,5 @@
 import {iconSvg} from './nodeCatalog.js';
+import {PATCH_OPERATION_CONTRACTS,PATCH_OPERATION_KINDS} from './validation.js';
 // Converts only unambiguous, non-semantic ModelTurn omissions into the wire contract.
 // Draft node keys are local graph-patch handles, not persistent identities.
 // This module never invents nodes, links, definitions, run targets or effects.
@@ -132,6 +133,17 @@ export function diagnoseModelTurn(value,issues=[]){
     if(patch&&Array.isArray(patch.operations)){
       for(const [j,op] of patch.operations.entries()){
         const prefix=base+'patch/operations/'+j+'/';
+        if(!isObject(op)||typeof op.op!=='string'||
+          !Object.hasOwn(PATCH_OPERATION_CONTRACTS,op.op)){
+          detected.push({path:prefix+'op',rule:'invalidOperation',
+            allowed:PATCH_OPERATION_KINDS});
+          continue;
+        }
+        const contract=PATCH_OPERATION_CONTRACTS[op.op];
+        for(const name of contract.required)if(!Object.hasOwn(op,name))
+          detected.push({path:prefix+name,rule:'required',missing:name});
+        for(const name of Object.keys(op))if(!contract.fields.includes(name))
+          detected.push({path:prefix+name,rule:'additionalProperties'});
         if(op?.op==='node.add'&&!isKey(op.localNodeKey))
           detected.push(op.localNodeKey===undefined?
             {path:prefix+'localNodeKey',rule:'required',missing:'localNodeKey'}:

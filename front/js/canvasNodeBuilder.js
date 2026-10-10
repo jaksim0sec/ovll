@@ -180,6 +180,12 @@ function createCanvasNodeBuilder(options={}){
       list.appendChild(section);
     }
 
+    if(!ordered.length){
+      const empty=document.createElement("div");
+      empty.className="canvas-node-builder-empty";
+      empty.textContent="추가할 노드를 불러오는 중이거나 현재 사용할 수 있는 노드가 없어요.";
+      list.appendChild(empty);
+    }
     root.classList.toggle("is-empty",ordered.length===0);
   }
 

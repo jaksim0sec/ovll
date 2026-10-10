@@ -2,6 +2,15 @@ import Ajv2020 from 'ajv/dist/2020.js';
 import { readFileSync } from 'node:fs';
 import { assertJsonValue } from './nodeOutput.js';
 const schema=JSON.parse(readFileSync(new URL('../../docs/architecture/DATA_CONTRACT_PROPOSAL_V1.schema.json',import.meta.url),'utf8'));
+// Patch operation names and required fields come from the same contract used by Ajv.
+export const PATCH_OPERATION_CONTRACTS=Object.freeze(Object.fromEntries(
+  schema.$defs.PatchOperation.oneOf.map(branch=>[
+    branch.properties.op.const,
+    Object.freeze({required:Object.freeze([...branch.required]),
+      fields:Object.freeze(Object.keys(branch.properties))})
+  ])
+));
+export const PATCH_OPERATION_KINDS=Object.freeze(Object.keys(PATCH_OPERATION_CONTRACTS));
 export function createContractValidation({maxBytes=32768,targetMaxBytes={}}={}){
   if(!Number.isSafeInteger(maxBytes)||maxBytes<1||maxBytes>1048576)throw new Error('INVALID_CONTRACT_BUDGET');
   if(Object.values(targetMaxBytes).some(x=>!Number.isSafeInteger(x)||x<1||x>1048576))throw new Error('INVALID_CONTRACT_BUDGET');
