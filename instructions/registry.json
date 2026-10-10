@@ -1,6 +1,6 @@
 {
   "status": "active_local_runtime",
-  "assemblyVersion": "0.3.0",
+  "assemblyVersion": "0.3.1",
   "source": "prompts/",
   "modules": [
     {
@@ -134,7 +134,7 @@
         "layer.ir"
       ],
       "order": 430,
-      "version": 3
+      "version": 4
     },
     {
       "id": "run.perform",
@@ -216,7 +216,7 @@
         "layer.response"
       ],
       "order": 700,
-      "version": 3
+      "version": 4
     },
     {
       "id": "response.status",

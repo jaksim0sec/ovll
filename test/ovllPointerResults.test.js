@@ -16,12 +16,12 @@ test('result identity ignores revision, unrelated nodes, layout and presentation
 test('result validity checks recorded execution context, inputs and executor identity',()=>{
  assert.equal(typeof helper.isCurrentNodeResult,'function');
  const s=sample(),semanticContext={requestText:'Original task',taskConstraints:['Keep citations'],executorIdentity:'model-v1',inputArtifacts:[{port:'in',sourceNodeId:'a',value:'Real content',valueRef:'run-one'}]};
- const result={nodeId:'b',status:'success',semanticContext,semanticFingerprint:helper.nodeSemanticFingerprint(s,'b',semanticContext)};
+ const result={nodeId:'b',status:'success',semanticContext,semanticFingerprint:helper.nodeSemanticFingerprint(s,'b',semanticContext),outputs:{status:'produced',values:{out:{inline:'Actual summary'}}}};
  assert.equal(helper.isCurrentNodeResult(s,'b',result),true);
  assert.equal(helper.isCurrentNodeResult(s,'b',result,{executorIdentity:'model-v2'}),false);
  assert.equal(helper.isCurrentNodeResult(s,'b',result,{inputArtifacts:[{...semanticContext.inputArtifacts[0],valueRef:'new-run'}]}),true);
  assert.equal(helper.isCurrentNodeResult(s,'b',result,{inputArtifacts:[{...semanticContext.inputArtifacts[0],value:'Changed'}]}),false);
- const current=helper.currentResultNodes(s,[result,{nodeId:'a',status:'running'}]);assert.equal(current[0].resultCurrent,true);assert.equal(current[1].status,'running');
+ const current=helper.currentResultNodes(s,[result,{nodeId:'a',status:'running'}]);assert.equal(current[0].resultCurrent,false,'a running predecessor is not current execution evidence');assert.equal(current[1].status,'running');
  s.graph.nodes[0].settings.request='New source';assert.equal(helper.currentResultNodes(s,[result])[0].status,'stale');
  assert.equal(helper.isCurrentNodeResult(s,'b',{nodeId:'b',status:'success'}),false,'legacy successes lack validity evidence');
 });
@@ -35,7 +35,7 @@ test('changed recorded predecessor results invalidate a downstream current succe
  const s=sample(),upstreamContext={requestText:'First task'},upstream={nodeId:'a',status:'success',semanticContext:upstreamContext,
    semanticFingerprint:helper.nodeSemanticFingerprint(s,'a',upstreamContext),outputs:{status:'produced',values:{out:{inline:'First output'}}}};
  const semanticContext={dependencyResults:{a:{semanticFingerprint:upstream.semanticFingerprint,outputs:upstream.outputs}}};
- const downstream={nodeId:'b',status:'success',semanticContext,semanticFingerprint:helper.nodeSemanticFingerprint(s,'b',semanticContext)};
+ const downstream={nodeId:'b',status:'success',semanticContext,semanticFingerprint:helper.nodeSemanticFingerprint(s,'b',semanticContext),outputs:{status:'produced',values:{out:{inline:'Actual downstream summary'}}}};
  assert.equal(helper.currentResultNodes(s,[upstream,downstream])[1].resultCurrent,true);
  const changed={...upstream,outputs:{status:'produced',values:{out:{inline:'Changed output'}}}};
  assert.equal(helper.currentResultNodes(s,[changed,downstream])[1].status,'stale');

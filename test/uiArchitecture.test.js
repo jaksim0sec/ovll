@@ -537,7 +537,7 @@ test("PDF preview loads eagerly with a normalized PDF MIME", () => {
 test("Pointer canvas execution persists a run and shows its result in chat",()=>{
   const app=read("front/js/app.js"),local=read("front/js/ovllPointerLocal.js");
   assert.match(app,/async function runPointerCanvasNode/);
-  assert.match(app,/addAssistantMessage\(\(run\.status/);
+  assert.match(app,/addAssistantMessage\(delivery\.text,\{artifacts:delivery\.artifacts\}\)/);
   assert.match(app,/runLocalNodes\(\{targets:\[nodeId\]/);
   assert.match(local,/workspaceStore\.updateConversationPointerRuns/);
   assert.doesNotMatch(app,/addUserMessage\(\s*runUserText\s*\)/);
@@ -1402,7 +1402,7 @@ test("ordinary conversation uses Pointer messaging and preserves conversation me
   assert.match(app,/history:contextHistory/);
   assert.match(app,/request:context=>PointerAPI\.localTurn/);
   assert.match(app,/actions\.coordinate\(/);
-  assert.match(app,/addAssistantMessage\(reply\)/);
+  assert.match(app,/addAssistantMessage\(reply,\{artifacts:delivery\.artifacts\}\)/);
   assert.match(api,/local\/turn/);
   assert.match(store,/workflowUserRequest:/);
   assert.match(store,/SCHEMA_VERSION\s*=\s*9/);

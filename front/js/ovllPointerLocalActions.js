@@ -42,7 +42,30 @@ async function execute(actions,handlers,{isActive=()=>true,onActionStart,onActio
 }
 function uncommittedMutationClaim(message){
   const text=String(message||'');
-  return /(잠시.{0,10}기다|기다려.{0,10}주|(?:삭제|제거|수정|변경|적용|반영|구성|실행|처리|생성|지우)(?:하겠|할게|하도록|했|됐|했습니다|해드리겠)|패치를.{0,16}(?:만들|구성)|완료했)/.test(text);
+  return /(잠시.{0,10}기다|기다려.{0,10}주|(?:삭제|제거|수정|변경|적용|반영|구성|실행|처리|생성|지우)(?:하겠|할게|하도록|했|됐|했습니다|해드리겠)|패치를.{0,16}(?:만들|구성)|완료(?:했|됐|되었|되었습니다)|(?:파일|PDF|보고서|작업).{0,32}(?:준비(?:됐|되었|되었습니다)|생성(?:됐|되었|되었습니다)|완성(?:됐|했)))/i.test(text)||
+    /\b(?:file|pdf|report|workflow|task|node)\b.{0,64}\b(?:ready|created|generated|completed|saved|executed)\b|\b(?:created|generated|completed|saved|executed)\b.{0,40}\b(?:file|pdf|report|workflow|task|node)\b/i.test(text);
+}
+function resultIndex({snapshot,runs=[]}={}){
+  const visible=new Set((snapshot?.graph?.nodes||[]).map(n=>n.nodeId)),latest=new Map();
+  for(const run of runs){
+    if(run.graphRef?.graphId!==snapshot?.graph?.graphId)continue;
+    for(const node of run.nodes||[])if(visible.has(node.nodeId))latest.set(node.nodeId,{run,node});
+  }
+  const items=[];let bytes=0;
+  for(const {run,node} of latest.values()){
+    const outputs=Object.entries(node.outputs?.values||{}).slice(0,8).map(([port,value])=>{
+      const raw=JSON.stringify(value.inline??null),preview=raw.slice(0,400);
+      return {port,ref:'local:'+run.runId+':'+node.nodeId+':'+port,preview,truncated:raw.length>preview.length};
+    });
+    const item={nodeId:node.nodeId,runId:run.runId,status:node.status,
+      resultCurrent:node.status==='success'&&node.resultCurrent===true,outputs,
+      outputsTotal:Object.keys(node.outputs?.values||{}).length,
+      ...(node.error?{error:String(node.error).slice(0,160)}:{})};
+    const size=Array.from(JSON.stringify(item)).reduce((n,c)=>{const p=c.codePointAt(0);return n+(p>65535?4:p>2047?3:p>127?2:1);},0);
+    if(bytes+size>11000)continue;
+    items.push(item);bytes+=size;
+  }
+  return {items,total:latest.size,truncated:items.length<latest.size};
 }
 function functionIndex(functions){
   const bytes=value=>Array.from(JSON.stringify(value)).reduce((n,c)=>{const p=c.codePointAt(0);return n+(p>65535?4:p>2047?3:p>127?2:1);},0);
@@ -66,13 +89,13 @@ async function coordinate({getContext,request,handlers,isActive=()=>true,onActio
     const actionResults=facts.map(({run,...fact})=>({...fact,...(run?{run:runEvidence(run)}:{})}));
     const proposal=await request({snapshot:context.snapshot,history:context.history||[],
       ...(context.taskContext?{taskContext:context.taskContext}:{}),
-      extraContext:{savedFunctions:functionIndex(context.savedFunctions||[]),actionResults,reads,
+      extraContext:{savedFunctions:functionIndex(context.savedFunctions||[]),availableResults:resultIndex(context),actionResults,reads,
         ...(context.pointerQuestion?{questionCheckpoint:context.pointerQuestion}:{}),
         ...(correction?{actionCorrection:correction}:{})}});
     if(!isActive())break;
     if(proposal.needs?.length){
       const key=JSON.stringify(proposal.needs.map(n=>({kind:n.kind,selector:n.selector})));
-      if(seenReads.has(key)||step===2){messages.push(proposal.message||'현재 자료로 해결되지 않은 입력을 알려줘.');break;}
+      if(seenReads.has(key)||step===2){messages.push(proposal.message&&!uncommittedMutationClaim(proposal.message)?proposal.message:'현재 자료로 해결되지 않은 입력을 알려줘.');break;}
       seenReads.add(key);reads=await readNeedsAsync(proposal.needs,{...context,runs:[...(context.runs||[]),...runs]},
         {readSource:readSource||context.readSource});continue;
     }
@@ -80,6 +103,7 @@ async function coordinate({getContext,request,handlers,isActive=()=>true,onActio
     facts.push(...results);runs.push(...results.filter(r=>r.run).map(r=>r.run));
     if(!results.length){
       if(uncommittedMutationClaim(proposal.message)){
+        if(facts.length)break; // Actual facts, never a later unsupported declaration, decide the reply.
         if(step<2){
           correction='The last response promised a graph change but proposed no actions. '+
             'No work has been scheduled or applied. If the requested operation is supported, '+
@@ -179,21 +203,26 @@ function readNeeds(needs,{snapshot,history=[],runs=[],savedFunctions=[]}={}){
       ...(!available?{reason:'Not available in the current conversation; no external read performed.'}:{})};
   });
 }
-function deliver(run){
+function deliveryContent(run){
   const success=(run.nodes||[]).filter(n=>n.status==='success'&&n.resultCurrent!==false);
   const delivery=run.deliverableTargets||run.targets||[];
   const selected=success.filter(n=>delivery.includes(n.nodeId));
-  return selected.flatMap(n=>Object.values(n.outputs?.values||{}).map(v=>{
+  const artifacts=[];
+  const text=selected.flatMap(n=>Object.values(n.outputs?.values||{}).map(v=>{
     const value=v.inline;
     if(value&&typeof value==='object'&&value.downloadUrl){
-      // Link destinations come only from the artifact adapter, still reject unsafe Markdown URLs.
+      // Only a confirmed runtime effect supplies cards. Model text and model
+      // objects are never interpreted as artifact registration instructions.
       const url=String(value.downloadUrl);
-      if(/^(https?:\/\/|\/(?!\/)|blob:)/.test(url)&&!/[\s()<>"]/.test(url))
-        return '['+String(value.name||'파일').replace(/[\[\]\\]/g,'')+']('+url+')';
+      if(n.toolEffectStarted===true&&n.effectConfirmed===true&&
+        /^(https?:\/\/|\/(?!\/)|blob:)/.test(url)&&!/[\s()<>"]/.test(url))artifacts.push({...value});
+      return String(value.name||'파일');
     }
     return typeof value==='string'?value:JSON.stringify(value);
   })).filter(Boolean).join('\n\n');
+  return {text,artifacts};
 }
+function deliver(run){return deliveryContent(run).text;}
 const question=action=>({status:'waiting',question:action.args.question,questionId:action.args.questionId||'question:'+action.localKey});
 function blocker(error){
   const known={FUNCTION_INPUT_REQUIRED:'저장 함수의 새 입력을 지정해줘.',FUNCTION_NAMED_INPUTS_REQUIRED:'여러 입력은 이름별로 지정해줘.',
@@ -206,17 +235,23 @@ function blocker(error){
     LOCAL_CONVERSATION_CHANGED:'대화가 바뀌어 남은 작업을 중단했어.',MODEL_OUTPUT_TRUNCATED:'모델 출력 한도를 넘어 결과가 중단됐어.'};
   return known[error]||error||'작업을 처리하지 못했어.';
 }
-function present({facts=[],messages=[],runs=[]}={}){
+function presentation({facts=[],messages=[],runs=[]}={}){
   // Latest output for a replaced target wins; independent targets all remain visible.
   const targets=new Map();
   for(const run of runs)for(const id of run.deliverableTargets||run.targets||[])targets.set((run.graphRef?.graphId||'')+':'+id,{run,id});
-  const parts=[];
+  const parts=[],artifacts=[],seenArtifacts=new Set();
+  function append(content){
+    if(content.text&&!parts.includes(content.text))parts.push(content.text);
+    for(const artifact of content.artifacts){
+      const key=String(artifact.id||artifact.localFileId||artifact.downloadUrl);
+      if(!seenArtifacts.has(key)){seenArtifacts.add(key);artifacts.push(artifact);}
+    }
+  }
   for(const {run,id} of targets.values()){
-    const text=deliver({...run,targets:[id],deliverableTargets:[id],nodes:(run.nodes||[]).filter(n=>n.nodeId===id)});
-    if(text&&!parts.includes(text))parts.push(text);
+    append(deliveryContent({...run,targets:[id],deliverableTargets:[id],nodes:(run.nodes||[]).filter(n=>n.nodeId===id)}));
   }
   if(!parts.length)for(const run of runs.filter(r=>r.status!=='completed')){
-    const text=deliver(run);if(text&&!parts.includes(text))parts.push(text);
+    append(deliveryContent(run));
   }
   parts.push(...messages);
   for(const fact of facts){
@@ -229,9 +264,10 @@ function present({facts=[],messages=[],runs=[]}={}){
     else if(fact.status==='applied'&&!runs.length)parts.push('작업 구성을 반영했어.');
   }
   parts.push(...runNotices(runs));
-  return [...new Set(parts.filter(Boolean))].join('\n\n')||
-    (runs.some(r=>r.status==='completed')?'작업을 완료했어.':'실행된 변경은 없어.');
+  return {text:[...new Set(parts.filter(Boolean))].join('\n\n')||
+    (runs.some(r=>r.status==='completed')?'작업을 완료했어.':'실행된 변경은 없어.'),artifacts};
 }
+function present(result){return presentation(result).text;}
 function runNotices(runs=[]){
   const parts=[];
   for(const run of runs){
@@ -247,10 +283,13 @@ function runNotices(runs=[]){
 function withRunNotices(message,runs){
   return [...new Set([String(message||'').trim(),...runNotices(runs)].filter(Boolean))].join('\n\n');
 }
+function groundedResponse(message,evidence){
+  return uncommittedMutationClaim(message)?present(evidence):withRunNotices(message,evidence.runs);
+}
 function needsLanguage({facts=[],messages=[],runs=[]}={}){
   if(messages.length||runs.some(run=>deliver(run).trim()))return false;
   return facts.some(f=>['failed','rejected','waiting','skipped','cancelled'].includes(f.status)||
     f.run&&['failed','waiting','outcome_unknown'].includes(f.run.status));
 }
-global.OvllPointerLocalActions=Object.freeze({order,execute,functionIndex,coordinate,readNeeds,readNeedsAsync,deliver,present,runNotices,withRunNotices,needsLanguage,question,succeeded});
+global.OvllPointerLocalActions=Object.freeze({order,execute,functionIndex,resultIndex,coordinate,readNeeds,readNeedsAsync,deliver,present,presentation,runNotices,withRunNotices,groundedResponse,needsLanguage,question,succeeded});
 })(window);

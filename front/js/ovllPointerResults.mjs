@@ -1,5 +1,7 @@
 // Synchronous semantic identity for browser render-time validity checks.
 // SHA-256 keeps stored result evidence bounded even when actual input text is large.
+import {isVerifiedProducedOutput} from './ovllPointerPlanCore.mjs';
+export {isVerifiedProducedOutput} from './ovllPointerPlanCore.mjs';
 export function semanticDigest(text){
   const source=new TextEncoder().encode(text),length=Math.ceil((source.length+9)/64)*64;
   const bytes=new Uint8Array(length);bytes.set(source);bytes[source.length]=0x80;
@@ -44,7 +46,11 @@ export function definitionSemantics(definition){
   const {presentation,localKey,...semantic}=definition||{};
   return semantic;
 }
-export function nodeSemanticFingerprint(snapshot,nodeId,options={}){
+export function taskSemantics(task={}){
+  const {requestText,requestHistory,historyDigest,...semantic}=task;
+  return semantic;
+}
+function fingerprint(snapshot,nodeId,options={},legacyTask=false){
   if(!snapshot?.graph||!Array.isArray(snapshot.graph.nodes)||!Array.isArray(snapshot.definitions))throw new Error('INVALID_RESULT_CONTEXT');
   const nodes=new Map(snapshot.graph.nodes.map(node=>[node.nodeId,node]));
   const definitions=new Map(snapshot.definitions.map(def=>[def.definitionId+':'+def.version,def]));
@@ -66,13 +72,27 @@ export function nodeSemanticFingerprint(snapshot,nodeId,options={}){
   const inputArtifacts=(options.inputArtifacts||[]).map(({valueRef,runId,planEpoch,...input})=>input)
     .sort(compareSemantic);
   return semanticDigest(canonicalSemanticValue({nodeId,nodes:semantics,connections,context:{
-    requestText:options.requestText||'',taskContext:options.taskContext||{},taskConstraints:options.taskConstraints||[],
+    requestText:options.requestText||'',taskContext:legacyTask?options.taskContext||{}:taskSemantics(options.taskContext||{}),taskConstraints:options.taskConstraints||[],
     executorIdentity:options.executorIdentity||'local-v1',inputArtifacts,
     dependencyResults:options.dependencyResults||{}}}));
 }
+export function nodeSemanticFingerprint(snapshot,nodeId,options={}){
+  return fingerprint(snapshot,nodeId,options);
+}
 export function isCurrentNodeResult(snapshot,nodeId,result,options={}){
   if(result?.status!=='success'||result.nodeId!==nodeId||typeof result.semanticFingerprint!=='string')return false;
-  try{return result.semanticFingerprint===nodeSemanticFingerprint(snapshot,nodeId,{...result.semanticContext,...options});}
+  try{
+    const node=snapshot.graph.nodes.find(node=>node.nodeId===nodeId);
+    const definition=snapshot.definitions.find(def=>def.definitionId===node?.definitionRef?.definitionId&&def.version===node?.definitionRef?.version);
+    if(!isVerifiedProducedOutput(definition,result.outputs))return false;
+    const recorded=result.semanticContext||{},current={...recorded,...options};
+    const expected=nodeSemanticFingerprint(snapshot,nodeId,current);
+    if(result.semanticFingerprint===expected)return true;
+    // Verify the persisted legacy evidence on today's graph before comparing
+    // normalized Task identity. Changed graphs or execution inputs cannot pass.
+    return result.semanticFingerprint===fingerprint(snapshot,nodeId,recorded,true)&&
+      nodeSemanticFingerprint(snapshot,nodeId,recorded)===expected;
+  }
   catch{return false;}
 }
 export function currentResultNodes(snapshot,nodes,options={}){
@@ -80,12 +100,17 @@ export function currentResultNodes(snapshot,nodes,options={}){
   const current=id=>{
     if(validity.has(id))return validity.get(id);
     const node=byId.get(id);
-    if(!node||active.has(id)||!isCurrentNodeResult(snapshot,id,node,options))return false;
+    if(!node||active.has(id))return false;
+    if(node.status==='skipped'){
+      try{if(node.semanticFingerprint!==nodeSemanticFingerprint(snapshot,id,{...node.semanticContext,...options}))return false;}catch{return false;}
+    }else if(!isCurrentNodeResult(snapshot,id,node,options))return false;
     active.add(id);
     const dependencies={...node.semanticContext,...options}.dependencyResults||{};
-    const valid=Object.entries(dependencies).every(([parentId,evidence])=>{
+    const parents=new Set((snapshot.graph.connections||[]).filter(link=>link.to.nodeId===id).map(link=>link.from.nodeId));
+    const valid=parents.size===Object.keys(dependencies).length&&[...parents].every(parentId=>{
+      const evidence=dependencies[parentId];
       const parent=byId.get(parentId);
-      return current(parentId)&&parent.semanticFingerprint===evidence.semanticFingerprint&&
+      return evidence&&current(parentId)&&(evidence.status||'success')===parent.status&&parent.semanticFingerprint===evidence.semanticFingerprint&&
         canonicalSemanticValue(parent.outputs)===canonicalSemanticValue(evidence.outputs);
     });
     active.delete(id);validity.set(id,valid);return valid;

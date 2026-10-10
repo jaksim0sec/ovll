@@ -37,7 +37,8 @@
   }
   async function captureArtifact(store,artifact,blob,{conversationId,signal}={}){
     const priorAvailability=artifact.availability&&typeof artifact.availability==='object'?artifact.availability:{};
-    const value={...artifact,remoteAvailability:artifact.availability,availability:{...priorAvailability,remoteUrl:true,localBytes:false,durable:false}};
+    const value={...artifact,...(artifact.availability!==undefined?{remoteAvailability:artifact.availability}:{}),
+      availability:{...priorAvailability,remoteUrl:true,localBytes:false,durable:false}};
     if(artifact.localFileId){
       try{const existing=await store?.getBlob?.(artifact.localFileId);
         if(existing){value.availability={...value.availability,localBytes:true,durable:true};return value;}}catch{}
@@ -217,7 +218,8 @@
       const copy=value=>JSON.parse(JSON.stringify(value));
       const snapshot=copy(snapshotOverride||(await state(conversationId)).graph);
       const results=await loadResults();
-      const {buildExecutionPlan,matchesInputRepresentation}=await loadPlan();
+      const {buildExecutionPlan,matchesInputRepresentation,matchesRuntimeRepresentation}=await loadPlan();
+      const matchesValue=matchesRuntimeRepresentation||matchesInputRepresentation;
       const targetIds=(targets||[]).map(x=>typeof x==='string'?x:x.nodeId);
       const plan=buildExecutionPlan(snapshot,{graphRef:{graphId:snapshot.graph.graphId,
         revision:snapshot.graph.revision},planEpoch:0,targets:targetIds,damMode});
@@ -226,6 +228,13 @@
       const deliveryIds=(deliverableTargets||targetIds).map(x=>typeof x==='string'?x:x.nodeId);
       if(!deliveryIds.length||deliveryIds.some(id=>!plan.order.some(item=>item.nodeId===id)))
         throw new Error('LOCAL_DELIVERABLE_OUT_OF_SCOPE');
+      const history=new Map();
+      for(const previous of workspaceStore.getConversation(conversationId)?.state?.pointerRuns||[]){
+        if(previous.graphRef?.graphId!==snapshot.graph.graphId)continue;
+        for(const row of previous.nodes||[])history.set(row.nodeId,{...row,previousRunId:previous.runId});
+      }
+      const priorResults=new Map((await validateResults(snapshot,[...history.values()],taskContext?{taskContext}:{}))
+        .map(row=>[row.nodeId,row]));
       const record={runId,graphRef:plan.graphRef,targets:targetIds,deliverableTargets:deliveryIds,
         executionScope:plan.order.map(item=>item.nodeId),snapshot,taskContext:taskContext?copy(taskContext):undefined,
         requestText,taskConstraints:copy(taskConstraints),damMode,status:'running',
@@ -279,6 +288,25 @@
       const definitionFor=id=>{const node=snapshot.graph.nodes.find(n=>n.nodeId===id);
         return snapshot.definitions.find(d=>d.definitionId===node?.definitionRef.definitionId&&d.version===node?.definitionRef.version);};
       const exclusive=id=>definitionFor(id)?.requiredCapabilities?.includes('branch.exclusive');
+      const semanticContextFor=(item,incoming,inputs=[])=>({
+        requestText:(item.definition.requiredCapabilities?.includes('file.read_local')?'':requestText.trim())||
+          item.node.settings?.request?.trim()||item.definition.purpose,
+        taskConstraints:copy(taskConstraints),...(taskContext?{taskContext:copy(taskContext)}:{}),
+        ...(executorIdentity!==undefined?{executorIdentity:copy(executorIdentity)}:{}),inputArtifacts:copy(inputs),
+        dependencyResults:Object.fromEntries(incoming.map(link=>{
+          const prior=record.nodes.find(n=>n.nodeId===link.from.nodeId);
+          return [link.from.nodeId,{status:prior?.status,semanticFingerprint:prior?.semanticFingerprint,outputs:prior?.outputs}];
+        }).filter(([,evidence])=>evidence.semanticFingerprint))});
+      const artifactContent=value=>{
+        if(typeof value==='string')return !!value.trim();
+        if(typeof value==='number')return Number.isFinite(value);
+        if(typeof value==='boolean')return true;
+        if(Array.isArray(value))return value.some(artifactContent);
+        if(!value||typeof value!=='object')return false;
+        const content=['result','text','content','markdown','html','previewText'].filter(key=>Object.hasOwn(value,key));
+        if(value.outputs&&Object.hasOwn(value.outputs,'result'))content.push('outputs');
+        return content.length?content.some(key=>artifactContent(value[key])):Object.keys(value).length>0;
+      };
       for(const item of plan.order){
         const entry=record.nodes.find(n=>n.nodeId===item.nodeId);
         if(signal?.aborted){entry.status='cancelled';record.status='cancelled';break;}
@@ -288,6 +316,8 @@
           !resolved.get(link.from.nodeId)?.values?.[link.from.port];
         const gates=incoming.filter(l=>l.kind==='flow'),dataLinks=incoming.filter(l=>l.kind==='data');
         if(gates.length&&gates.every(inactive)||!gates.length&&dataLinks.length&&dataLinks.every(inactive)){
+          entry.semanticContext=semanticContextFor(item,incoming);
+          entry.semanticFingerprint=results.nodeSemanticFingerprint(snapshot,item.nodeId,entry.semanticContext);
           entry.status='skipped';skipped.add(item.nodeId);persist();continue;
         }
         if(dataLinks.some(l=>inactive(l)&&item.definition.inputs.some(p=>p.name===l.to.port&&p.required))){
@@ -295,14 +325,19 @@
         }
         entry.status='running';persist();
         try{
+          for(const [name,value] of Object.entries(item.node.inputBindings||{})){
+            const input=item.definition.inputs.find(port=>port.name===name);
+            if(!input||typeof matchesValue!=='function'||!matchesValue(input.representation,value))
+              throw new Error('INPUT_REPRESENTATION_MISMATCH');
+          }
           const inputs=snapshot.graph.connections.filter(link=>link.kind==='data'&&link.to.nodeId===item.nodeId&&!inactive(link))
             .map(link=>{
               const source=resolved.get(link.from.nodeId)?.values?.[link.from.port];
               if(!source||!Object.prototype.hasOwnProperty.call(source,'inline'))
                 throw new Error('UPSTREAM_OUTPUT_NOT_AVAILABLE');
               const input=item.definition.inputs.find(p=>p.name===link.to.port);
-              if(!input||typeof matchesInputRepresentation!=='function'||
-                !matchesInputRepresentation(input.representation,source.inline))
+              if(!input||typeof matchesValue!=='function'||
+                !matchesValue(input.representation,source.inline))
                 throw new Error('INPUT_REPRESENTATION_MISMATCH');
               return {port:link.to.port,sourceNodeId:link.from.nodeId,
                 sourcePort:link.from.port,valueRef:'local:'+runId+':'+link.from.nodeId+':'+link.from.port,
@@ -312,13 +347,7 @@
                   ?.outputs.find(p=>p.name===link.from.port)?.representation,value:source.inline};
             });
           const objective=requestText.trim()||item.node.settings?.request?.trim()||item.definition.purpose;
-          entry.semanticContext={requestText:objective,taskConstraints:copy(taskConstraints),
-            ...(taskContext?{taskContext:copy(taskContext)}:{}),
-            ...(executorIdentity!==undefined?{executorIdentity:copy(executorIdentity)}:{}),inputArtifacts:copy(inputs),
-            dependencyResults:Object.fromEntries(incoming.map(link=>{
-              const prior=record.nodes.find(n=>n.nodeId===link.from.nodeId);
-              return [link.from.nodeId,{semanticFingerprint:prior?.semanticFingerprint,outputs:prior?.outputs}];
-            }).filter(([,evidence])=>evidence.semanticFingerprint&&evidence.outputs))};
+          entry.semanticContext=semanticContextFor(item,incoming,inputs);
           entry.semanticFingerprint=results.nodeSemanticFingerprint(snapshot,item.nodeId,entry.semanticContext);
           entry.startedAt=Date.now();
           const fingerprint=JSON.stringify({semanticFingerprint:entry.semanticFingerprint,nodeId:item.nodeId,definition:item.definition,
@@ -328,9 +357,32 @@
           if(item.definition.executorKind==='model_task'){
             if((item.definition.requiredCapabilities||[]).some(c=>!['model_task','branch.exclusive'].includes(c)))
               throw new Error('LOCAL_EXECUTOR_UNAVAILABLE');
-            output=cache.get(fingerprint);
-            if(output)entry.reused=true;
-            else output=await executeNode({snapshot,nodeId:item.nodeId,inputArtifacts:inputs,requestText:objective,taskConstraints,taskContext,signal});
+            const prior=!targetIds.includes(item.nodeId)&&priorResults.get(item.nodeId);
+            const dependencies=Object.fromEntries(Object.entries(entry.semanticContext.dependencyResults).map(([id,evidence])=>{
+              // Historical successful evidence predates explicit branch statuses.
+              if(evidence.status==='success'&&prior?.semanticContext?.dependencyResults?.[id]&&
+                !Object.hasOwn(prior.semanticContext.dependencyResults[id],'status')){
+                const {status,...legacy}=evidence;return [id,legacy];
+              }
+              return [id,evidence];
+            }));
+            const consumable=prior&&snapshot.graph.connections.filter(link=>link.kind==='data'&&link.from.nodeId===item.nodeId&&
+              plan.order.some(next=>next.nodeId===link.to.nodeId)).every(link=>{
+                const value=prior.outputs?.values?.[link.from.port],input=definitionFor(link.to.nodeId)?.inputs.find(port=>port.name===link.to.port);
+                return !value?exclusive(item.nodeId):input&&matchesValue(input.representation,value.inline);
+              });
+            const reusable=prior?.status==='success'&&prior.resultCurrent&&consumable&&results.isCurrentNodeResult(snapshot,item.nodeId,prior,
+              {inputArtifacts:inputs,dependencyResults:dependencies,taskConstraints,...(taskContext?{taskContext}:{}),
+                ...(executorIdentity!==undefined?{executorIdentity}:{})});
+            if(reusable){
+              entry.reused=true;entry.reusedFromRunId=prior.previousRunId;
+              entry.semanticContext=copy(prior.semanticContext||{});entry.semanticFingerprint=prior.semanticFingerprint;
+              output={status:'success',outputs:copy(prior.outputs),provenance:copy(prior.provenance||{}),_meta:copy(prior.execution||{})};
+            }else {
+              output=cache.get(fingerprint);
+              if(output)entry.reused=true;
+              else output=await executeNode({snapshot,nodeId:item.nodeId,inputArtifacts:inputs,requestText:objective,taskConstraints,taskContext,signal});
+            }
           }else {
             const caps=item.definition.requiredCapabilities||[];
             const port=item.definition.outputs[0];
@@ -346,7 +398,7 @@
                 entry.semanticFingerprint=results.nodeSemanticFingerprint(snapshot,item.nodeId,entry.semanticContext);}
             }else if(caps[0]==='artifact.create'){
               const bound=Object.values(item.node.inputBindings||{}),sources=[...inputs.map(x=>x.value),...bound];
-              if(!sources.length)output={status:'blocked',outputs:{status:'blocked',reason:'파일로 내보낼 완성된 내용을 연결해줘.'}};
+              if(!sources.some(artifactContent))output={status:'blocked',outputs:{status:'blocked',reason:'파일로 내보낼 완성된 내용을 연결해줘.'}};
               else {
                 const params=resolveArtifactRequest({request:item.node.settings?.request||objective});
                 entry.toolEffectStarted=true;persist(true);
@@ -376,10 +428,8 @@
 
           if(output?.status==='blocked'){entry.status='blocked';entry.error=output.outputs?.reason||'CONTEXT_REQUIRED';entry.provenance=output.provenance||entry.provenance||{};record.status='waiting';break;}
           if(output?.status!=='success'||output.outputs?.status!=='produced')throw new Error('LOCAL_OUTPUT_NOT_VERIFIED');
-          const values=output.outputs.values||{},declared=item.definition.outputs;
-          if(Object.keys(values).some(name=>!declared.some(p=>p.name===name))||
-            declared.some(p=>p.required&&!Object.hasOwn(values,p.name))||
-            Object.values(values).some(v=>!v||!Object.hasOwn(v,'inline')))throw new Error('LOCAL_OUTPUT_NOT_VERIFIED');
+          const values=output.outputs.values;
+          if(!results.isVerifiedProducedOutput(item.definition,output.outputs))throw new Error('LOCAL_OUTPUT_NOT_VERIFIED');
           if(exclusive(item.nodeId)&&Object.keys(values).length!==1)throw new Error('EXCLUSIVE_BRANCH_OUTPUT_REQUIRED');
           entry.status='success';entry.outputs=output.outputs;
           entry.provenance={...entry.provenance,...output.provenance};

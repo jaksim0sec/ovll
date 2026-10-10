@@ -6173,7 +6173,22 @@
       if(localRunActive===owned)localRunActive=null;
     }
   }
+  function localRunPresentation(run){return global.OvllPointerLocalActions.presentation({facts:[{kind:'run.start',status:run.status,run}],runs:[run]});}
   function localRunSummary(run){return global.OvllPointerLocalActions.present({facts:[{kind:'run.start',status:run.status,run}],runs:[run]});}
+  async function currentLocalRuns(snapshot,conversationId,taskContext){
+    const runs=(WorkspaceStore.getConversation(conversationId)?.state.pointerRuns||[])
+      .filter(run=>run.graphRef?.graphId===snapshot.graph.graphId);
+    if(!runs.length)return [];
+    const latest=new Map();
+    for(const run of runs)for(const row of run.nodes||[])latest.set(row.nodeId,{...row,runId:run.runId});
+    const checked=await global.OvllPointerLocal.validateResults(snapshot,[...latest.values()],
+      taskContext?{taskContext}:{});
+    const byId=new Map(checked.map(row=>[row.nodeId,row]));
+    return runs.map(run=>({...run,nodes:(run.nodes||[]).map(row=>{
+      const current=byId.get(row.nodeId);
+      return current?.runId===run.runId?current:{...row,resultCurrent:false};
+    })}));
+  }
   function getPointerTask(conversationId=currentConversationId()){
     return WorkspaceStore.getConversation(conversationId)?.state.pointerTask||null;
   }
@@ -6244,8 +6259,8 @@
         if(!owns())return;
         upsertRuntimeStep('function:run',run.status==='completed'?'저장된 함수 실행 완료':'저장된 함수 실행 확인 필요',
           run.status==='completed'?'done':'failed');
-        addAssistantMessage(run.status==='completed'?'저장된 함수 실행 완료.\n'+localRunSummary(run):
-          '함수 실행이 '+run.status+' 상태에서 종료됐어.\n'+localRunSummary(run));return;
+        const delivery=localRunPresentation(run);
+        addAssistantMessage(delivery.text,{artifacts:delivery.artifacts});return;
       }
       const actions=global.OvllPointerLocalActions;
       const conversationId=scope.conversationId,cache=new Map();
@@ -6258,10 +6273,13 @@
         onActionResult:(action,fact)=>{if(owns())pointerActionResult(action,fact);},
         readSource:(file,settings)=>global.OvllPointerLocal.readSource(file,settings),
         onCheckpoint:checkpoint=>{if(owns()){acceptTask();WorkspaceStore.updateConversationPointerQuestion(conversationId,checkpoint);}},
-        getContext:async()=>({snapshot:(await global.OvllPointerLocal.state(conversationId)).graph,
-          history:contextHistory,taskContext,pointerQuestion:WorkspaceStore.getConversation(conversationId)?.state.pointerQuestion,
-          savedFunctions:global.OvllPointerFunctions?.list()||[],
-          runs:WorkspaceStore.getConversation(conversationId)?.state.pointerRuns||[]}),
+        getContext:async()=>{
+          const snapshot=(await global.OvllPointerLocal.state(conversationId)).graph;
+          return {snapshot,history:contextHistory,taskContext,
+            pointerQuestion:WorkspaceStore.getConversation(conversationId)?.state.pointerQuestion,
+            savedFunctions:global.OvllPointerFunctions?.list()||[],
+            runs:await currentLocalRuns(snapshot,conversationId,taskContext)};
+        },
         request:context=>PointerAPI.localTurn({...context,requestText:value,taskContext,signal:operation.signal}),
         handlers:{
           'ir.applyPatch':async action=>{
@@ -6308,7 +6326,8 @@
       if(!owns())return;
       if(!checkpoint&&!operation.signal.aborted)WorkspaceStore.updateConversationPointerQuestion(conversationId,null);
       if(facts.some(r=>['applied','completed'].includes(r.status)))state.workflowUserRequest=taskContext.objective;
-      let reply=actions.present({facts,messages,runs});
+      const delivery=actions.presentation({facts,messages,runs});
+      let reply=delivery.text;
       if(!operation.signal.aborted&&actions.needsLanguage({facts,messages,runs})){
         const actionResults=facts.map(({run,...fact})=>({...fact,...(run?{run:{
           status:run.status,targets:run.targets,coverage:run.coverage,storage:run.storage,validity:run.validity,nodes:(run.nodes||[]).map(n=>({
@@ -6320,12 +6339,12 @@
           const language=await PointerAPI.localResponse({snapshot,requestText:value,
             history:contextHistory,actionResults,taskContext,signal:operation.signal});
           if(owns()&&language?.message?.trim())
-            reply=actions.withRunNotices(language.message.trim(),runs);
+            reply=actions.groundedResponse(language.message.trim(),{facts,messages,runs});
         }catch(error){
           console.warn('Pointer language fallback used',error?.code||error);
         }
       }
-      if(owns())addAssistantMessage(reply);
+      if(owns())addAssistantMessage(reply,{artifacts:delivery.artifacts});
     }catch(error){
       if(!owns())return;
       if(operation.signal.aborted){addAssistantMessage('실행을 중단했어.');return;}
@@ -6421,8 +6440,8 @@
         const run=await runLocalNodes({targets:[nodeId],damMode:mode,operation,taskContext,
           requestText:taskContext?.requestText||'',taskConstraints:taskContext?.constraints||[]});
         if(!owns())return;
-        addAssistantMessage((run.status==='completed'?'노드 실행 완료.':'노드 실행 상태: '+run.status)+
-          '\n'+localRunSummary(run));
+        const delivery=localRunPresentation(run);
+        addAssistantMessage(delivery.text,{artifacts:delivery.artifacts});
       }catch(error){
         if(!owns())return;
         if(operation.signal.aborted){addAssistantMessage('실행을 중단했어.');return;}

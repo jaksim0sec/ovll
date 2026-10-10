@@ -70,6 +70,14 @@
       if(desired.has(k))fail('DUPLICATE_CANVAS_CONNECTION');
       desired.set(k,{kind,from,to});
     }
+    // A new data wire chooses this input's producer instead of its literal binding.
+    const rebound=new Map();
+    for(const [k,link] of desired)if(link.kind==='data'&&!original.has(k)){
+      const id=link.to.node;
+      const bindings=rebound.get(id)||{...(after.get(id).data?.pointer?.inputBindings??before.get(id)?.inputBindings??{})};
+      delete bindings[link.to.port];
+      rebound.set(id,bindings);
+    }
     for(const [k,link] of original)if(!desired.has(k))
       operations.push({op:'link.remove',linkId:link.id});
     for(const id of before.keys())if(!after.has(id))operations.push({op:'node.delete',nodeId:id});
@@ -77,7 +85,7 @@
       const node=after.get(id),def=defs.get(node.type);
       operations.push({op:'node.add',localNodeKey,
         definitionRef:{definitionId:def.definitionId,version:def.version},
-        inputBindings:node.data?.pointer?.inputBindings||{},settings:settingsFor(node)});
+        inputBindings:rebound.get(id)||node.data?.pointer?.inputBindings||{},settings:settingsFor(node)});
       moved.set(id,localNodeKey);
     }
     for(const [id,prior] of before){
@@ -90,7 +98,7 @@
       const changes={};
       if(node.type!==typeFor(currentRef))
         changes.definitionRef={definitionId:selected.definitionId,version:selected.version};
-      const uiBindings=node.data?.pointer?.inputBindings;
+      const uiBindings=rebound.get(id)??node.data?.pointer?.inputBindings;
       if(uiBindings!==undefined&&!same(uiBindings,prior.inputBindings||{}))
         changes.inputBindings=uiBindings;
       const settings=settingsFor(node,prior.settings||{});

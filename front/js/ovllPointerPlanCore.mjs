@@ -1,7 +1,34 @@
 import {compatibleDataRepresentation,isFlowPort} from './ovllPointerPortTypes.mjs';
 export {matchesInputRepresentation} from './ovllPointerPortTypes.mjs';
+import {matchesInputRepresentation} from './ovllPointerPortTypes.mjs';
 import {KernelError,computeScope} from './ovllPointerGraphCore.mjs';
 const reject=(code,status=422)=>{throw new KernelError(code,code,status);};
+// Local adapters must validate actual bound and produced values, just as the
+// server executor does. A JSON serialization must never silently discard them.
+export function matchesRuntimeRepresentation(representation,value){
+  const supported=['text','structured_text','document','boolean','number','object','array','json'];
+  const json=(item,depth=0)=>{
+    if(depth>12)return false;
+    if(item===null||typeof item==='string'||typeof item==='boolean')return true;
+    if(typeof item==='number')return Number.isFinite(item);
+    if(!item||typeof item!=='object')return false;
+    if(!Array.isArray(item)&&Object.getPrototypeOf(item)?.constructor?.name!=='Object')return false;
+    return Object.values(item).every(child=>json(child,depth+1));
+  };
+  return supported.includes(representation)&&json(value)&&matchesInputRepresentation(representation,value);
+}
+export function isVerifiedProducedOutput(definition,output){
+  const values=output?.values,declared=definition?.outputs||[];
+  if(output?.status!=='produced'||!values||typeof values!=='object'||Array.isArray(values))return false;
+  const names=Object.keys(values);
+  if(!names.length||names.length>64||definition.requiredCapabilities?.includes('branch.exclusive')&&names.length!==1)return false;
+  if(names.some(name=>!declared.some(port=>port.name===name))||declared.some(port=>port.required&&!Object.hasOwn(values,port.name)))return false;
+  return names.every(name=>{
+    const wrapper=values[name],port=declared.find(port=>port.name===name);
+    return wrapper&&typeof wrapper==='object'&&!Array.isArray(wrapper)&&Object.keys(wrapper).length===1&&
+      Object.hasOwn(wrapper,'inline')&&matchesRuntimeRepresentation(port.representation,wrapper.inline);
+  });
+}
 export function buildExecutionPlan(snapshot, run) {
   if (!snapshot?.graph || !Array.isArray(snapshot.definitions) || !run?.graphRef) reject('INVALID_EXECUTION_CONTEXT');
   const graph=snapshot.graph;
