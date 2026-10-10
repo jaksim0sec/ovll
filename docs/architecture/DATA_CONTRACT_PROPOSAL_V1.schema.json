@@ -1322,6 +1322,10 @@
     "ModelTurn": {
       "type": "object",
       "properties": {
+        "executionIntent": {
+          "type": "string",
+          "enum": ["requested"]
+        },
         "message": {
           "type": "string",
           "minLength": 1,
@@ -1351,6 +1355,14 @@
       "additionalProperties": false,
       "minProperties": 1,
       "allOf": [
+        {
+          "anyOf": [
+            {"required": ["message"]},
+            {"required": ["actions"]},
+            {"required": ["outputs"]},
+            {"required": ["needs"]}
+          ]
+        },
         {
           "not": {
             "required": [

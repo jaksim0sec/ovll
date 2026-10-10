@@ -67,17 +67,17 @@ test('local API retains original task context on all model phases',async()=>{
   for(const body of bodies)assert.deepEqual(body.taskContext,taskContext);
 });
 
-test('task context preserves original purpose and every accepted revision',()=>{
+test('each user turn owns its objective while older requests remain background',()=>{
   const api=activity();
   assert.equal(typeof api.createTaskContext,'function');
   const first=api.createTaskContext(null,'Summarize attachment and hide names');
   first.constraints=['No external sources'];
   const second=api.createTaskContext(first,'Use a table\nwith three columns');
   const third=api.createTaskContext(second,'Shorten the conclusion');
-  assert.equal(third.objective,first.objective);
+  assert.equal(third.objective,third.requestText);
   assert.equal(third.requestText,'Shorten the conclusion');
-  assert.deepEqual(Array.from(third.constraints),['No external sources']);
-  assert.deepEqual(Array.from(third.requestHistory),[second.requestText]);
+  assert.deepEqual(Array.from(third.constraints),[]);
+  assert.deepEqual(Array.from(third.requestHistory),[first.requestText,second.requestText]);
 });
 test('function command keeps multiline input and accepts named JSON bindings',()=>{
   const api=activity();
@@ -131,7 +131,7 @@ test('node result inspection opens full output and marks historical content',asy
  test('long original and current request do not duplicate within task history budget',()=>{
  const api=activity(),first=api.createTaskContext(null,'a'.repeat(10000));
  const second=api.createTaskContext(first,'b'.repeat(3000));
- assert.equal(second.objective.length,10000);assert.equal(second.requestText.length,3000);
+ assert.equal(second.objective.length,3000);assert.equal(second.requestText.length,3000);
  assert.equal(second.requestHistory.length,0);
  });
 test('all execution entry paths preserve partial coverage and storage warnings',()=>{

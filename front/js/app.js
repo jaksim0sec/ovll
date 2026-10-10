@@ -6332,7 +6332,7 @@
               (action.dependsOn||[]).includes(x.fromAction)&&applied.get(x.fromAction)?.createdRefs?.['node:'+x.localNodeKey]);
             if(!targets.length||targets.some(x=>!x))throw new Error('LOCAL_TARGET_UNRESOLVED');
             acceptTask();
-            const run=await runLocalNodes({targets,damMode:action.args.damMode||'closed',requestText:value,
+            const run=await runLocalNodes({targets,damMode:action.args.damMode||'closed',
               taskContext,taskConstraints:taskContext.constraints,cache,operation});
             return {status:run.status,run};
           },
@@ -6466,9 +6466,7 @@
       const owns=()=>localOperations.isCurrent(operation);
       setBusy(true);beginRuntimeActivity('실행 준비 중');
       try{
-        const taskContext=getPointerTask(scope.conversationId);
-        const run=await runLocalNodes({targets:[nodeId],damMode:mode,operation,taskContext,
-          requestText:taskContext?.requestText||'',taskConstraints:taskContext?.constraints||[]});
+        const run=await runLocalNodes({targets:[nodeId],damMode:mode,operation});
         if(!owns())return;
         const delivery=localRunPresentation(run);
         addAssistantMessage(delivery.text,{artifacts:delivery.artifacts});

@@ -51,14 +51,13 @@ function createRunPresence({presence,isActive=()=>true}={}){
 }
 function createTaskContext(previous,requestText){
   const text=String(requestText||'').trim();
-  const task=previous?JSON.parse(JSON.stringify(previous)):{};
-  task.objective=task.objective||text;
-  task.requestText=text;
-  task.constraints=Array.isArray(task.constraints)?task.constraints:[];
-  task.requestHistory=Array.isArray(task.requestHistory)?task.requestHistory:[];
+  const history=Array.isArray(previous?.requestHistory)?
+    previous.requestHistory.filter(s=>typeof s==='string'&&s.trim()&&s.length<=2400).slice(-5):[];
   const prior=previous?.requestText;
-  if(prior&&prior!==task.objective&&prior!==text&&task.requestHistory.at(-1)!==prior)task.requestHistory.push(prior);
-  return task;
+  if(typeof prior==='string'&&prior.trim()&&prior!==text&&prior.length<=2400&&history.at(-1)!==prior)
+    history.push(prior);
+  // A new user turn is authoritative. Earlier tasks are background, not active constraints.
+  return {objective:text,requestText:text,constraints:[],requestHistory:history.slice(-6)};
 }
 function parseFunctionRequest(text){
   const match=String(text||'').trim().match(/^(\S+)(?:\s+([\s\S]*))?$/);

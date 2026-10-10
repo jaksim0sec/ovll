@@ -130,7 +130,7 @@ test('single unnamed node.add gets a safe patch-local key without a second model
 });
 test('new node temporary key is inferred only from one unambiguous run target',async()=>{
  const received=[];
- const turn={actions:[
+ const turn={executionIntent:'requested',actions:[
   {localKey:'p',kind:'ir.applyPatch',args:{patch:{
    graphId:'g',expectedGraphRevision:0,definitions:[],operations:[
     {op:'node.add',definitionRef:{definitionId:'builtin:write',version:1}}
@@ -186,7 +186,7 @@ test('safe key and missing empty definitions normalize in one pass',async()=>{
 
 test('unique run.start target safely inherits the sole created node key',async()=>{
  const received=[];
- const turn={actions:[
+ const turn={executionIntent:'requested',actions:[
   {localKey:'p',kind:'ir.applyPatch',args:{patch:{
    graphId:'g',expectedGraphRevision:0,definitions:[],operations:[
     {op:'node.add',localNodeKey:'one',definitionRef:{definitionId:'builtin:write',version:1}}
@@ -202,7 +202,7 @@ test('unique run.start target safely inherits the sole created node key',async()
 });
 test('ambiguous run targets are never mapped to a guessed new node',async()=>{
  const received=[];
- const turn={actions:[
+ const turn={executionIntent:'requested',actions:[
   {localKey:'p',kind:'ir.applyPatch',args:{patch:{
    graphId:'g',expectedGraphRevision:0,definitions:[],operations:[
     {op:'node.add',localNodeKey:'one',definitionRef:{definitionId:'builtin:write',version:1}},

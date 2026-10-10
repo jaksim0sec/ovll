@@ -128,7 +128,10 @@ export function createLocalPointerHost({gateway,resolveModel,validation=createCo
     const requested=snapshot.graph?.nodes?.find(n=>n.nodeId===nodeId);
     const requestedDefinition=snapshot.definitions?.find(d=>d.definitionId===requested?.definitionRef?.definitionId&&d.version===requested?.definitionRef?.version);
     requestText=requestText?.trim()||requested?.settings?.request?.trim()||requestedDefinition?.purpose;
-    const {context,extendedTask}=prepare({snapshot,requestRef,requestText,taskContext,capabilities:['model_task'],nodeIdScope:nodeId});
+    // Node execution is scoped to its definition and runtime inputs, never the
+    // orchestration chat's earlier objective or unrelated task restrictions.
+    const nodeTask={objective:requestText,requestText,constraints:taskConstraints};
+    const {context,extendedTask}=prepare({snapshot,requestRef,requestText,taskContext:nodeTask,capabilities:['model_task'],nodeIdScope:nodeId});
     if(!Array.isArray(taskConstraints)||taskConstraints.length>64||taskConstraints.some(x=>typeof x!=='string'||!x.trim()||x.length>2400))fail('INVALID_TASK_CONSTRAINTS');
     context.constraints=[...new Set([...context.constraints,...taskConstraints])];
     if(!safe(nodeId)||!Array.isArray(inputArtifacts)||inputArtifacts.length>48||

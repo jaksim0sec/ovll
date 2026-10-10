@@ -36,7 +36,7 @@ test('existing research → connected PDF export → saved file metadata preserv
     assert.equal(data.extraContext.availableResults.items[0].nodeId,source);
     assert.equal(data.extraContext.availableResults.items[0].resultCurrent,true);
     assert.match(messages.map(m=>m.content).join('\n'),/Existing-result export/);
-    return{text:JSON.stringify({message:'PDF 완료라는 제안은 실행 근거가 아니다',actions:[
+    return{text:JSON.stringify({message:'PDF 완료라는 제안은 실행 근거가 아니다',executionIntent:'requested',actions:[
       {localKey:'p',kind:'ir.applyPatch',args:{patch:{graphId,expectedGraphRevision:1,definitions:[],operations:[
         {op:'node.add',localNodeKey:'pdf',definitionRef:{definitionId:'builtin:createFile',version:1},settings:{request:'research.pdf'}},
         {op:'link.add',localLinkKey:'contents',kind:'data',from:{node:{nodeId:source},port:'result'},to:{node:{localNodeKey:'pdf'},port:'in'}}

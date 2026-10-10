@@ -36,7 +36,7 @@ test('uploaded source → reused and custom work → actual artifact → immutab
   turns++;assert.ok(data.context.materials[0].content.availableDefinitions.some(d=>d.definitionId==='builtin:write'));
   const ref=nodeId=>({nodeId}),temp=localNodeKey=>({localNodeKey});
   const link=(key,from,fromPort,to)=>({op:'link.add',localLinkKey:key,kind:'data',from:{node:from,port:fromPort},to:{node:to,port:'in'}});
-  return{text:JSON.stringify({message:'Unverified proposal completion must not be a delivered result.',actions:[
+  return{text:JSON.stringify({message:'Unverified proposal completion must not be a delivered result.',executionIntent:'requested',actions:[
    {localKey:'p',kind:'ir.applyPatch',args:{patch:{graphId,expectedGraphRevision:1,definitions:[{localKey:'d',purpose:'Retain evidence',executorKind:'model_task',instruction:'Pass the actual evidence without changing it',inputs:[{name:'in',role:'evidence',representation:'json'}],outputs:[{name:'result',role:'evidence',representation:'json'}],presentation:{name:'근거 보존',iconKey:'custom',color:'#7C6CF2'}}],operations:[
     {op:'node.add',localNodeKey:'a',definitionRef:{localDefinitionKey:'d'}},
     {op:'node.add',localNodeKey:'b',definitionRef:{definitionId:'builtin:write',version:1},settings:{request:'Write a complete report'}},
