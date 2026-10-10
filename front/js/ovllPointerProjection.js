@@ -21,13 +21,14 @@
       if(type===def.definitionId.slice(8)&&baseDefinitions[type]){
         // Builtins retain the existing server-owned visual contract.
         definitions[type]=clone(baseDefinitions[type]);
-        definitions[type].inputs=(definitions[type].inputs||[]).map(p=>({...p,multiple:false,channel:'data'}));
+        definitions[type].inputs=(definitions[type].inputs||[]).map(p=>({...p,
+          multiple:def.inputs.find(port=>port.name===p.id)?.multiple!==false,channel:'data'}));
         definitions[type].outputs=(definitions[type].outputs||[]).map(p=>({...p,channel:'data'}));
         continue;
       }
       const port=(p,input=false)=>({id:p.name,name:p.role||p.name,type:p.representation,
         accepts:[p.representation],required:p.required===true,
-        channel:'data',multiple:!input});
+        channel:'data',multiple:input?p.multiple!==false:true});
       definitions[type]={name:def.presentation?.name||def.purpose.slice(0,100),desc:def.purpose,
         color:/^#[0-9a-f]{6}$/i.test(def.presentation?.color||'')?def.presentation.color:'#7C6CF2',
         iconKey:def.presentation?.iconKey||'sparkle',tag:type.startsWith('pointer:')?'AI':type.toUpperCase(),

@@ -70,7 +70,7 @@ test('builtins keep original UI port count and node request is never invented',(
   const snapshot={graph:{graphId:'g_ports',revision:0,nodes,connections:[]},definitions:catalog};
   const projected=window.OvllPointerProjection.projectGraph(snapshot,undefined,nodeDefinitionsPublic);
   for(const type of ['write','organize','file','createFile']){
-    assert.deepEqual(JSON.parse(JSON.stringify(projected.definitions[type].inputs)),JSON.parse(JSON.stringify(nodeDefinitionsPublic[type].inputs.map(p=>({...p,multiple:false,channel:'data'})))));
+    assert.deepEqual(JSON.parse(JSON.stringify(projected.definitions[type].inputs)),JSON.parse(JSON.stringify(nodeDefinitionsPublic[type].inputs.map(p=>({...p,multiple:p.multiple!==false,channel:'data'})))));
     assert.deepEqual(JSON.parse(JSON.stringify(projected.definitions[type].outputs)),JSON.parse(JSON.stringify(nodeDefinitionsPublic[type].outputs.map(p=>({...p,channel:'data'})))));
   }
   assert.equal(projected.workflow.nodes.find(n=>n.id==='write').params.request,'');

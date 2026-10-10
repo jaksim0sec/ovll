@@ -91,9 +91,19 @@ test('unchanged data links do not silently remove a conflicting new literal bind
   assert.deepEqual(repo.get('w','g'),snapshot);
 });
 
-test('two new data producers remain rejected atomically',()=>{
+test('two upstream sources may feed one generic port without replacing one another',()=>{
   const snapshot=sample(),view=workflow(snapshot);
   view.connections.push(canvasEdge('a','b'),canvasEdge('other','b'));
+  const repo=repository(snapshot);
+  apply(repo,build(snapshot,view));
+  const result=repo.get('w','g').graph;
+  assert.equal(result.connections.length,3);
+  assert.equal(result.connections.filter(link=>link.to.nodeId==='b'&&link.to.port==='source').length,2);
+  assert.deepEqual(result.nodes[1].inputBindings,{constant:'Keep this'});
+});
+test('explicit single-producer input still rejects two connections atomically',()=>{
+  const snapshot=sample();snapshot.definitions[0].inputs[0].multiple=false;
+  const view=workflow(snapshot);view.connections.push(canvasEdge('a','b'),canvasEdge('other','b'));
   const repo=repository(snapshot);
   assert.throws(()=>apply(repo,build(snapshot,view)),error=>error.code==='AMBIGUOUS_INPUT_PRODUCERS');
   assert.deepEqual(repo.get('w','g'),snapshot);

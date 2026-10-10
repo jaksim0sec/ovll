@@ -20,7 +20,7 @@ function validate(graph, definitions) {
     if (!def) reject('UNKNOWN_DEFINITION');
     map.set(node.nodeId, def);
   }
-  const producers = new Set();
+  const producers = new Set(),sources = new Set();
   const nodeMap = new Map(graph.nodes.map(n=>[n.nodeId,n]));
   const seen = new Set(), edges = new Map([...map.keys()].map(n => [n, []]));
   for (const link of graph.connections) {
@@ -34,7 +34,11 @@ function validate(graph, definitions) {
       const input = b.inputs.find(x => x.name === link.to.port);
       if (!out || !input || !compatibleDataRepresentation(out.representation,input.representation)) reject('PORT_MISMATCH');
       const inputKey=JSON.stringify([link.to.nodeId,link.to.port]);
-      if(producers.has(inputKey)||own(nodeMap.get(link.to.nodeId).inputBindings||{},link.to.port))reject('AMBIGUOUS_INPUT_PRODUCERS');
+      const sourceKey=JSON.stringify([link.from.nodeId,link.from.port,link.to.nodeId,link.to.port]);
+      if(sources.has(sourceKey))reject('DUPLICATE_INPUT_SOURCE');
+      sources.add(sourceKey);
+      if(own(nodeMap.get(link.to.nodeId).inputBindings||{},link.to.port)||
+        producers.has(inputKey)&&input.multiple===false)reject('AMBIGUOUS_INPUT_PRODUCERS');
       producers.add(inputKey);
     } else if(!isFlowPort(a,link.from.port,'outputs')||!isFlowPort(b,link.to.port,'inputs')) {
       reject('PORT_MISMATCH');

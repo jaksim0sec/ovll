@@ -545,7 +545,8 @@ export const NODE_DEFINITION_PROMPT =
 export function getPointerCatalog() {
   const definitions=GENERATABLE_NODE_TYPES.map(type=>{
     const ui=defaultNodeDef[type], tool=type==='file'||type==='createFile';
-    const port=p=>({name:p.id,role:p.name,representation:'json',required:false});
+    const port=p=>({name:p.id,role:p.name,representation:'json',required:false,
+      multiple:p.multiple!==false});
     return {definitionId:'builtin:'+type,version:1,purpose:ui.desc,
       executorKind:tool?'tool_task':'model_task',instruction:ui.llmdesc,
       inputs:ui.inputs.map(port),

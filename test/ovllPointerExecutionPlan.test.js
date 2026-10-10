@@ -42,8 +42,11 @@ test('subgraph execution is rejected during preflight',()=>{
  const s=sample();s.definitions[0]={...def,executorKind:'subgraph',procedureRef:'p'};
  assert.throws(()=>buildExecutionPlan(s,run(['middle'])),e=>e.code==='SUBGRAPH_EXECUTOR_NOT_IMPLEMENTED');
 });
-test('multiple data producers cannot silently overwrite one input port',()=>{
+test('multiple data producers are independently scheduled and single-producer ports remain exclusive',()=>{
  const s=sample();s.graph.connections.push({kind:'data',from:{nodeId:'root',port:'result'},to:{nodeId:'end',port:'input'}});
+ const result=buildExecutionPlan(s,run(['end']));
+ assert.deepEqual(result.order.find(node=>node.nodeId==='end').predecessors,['middle','root','source']);
+ s.definitions[0]={...def,inputs:[{...def.inputs[0],multiple:false}]};
  assert.throws(()=>buildExecutionPlan(s,run(['end'])),e=>e.code==='AMBIGUOUS_INPUT_PRODUCERS');
 });
 test('missing required bound input is rejected at preflight',()=>{

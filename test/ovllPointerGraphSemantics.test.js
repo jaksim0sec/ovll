@@ -22,13 +22,19 @@ test('graph and plan reject nonexistent flow source and destination endpoints',(
   assert.throws(()=>plan(s),e=>e.code==='PORT_MISMATCH');
  }
 });
-test('graph rejects multiple or bound data producers atomically while allowing flow and data together',()=>{
+test('multiple upstream data sources share a port, but fixed literals and single-source ports remain protected',()=>{
  const s=sample();s.graph.connections=[edge('data'),edge('data','summary','source','other')];
- const repo=new MemoryGraphRepository();assert.throws(()=>repo.restore('w','g',s),e=>e.code==='AMBIGUOUS_INPUT_PRODUCERS');
- s.graph.connections=[edge('data')];s.graph.nodes[1].inputBindings={source:'fixed'};
- assert.throws(()=>repo.restore('w','g',s),e=>e.code==='AMBIGUOUS_INPUT_PRODUCERS');
- s.graph.nodes[1].inputBindings={};s.graph.connections.push({...edge('flow'),id:'gate'});
- repo.restore('w','g',s);assert.equal(plan(s).order.length,2);
+ const repo=new MemoryGraphRepository();repo.restore('w','g',s);
+ assert.deepEqual(plan(s).order.map(n=>n.nodeId),['a','other','b']);
+ s.graph.nodes[1].inputBindings={source:'fixed'};
+ assert.throws(()=>new MemoryGraphRepository().restore('w','g',s),e=>e.code==='AMBIGUOUS_INPUT_PRODUCERS');
+ s.graph.nodes[1].inputBindings={};
+ s.definitions[0].inputs[0].multiple=false;
+ assert.throws(()=>new MemoryGraphRepository().restore('w','g',s),e=>e.code==='AMBIGUOUS_INPUT_PRODUCERS');
+ s.definitions[0].inputs[0].multiple=true;
+ s.graph.connections.push({...edge('flow'),id:'gate'});
+ new MemoryGraphRepository().restore('w','g',s);
+ assert.equal(plan(s).order.length,3);
 });
 test('implicit control endpoints remain distinct from data and survive an unrelated request edit',()=>{
  const s=sample();s.definitions[0].inputs=[];s.graph.connections=[edge('flow','next','flow_in')];
@@ -44,10 +50,10 @@ test('implicit control endpoints remain distinct from data and survive an unrela
  const repo=new MemoryGraphRepository();repo.restore('w','g',s);repo.apply('w',clone(edit.patch));
  assert.deepEqual(repo.get('w','g').graph.connections,s.graph.connections);
 });
-test('projected data input allows one producer and flow ports permit fan-in',()=>{
+test('projected data input accepts fan-in and flow ports retain fan-in',()=>{
  const s=sample();s.graph.connections=[edge('flow','next','flow_in')];
  const p=ui().OvllPointerProjection.projectGraph(s).definitions['pointer:d:1'];
- assert.equal(p.inputs.find(p=>p.id==='source').multiple,false);
+ assert.equal(p.inputs.find(p=>p.id==='source').multiple,true);
  assert.equal(p.inputs.find(p=>p.id==='flow_in').multiple,true);
 });
 test('backend result fingerprint remains current across unrelated revisions and excludes UI settings',()=>{

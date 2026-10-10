@@ -322,7 +322,8 @@
           entry.semanticFingerprint=results.nodeSemanticFingerprint(snapshot,item.nodeId,entry.semanticContext);
           entry.status='skipped';skipped.add(item.nodeId);persist();continue;
         }
-        if(dataLinks.some(l=>inactive(l)&&item.definition.inputs.some(p=>p.name===l.to.port&&p.required))){
+        if(item.definition.inputs.some(p=>p.required&&dataLinks.some(l=>l.to.port===p.name)&&
+          !dataLinks.some(l=>l.to.port===p.name&&!inactive(l)))){
           entry.status='blocked';entry.error='REQUIRED_INPUT_MISSING';record.status='waiting';persist();break;
         }
         entry.status='running';persist();

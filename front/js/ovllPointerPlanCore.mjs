@@ -56,12 +56,17 @@ export function buildExecutionPlan(snapshot, run) {
     if(!definition)reject('PLAN_DEFINITION_NOT_FOUND');
     if(definition.executorKind==='subgraph')reject('SUBGRAPH_EXECUTOR_NOT_IMPLEMENTED',501);
     const inputs=new Map((definition.inputs||[]).map(p=>[p.name,p])),bound=node.inputBindings||{};
-    const incoming=graph.connections.filter(l=>l.kind==='data'&&l.to.nodeId===nodeId),ports=new Set();
+    const incoming=graph.connections.filter(l=>l.kind==='data'&&l.to.nodeId===nodeId),ports=new Set(),sources=new Set();
     for(const link of incoming){
-      if(ports.has(link.to.port)||Object.hasOwn(bound,link.to.port))reject('AMBIGUOUS_INPUT_PRODUCERS');
+      const sourceKey=JSON.stringify([link.from.nodeId,link.from.port,link.to.port]);
+      if(sources.has(sourceKey))reject('DUPLICATE_INPUT_SOURCE');
+      sources.add(sourceKey);
+      const input=inputs.get(link.to.port);
+      if(Object.hasOwn(bound,link.to.port)||ports.has(link.to.port)&&input?.multiple===false)
+        reject('AMBIGUOUS_INPUT_PRODUCERS');
       ports.add(link.to.port);
       const parent=nodes.get(link.from.nodeId),parentDef=defs.get(parent?.definitionRef.definitionId+':'+parent?.definitionRef.version);
-      const out=parentDef?.outputs.find(p=>p.name===link.from.port),input=inputs.get(link.to.port);
+      const out=parentDef?.outputs.find(p=>p.name===link.from.port);
       if(!out||!input||!compatibleDataRepresentation(out.representation,input.representation))reject('PORT_MISMATCH');
     }
     for(const name of Object.keys(bound))if(!inputs.has(name))reject('UNKNOWN_INPUT_PORT');
