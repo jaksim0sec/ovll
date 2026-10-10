@@ -696,12 +696,19 @@
             ? "현재 작업이 몰려 대기 공간이 찼어. 잠시 후 다시 시도해 줘."
             : code === "INVALID_MODEL_TURN" || code === "MODEL_INVALID_JSON"
               ? "모델 응답이 작업 형식 검증을 통과하지 못했어. 작업 변경은 적용되지 않았어."+
-                (error?.validationIssues?.[0]?.missing
-                  ? " 누락 항목: "+String(error.validationIssues[0].missing).slice(0,60)
-                  : "")+
-                (error?.validationIssues?.[0]?.path?.startsWith?.("/actions/")
-                  ? " 오류 위치: "+String(error.validationIssues[0].path).slice(0,140)
-                  : "")
+                (Array.isArray(error?.validationIssues)&&error.validationIssues.length?
+                  "\n"+error.validationIssues.slice(0,4).map((issue,index)=>{
+                    const field=issue.missing||issue.extra||issue.path?.split('/').filter(Boolean).at(-1)||'unknown';
+                    const description={
+                      required:"필수 값 누락",invalid:"값 또는 식별자 형식 오류",
+                      duplicate:"식별자 중복",additionalProperties:"허용되지 않는 필드",
+                      type:"자료형 불일치",enum:"허용되지 않는 값",
+                      oneOf:"참조 구조 불일치",schemaMismatch:"스키마 불일치",
+                      maxBytes:"응답 크기 한도 초과"
+                    }[issue.rule]||"계약 검증 실패";
+                    return (index+1)+". "+description+" ("+String(field).slice(0,60)+")"+
+                      " · 위치: "+String(issue.path||'/').slice(0,140);
+                  }).join("\n"):"")
             : code === "PROVIDER_HTTP_ERROR"
               ? status===400
                 ? "모델 요청 형식이 올바르지 않아 거부됐어. 요청 설정을 확인해야 해. (HTTP 400)"

@@ -130,6 +130,24 @@ export function diagnoseModelTurn(value,issues=[]){
   for(const [i,action] of (Array.isArray(value?.actions)?value.actions:[]).entries()){
     const base='/actions/'+i+'/args/';
     const patch=patchOf(action);
+    if(patch&&Array.isArray(patch.definitions)){
+      const used=new Set();
+      for(const [j,def] of patch.definitions.entries()){
+        const prefix=base+'patch/definitions/'+j+'/';
+        if(!isObject(def))continue;
+        if(def.localKey===undefined)
+          detected.push({path:prefix+'localKey',rule:'required',missing:'localKey'});
+        else if(!isKey(def.localKey))
+          detected.push({path:prefix+'localKey',rule:'invalid'});
+        else if(used.has(def.localKey))
+          detected.push({path:prefix+'localKey',rule:'duplicate'});
+        else used.add(def.localKey);
+        for(const field of ['purpose','instruction']){
+          if(def[field]===undefined)
+            detected.push({path:prefix+field,rule:'required',missing:field});
+        }
+      }
+    }
     if(patch&&Array.isArray(patch.operations)){
       for(const [j,op] of patch.operations.entries()){
         const prefix=base+'patch/operations/'+j+'/';

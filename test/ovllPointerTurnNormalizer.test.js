@@ -95,3 +95,24 @@ test('no model actions, nodes, links, or user requests are synthesized by normal
   const actual={actions:[action([], {definitions:[]})]};
   assert.deepEqual(normalizeModelTurn(actual).actions[0].args.patch.operations,[]);
 });
+
+test('missing definition handle points to the exact field rather than the definition object',()=>{
+  const turn=normalizeModelTurn({actions:[action([], {definitions:[{
+    purpose:'단어 정리',instruction:'읽기와 뜻을 정리'
+  }]})]});
+  assert.equal(validator.validateTurn(turn),false);
+  assert.deepEqual(diagnoseModelTurn(turn,validator.explainTurn(turn))[0],{
+    path:'/actions/0/args/patch/definitions/0/localKey',rule:'required',missing:'localKey'
+  });
+});
+test('malformed and duplicate definition handles have distinct diagnostics',()=>{
+  const turn=normalizeModelTurn({actions:[action([], {definitions:[
+    {localKey:'bad key',purpose:'A',instruction:'A'},
+    {localKey:'same',purpose:'B',instruction:'B'},
+    {localKey:'same',purpose:'C',instruction:'C'}
+  ]})]});
+  const diagnostics=diagnoseModelTurn(turn,validator.explainTurn(turn));
+  assert.equal(diagnostics[0].rule,'invalid');
+  assert.equal(diagnostics[1].rule,'duplicate');
+  assert.equal(diagnostics[1].path,'/actions/0/args/patch/definitions/2/localKey');
+});
