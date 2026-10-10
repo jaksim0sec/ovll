@@ -124,13 +124,21 @@ export class MemoryGraphRepository {
     for (const d of defs) {
       requireId(d.localKey, 'definition.localKey');
       if (tempDefs.has(d.localKey)) reject('DUPLICATE_LOCAL_DEFINITION');
-      if (!['model_task', 'tool_task', 'subgraph'].includes(d.executorKind)) reject('BAD_EXECUTOR');
+      const executorKind=d.executorKind??'model_task';
+      if (!['model_task', 'tool_task', 'subgraph'].includes(executorKind)) reject('BAD_EXECUTOR');
       if (!d.purpose?.trim() || !d.instruction?.trim()) reject('BAD_DEFINITION');
-      if (d.executorKind === 'tool_task' && !d.requiredCapabilities?.length) reject('CAPABILITY_REQUIRED');
-      if (d.executorKind === 'subgraph' && !d.procedureRef) reject('PROCEDURE_REQUIRED');
-      isArray(d.inputs); isArray(d.outputs);
-      if (!d.outputs.length) reject('OUTPUT_REQUIRED');
-      for (const ports of [d.inputs, d.outputs]) {
+      if (d.supersedes?.definitionId?.startsWith('builtin:')) reject('BUILTIN_DEFINITION_IMMUTABLE');
+      if (d.supersedes && (d.executorKind===undefined||d.inputs===undefined||d.outputs===undefined))
+        reject('REVISION_REQUIRES_FULL_DEFINITION');
+      if (executorKind === 'tool_task' && !d.requiredCapabilities?.length) reject('CAPABILITY_REQUIRED');
+      if (executorKind === 'subgraph' && !d.procedureRef) reject('PROCEDURE_REQUIRED');
+      const inputs=d.inputs??(executorKind==='model_task'?
+        [{name:'in',role:'입력',representation:'json',required:false}]:[]);
+      const outputs=d.outputs??(executorKind==='model_task'?
+        [{name:'result',role:'결과',representation:'json',required:false}]:[]);
+      isArray(inputs);isArray(outputs);
+      if (!outputs.length) reject('OUTPUT_REQUIRED');
+      for (const ports of [inputs, outputs]) {
         const names = new Set();
         for (const p of ports) {
           requireId(p.name, 'port');
@@ -140,7 +148,9 @@ export class MemoryGraphRepository {
       }
       const base = d.supersedes && next.definitions.find(x => x.definitionId === d.supersedes.definitionId && x.version === d.supersedes.version);
       if (d.supersedes && !base) reject('UNKNOWN_BASE_DEFINITION');
-      const value = { ...(base?.presentation?{presentation:base.presentation}:{}), ...d, definitionId: base ? base.definitionId : 'd_' + ids(), version: base ? base.version + 1 : 1 };
+      const value = { ...(base?.presentation?{presentation:base.presentation}:{}), ...d,
+        executorKind,inputs,outputs,definitionId:base?base.definitionId:'d_'+ids(),
+        version:base?base.version+1:1 };
       if (next.definitions.some(x => x.definitionId === value.definitionId && x.version === value.version)) reject('DEFINITION_VERSION_CONFLICT');
       delete value.supersedes;
       delete value.localKey;
@@ -175,6 +185,29 @@ export class MemoryGraphRepository {
         if (n < 0) reject('UNKNOWN_NODE');
         if (next.graph.connections.some(x => x.from.nodeId === op.nodeId || x.to.nodeId === op.nodeId)) reject('NODE_HAS_LINKS');
         next.graph.nodes.splice(n, 1);
+      } else if (op.op === 'definition.appearance') {
+        const ref=op.definitionRef;
+        if (!validId(ref?.definitionId) || !Number.isInteger(ref.version) || ref.version<1)
+          reject('BAD_DEFINITION_REF');
+        if (ref.definitionId.startsWith('builtin:')) reject('BUILTIN_DEFINITION_IMMUTABLE');
+        const base=next.definitions.find(d=>d.definitionId===ref.definitionId&&d.version===ref.version);
+        if (!base) reject('UNKNOWN_DEFINITION');
+        if (next.definitions.some(d=>d.definitionId===ref.definitionId&&d.version>ref.version))
+          reject('STALE_DEFINITION_VERSION');
+        const visual=op.presentation;
+        if (!visual || typeof visual!=='object' || Array.isArray(visual) ||
+          !Object.keys(visual).length || Object.keys(visual).some(k=>!['name','iconKey','color'].includes(k)) ||
+          visual.name!==undefined&&(typeof visual.name!=='string'||!visual.name.trim()||visual.name.length>100) ||
+          visual.iconKey!==undefined&&(typeof visual.iconKey!=='string'||!/^[a-z][a-z0-9_-]{0,63}$/i.test(visual.iconKey)) ||
+          visual.color!==undefined&&(typeof visual.color!=='string'||!/^#[0-9a-f]{6}$/i.test(visual.color)))
+          reject('BAD_PRESENTATION');
+        const version=ref.version+1;
+        next.definitions.push({...base,version,
+          cosmeticBaseVersion:base.cosmeticBaseVersion||base.version,
+          presentation:{...(base.presentation||{}),...visual}});
+        for(const node of next.graph.nodes)
+          if(node.definitionRef.definitionId===ref.definitionId&&node.definitionRef.version===ref.version)
+            node.definitionRef={definitionId:ref.definitionId,version};
       } else if (op.op === 'definition.delete') {
         const ref = op.definitionRef;
         if (!ref || !validId(ref.definitionId) || !Number.isInteger(ref.version) || ref.version < 1)

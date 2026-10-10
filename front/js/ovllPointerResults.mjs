@@ -43,8 +43,15 @@ export function semanticSettings(settings={}){
   return Object.fromEntries(Object.entries(settings).filter(([key])=>!uiSettings.has(key)));
 }
 export function definitionSemantics(definition){
-  const {presentation,localKey,...semantic}=definition||{};
+  const {presentation,localKey,cosmeticBaseVersion,...semantic}=definition||{};
+  if(Number.isInteger(cosmeticBaseVersion)&&cosmeticBaseVersion>=1&&
+    cosmeticBaseVersion<semantic.version)semantic.version=cosmeticBaseVersion;
   return semantic;
+}
+export function semanticDefinitionRef(ref,definition){
+  const base=definition?.cosmeticBaseVersion;
+  return Number.isInteger(base)&&base>=1&&base<definition.version?
+    {...ref,version:base}:ref;
 }
 export function taskSemantics(task={}){
   const {requestText,requestHistory,historyDigest,...semantic}=task;
@@ -64,7 +71,8 @@ function fingerprint(snapshot,nodeId,options={},legacyTask=false){
   const semantics=[...selected].sort().map(id=>{
     const node=nodes.get(id),definition=definitions.get(node.definitionRef?.definitionId+':'+node.definitionRef?.version);
     if(!definition)throw new Error('RESULT_DEFINITION_NOT_FOUND');
-    return {nodeId:id,definitionRef:node.definitionRef,definition:definitionSemantics(definition),
+    return {nodeId:id,definitionRef:semanticDefinitionRef(node.definitionRef,definition),
+      definition:definitionSemantics(definition),
       settings:semanticSettings(node.settings),inputBindings:node.inputBindings||{}};
   });
   const connections=(snapshot.graph.connections||[]).filter(link=>selected.has(link.to.nodeId))

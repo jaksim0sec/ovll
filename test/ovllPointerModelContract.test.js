@@ -27,7 +27,7 @@ test('workflow contract includes executable graph patch port and target examples
   assert.match(developer.content,/dependsOn/);
 });
 test('model JSON with incorrect GraphPatch ports is rejected and repaired once before commit',async()=>{
-  const bad=structuredClone(valid);delete bad.actions[0].args.patch.definitions[0].outputs[0].role;
+  const bad=structuredClone(valid);delete bad.actions[0].args.patch.definitions[0].outputs[0].name;
   const received=[],host=create([bad,valid],received);
   const turn=await host.turn({snapshot,requestRef:'req2',requestText:'워크플로우 만들어'});
   assert.deepEqual(splitModelMetadata(turn).domain,valid);
@@ -55,7 +55,7 @@ test('ordinary chat remains one request with no unnecessary correction',async()=
 });
 test('validator explains the missing schema member without including user text',()=>{
   const validator=createContractValidation();
-  const bad=structuredClone(valid);delete bad.actions[0].args.patch.definitions[0].outputs[0].role;
+  const bad=structuredClone(valid);delete bad.actions[0].args.patch.definitions[0].outputs[0].name;
   assert.equal(validator.validateTurn(bad),false);
   const errors=validator.explainTurn(bad);
   assert.ok(errors.length>0);
@@ -82,12 +82,12 @@ test('failed contract retains only safe schema issues and never applies invalid 
   const received=[],host=create([{actions:[{kind:'ir.applyPatch',localKey:'p',args:{patch:{
     graphId:'g',expectedGraphRevision:0,definitions:[{localKey:'x',purpose:'write',
       executorKind:'model_task',instruction:'write',inputs:[],outputs:[{
-        name:'result',representation:'text'}]}],operations:[]}}}]},
+        role:'결과',representation:'text'}]}],operations:[]}}}]},
     {message:'ok',actions:[{kind:'ir.applyPatch',localKey:'p',args:{patch:{
       graphId:'g',expectedGraphRevision:0,definitions:[{localKey:'x',purpose:'write',
         executorKind:'model_task',instruction:'write',inputs:[],outputs:[{
-          name:'result',representation:'text'}]}],operations:[]}}}]}],received);
-  await assert.rejects(host.turn({snapshot,requestRef:'r_missing_role',requestText:'workflow'}),
+          role:'결과',representation:'text'}]}],operations:[]}}}]}],received);
+  await assert.rejects(host.turn({snapshot,requestRef:'r_missing_name',requestText:'workflow'}),
     error=>error.code==='INVALID_MODEL_TURN'&&
       Array.isArray(error.validationIssues)&&error.validationIssues.length>0&&
       error.validationIssues.every(item=>typeof item.path==='string'&&typeof item.rule==='string'));

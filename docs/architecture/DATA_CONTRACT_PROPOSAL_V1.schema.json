@@ -137,13 +137,24 @@
       "required": [
         "localKey",
         "purpose",
-        "executorKind",
-        "inputs",
-        "outputs",
         "instruction"
       ],
       "additionalProperties": false,
       "allOf": [
+        {
+          "if": {
+            "required": [
+              "supersedes"
+            ]
+          },
+          "then": {
+            "required": [
+              "executorKind",
+              "inputs",
+              "outputs"
+            ]
+          }
+        },
         {
           "if": {
             "properties": {
@@ -422,6 +433,33 @@
           "required": [
             "op",
             "nodeId"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "definition.appearance"
+            },
+            "definitionRef": {
+              "$ref": "#/$defs/DefinitionRef"
+            },
+            "presentation": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/NodePresentation"
+                },
+                {
+                  "minProperties": 1
+                }
+              ]
+            }
+          },
+          "required": [
+            "op",
+            "definitionRef",
+            "presentation"
           ],
           "additionalProperties": false
         },
@@ -2643,6 +2681,10 @@
           "maxLength": 160
         },
         "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "cosmeticBaseVersion": {
           "type": "integer",
           "minimum": 1
         },

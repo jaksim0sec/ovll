@@ -6107,6 +6107,9 @@
     if(updated)stage('edit','노드 수정',{nodeId:updated.nodeId,iconKey:'pencil'});
     const removed=operations.find(x=>x.op==='node.delete');
     if(removed)stage('delete','노드 삭제',{nodeId:removed.nodeId,iconKey:'pencil'});
+    const changedAppearance=operations.find(x=>x.op==='definition.appearance');
+    if(changedAppearance)stage('appearance','노드 정의 수정',
+      appearance(changedAppearance.definitionRef));
     const removedDefinition=operations.find(x=>x.op==='definition.delete');
     if(removedDefinition)stage('removeDefinition','노드 정의 삭제',
       appearance(removedDefinition.definitionRef));

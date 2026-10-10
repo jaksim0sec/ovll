@@ -3,6 +3,19 @@
 // This module never invents nodes, links, definitions, run targets or effects.
 const isKey=value=>typeof value==='string'&&/^[a-zA-Z0-9_.:-]{1,160}$/.test(value);
 const isObject=value=>value!==null&&typeof value==='object'&&!Array.isArray(value);
+// Only omit transport boilerplate for ordinary model tasks; never invent tool capabilities.
+function normalizeDefinition(d){
+  if(!isObject(d)||d.supersedes!==undefined||
+    d.executorKind!==undefined&&d.executorKind!=='model_task')return d;
+  const port=(value)=>isObject(value)&&typeof value.name==='string'?{
+    ...value,role:value.role??value.name,representation:value.representation??'json'
+  }:value;
+  const inputs=Array.isArray(d.inputs)?d.inputs.map(port):
+    d.inputs===undefined?[{name:'in',role:'입력',representation:'json',required:false}]:d.inputs;
+  const outputs=Array.isArray(d.outputs)?d.outputs.map(port):
+    d.outputs===undefined?[{name:'result',role:'결과',representation:'json',required:false}]:d.outputs;
+  return {...d,executorKind:d.executorKind??'model_task',inputs,outputs};
+}
 function patchOf(action){
   return action?.kind==='ir.applyPatch'&&isObject(action.args?.patch)?action.args.patch:null;
 }
@@ -64,8 +77,22 @@ export function normalizeModelTurn(value){
     const source=patchOf(action);
     if(!source)return action;
     let patch={...source};
+    if(Array.isArray(patch.definitions))
+      patch.definitions=patch.definitions.map(normalizeDefinition);
     if(Array.isArray(patch.operations)&&patch.definitions===undefined)patch.definitions=[];
     if(Array.isArray(patch.definitions)&&patch.operations===undefined)patch.operations=[];
+    // A model may express a cosmetic-only revision as a partial definition.
+    // Convert that unambiguous case without inventing execution or semantic edits.
+    if(patch.definitions?.length===1&&Array.isArray(patch.operations)&&!patch.operations.length){
+      const d=patch.definitions[0];
+      if(isObject(d)&&isKey(d.localKey)&&isObject(d.supersedes)&&
+        isObject(d.presentation)&&Object.keys(d.presentation).length&&
+        Object.keys(d).every(k=>['localKey','supersedes','presentation'].includes(k))){
+        patch={...patch,definitions:[],operations:[{
+          op:'definition.appearance',definitionRef:d.supersedes,presentation:d.presentation
+        }]};
+      }
+    }
     patch=allocateKeys(patch,action.localKey,actions);
     return {...action,args:{...action.args,patch}};
   });
