@@ -42,15 +42,13 @@ test('rename only changes custom node presentation without restating its task or
   repo.apply('local',renamed.actions[0].args.patch,()=> '2');
   const next=repo.get('local','g');
   const versions=next.definitions.filter(d=>d.definitionId===definitionId);
-  assert.equal(versions.length,2);
-  assert.equal(versions[0].presentation.name,'일본어 단어장 생성기');
-  assert.equal(versions[1].presentation.name,'일본어 단어장');
-  assert.equal(versions[1].version,2);
-  assert.deepEqual(versions[1].inputs,versions[0].inputs);
-  assert.deepEqual(versions[1].outputs,versions[0].outputs);
-  assert.equal(versions[1].instruction,versions[0].instruction);
-  assert.equal(next.graph.nodes.find(n=>n.nodeId===nodeId).definitionRef.version,2);
-  assert.equal(repo.getRevision('local','g',1).graph.nodes[0].definitionRef.version,1);
+  assert.equal(versions.length,1,'rename must not create a second visible definition');
+  assert.equal(versions[0].presentation.name,'일본어 단어장');
+  assert.equal(versions[0].version,1);
+  assert.equal(versions[0].instruction,'단어·읽기·뜻을 정리한다.');
+  assert.equal(next.graph.nodes.find(n=>n.nodeId===nodeId).definitionRef.version,1);
+  assert.equal(repo.getRevision('local','g',1).definitions.find(d=>d.definitionId===definitionId).presentation.name,
+    '일본어 단어장 생성기','past graph revision remains immutable');
 });
 
 test('builtin definitions cannot be renamed or superseded, but their instance settings stay editable',()=>{
@@ -80,11 +78,11 @@ test('appearance changes reject stale refs and invalid cosmetic values atomicall
   const definitionId=created.createdRefs['definition:vocab'];
   repo.apply('local',patch(1,[],[{op:'definition.appearance',
     definitionRef:{definitionId,version:1},presentation:{name:'단어장'}}]));
-  assert.throws(()=>repo.apply('local',patch(2,[],[{op:'definition.appearance',
+  assert.throws(()=>repo.apply('local',patch(1,[],[{op:'definition.appearance',
     definitionRef:{definitionId,version:1},presentation:{name:'과거'}}])),
-    e=>e.code==='STALE_DEFINITION_VERSION');
+    e=>e.code==='STALE_REVISION');
   assert.throws(()=>repo.apply('local',patch(2,[],[{op:'definition.appearance',
-    definitionRef:{definitionId,version:2},presentation:{name:'  '}}])),
+    definitionRef:{definitionId,version:1},presentation:{name:'  '}}])),
     e=>e.code==='BAD_PRESENTATION');
   assert.equal(repo.get('local','g').graph.revision,2);
 });
@@ -138,7 +136,7 @@ test('one-word custom rename passes model contract without model repair calls',a
     {name:'일본어 단어장'});
 });
 
-test('appearance-only version keeps current result and backend execution identity',()=>{
+test('appearance-only edit keeps current result and backend execution identity',()=>{
   const repo=make();
   const refs=repo.apply('local',patch(0,[draft()],[
     {op:'node.add',localNodeKey:'n',definitionRef:{localDefinitionKey:'vocab'}}
@@ -152,7 +150,8 @@ test('appearance-only version keeps current result and backend execution identit
   repo.apply('local',patch(1,[],[{op:'definition.appearance',
     definitionRef:{definitionId:id,version:1},presentation:{name:'일본어 단어장'}}]));
   const after=repo.get('local','g');
-  assert.equal(after.definitions.find(d=>d.definitionId===id&&d.version===2).cosmeticBaseVersion,1);
+  assert.equal(after.definitions.filter(d=>d.definitionId===id).length,1);
+  assert.equal(after.definitions.find(d=>d.definitionId===id).version,1);
   assert.equal(nodeSemanticFingerprint(after,nodeId,opts),earlier);
   assert.equal(backendFingerprint({snapshot:after,node:after.graph.nodes[0],
     definition:after.definitions.find(d=>d.definitionId===id&&d.version===2),inputRefs:[]}),serverBefore);

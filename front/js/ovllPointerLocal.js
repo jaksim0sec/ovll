@@ -198,8 +198,10 @@
         const applied=repo.apply("local",patch);
         const deletedDefinitions=(patch.operations||[]).filter(op=>op.op==='definition.delete')
           .map(op=>op.definitionRef);
+        const appearanceRefs=(patch.operations||[]).filter(op=>op.op==='definition.appearance')
+          .map(op=>op.definitionRef);
         workspaceStore.updateConversationPointerGraph(conversationId,repo.get("local",graphId),
-          {deletedDefinitions});
+          {deletedDefinitions,appearanceRefs});
         return {results:[{actionId:"local:"+actions[0].localKey,
           status:"applied",newRevision:applied.graphRef.revision,createdRefs:applied.createdRefs}]};
       });

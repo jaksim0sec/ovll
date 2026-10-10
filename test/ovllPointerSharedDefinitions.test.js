@@ -102,3 +102,62 @@ test('legacy synthetic flow endpoints remain distinct and preserve logical routi
   repo.apply('local',JSON.parse(JSON.stringify(patch.patch)));
   assert.deepEqual(repo.get('local',graph.graphId).graph.connections,graph.connections);
 });
+
+test('renaming a shared definition changes its single visible entry in every conversation and after reload',async()=>{
+  const {window,store,local}=browser(),a=store.getActiveConversation().id,graphId=local.graphId(a);
+  const created=await local.turn({conversationId:a,graphId,actions:[{localKey:'create',
+    kind:'ir.applyPatch',args:{patch:{graphId,expectedGraphRevision:0,definitions:[definition],
+      operations:[{op:'node.add',localNodeKey:'n',definitionRef:{localDefinitionKey:'shared'}}]}}}]});
+  const definitionId=created.results[0].createdRefs['definition:shared'];
+  const b=store.createConversation({title:'B'}).id,graphB=local.graphId(b);
+  await local.turn({conversationId:b,graphId:graphB,actions:[{localKey:'reuse',
+    kind:'ir.applyPatch',args:{patch:{graphId:graphB,expectedGraphRevision:0,definitions:[],
+      operations:[{op:'node.add',localNodeKey:'n',definitionRef:{definitionId,version:1}}]}}}]});
+  await local.turn({conversationId:a,graphId,actions:[{localKey:'rename',
+    kind:'ir.applyPatch',args:{patch:{graphId,expectedGraphRevision:1,definitions:[],
+      operations:[{op:'definition.appearance',definitionRef:{definitionId,version:1},
+        presentation:{name:'내 분류'}}]}}}]});
+  const shared=store.getPointerDefinitions().filter(d=>d.definitionId===definitionId);
+  assert.equal(shared.length,1);
+  assert.equal(shared[0].presentation.name,'내 분류');
+  for(const id of [a,b]){
+    const snapshot=(await local.state(id)).graph;
+    const defs=snapshot.definitions.filter(d=>d.definitionId===definitionId);
+    assert.equal(defs.length,1);
+    assert.equal(defs[0].presentation.name,'내 분류');
+    assert.equal(snapshot.graph.nodes[0].definitionRef.version,1);
+    const ui=window.OvllPointerProjection.projectGraph(snapshot);
+    assert.equal(ui.definitions['pointer:'+definitionId+':1'].name,'내 분류');
+  }
+  store.importJSON(store.exportJSON());
+  assert.equal(store.getPointerDefinitions().filter(d=>d.definitionId===definitionId).length,1);
+  assert.equal((await local.state(b)).graph.definitions.find(d=>d.definitionId===definitionId).presentation.name,'내 분류');
+});
+
+test('stored cosmetic alias versions are folded into the original without removing semantic revisions',async()=>{
+  const {window,store,local}=browser(),a=store.getActiveConversation().id;
+  const base={definitionId:'d_legacy',version:1,purpose:'Vocabulary',
+    instruction:'Make list',executorKind:'model_task',inputs:[],
+    outputs:[{name:'result',role:'result',representation:'text'}],
+    presentation:{name:'일본어 단어장 생성기',iconKey:'notebook',color:'#ffbb00'}};
+  const alias={...base,version:2,cosmeticBaseVersion:1,
+    presentation:{...base.presentation,name:'일본어 단어장'}};
+  const semantic={...base,version:3,instruction:'Make advanced list',
+    presentation:{...base.presentation,name:'고급 일본어 단어장'}};
+  const doc=JSON.parse(store.exportJSON());
+  doc.pointerDefinitions=[base,alias,semantic];
+  doc.conversations[0].state.pointerGraph={graph:{graphId:local.graphId(a),revision:3,
+    nodes:[{nodeId:'alias_node',definitionRef:{definitionId:'d_legacy',version:2},
+      settings:{request:'JLPT N4'},inputBindings:{}}],connections:[]},
+    definitions:[base,alias,semantic]};
+  store.importJSON(doc);
+  const versions=store.getPointerDefinitions().filter(d=>d.definitionId==='d_legacy');
+  assert.deepEqual(versions.map(d=>d.version),[1,3]);
+  assert.equal(versions[0].presentation.name,'일본어 단어장');
+  assert.equal(versions[1].instruction,'Make advanced list');
+  const restored=(await local.state(a)).graph;
+  assert.equal(restored.graph.nodes[0].definitionRef.version,1);
+  assert.equal(restored.definitions.filter(d=>d.definitionId==='d_legacy').length,2);
+  assert.equal(Object.keys(window.OvllPointerProjection.projectGraph(restored).definitions)
+    .filter(key=>key.startsWith('pointer:d_legacy:')).length,2);
+});

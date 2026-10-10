@@ -402,6 +402,48 @@ function collectPointerDefinitions(...sources){
   return [...map.values()];
 }
 
+// Collapse obsolete appearance-only versions without touching semantic revisions.
+function foldCosmeticDefinitions(conversations,definitions){
+  const key=ref=>ref?.definitionId+':'+ref?.version;
+  const all=new Map(definitions.map(def=>[key(def),def]));
+  const semantic=def=>JSON.stringify(Object.fromEntries(Object.entries(def)
+    .filter(([name])=>!['version','presentation','cosmeticBaseVersion'].includes(name))));
+  const aliases=new Map(),latest=new Map();
+  for(const def of definitions){
+    const baseVersion=def.cosmeticBaseVersion,base=all.get(def.definitionId+':'+baseVersion);
+    if(!Number.isInteger(baseVersion)||baseVersion<1||baseVersion>=def.version||
+      !base||semantic(base)!==semantic(def))continue;
+    const from=key(def),to=key(base);
+    aliases.set(from,to);
+    if(!latest.has(to)||def.version>latest.get(to).version)latest.set(to,def);
+  }
+  if(!aliases.size)return definitions;
+  for(const [baseKey,alias] of latest){
+    const base=all.get(baseKey);
+    all.set(baseKey,{...base,presentation:clone(alias.presentation||base.presentation)});
+  }
+  for(const conversation of conversations){
+    const snapshot=conversation.state.pointerGraph;
+    if(!snapshot)continue;
+    for(const node of snapshot.graph.nodes){
+      const canonical=aliases.get(key(node.definitionRef));
+      if(!canonical)continue;
+      const base=all.get(canonical);
+      node.definitionRef={definitionId:base.definitionId,version:base.version};
+    }
+    const kept=snapshot.definitions.filter(def=>!aliases.has(key(def))).map(def=>{
+      const current=all.get(key(def));
+      return current&&latest.has(key(def))?clone(current):def;
+    });
+    for(const node of snapshot.graph.nodes){
+      if(kept.some(def=>key(def)===key(node.definitionRef)))continue;
+      const base=all.get(key(node.definitionRef));
+      if(base)kept.push(clone(base));
+    }
+    snapshot.definitions=kept;
+  }
+  return [...all.entries()].filter(([entry])=>!aliases.has(entry)).map(([,def])=>def);
+}
 function normalizePointerRuns(value){
   if(!Array.isArray(value))return [];
   return value.slice(-12).filter(x=>x&&typeof x.runId==='string'&&
@@ -711,6 +753,10 @@ function normalizeState(raw){
       ? requestedActive
       : conversations[0].id;
 
+  const pointerDefinitions=foldCosmeticDefinitions(conversations,collectPointerDefinitions(
+    source.pointerDefinitions,...conversations.map(c=>c.state.pointerGraph?.definitions)
+  ));
+
   const time = now();
 
   return {
@@ -743,10 +789,7 @@ function normalizeState(raw){
     sections,
     conversations,
     contextBundles,
-    pointerDefinitions:collectPointerDefinitions(
-      source.pointerDefinitions,
-      ...conversations.map(c=>c.state.pointerGraph?.definitions)
-    )
+    pointerDefinitions
   };
 }
 
@@ -1347,12 +1390,22 @@ function updateConversationState(
   return clone(conversation);
 }
 
-function updateConversationPointerGraph(conversationId,snapshot,{deletedDefinitions=[]}={}){
+function updateConversationPointerGraph(conversationId,snapshot,{deletedDefinitions=[],appearanceRefs=[]}={}){
   const conversation=getConversation(conversationId);
   if(!conversation)throw new Error("CONVERSATION_NOT_FOUND");
   const next=normalizePointerGraph(snapshot);
   if(snapshot!==null&&!next)throw new Error("INVALID_POINTER_GRAPH");
   if(!Array.isArray(deletedDefinitions))throw new Error("INVALID_DEFINITION_DELETION");
+  if(!Array.isArray(appearanceRefs))throw new Error("INVALID_DEFINITION_APPEARANCE");
+  const appearance=new Map();
+  const key=ref=>ref?.definitionId+':'+ref?.version;
+  for(const ref of appearanceRefs){
+    if(typeof ref?.definitionId!=='string'||ref.definitionId.startsWith('builtin:')||
+      !Number.isInteger(ref.version)||ref.version<1)throw new Error("INVALID_DEFINITION_APPEARANCE");
+    const def=next?.definitions.find(d=>key(d)===key(ref));
+    if(!def?.presentation)throw new Error("INVALID_DEFINITION_APPEARANCE");
+    appearance.set(key(ref),clone(def.presentation));
+  }
   const remove=new Set();
   for(const ref of deletedDefinitions){
     if(typeof ref?.definitionId!=='string'||!ref.definitionId||
@@ -1361,7 +1414,6 @@ function updateConversationPointerGraph(conversationId,snapshot,{deletedDefiniti
       throw new Error("INVALID_DEFINITION_DELETION");
     remove.add(ref.definitionId+':'+ref.version);
   }
-  const key=ref=>ref?.definitionId+':'+ref?.version;
   for(const record of state.conversations){
     const graph=record===conversation?next?.graph:record.state.pointerGraph?.graph;
     if((graph?.nodes||[]).some(node=>remove.has(key(node.definitionRef))))
@@ -1374,13 +1426,18 @@ function updateConversationPointerGraph(conversationId,snapshot,{deletedDefiniti
     conversation.state.pointerGraph=next;
     for(const record of state.conversations){
       const saved=record.state.pointerGraph;
-      if(!saved||!remove.size||!saved.definitions.some(def=>remove.has(key(def))))continue;
-      if(record!==conversation)changed.set(record,saved);
-      record.state.pointerGraph={...saved,definitions:saved.definitions.filter(def=>!remove.has(key(def)))};
+      if(!saved||record===conversation||
+        !saved.definitions.some(def=>remove.has(key(def))||appearance.has(key(def))))continue;
+      changed.set(record,saved);
+      record.state.pointerGraph={...saved,definitions:saved.definitions
+        .filter(def=>!remove.has(key(def)))
+        .map(def=>appearance.has(key(def))?
+          {...def,presentation:clone(appearance.get(key(def)))}:def)};
     }
     state.pointerDefinitions=collectPointerDefinitions(
       (previousDefinitions||[]).filter(def=>!remove.has(key(def))),next?.definitions
-    );
+    ).map(def=>appearance.has(key(def))?
+      {...def,presentation:clone(appearance.get(key(def)))}:def);
     if(!persist("conversation:pointer-graph")){const error=new Error(storageStatus.error||"LOCAL_GRAPH_SAVE_FAILED");error.code=storageStatus.error||"LOCAL_GRAPH_SAVE_FAILED";throw error;}
   }catch(error){
     conversation.state.pointerGraph=previous;

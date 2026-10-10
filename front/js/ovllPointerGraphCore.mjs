@@ -201,13 +201,11 @@ export class MemoryGraphRepository {
           visual.iconKey!==undefined&&(typeof visual.iconKey!=='string'||!/^[a-z][a-z0-9_-]{0,63}$/i.test(visual.iconKey)) ||
           visual.color!==undefined&&(typeof visual.color!=='string'||!/^#[0-9a-f]{6}$/i.test(visual.color)))
           reject('BAD_PRESENTATION');
-        const version=ref.version+1;
-        next.definitions.push({...base,version,
-          cosmeticBaseVersion:base.cosmeticBaseVersion||base.version,
-          presentation:{...(base.presentation||{}),...visual}});
-        for(const node of next.graph.nodes)
-          if(node.definitionRef.definitionId===ref.definitionId&&node.definitionRef.version===ref.version)
-            node.definitionRef={definitionId:ref.definitionId,version};
+        // Appearance is editable metadata, not a new executable definition version.
+        // Graph revisions remain immutable; instance refs and fingerprints stay unchanged.
+        next.definitions[next.definitions.indexOf(base)]={
+          ...base,presentation:{...(base.presentation||{}),...visual}
+        };
       } else if (op.op === 'definition.delete') {
         const ref = op.definitionRef;
         if (!ref || !validId(ref.definitionId) || !Number.isInteger(ref.version) || ref.version < 1)
