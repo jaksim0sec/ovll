@@ -5,13 +5,13 @@ import vm from 'node:vm';
 import * as core from '../front/js/ovllPointerGraphCore.mjs';
 import * as plan from '../front/js/ovllPointerPlanCore.mjs';
 const script=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
-function browser(){
+function browser({fileStore}={}){
  const map=new Map(),storage={getItem:k=>map.get(k)||null,setItem:(k,v)=>map.set(k,v)};
  const window={crypto:{randomUUID:()=>Math.random().toString(36).slice(2)},localStorage:storage};
  vm.runInNewContext(script('front/js/workspaceStore.js'),{window,localStorage:storage,console});
  vm.runInNewContext(script('front/js/ovllPointerLocal.js'),{window,console});
  const store=window.OvllWorkspaceStore;
- const local=window.createOvllPointerLocal({workspaceStore:store,loadCore:async()=>core,loadPlan:async()=>plan});
+ const local=window.createOvllPointerLocal({workspaceStore:store,loadCore:async()=>core,loadPlan:async()=>plan,fileStore,loadResults:()=>import('../front/js/ovllPointerResults.mjs')});
  // ESM dynamic imports run inside the adapter; callback injection lets tests avoid browser URL resolution.
  return {store,local,map};
 }
@@ -66,10 +66,10 @@ test('manual runtime supplies reusable purpose rather than an empty model reques
 });
 test('file input, model and artifact share a bound-value execution path',async()=>{
  const {getPointerCatalog}=await import('../backend/ovllPointer/nodeCatalog.js');
- const {store,local}=browser(),id=store.getActiveConversation().id;
+ const {store,local}=browser({fileStore:{getBlob:async()=>new Blob(['Actual notes'],{type:'text/plain'})}}),id=store.getActiveConversation().id;
  const defs=getPointerCatalog().definitions;
  const snapshot={definitions:defs,graph:{graphId:'saved',revision:1,nodes:[
-  {nodeId:'a',definitionRef:{definitionId:'builtin:file',version:1},settings:{file:{name:'notes.txt',mime:'text/plain',textPreview:'Actual notes',textTruncated:true}}},
+  {nodeId:'a',definitionRef:{definitionId:'builtin:file',version:1},settings:{file:{name:'notes.txt',mime:'text/plain',localFileId:'source-1',textPreview:'Cached incomplete notes',textTruncated:true}}},
   {nodeId:'b',definitionRef:{definitionId:'builtin:write',version:1}},
   {nodeId:'c',definitionRef:{definitionId:'builtin:createFile',version:1},settings:{request:'report.md'}}],connections:[
   {id:'ab',kind:'data',from:{nodeId:'a',port:'file'},to:{nodeId:'b',port:'in'}},
@@ -78,8 +78,9 @@ test('file input, model and artifact share a bound-value execution path',async()
  const run=await local.run({conversationId:id,targets:['c'],snapshotOverride:snapshot,
   createArtifact:async args=>{assert.deepEqual(Array.from(args.sources),['Full report']);return {artifact:{name:'report.md',downloadUrl:'/actual/report.md'}};},
   resolveArtifactRequest:()=>({format:'MD',filename:'report'}),
-  executeNode:async args=>{calls++;assert.equal(args.inputArtifacts[0].value.textPreview,'Actual notes');
-   assert.equal(args.inputArtifacts[0].value.textTruncated,true);
+  executeNode:async args=>{calls++;assert.equal(args.inputArtifacts[0].value.text,'Actual notes');
+   assert.equal(args.inputArtifacts[0].value.textTruncated,false);
+   assert.equal(args.inputArtifacts[0].value.availability,'local_bytes');
    return {status:'success',outputs:{status:'produced',values:{result:{inline:'Full report'}}}};}});
  assert.equal(run.status,'completed');assert.equal(calls,1);
  assert.equal(run.nodes[2].outputs.values.artifact.inline.downloadUrl,'/actual/report.md');

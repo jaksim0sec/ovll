@@ -2,7 +2,7 @@
 "use strict";
 
 const STORAGE_KEY = "ovll:workspace:v1";
-const SCHEMA_VERSION = 8;
+const SCHEMA_VERSION = 9;
 const events = new Map();
 
 function clone(value){
@@ -140,7 +140,9 @@ function emptyConversationState(){
     lastUserRequest:"",
     workflowUserRequest:"",
     pointerGraph:null,
-    pointerRuns:[]
+    pointerRuns:[],
+    pointerTask:null,
+    pointerQuestion:null
   };
 }
 
@@ -404,7 +406,24 @@ function normalizePointerRuns(value){
   if(!Array.isArray(value))return [];
   return value.slice(-12).filter(x=>x&&typeof x.runId==='string'&&
     typeof x.status==='string'&&Array.isArray(x.nodes)&&x.nodes.length<=64&&
-    JSON.stringify(x).length<=96000).map(clone);
+    JSON.stringify(x).length<=2000000).map(clone);
+}
+
+function normalizePointerTask(value){
+  if(value==null)return null;
+  if(typeof value!=='object'||Array.isArray(value))throw new Error('INVALID_POINTER_TASK');
+  for(const key of ['objective','requestText'])if(value[key]!==undefined&&
+    (typeof value[key]!=='string'||value[key].length>12000))throw new Error('POINTER_TASK_BUDGET_EXCEEDED');
+  for(const key of ['constraints','historyDigest','requestHistory'])if(value[key]!==undefined&&JSON.stringify(value[key]).length>12000)
+    throw new Error('POINTER_TASK_BUDGET_EXCEEDED');
+  if(JSON.stringify(value).length>48000)throw new Error('POINTER_TASK_BUDGET_EXCEEDED');
+  return clone(value);
+}
+function normalizePointerQuestion(value){
+  if(value==null)return null;
+  if(typeof value!=='object'||Array.isArray(value)||JSON.stringify(value).length>64000)
+    throw new Error('INVALID_POINTER_QUESTION');
+  return clone(value);
 }
 
 function normalizeConversationState(value){
@@ -448,7 +467,9 @@ function normalizeConversationState(value){
         ""
       ).slice(0,12000),
     pointerGraph:normalizePointerGraph(source.pointerGraph ?? source.vnextGraph),
-    pointerRuns:normalizePointerRuns(source.pointerRuns ?? source.vnextRuns)
+    pointerRuns:normalizePointerRuns(source.pointerRuns ?? source.vnextRuns),
+    pointerTask:normalizePointerTask(source.pointerTask),
+    pointerQuestion:normalizePointerQuestion(source.pointerQuestion)
   };
 }
 
@@ -511,6 +532,7 @@ function createDefaultState(){
   const time = now();
 
   return {
+    storageRevision:0,
     schemaVersion:
       SCHEMA_VERSION,
     workspace:{
@@ -692,6 +714,7 @@ function normalizeState(raw){
   const time = now();
 
   return {
+    storageRevision:Math.max(0,Number.isSafeInteger(source.storageRevision)?source.storageRevision:0),
     schemaVersion:
       SCHEMA_VERSION,
     workspace:{
@@ -751,8 +774,16 @@ function readStorage(){
   }
 }
 
-let state =
-  readStorage();
+let state = readStorage();
+let persistedRevision=state.storageRevision||0;
+let committedState=clone(state);
+let storageStatus={status:'ready',revision:persistedRevision};
+function getStorageStatus(){return clone(storageStatus);}
+function reloadStorage(){
+  state=readStorage();persistedRevision=state.storageRevision||0;committedState=clone(state);
+  storageStatus={status:'ready',revision:persistedRevision};emit('change',{reason:'workspace:reload',state:getSnapshot()});
+  return getSnapshot();
+}
 
 function emit(name,payload){
   for(
@@ -796,11 +827,22 @@ function persist(reason="update"){
     now();
 
   try{
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify(state)
-    );
+    // Detect stale sequential writes. localStorage has no atomic cross-tab CAS;
+    // simultaneous racing writes remain a browser-storage limitation.
+    const raw=localStorage.getItem(STORAGE_KEY);
+    const remoteRevision=raw?(JSON.parse(raw).storageRevision||0):0;
+    if(remoteRevision!==persistedRevision){
+      const conflict=new Error('WORKSPACE_REVISION_CONFLICT');conflict.code='WORKSPACE_REVISION_CONFLICT';
+      conflict.expectedRevision=persistedRevision;conflict.actualRevision=remoteRevision;throw conflict;
+    }
+    state.storageRevision=persistedRevision+1;
+    localStorage.setItem(STORAGE_KEY,JSON.stringify(state));
+    persistedRevision=state.storageRevision;committedState=clone(state);
+    storageStatus={status:'ready',revision:persistedRevision};
   }catch(error){
+    state=clone(committedState);
+    storageStatus={status:error?.code==='WORKSPACE_REVISION_CONFLICT'?'conflict':'failed',
+      revision:persistedRevision,error:error?.code||error?.name||'WORKSPACE_SAVE_FAILED'};
     console.error(
       "ovll workspace storage save failed:",
       error
@@ -1264,6 +1306,8 @@ function updateConversationState(
 
   const preservedGraph=conversation.state?.pointerGraph || null;
   const preservedRuns=conversation.state?.pointerRuns || [];
+  const preservedTask=conversation.state?.pointerTask||null;
+  const preservedQuestion=conversation.state?.pointerQuestion||null;
   conversation.state =
     normalizeConversationState(
       nextState
@@ -1272,6 +1316,8 @@ function updateConversationState(
     conversation.state.pointerGraph=preservedGraph;
   if(!Object.prototype.hasOwnProperty.call(nextState||{},"pointerRuns"))
     conversation.state.pointerRuns=preservedRuns;
+  if(!Object.prototype.hasOwnProperty.call(nextState||{},"pointerTask"))conversation.state.pointerTask=preservedTask;
+  if(!Object.prototype.hasOwnProperty.call(nextState||{},"pointerQuestion"))conversation.state.pointerQuestion=preservedQuestion;
 
   conversation.updatedAt =
     now();
@@ -1335,7 +1381,7 @@ function updateConversationPointerGraph(conversationId,snapshot,{deletedDefiniti
     state.pointerDefinitions=collectPointerDefinitions(
       (previousDefinitions||[]).filter(def=>!remove.has(key(def))),next?.definitions
     );
-    if(!persist("conversation:pointer-graph"))throw new Error("LOCAL_GRAPH_SAVE_FAILED");
+    if(!persist("conversation:pointer-graph")){const error=new Error(storageStatus.error||"LOCAL_GRAPH_SAVE_FAILED");error.code=storageStatus.error||"LOCAL_GRAPH_SAVE_FAILED";throw error;}
   }catch(error){
     conversation.state.pointerGraph=previous;
     for(const [record,saved] of changed)record.state.pointerGraph=saved;
@@ -1352,6 +1398,7 @@ function getPointerDefinitions(){
 function updateConversationPointerRuns(conversationId,runs){
   const conversation=getConversation(conversationId);
   if(!conversation)throw new Error("CONVERSATION_NOT_FOUND");
+  if(Array.isArray(runs)&&runs.slice(-12).some(run=>JSON.stringify(run).length>2000000))throw new Error("LOCAL_RUN_BUDGET_EXCEEDED");
   const next=normalizePointerRuns(runs);
   if(!Array.isArray(runs)||next.length!==Math.min(runs.length,12))
     throw new Error("INVALID_LOCAL_RUNS");
@@ -1359,9 +1406,33 @@ function updateConversationPointerRuns(conversationId,runs){
   conversation.state.pointerRuns=next;
   if(!persist("conversation:pointer-runs")){
     conversation.state.pointerRuns=previous;
-    throw new Error("LOCAL_RUN_SAVE_FAILED");
+    const error=new Error(storageStatus.error||"LOCAL_RUN_SAVE_FAILED");error.code=storageStatus.error||"LOCAL_RUN_SAVE_FAILED";throw error;
   }
   return clone(next);
+}
+
+function updateConversationPointerTask(conversationId,task){
+  const conversation=getConversation(conversationId);
+  if(!conversation)throw new Error('CONVERSATION_NOT_FOUND');
+  conversation.state.pointerTask=normalizePointerTask(task);
+  if(!persist('conversation:pointer-task'))throw new Error(storageStatus.error||'LOCAL_TASK_SAVE_FAILED');
+  return clone(conversation.state.pointerTask);
+}
+function updateConversationPointerQuestion(conversationId,checkpoint){
+  const conversation=getConversation(conversationId);
+  if(!conversation)throw new Error('CONVERSATION_NOT_FOUND');
+  conversation.state.pointerQuestion=normalizePointerQuestion(checkpoint);
+  if(!persist('conversation:pointer-question'))throw new Error(storageStatus.error||'LOCAL_QUESTION_SAVE_FAILED');
+  return clone(conversation.state.pointerQuestion);
+}
+
+function getPointerRun(conversationId,runId){
+  return clone((getConversation(conversationId)?.state?.pointerRuns||[]).find(run=>run.runId===runId)||null);
+}
+function getPointerNodeOutput(conversationId,runId,nodeId,port){
+  const run=getPointerRun(conversationId,runId),node=run?.nodes.find(n=>n.nodeId===nodeId);
+  if(!node)return null;
+  return clone(port===undefined?node.outputs||null:node.outputs?.values?.[port]||null);
 }
 
 function updateConversationDraft(
@@ -1619,6 +1690,12 @@ const api = {
   updateConversationPointerGraph,
   getPointerDefinitions,
   updateConversationPointerRuns,
+  updateConversationPointerTask,
+  updateConversationPointerQuestion,
+  getStorageStatus,
+  getPointerRun,
+  getPointerNodeOutput,
+  reloadStorage,
   updateConversationDraft,
   deleteConversation,
   search,

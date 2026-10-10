@@ -16,8 +16,8 @@ test("workspace UI is factory-backed and preserves gesture constants", () => {
     read("front/js/workspaceUi.js");
   const bootstrap =
     read("front/js/ui.js");
-  const boot =
-    read("front/js/boot.js");
+  const assets =
+    read("front/asset-manifest.js");
 
   assert.match(factory,/createOvllWorkspaceUI/);
   assert.match(factory,/Math\.max\(\s*absX,\s*absY\s*\) < 8/);
@@ -28,7 +28,7 @@ test("workspace UI is factory-backed and preserves gesture constants", () => {
   assert.match(factory,/if \(!historyEnabled\)/);
   assert.match(factory,/gestureBlockSelector/);
   assert.match(bootstrap,/global\.AstraUI\s*=\s*createUI/);
-  assert.match(boot,/\.\/js\/workspaceUi\.js/);
+  assert.match(assets,/\.\/js\/workspaceUi\.js/);
 });
 
 test("workspace presence is factory-backed and root scoped", () => {
@@ -36,8 +36,8 @@ test("workspace presence is factory-backed and root scoped", () => {
     read("front/js/workspacePresence.js");
   const bootstrap =
     read("front/js/ovllPresence.js");
-  const boot =
-    read("front/js/boot.js");
+  const assets =
+    read("front/asset-manifest.js");
 
   assert.match(
     factory,
@@ -65,7 +65,7 @@ test("workspace presence is factory-backed and root scoped", () => {
   );
 
   assert.match(
-    boot,
+    assets,
     /\.\/js\/workspacePresence\.js/
   );
 });
@@ -75,8 +75,8 @@ test("workspace orchestrator and reusable node builder are available", () => {
     read("front/js/ovllWorkspace.js");
   const builder =
     read("front/js/canvasNodeBuilder.js");
-  const boot =
-    read("front/js/boot.js");
+  const assets =
+    read("front/asset-manifest.js");
 
   assert.match(workspace,/createOvllWorkspace/);
   assert.match(workspace,/data-ovll-workspace/);
@@ -85,8 +85,8 @@ test("workspace orchestrator and reusable node builder are available", () => {
   assert.match(builder,/createCanvasNodeBuilder/);
   assert.match(builder,/options\.beforeReset/);
   assert.match(builder,/data-canvas-node-builder-list/);
-  assert.match(boot,/\.\/js\/canvasNodeBuilder\.js/);
-  assert.match(boot,/\.\/js\/ovllWorkspace\.js/);
+  assert.match(assets,/\.\/js\/canvasNodeBuilder\.js/);
+  assert.match(assets,/\.\/js\/ovllWorkspace\.js/);
 });
 
 test("function builder uses shared workspace with isolated Pointer graph and function storage",()=>{
@@ -131,8 +131,8 @@ test("reusable workspace controls do not expose dead or ambiguous controls", () 
 test("main workspace owns the interactive mascot lifecycle", () => {
   const app =
     read("front/js/app.js");
-  const boot =
-    read("front/js/boot.js");
+  const assets =
+    read("front/asset-manifest.js");
   const mascot =
     read("front/js/mascot.js");
 
@@ -156,8 +156,8 @@ test("main workspace owns the interactive mascot lifecycle", () => {
     /mascot:\s*false/
   );
   assert.ok(
-    boot.indexOf("./js/mascot.js") <
-      boot.indexOf("./js/app.js"),
+    assets.indexOf("./js/mascot.js") <
+      assets.indexOf("./js/app.js"),
     "mascot mount API must exist before app binds the main canvas"
   );
   assert.match(

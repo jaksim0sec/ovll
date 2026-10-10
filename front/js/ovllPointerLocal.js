@@ -2,7 +2,57 @@
   "use strict";
   // Browser-owned graph snapshots, scoped to the existing local WorkspaceStore.
   // No SQL or user login; node inference delegates to the existing stateless server.
-  function create({workspaceStore=global.OvllWorkspaceStore,
+  async function readLocalSource(store,file,{maxBytes=64000,maxSerializedBytes=48000}={}){
+    const provenance={kind:'local_file',localFileId:String(file?.localFileId||'')};
+    if(!file?.localFileId||typeof store?.getBlob!=='function')
+      return {status:'blocked',reason:'LOCAL_FILE_BYTES_UNAVAILABLE',provenance};
+    let blob;
+    try{blob=await store.getBlob(file.localFileId);}catch(error){
+      return {status:'blocked',reason:'LOCAL_FILE_BYTES_UNAVAILABLE',provenance:{...provenance,error:error?.code||error?.message}};
+    }
+    if(!blob||typeof blob.text!=='function')return {status:'blocked',reason:'LOCAL_FILE_BYTES_UNAVAILABLE',provenance};
+    const mime=String(blob.type||file.mime||'').toLowerCase().split(';')[0];
+    const textMime=/^text\//.test(mime)||['application/json','application/xml','application/csv','application/javascript','application/x-ndjson'].includes(mime);
+    const textName=/\.(txt|md|markdown|csv|tsv|json|jsonl|ndjson|xml|html?|css|js|mjs|yaml|yml|log)$/i.test(file.name||'');
+    if(mime==='application/pdf'||/^image\//.test(mime)||/\.(pdf|png|jpe?g|gif|webp|svg|bmp|tiff?)$/i.test(file.name||'')||!textMime&&!textName)
+      return {status:'blocked',reason:'LOCAL_FILE_PARSER_UNAVAILABLE',provenance:{...provenance,mime,availability:'local_bytes',parsing:'unsupported'}};
+    const limit=Math.max(1,Math.min(256000,Number.isFinite(maxBytes)?Math.floor(maxBytes):64000));
+    const selected=blob.slice(0,limit);let truncated=selected.size<blob.size,readBytes=selected.size;
+    const Decoder=global.TextDecoder||(typeof TextDecoder==='function'?TextDecoder:null);
+    let text;try{text=Decoder?new Decoder('utf-8',{fatal:true}).decode(await selected.arrayBuffer(),{stream:truncated}):await selected.text();}
+    catch{return {status:'blocked',reason:'LOCAL_FILE_PARSER_UNAVAILABLE',provenance:{...provenance,parsing:'unsupported_encoding'}};}
+    if(text.includes('\u0000')||/^%PDF-/.test(text))return {status:'blocked',reason:'LOCAL_FILE_PARSER_UNAVAILABLE',provenance:{...provenance,parsing:'binary'}};
+    const utf8Bytes=value=>Array.from(value).reduce((total,c)=>{const p=c.codePointAt(0);return total+(p>65535?4:p>2047?3:p>127?2:1);},0);
+    if(utf8Bytes(JSON.stringify(text))>maxSerializedBytes){
+      let low=0,high=text.length;
+      while(low<high){const mid=Math.ceil((low+high)/2);
+        if(utf8Bytes(JSON.stringify(text.slice(0,mid)))<=maxSerializedBytes)low=mid;else high=mid-1;}
+      text=text.slice(0,low).replace(/[\uD800-\uDBFF]$/,'');
+      readBytes=utf8Bytes(text);truncated=true;
+    }
+    let metadata;try{metadata=await store.getMetadata?.(file.localFileId);}catch{}
+    const coverage={unit:'bytes',start:0,end:readBytes,readBytes,totalBytes:blob.size,truncated,complete:!truncated};
+    return {status:'success',value:{name:String(file.name||'파일'),localFileId:file.localFileId,mime,size:blob.size,text,textTruncated:truncated,
+      availability:'local_bytes',parsing:'utf8_text',coverage,provenance:{...provenance,mime,byteLength:blob.size,contentRevision:metadata?.contentRevision||'',updatedAt:metadata?.updatedAt||0}}};
+  }
+  async function captureArtifact(store,artifact,blob,{conversationId,signal}={}){
+    const priorAvailability=artifact.availability&&typeof artifact.availability==='object'?artifact.availability:{};
+    const value={...artifact,remoteAvailability:artifact.availability,availability:{...priorAvailability,remoteUrl:true,localBytes:false,durable:false}};
+    if(artifact.localFileId){
+      try{const existing=await store?.getBlob?.(artifact.localFileId);
+        if(existing){value.availability={...value.availability,localBytes:true,durable:true};return value;}}catch{}
+    }
+    if(!store||!store.putBlob&&!store.putRemote)return value;
+    try{
+      const metadata={...artifact,source:'artifact',originId:artifact.id||artifact.downloadUrl,conversationId};
+      const saved=blob&&store.putBlob?await store.putBlob(blob,metadata):
+        store.putRemote?await store.putRemote(artifact.downloadUrl,metadata,{signal}):null;
+      if(saved?.id){value.localFileId=saved.id;value.availability={...value.availability,localBytes:true,durable:true};}
+    }catch(error){value.availability.localSaveError=error?.code||error?.message||'LOCAL_ARTIFACT_SAVE_FAILED';}
+    return value;
+  }
+  function create({workspaceStore=global.OvllWorkspaceStore,fileStore=global.OvllFileStore,
+    loadResults=()=>import("/js/ovllPointerResults.mjs"),
     loadCore=()=>import("/js/ovllPointerGraphCore.mjs"),loadPlan=()=>import("/js/ovllPointerPlanCore.mjs"),
     loadCatalog=()=>global.OvllPointerApi?.localCatalog?.()||{definitions:[]}}={}){
     if(!workspaceStore || typeof workspaceStore.updateConversationPointerGraph!=="function")
@@ -158,26 +208,64 @@
       return current;
     }
 
-    async function run({conversationId,targets,damMode='closed',requestText='',snapshotOverride,taskConstraints=[],
+    async function run({conversationId,targets,deliverableTargets,damMode='closed',requestText='',snapshotOverride,taskConstraints=[],taskContext,executorIdentity,
+      maxSourceBytes=64000,
       createArtifact=(input,options)=>global.AstraAPI.createArtifact(input,options),
       resolveArtifactRequest=params=>global.OvllArtifactRequest.resolve(params),cache=new Map(),
-      executeNode=({snapshot,nodeId,inputArtifacts,requestText,taskConstraints,signal})=>global.OvllPointerApi.localNode({
-        snapshot,nodeId,inputArtifacts,requestText,taskConstraints,signal}),onProgress=()=>{},signal}={}){
-      const snapshot=snapshotOverride||(await state(conversationId)).graph;
+      executeNode=({snapshot,nodeId,inputArtifacts,requestText,taskConstraints,taskContext,signal})=>global.OvllPointerApi.localNode({
+        snapshot,nodeId,inputArtifacts,requestText,taskConstraints,taskContext,signal}),onProgress=()=>{},signal}={}){
+      const copy=value=>JSON.parse(JSON.stringify(value));
+      const snapshot=copy(snapshotOverride||(await state(conversationId)).graph);
+      const results=await loadResults();
       const {buildExecutionPlan,matchesInputRepresentation}=await loadPlan();
       const targetIds=(targets||[]).map(x=>typeof x==='string'?x:x.nodeId);
       const plan=buildExecutionPlan(snapshot,{graphRef:{graphId:snapshot.graph.graphId,
         revision:snapshot.graph.revision},planEpoch:0,targets:targetIds,damMode});
       if(plan.order.length>64)throw new Error('LOCAL_RUN_LIMIT');
       const runId='r_'+(global.crypto?.randomUUID?.()||Math.random().toString(36).slice(2));
-      const record={runId,graphRef:plan.graphRef,targets:targetIds,damMode,status:'running',
+      const deliveryIds=(deliverableTargets||targetIds).map(x=>typeof x==='string'?x:x.nodeId);
+      if(!deliveryIds.length||deliveryIds.some(id=>!plan.order.some(item=>item.nodeId===id)))
+        throw new Error('LOCAL_DELIVERABLE_OUT_OF_SCOPE');
+      const record={runId,graphRef:plan.graphRef,targets:targetIds,deliverableTargets:deliveryIds,
+        executionScope:plan.order.map(item=>item.nodeId),snapshot,taskContext:taskContext?copy(taskContext):undefined,
+        requestText,taskConstraints:copy(taskConstraints),damMode,status:'running',
         startedAt:Date.now(),nodes:plan.order.map(x=>({nodeId:x.nodeId,status:'pending'}))};
-      const persist=()=>{
-        const existing=workspaceStore.getConversation(conversationId)?.state.pointerRuns||[];
-        workspaceStore.updateConversationPointerRuns(conversationId,[...existing.filter(x=>x.runId!==runId),record]);
-        onProgress(JSON.parse(JSON.stringify(record)));
+      const persist=(durable=false)=>{
+        if(durable){
+          try{
+            const existing=workspaceStore.getConversation(conversationId)?.state.pointerRuns||[];
+            record.storage={status:'saved'};
+            workspaceStore.updateConversationPointerRuns(conversationId,[...existing.filter(x=>x.runId!==runId),record]);
+          }catch(error){record.storage={status:'failed',error:error?.code||error?.message||'LOCAL_RUN_SAVE_FAILED'};}
+        }
+        try{onProgress(copy(record));}catch(error){console.warn('Pointer progress callback failed',error);}
       };
-      persist();
+      const finish=async()=>{
+        for(const entry of record.nodes)if(['pending','running'].includes(entry.status)){
+          entry.status=record.status==='cancelled'?'cancelled':'blocked';
+          if(entry.status==='blocked')entry.error=entry.error||'LOCAL_RUN_NOT_REACHED';
+        }
+        const states=deliveryIds.map(nodeId=>({nodeId,status:record.nodes.find(n=>n.nodeId===nodeId)?.status||'missing'}));
+        const active=states.filter(n=>n.status!=='skipped');
+        const sourceTruncated=record.nodes.some(n=>n.provenance?.coverage?.truncated===true);
+        const outputTruncated=record.nodes.some(n=>Object.values(n.outputs?.values||{}).some(v=>v.inline?.truncated===true));
+        record.coverage={targets:states,complete:active.length>0&&active.every(n=>n.status==='success')&&!sourceTruncated&&!outputTruncated,
+          sourceTruncated,outputTruncated,
+          skippedTargets:states.filter(n=>n.status==='skipped').map(n=>n.nodeId)};
+        const current=workspaceStore.getConversation(conversationId)?.state?.pointerGraph;
+        const currentSnapshot=!snapshotOverride&&current?.graph?.graphId===snapshot.graph.graphId?current:snapshot;
+        const checked=await validateResults(currentSnapshot,record.nodes);
+        for(const entry of record.nodes)if(entry.status==='success')entry.resultCurrent=checked.find(n=>n.nodeId===entry.nodeId)?.resultCurrent===true;
+        record.validity={snapshotCurrent:record.nodes.filter(n=>n.status==='success').every(n=>n.resultCurrent),
+          graphRef:currentSnapshot.graph?{graphId:currentSnapshot.graph.graphId,revision:currentSnapshot.graph.revision}:null};
+        record.finishedAt=Date.now();
+        for(const entry of record.nodes)entry.finishedAt=entry.finishedAt||record.finishedAt;
+        persist(true);return copy(record);
+      };
+      persist(true);
+      if(record.storage.status==='failed'){
+        record.status='failed';record.nodes[0].error=record.storage.error;return finish();
+      }
       const unavailable=plan.order.find(item=>{
         const d=item.definition,caps=d.requiredCapabilities||[];
         return d.executorKind==='model_task'?caps.some(c=>!['model_task','branch.exclusive'].includes(c)):
@@ -185,8 +273,7 @@
       });
       if(unavailable){
         const entry=record.nodes.find(n=>n.nodeId===unavailable.nodeId);
-        entry.status='blocked';entry.error='LOCAL_EXECUTOR_UNAVAILABLE';record.status='waiting';persist();
-        return JSON.parse(JSON.stringify(record));
+        entry.status='blocked';entry.error='LOCAL_EXECUTOR_UNAVAILABLE';record.status='waiting';return finish();
       }
       const resolved=new Map(),skipped=new Set();
       const definitionFor=id=>{const node=snapshot.graph.nodes.find(n=>n.nodeId===id);
@@ -225,16 +312,25 @@
                   ?.outputs.find(p=>p.name===link.from.port)?.representation,value:source.inline};
             });
           const objective=requestText.trim()||item.node.settings?.request?.trim()||item.definition.purpose;
-          const fingerprint=JSON.stringify({nodeId:item.nodeId,definition:item.definition,
+          entry.semanticContext={requestText:objective,taskConstraints:copy(taskConstraints),
+            ...(taskContext?{taskContext:copy(taskContext)}:{}),
+            ...(executorIdentity!==undefined?{executorIdentity:copy(executorIdentity)}:{}),inputArtifacts:copy(inputs),
+            dependencyResults:Object.fromEntries(incoming.map(link=>{
+              const prior=record.nodes.find(n=>n.nodeId===link.from.nodeId);
+              return [link.from.nodeId,{semanticFingerprint:prior?.semanticFingerprint,outputs:prior?.outputs}];
+            }).filter(([,evidence])=>evidence.semanticFingerprint&&evidence.outputs))};
+          entry.semanticFingerprint=results.nodeSemanticFingerprint(snapshot,item.nodeId,entry.semanticContext);
+          entry.startedAt=Date.now();
+          const fingerprint=JSON.stringify({semanticFingerprint:entry.semanticFingerprint,nodeId:item.nodeId,definition:item.definition,
             settings:item.node.settings||{},bindings:item.node.inputBindings||{},objective,taskConstraints,
-            inputs:inputs.map(({valueRef,...rest})=>rest)});
+            inputs:inputs.map(({valueRef,...rest})=>rest),taskContext});
           let output;
           if(item.definition.executorKind==='model_task'){
             if((item.definition.requiredCapabilities||[]).some(c=>!['model_task','branch.exclusive'].includes(c)))
               throw new Error('LOCAL_EXECUTOR_UNAVAILABLE');
             output=cache.get(fingerprint);
             if(output)entry.reused=true;
-            else output=await executeNode({snapshot,nodeId:item.nodeId,inputArtifacts:inputs,requestText:objective,taskConstraints,signal});
+            else output=await executeNode({snapshot,nodeId:item.nodeId,inputArtifacts:inputs,requestText:objective,taskConstraints,taskContext,signal});
           }else {
             const caps=item.definition.requiredCapabilities||[];
             const port=item.definition.outputs[0];
@@ -242,30 +338,43 @@
               throw new Error('LOCAL_EXECUTOR_UNAVAILABLE');
             let value;
             if(caps[0]==='file.read_local'){
-              value=item.node.settings?.file;
-              if(!value?.name){output={status:'blocked',outputs:{status:'blocked',reason:'파일을 먼저 추가해줘.'}};}
-              else value=JSON.parse(JSON.stringify(value));
+              const source=item.node.settings?.file;
+              const read=await readLocalSource(fileStore,source,{maxBytes:maxSourceBytes});
+              if(read.status==='blocked')output={status:'blocked',outputs:{status:'blocked',reason:read.reason},provenance:read.provenance};
+              else {value=read.value;entry.provenance={...value.provenance,coverage:value.coverage};
+                entry.semanticContext.executorIdentity={capability:'file.read_local',localFileId:value.provenance.localFileId,contentRevision:value.provenance.contentRevision};
+                entry.semanticFingerprint=results.nodeSemanticFingerprint(snapshot,item.nodeId,entry.semanticContext);}
             }else if(caps[0]==='artifact.create'){
               const bound=Object.values(item.node.inputBindings||{}),sources=[...inputs.map(x=>x.value),...bound];
               if(!sources.length)output={status:'blocked',outputs:{status:'blocked',reason:'파일로 내보낼 완성된 내용을 연결해줘.'}};
               else {
                 const params=resolveArtifactRequest({request:item.node.settings?.request||objective});
-                entry.toolEffectStarted=true;persist();
+                entry.toolEffectStarted=true;persist(true);
+                if(record.storage.status==='failed'){
+                  entry.toolEffectStarted=false;const error=new Error(record.storage.error);error.code=record.storage.error;throw error;
+                }
                 const result=await createArtifact({...params,sources},{signal});
                 value=result?.artifact;
-                if(!value?.downloadUrl)throw new Error('LOCAL_ARTIFACT_NOT_VERIFIED');
+                if(!value?.downloadUrl||!/^(https?:\/\/|\/(?!\/)|blob:)/.test(String(value.downloadUrl)))throw new Error('LOCAL_ARTIFACT_NOT_VERIFIED');
+                entry.effectConfirmed=true;
+                value=await captureArtifact(fileStore,value,result?.blob,{conversationId,signal});
               }
             }else throw new Error('LOCAL_EXECUTOR_UNAVAILABLE');
             if(!output)output={status:'success',outputs:{status:'produced',values:{[port.name]:{inline:value}}}};
           }
+          const metadata=copy(output?._meta||{});
+          entry.execution=entry.reused?{...metadata,reused:true,usage:null,providerCalls:0,calls:[]}:metadata;
+          if(entry.reused)entry.reusedExecution=metadata;
           if(signal?.aborted){
             if(entry.toolEffectStarted&&output?.status==='success'&&output.outputs?.status==='produced'){
               entry.status='success';entry.outputs=output.outputs;entry.effectConfirmed=true;
+              entry.finishedAt=Date.now();
+              entry.outputRefs=Object.keys(output.outputs.values||{}).map(port=>'local:'+runId+':'+item.nodeId+':'+port);
             }else entry.status='cancelled';
             record.status='cancelled';break;
           }
 
-          if(output?.status==='blocked'){entry.status='blocked';entry.error=output.outputs?.reason||'CONTEXT_REQUIRED';record.status='waiting';break;}
+          if(output?.status==='blocked'){entry.status='blocked';entry.error=output.outputs?.reason||'CONTEXT_REQUIRED';entry.provenance=output.provenance||entry.provenance||{};record.status='waiting';break;}
           if(output?.status!=='success'||output.outputs?.status!=='produced')throw new Error('LOCAL_OUTPUT_NOT_VERIFIED');
           const values=output.outputs.values||{},declared=item.definition.outputs;
           if(Object.keys(values).some(name=>!declared.some(p=>p.name===name))||
@@ -273,20 +382,51 @@
             Object.values(values).some(v=>!v||!Object.hasOwn(v,'inline')))throw new Error('LOCAL_OUTPUT_NOT_VERIFIED');
           if(exclusive(item.nodeId)&&Object.keys(values).length!==1)throw new Error('EXCLUSIVE_BRANCH_OUTPUT_REQUIRED');
           entry.status='success';entry.outputs=output.outputs;
-          entry.provenance=output.provenance||{};
+          entry.provenance={...entry.provenance,...output.provenance};
+          if(executorIdentity===undefined&&(metadata.providerId||metadata.provider||metadata.model)){
+            entry.semanticContext.executorIdentity={providerId:metadata.providerId||metadata.provider||'',model:metadata.model||''};
+            entry.semanticFingerprint=results.nodeSemanticFingerprint(snapshot,item.nodeId,entry.semanticContext);
+          }
+          entry.finishedAt=Date.now();
+          entry.outputRefs=Object.keys(values).map(port=>'local:'+runId+':'+item.nodeId+':'+port);
+          entry.resultCurrent=true;
           if(item.definition.executorKind==='model_task')cache.set(fingerprint,output);
           resolved.set(item.nodeId,output.outputs);
         }catch(error){entry.status='failed';entry.error=error?.code||error?.message||'LOCAL_EXECUTION_FAILED';
-          record.status=entry.toolEffectStarted?'outcome_unknown':signal?.aborted?'cancelled':'failed';
-          if(entry.toolEffectStarted)entry.status='outcome_unknown';break;}
+          entry.execution=copy(error?._meta||{});entry.finishedAt=Date.now();
+          record.status=entry.toolEffectStarted&&!entry.effectConfirmed?'outcome_unknown':signal?.aborted?'cancelled':'failed';
+          if(entry.toolEffectStarted&&!entry.effectConfirmed)entry.status='outcome_unknown';break;}
         persist();
       }
-      if(record.status==='running')record.status=record.nodes.some(n=>targetIds.includes(n.nodeId)&&n.status==='success')?'completed':'skipped';
-      persist();
-      return JSON.parse(JSON.stringify(record));
+      if(record.status==='running'){
+        const intended=record.nodes.filter(n=>deliveryIds.includes(n.nodeId)&&n.status!=='skipped');
+        record.status=intended.length&&intended.every(n=>n.status==='success')?'completed':intended.length?'waiting':'skipped';
+      }
+      return finish();
     }
 
-    return Object.freeze({graphId:graphIdFor,state,turn,run,migrateConversation,projectCanvasDraft});
+    async function validateResults(snapshot,nodes,options={}){
+      const results=await loadResults();let checked=results.currentResultNodes(snapshot,nodes,options);
+      checked=await Promise.all(checked.map(async row=>{
+        if(row.status!=='success'||row.provenance?.kind!=='local_file')return row;
+        let current=false;
+        try{
+          const id=row.provenance.localFileId;
+          if(row.provenance.contentRevision&&fileStore?.getMetadata){
+            const metadata=await fileStore.getMetadata(id);
+            current=metadata?.contentRevision===row.provenance.contentRevision;
+          }else{
+            const node=snapshot.graph.nodes.find(n=>n.nodeId===row.nodeId);
+            const value=Object.values(row.outputs?.values||{})[0]?.inline;
+            const read=await readLocalSource(fileStore,node?.settings?.file,{maxBytes:Math.max(1,row.provenance.coverage?.readBytes||64000)});
+            current=read.status==='success'&&read.value.text===value?.text&&read.value.size===value?.size;
+          }
+        }catch{}
+        return current?row:{...row,status:'stale',resultCurrent:false,sourceCurrent:false};
+      }));
+      return results.currentResultNodes(snapshot,checked,options);
+    }
+    return Object.freeze({graphId:graphIdFor,state,turn,run,validateResults,readSource:(file,options)=>readLocalSource(fileStore,file,options),migrateConversation,projectCanvasDraft});
   }
   global.createOvllPointerLocal=create;
   global.OvllPointerLocal=create();

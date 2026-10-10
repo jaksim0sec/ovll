@@ -40,7 +40,11 @@ const ICON_LABELS={
   "potted-plant":"화분","graduation-cap":"학사모",
   pencil:"연필",lightbulb:"전구",hourglass:"모래시계",
   planet:"행성",headphones:"헤드폰",
-  "coffee-cup":"커피잔",compass:"나침반"
+  "coffee-cup":"커피잔",compass:"나침반",
+  document:"문서",spreadsheet:"표 · 데이터",'chart-line':"추세 · 분석",
+  checklist:"체크리스트",calendar:"일정",clock:"시간",search:"검색",
+  link:"연결",code:"코드",database:"데이터베이스",users:"협업",
+  shield:"검증 · 보호",mail:"메일",translate:"번역"
 };
 
 function clone(value){
@@ -76,6 +80,7 @@ function createOvllFunctionWorkspace(
     destroyed:false,
     ready:false,
     editingId:null,
+    baseFunctionRef:null,
     canvas:null,
     definitions:null,
     color:COLORS[0],
@@ -245,12 +250,19 @@ function createOvllFunctionWorkspace(
 
     <div class="ovll-function-field">
       <span>아이콘</span>
+      <input data-function-icon-search type="search" placeholder="아이콘 검색" aria-label="함수 아이콘 검색" autocomplete="off">
       <div class="ovll-function-icons" data-function-icons role="group" aria-label="노드 아이콘 선택"></div>
+      <small data-function-icon-empty hidden>검색한 아이콘이 없어</small>
     </div>
 
     <div class="ovll-function-field">
       <span>색상</span>
-      <div class="ovll-function-colors" data-function-colors></div>
+      <div class="ovll-function-colors" data-function-colors role="group" aria-label="함수 색상 팔레트"></div>
+      <div class="ovll-function-color-controls">
+        <label><span>색상 선택</span><input data-function-color-picker type="color" aria-label="함수 색상 선택"></label>
+        <label><span>HEX</span><input data-function-color-hex type="text" placeholder="#7c6cf2" maxlength="7" spellcheck="false" autocomplete="off" aria-label="함수 색상 HEX" aria-describedby="function-color-help" aria-invalid="false"></label>
+      </div>
+      <small id="function-color-help" data-function-color-help>HEX 3자리 또는 6자리 (예: #abc, #123456)</small>
     </div>
 
     <button class="ovll-function-delete" data-function-delete type="button" hidden>삭제</button>
@@ -298,6 +310,12 @@ function createOvllFunctionWorkspace(
     inspector.querySelector(
       "[data-function-icons]"
     );
+
+  const colorPicker=inspector.querySelector("[data-function-color-picker]");
+  const colorHex=inspector.querySelector("[data-function-color-hex]");
+  const colorHelp=inspector.querySelector("[data-function-color-help]");
+  const iconSearch=inspector.querySelector("[data-function-icon-search]");
+  const iconEmpty=inspector.querySelector("[data-function-icon-empty]");
 
   const listRoot=
     recordsPanel.querySelector(
@@ -398,7 +416,7 @@ function createOvllFunctionWorkspace(
 
   function setIconKey(key){
     state.iconKey=
-      SvgLibrary?.has?.(key)
+      (key==='custom'||SvgLibrary?.getServerKeys?.().includes(key))&&SvgLibrary?.has?.(key)
         ?String(key)
         :"custom";
 
@@ -415,9 +433,10 @@ function createOvllFunctionWorkspace(
   function renderIconChoices(){
     iconsRoot?.replaceChildren();
 
+    const query=String(iconSearch?.value||'').trim().toLowerCase();
     for(const key of SvgLibrary?.getServerKeys?.()||[]){
       const svg=SvgLibrary.get(key);
-      if(!svg)continue;
+      if(!svg||query&&!((ICON_LABELS[key]||'')+' '+key).toLowerCase().includes(query))continue;
 
       const button=document.createElement("button");
       const name=ICON_LABELS[key]||key;
@@ -428,17 +447,22 @@ function createOvllFunctionWorkspace(
       button.setAttribute("title",name);
       button.setAttribute("aria-pressed","false");
       button.innerHTML=svg;
+      const label=document.createElement('span');
+      label.className='ovll-function-icon-label';
+      label.textContent=name;
+      button.appendChild(label);
       iconsRoot?.appendChild(button);
     }
 
+    if(iconEmpty)iconEmpty.hidden=!!iconsRoot?.children.length;
     setIconKey(state.iconKey);
   }
 
   function setColor(color){
-    state.color=
-      COLORS.includes(color)
-        ?color
-        :COLORS[0];
+    state.color=global.OvllPointerFunctions.normalizeColor(color)||COLORS[0];
+    if(colorPicker)colorPicker.value=state.color;
+    if(colorHex){colorHex.value=state.color;colorHex.setAttribute('aria-invalid','false');}
+    if(colorHelp)colorHelp.textContent='HEX 3자리 또는 6자리 (예: #abc, #123456)';
 
     colorsRoot
       ?.querySelectorAll(
@@ -866,6 +890,9 @@ function createOvllFunctionWorkspace(
     await ensureReady();
 
     state.editingId=null;
+    state.baseFunctionRef=null;
+    if(iconSearch)iconSearch.value='';
+    renderIconChoices();
     state.pointerDraft=null;
     state.pointerDraftId=null;
     state.messages=[];
@@ -939,6 +966,9 @@ function createOvllFunctionWorkspace(
 
     state.editingId=
       record.id;
+    state.baseFunctionRef=pointerFunction?{id:pointerFunction.id,version:pointerFunction.version}:null;
+    if(iconSearch)iconSearch.value='';
+    renderIconChoices();
     state.pointerDraft=pointerFunction?.snapshot||null;
     state.pointerDraftId=pointerFunction?.snapshot?.graph?.graphId||null;
     state.color=
@@ -1016,14 +1046,17 @@ function createOvllFunctionWorkspace(
       const snapshot=repo.get('local',id);
       const nodes=snapshot.graph.nodes;
       if(!nodes.length)throw new Error('함수로 저장할 노드를 먼저 추가해줘.');
-      const targets=nodes.filter(n=>!snapshot.graph.connections.some(l=>
-        l.from.nodeId===n.nodeId)).map(n=>n.nodeId);
+      const base=state.baseFunctionRef&&global.OvllPointerFunctions.get(state.baseFunctionRef.id,state.baseFunctionRef.version);
+      const targets=base?.targets?.length&&base.targets.every(id=>nodes.some(n=>n.nodeId===id))
+        ?base.targets:nodes.filter(n=>!snapshot.graph.connections.some(l=>l.from.nodeId===n.nodeId)).map(n=>n.nodeId);
       if(!targets.length)throw new Error('결과로 이어지는 마지막 노드를 확인해줘.');
-      const saved=global.OvllPointerFunctions.save({purpose:name,
+      if(colorHex?.getAttribute('aria-invalid')==='true')throw new Error('HEX 색상을 확인해줘.');
+      const saved=global.OvllPointerFunctions.save({...(state.baseFunctionRef?{baseFunctionRef:state.baseFunctionRef}:{purpose:name}),
         snapshot,targets,presentation:{name,description,color:state.color,iconKey:state.iconKey,
           view:state.canvas.getWorkflow().nodes.map(n=>({id:n.id,x:n.x,y:n.y,expanded:n.expanded}))}});
       state.editingId=saved.id;
-      state.pointerDraft=snapshot;
+      state.baseFunctionRef={id:saved.id,version:saved.version};
+      state.pointerDraft=saved.snapshot;
       state.dirty=false;
       if(deleteButton)deleteButton.hidden=false;
       renderRecords();
@@ -1220,7 +1253,7 @@ function createOvllFunctionWorkspace(
     );
     button.setAttribute(
       "aria-label",
-      "함수 색상"
+      "함수 색상 "+color
     );
     button.setAttribute(
       "aria-pressed",
@@ -1335,6 +1368,23 @@ function createOvllFunctionWorkspace(
       markDirty();
     }
   );
+
+  listen(iconSearch,'input',renderIconChoices);
+  listen(colorPicker,'input',()=>{setColor(colorPicker.value);markDirty();});
+  listen(colorHex,'input',()=>{
+    const color=global.OvllPointerFunctions.normalizeColor(colorHex.value);
+    if(!color){
+      colorHex.setAttribute('aria-invalid','true');
+      if(colorHelp)colorHelp.textContent='#으로 시작하는 HEX 3자리 또는 6자리를 입력해줘.';
+      return;
+    }
+    const value=colorHex.value;
+    setColor(color);
+    // Keep the typed shorthand until blur so a six-digit value can be entered naturally.
+    colorHex.value=value;
+    markDirty();
+  });
+  listen(colorHex,'blur',()=>{if(global.OvllPointerFunctions.normalizeColor(colorHex.value))setColor(colorHex.value);});
 
   listen(
     colorsRoot,

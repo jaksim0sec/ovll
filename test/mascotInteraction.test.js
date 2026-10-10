@@ -32,6 +32,25 @@ test('selection approaches above the node and continues orbiting',()=>{const h=h
 test('collaboration prepares a node question without replacing an existing draft',()=>{const h=harness();h.handlers.get('select')('a');h.advance(2000);h.click();const menu=h.world.children.find(e=>e.className==='ovll-mascot-menu');assert.ok(menu&&!menu.hidden,'click should open collaboration controls');const question=menu.children.find(e=>e.dataset.mascotAction==='question');question.dispatchEvent({type:'click'});assert.match(h.input.value,/자료 조사/);h.input.value='내가 작성한 요청';h.click();question.dispatchEvent({type:'click'});assert.equal(h.input.value,'내가 작성한 요청');h.mascot.destroy();assert.ok(!h.world.children.includes(menu),'destroy should remove collaboration controls')});
 test('errors pause orbital movement until new activity',()=>{const h=harness();h.mascot.workAtNode('a',true);h.advance(2000);h.mascot.setSituation('nodeError',{nodeId:'a'});h.advance(500);const a=h.position();h.advance(1500);assert.deepEqual(h.position(),a);h.mascot.destroy()});
 test('clicking a working mascot keeps its task reaction active',()=>{const h=harness();h.mascot.workAtNode('a',true);h.advance(2000);h.click();assert.ok(h.mascot.element.classList.contains('working'),'collaboration must not erase the active task reaction');h.mascot.destroy()});
+test('settling chat thinking does not erase a node execution reaction',()=>{
+  const h=harness();h.mascot.workAtNode('a',true);h.advance(700);
+  h.mascot.setThinking(false);h.advance(700);
+  assert.ok(h.mascot.element.classList.contains('working'),'chat settlement must preserve active node work');
+  assert.equal(h.mascot.element.dataset.task,'research');h.mascot.destroy();
+});
+test('a stale terminal reaction cannot stop a newer working node',()=>{
+  const h=harness();h.mascot.workAtNode('a',true);h.mascot.workAtNode('b',true);
+  h.mascot.setSituation('nodeError',{nodeId:'a'});h.advance(700);
+  assert.ok(h.mascot.element.classList.contains('working'));
+  assert.equal(h.mascot.element.dataset.task,'research');
+  assert.notEqual(h.mascot.element.dataset.mood,'confused');h.mascot.destroy();
+});
+test('terminal reactions release task state before returning to idle',()=>{
+  const h=harness();h.mascot.workAtNode('a',true);
+  h.mascot.setSituation('nodeSuccess',{nodeId:'a'});
+  assert.equal(h.mascot.element.classList.contains('working'),false);
+  assert.equal(h.mascot.element.dataset.task,undefined);h.mascot.destroy();
+});
 test('reduced motion keeps orbital position stationary',()=>{const h=harness(true);h.handlers.get('select')('a');h.advance(4000);const a=h.position();h.advance(1500);assert.deepEqual(h.position(),a);h.mascot.destroy()});
 
 test('approaching a node avoids an occupied observation position',()=>{const h=harness();h.nodes[1].rect={left:330,top:145,width:100,height:85};h.handlers.get('select')('a');h.advance(3500);const p=h.position();assert.ok(!(p.x+16>330&&p.x-16<430&&p.y+16>145&&p.y-16<230),'mascot must not land inside the upper neighboring node');h.mascot.destroy()});

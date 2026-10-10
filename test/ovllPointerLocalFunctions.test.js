@@ -24,12 +24,12 @@ test('saved functions reject dangling node targets',()=>{
 });
 test('local application hooks model proposals to stored graph and executes model-only DAG',()=>{
  const app=readFileSync(new URL('../front/js/app.js',import.meta.url),'utf8');
- const boot=readFileSync(new URL('../front/js/boot.js',import.meta.url),'utf8');
+ const assets=readFileSync(new URL('../front/asset-manifest.js',import.meta.url),'utf8');
  const config=readFileSync(new URL('../front/runtime-config.js',import.meta.url),'utf8');
  assert.match(app,/PointerAPI\.localTurn\(/);
  assert.match(app,/OvllPointerLocal\.turn\(/);
  assert.match(app,/OvllPointerLocal\.run\(/);
- assert.match(boot,/\.\/js\/ovllPointerFunctions\.js/);
+ assert.match(assets,/\.\/js\/ovllPointerFunctions\.js/);
  assert.match(config,/pointerEnabled:true/);
 });
 
@@ -104,4 +104,130 @@ test('old-format saved functions infer only unambiguous scoped inputs and bind n
  assert.equal(f.get(old.id).snapshot.graph.nodes[0].inputBindings.source,'Old notes');
  const ambiguous=structuredClone(old);ambiguous.targets.push('n2');ambiguous.snapshot.graph.nodes.push({...ambiguous.snapshot.graph.nodes[0],nodeId:'n2'});
  assert.throws(()=>f.bind(ambiguous,{source:'New notes'}),/FUNCTION_INPUT_MAPPING_REQUIRED/);
+});
+
+function functionStore(){
+ const data=new Map();let next=0;
+ const window={localStorage:{getItem:k=>data.get(k)||null,setItem:(k,v)=>data.set(k,v)},crypto:{randomUUID:()=> 'fn'+(++next)}};
+ const reload=()=>{vm.runInNewContext(script,{window});return window.OvllPointerFunctions;};
+ return {f:reload(),reload,data};
+}
+function reusableGraph(){
+ return {graph:{graphId:'g_contract',revision:1,nodes:[
+  {nodeId:'source',definitionRef:{definitionId:'d_source',version:1},inputBindings:{fresh:'old sample',secret:'unexposed sample',constant:'old constant'}},
+  {nodeId:'result',definitionRef:{definitionId:'d_result',version:1}},
+  {nodeId:'unrelated_sink',definitionRef:{definitionId:'d_other',version:1},settings:{request:'Send unrelated mail'}}
+ ],connections:[{kind:'data',from:{nodeId:'source',port:'out'},to:{nodeId:'result',port:'in'}}]},definitions:[
+  {definitionId:'d_source',version:1,inputs:['fresh','secret','constant'].map(name=>({name,role:name,representation:'text',required:false})),outputs:[{name:'out',role:'out',representation:'text'}]},
+  {definitionId:'d_result',version:1,inputs:[{name:'in',role:'in',representation:'text'}],outputs:[{name:'out',role:'out',representation:'text'}]},
+  {definitionId:'d_other',version:1,inputs:[],outputs:[]}
+ ]};
+}
+test('saved target closure excludes unrelated sinks and their definitions',()=>{
+ const {f}=functionStore();const snapshot=reusableGraph();
+ const fn=f.save({purpose:'Reuse just the selected result',snapshot,targets:['result']});
+ assert.deepEqual(Array.from(fn.snapshot.graph.nodes,n=>n.nodeId),['source','result']);
+ assert.deepEqual(Array.from(fn.snapshot.definitions,d=>d.definitionId),['d_source','d_result']);
+ assert.equal(snapshot.graph.nodes.length,3);
+});
+test('partial function contracts clear hidden samples and preserve only explicit fixed values',()=>{
+ const {f,reload}=functionStore();
+ const fn=f.save({purpose:'Fresh notes',snapshot:reusableGraph(),targets:['result'],
+  inputs:[{name:'material',role:'fresh',representation:'text',required:true}],
+  inputMap:{material:{nodeId:'source',port:'fresh'}},fixedInputs:{'source:constant':'intentional constant'}});
+ const rebound=reload().bind(reload().get(fn.id),{material:'new notes'});
+ const bindings=rebound.snapshot.graph.nodes[0].inputBindings;
+ assert.equal(bindings.fresh,'new notes');assert.equal(bindings.secret,undefined);
+ assert.equal(bindings.constant,'intentional constant');
+});
+test('new explicit no-input contracts discard samples while old no-input functions remain executable',()=>{
+ const {f}=functionStore();
+ const fresh=f.save({purpose:'No sample input',snapshot:reusableGraph(),targets:['result'],inputs:[],fixedInputs:{'source:constant':'fixed'}});
+ const bindings=f.bind(fresh).snapshot.graph.nodes[0].inputBindings;
+ assert.equal(bindings.fresh,undefined);assert.equal(bindings.constant,'fixed');
+ const legacy={...fresh};delete legacy.contractVersion;delete legacy.fixedInputs;
+ legacy.snapshot.graph.nodes[0].inputBindings.fresh='historical constant';
+ assert.equal(f.bind(legacy).snapshot.graph.nodes[0].inputBindings.fresh,'historical constant');
+});
+test('editing creates pinned immutable versions and inherits semantic contract across reload',()=>{
+ const {f,reload}=functionStore();
+ const first=f.save({purpose:'Preserve original purpose',invariants:['Keep citations'],snapshot:reusableGraph(),targets:['result'],
+  inputs:[{name:'material',role:'material',representation:'text',required:true}],inputMap:{material:{nodeId:'source',port:'fresh'}},
+  presentation:{name:'Original',color:'#abc',iconKey:'pencil'}});
+ const second=f.save({baseFunctionRef:{id:first.id,version:1},snapshot:reusableGraph(),targets:['result'],presentation:{name:'New name',color:'#12abEF',iconKey:'calendar'}});
+ assert.equal(second.id,first.id);assert.equal(second.version,2);
+ assert.equal(second.purpose,first.purpose);assert.deepEqual(Array.from(second.invariants),['Keep citations']);
+ assert.equal(second.inputs[0].name,'material');
+ const current=reload();assert.equal(current.get(first.id,1).presentation.name,'Original');
+ assert.equal(current.get(first.id).presentation.name,'New name');assert.equal(current.list().length,1);
+ assert.equal(current.get(first.id,99),null);
+ assert.throws(()=>current.save({baseFunctionRef:{id:first.id,version:1},snapshot:reusableGraph(),targets:['result']}),/FUNCTION_VERSION_CONFLICT/);
+});
+test('color HEX normalizes and revisions accept canonical model functionId references',()=>{
+ const {f}=functionStore();
+ const fn=f.save({purpose:'Color',snapshot:reusableGraph(),targets:['result'],presentation:{name:'Color',color:'#AbC',iconKey:'calendar'}});
+ assert.equal(fn.presentation.color,'#aabbcc');
+ const revision=f.save({baseFunctionRef:{functionId:fn.id,version:1},presentation:{name:'Revised',color:'#123456',iconKey:'calendar'}});
+ assert.equal(revision.version,2);
+ assert.throws(()=>f.save({purpose:'Bad color',snapshot:reusableGraph(),targets:['result'],presentation:{color:'url(evil)'}}),/INVALID_FUNCTION_COLOR/);
+});
+test('explicit constants cannot overlap exposed inputs or name missing ports',()=>{
+ const {f}=functionStore();
+ assert.throws(()=>f.save({purpose:'Conflict',snapshot:reusableGraph(),targets:['result'],fixedInputs:{'source:fresh':'fixed'}}),/FUNCTION_FIXED_INPUT_CONFLICT/);
+ assert.throws(()=>f.save({purpose:'Unknown',snapshot:reusableGraph(),targets:['result'],inputs:[],fixedInputs:{'unknown:port':'fixed'}}),/FUNCTION_FIXED_INPUT_MAPPING_REQUIRED/);
+});
+
+test('revising a legacy no-input function makes its historical constants explicit',()=>{
+ const {f,data,reload}=functionStore();const snapshot=reusableGraph();
+ const old={id:'fn_old_constants',version:1,purpose:'Fixed legacy work',snapshot,targets:['result'],inputs:[],outputs:[],invariants:['Keep purpose']};
+ data.set(f.storageKey,JSON.stringify([old]));
+ const revised=reload().save({baseFunctionRef:{id:old.id,version:1},presentation:{name:'New name',color:'#abc',iconKey:'pencil'}});
+ assert.equal(revised.fixedInputs['source:fresh'],'old sample');
+ assert.equal(f.bind(revised).snapshot.graph.nodes[0].inputBindings.fresh,'old sample');
+});
+test('remembered model-task revisions retain input mapping and immutable instructions',()=>{
+ const {f}=functionStore();
+ const draft={purpose:'Reuse',inputs:[{name:'source',role:'notes',representation:'text',required:true}],outputs:[],invariants:['Cite'],procedure:{kind:'model_task',instruction:'Original instruction'}};
+ const first=f.saveDraft(draft);
+ const second=f.saveDraft({...draft,baseFunctionRef:{id:first.id,version:1},procedure:{kind:'model_task',instruction:'Revised instruction'}});
+ assert.equal(second.id,first.id);assert.equal(second.version,2);
+ assert.equal(f.bind(second,{source:'fresh'}).snapshot.graph.nodes[0].inputBindings.source,'fresh');
+ assert.equal(f.get(first.id,1).snapshot.definitions[0].instruction,'Original instruction');
+ assert.equal(second.snapshot.definitions[0].instruction,'Revised instruction');
+});
+
+test('legacy functions with exposed inputs clear unrelated samples before binding fresh material',()=>{
+ const {f}=functionStore();
+ const fn={id:'old_partial',version:1,purpose:'Legacy partial',snapshot:reusableGraph(),targets:['result'],
+  inputs:[{name:'fresh',role:'fresh',representation:'text',required:true}]};
+ const bound=f.bind(fn,{fresh:'Fresh material'});
+ assert.equal(bound.snapshot.graph.nodes[0].inputBindings.fresh,'Fresh material');
+ assert.equal(bound.snapshot.graph.nodes[0].inputBindings.secret,undefined);
+});
+test('new replay also removes undeclared stale bindings without mutating saved samples',()=>{
+ const {f}=functionStore();const snapshot=reusableGraph();snapshot.graph.nodes[0].inputBindings.undeclared='Old hidden material';
+ const fn=f.save({purpose:'Clean input',snapshot,targets:['result']});
+ const bound=f.bind(fn,{});
+ assert.equal(bound.snapshot.graph.nodes[0].inputBindings.undeclared,undefined);
+ assert.equal(fn.snapshot.graph.nodes[0].inputBindings.undeclared,'Old hidden material');
+});
+
+test('appearance-only revision retains fields and legacy missing input contract remains no-input',()=>{
+ const {f,data,reload}=functionStore();const snapshot=reusableGraph();
+ const old={id:'old_implicit',version:1,purpose:'Legacy constants',snapshot,targets:['result'],presentation:{name:'Same name',description:'Same description',iconKey:'pencil',color:'#123456'}};
+ data.set(f.storageKey,JSON.stringify([old]));
+ const changed=reload().save({baseFunctionRef:{id:old.id,version:1},presentation:{color:'#abc'}});
+ assert.equal(changed.inputs.length,0);assert.equal(changed.presentation.name,'Same name');
+ assert.equal(changed.presentation.iconKey,'pencil');assert.equal(changed.presentation.color,'#aabbcc');
+ assert.equal(f.bind(changed).snapshot.graph.nodes[0].inputBindings.fresh,'old sample');
+});
+
+test('graph draft requires explicit selection when unrelated sinks make its result ambiguous',()=>{
+ const {f}=functionStore(),snapshot=reusableGraph();
+ const draft={purpose:'Selected work',inputs:[],outputs:[],invariants:[],procedure:{kind:'graph',graphRef:{graphId:snapshot.graph.graphId,revision:1}}};
+ assert.throws(()=>f.saveDraft(draft,snapshot),/FUNCTION_TARGET_SELECTION_REQUIRED/);
+ const fn=f.saveDraft(draft,snapshot,{targets:['result']});
+ assert.deepEqual(Array.from(fn.snapshot.graph.nodes,n=>n.nodeId),['source','result']);
+ const revised=f.saveDraft({...draft,purpose:'Revised work'},snapshot,{targets:['result'],baseFunctionRef:{functionId:fn.id,version:1}});
+ assert.equal(revised.id,fn.id);assert.equal(revised.version,2);
 });

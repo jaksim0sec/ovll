@@ -86,38 +86,7 @@ function apiUrl(path){
   return `${API_ORIGIN}/api/${path}`;
 }
 
-const APP_SCRIPTS=[
-  "./js/functions.js",
-  "./js/fileStore.js",
-  "./js/artifactVisuals.js",
-  "./js/artifactRequest.js",
-  "./js/svgLibrary.js",
-  "./js/previewSandbox.js",
-  "./js/api.js",
-  "./js/ovllPointerApi.js",
-  "./js/ovllPointerProjection.js",
-  "./js/ovllPointerGraphPatch.js",
-  "./js/canvasNode.js",
-  "./js/navigation.js",
-  "./js/workspaceUi.js",
-  "./js/ui.js",
-  "./js/workspaceStore.js",
-  "./js/ovllPointerLocal.js",
-  "./js/ovllPointerFunctions.js",
-  "./js/ovllPointerLocalActions.js",
-  "./js/customNodeStore.js",
-  "./js/customNodes.js",
-  "./js/canvasNodeBuilder.js",
-  "./js/ovllWorkspace.js",
-  "./js/functionWorkspace.js",
-  "./js/libraryPage.js",
-  "./js/customNodePage.js",
-  "./js/shellMenu.js",
-  "./js/workspacePresence.js",
-  "./js/ovllPresence.js",
-  "./js/mascot.js",
-  "./js/app.js"
-];
+const APP_SCRIPTS=global.OVLL_ASSETS?.scripts;
 
 async function getServerVersion(){
   const controller=
@@ -221,6 +190,7 @@ function loadScript(src){
 }
 
 async function loadApp(){
+  if(!Array.isArray(APP_SCRIPTS)||!APP_SCRIPTS.length)throw new Error('App asset manifest is unavailable.');
   await Promise.all(
     APP_SCRIPTS.map(
       loadScript
@@ -242,7 +212,8 @@ async function registerServiceWorker(){
       await navigator.serviceWorker.register(
         "/sw.js",
         {
-          scope:"/"
+          scope:"/",
+          updateViaCache:"none"
         }
       );
 

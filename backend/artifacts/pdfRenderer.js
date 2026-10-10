@@ -1186,6 +1186,21 @@ export async function warmPdfFallback() {
   return pdfKitWarmupPromise;
 }
 
+// The PDFKit layout engine bounds each table; expose those omissions to exporters.
+export function pdfFallbackCoverage(document){
+  let omittedRows=0,omittedColumns=0,omittedCharacters=0;
+  for(const block of document?.blocks||[]){
+    if(block.type!=='table')continue;
+    const rows=Array.isArray(block.rows)?block.rows:[];
+    omittedRows+=Math.max(0,rows.length-300);
+    const columns=Math.max(Array.isArray(block.headers)?block.headers.length:0,...rows.map(row=>Array.isArray(row)?row.length:0));
+    omittedColumns+=Math.max(0,columns-12);
+    for(const row of [block.headers||[],...rows.slice(0,300)])for(const cell of row.slice(0,12))
+      omittedCharacters+=Math.max(0,String(cell??'').length-3000);
+  }
+  return{omittedRows,omittedColumns,omittedCharacters};
+}
+
 export async function renderPdfFallback(
   inputDocument,
   metadata = {},

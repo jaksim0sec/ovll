@@ -1088,7 +1088,8 @@
         RUNNING: '실행 중',
         SUCCESS: '완료',
         FAILED: '실패',
-        SKIPPED: '건너뜀'
+        SKIPPED: '건너뜀',
+        STALE: '재실행 필요'
       })[
         String(status || '')
           .toUpperCase()
@@ -2920,16 +2921,49 @@
     return result;
   }
 
+  const serializedEdges = (edges, kind) => {
+    if (edges !== undefined || !Array.isArray(spec.connections)) return edges;
+    return spec.connections
+      .filter(connection => (connection?.data?.kind === 'data' ? 'data' : 'flow') === kind)
+      .map(connection => [
+        `${connection.from?.node}.${connection.from?.port}`,
+        `${connection.to?.node}.${connection.to?.port}`
+      ]);
+  };
   const connections = [
     ...buildConnections(
-      spec.links,
+      serializedEdges(spec.links, 'flow'),
       'links'
     ),
     ...buildConnections(
-      spec.data,
+      serializedEdges(spec.data, 'data'),
       'data'
     )
   ];
+
+  // The IR arrays remain the authoritative topology. Projection metadata is
+  // matched by both endpoints and channel; layout-only IR preserves prior IDs.
+  const connectionKey = connection => JSON.stringify([
+    connection.data?.kind === 'data' ? 'data' : 'flow',
+    connection.from?.node, connection.from?.port,
+    connection.to?.node, connection.to?.port
+  ]);
+  const connectionMetadata = new Map(
+    state.connections.map(connection => [connectionKey(connection), connection])
+  );
+  if (spec.connections !== undefined) {
+    if (!Array.isArray(spec.connections)) throw new Error('연결 메타데이터가 배열이 아닙니다.');
+    for (const connection of spec.connections) {
+      if (!connection || typeof connection !== 'object') throw new Error('연결 메타데이터가 올바르지 않습니다.');
+      connectionMetadata.set(connectionKey(connection), connection);
+    }
+  }
+  for (const connection of connections) {
+    const metadata = connectionMetadata.get(connectionKey(connection));
+    if (!metadata) continue;
+    if (metadata.id) connection.id = String(metadata.id);
+    if (metadata.data) connection.data = clone(metadata.data);
+  }
 
   const sharedNodeCount =
     nextNodes.reduce(
@@ -4534,6 +4568,15 @@
             element.dataset.nodeId
           );
         if (!node) return;
+        if (action.dataset.action === 'runtime-result') {
+          const runtime = state.runtimeNodes.get(node.id);
+          if (runtime) emit('nodeResult', {
+            id: node.id,
+            node: clone(node),
+            runtime: clone(runtime)
+          });
+          return;
+        }
         if (
           action.dataset.action ===
           'cancel-run'

@@ -5,6 +5,7 @@ import vm from 'node:vm';
 import {MemoryGraphRepository} from '../front/js/ovllPointerGraphCore.mjs';
 import {buildExecutionPlan} from '../front/js/ovllPointerPlanCore.mjs';
 import {compatibleDataRepresentation,matchesInputRepresentation} from '../front/js/ovllPointerPortTypes.mjs';
+import * as results from '../front/js/ovllPointerResults.mjs';
 import {getPointerCatalog} from '../backend/ovllPointer/nodeCatalog.js';
 const source=readFileSync(new URL('../front/js/ovllPointerLocal.js',import.meta.url),'utf8');
 const workspaceSource=readFileSync(new URL('../front/js/workspaceStore.js',import.meta.url),'utf8');
@@ -19,7 +20,7 @@ function setup(out,input){
  const store=window.OvllWorkspaceStore,id=store.getActiveConversation().id,graphId='g_'+id;
  const local=window.createOvllPointerLocal({workspaceStore:store,
    loadCore:async()=>({MemoryGraphRepository}),
-   loadPlan:async()=>({buildExecutionPlan,matchesInputRepresentation}),
+   loadPlan:async()=>({buildExecutionPlan,matchesInputRepresentation}),loadResults:async()=>results,
    loadCatalog:async()=>getPointerCatalog()});
  const patch={graphId,expectedGraphRevision:0,definitions:[def('source',null,out),def('consumer',input,'text')],
    operations:[{op:'node.add',localNodeKey:'a',definitionRef:{localDefinitionKey:'source'}},

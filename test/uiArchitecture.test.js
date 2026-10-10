@@ -463,11 +463,11 @@ test("adjacent source backups are not tracked beside live files", () => {
 
 
 test("runtime finalization policy is booted before app and precached", () => {
-  const boot=read("front/js/boot.js"),sw=read("front/sw.js"),app=read("front/js/app.js");
-  assert.match(boot,/ovllPointerLocalActions\.js/);
-  assert.match(sw,/ovllPointerLocalActions\.js/);
+  const assets=read("front/asset-manifest.js"),sw=read("front/sw.js"),app=read("front/js/app.js");
+  assert.match(assets,/ovllPointerLocalActions\.js/);
+  assert.match(sw,/OVLL_ASSETS\.precache/);
   assert.match(app,/PointerAPI\.localResponse/);
-  assert.doesNotMatch(boot,/runtimeFinalization\.js/);
+  assert.doesNotMatch(assets,/runtimeFinalization\.js/);
 });
 
 test("preview engine uses format-aware sources and keeps HTML sandbox opaque", () => {
@@ -1087,7 +1087,7 @@ test("artifact page targets survive Pointer export through the artifact API",()=
   const policy=read("front/js/artifactRequest.js");
   const local=read("front/js/ovllPointerLocal.js");
   const api=read("front/js/api.js"),server=read("server.js");
-  const boot=read("front/js/boot.js"),sw=read("front/sw.js");
+  const assets=read("front/asset-manifest.js"),sw=read("front/sw.js");
   assert.match(policy,/targetPages/);
   assert.match(policy,/페이지|쪽/);
   assert.match(policy,/A4/);
@@ -1095,8 +1095,8 @@ test("artifact page targets survive Pointer export through the artifact API",()=
   assert.match(local,/createArtifact\(\{\.\.\.params,sources\}/);
   assert.match(api,/targetPages:\s*input\?\.targetPages/);
   assert.match(server,/targetPages:\s*req\.body\?\.targetPages/);
-  assert.ok(boot.indexOf("./js/artifactRequest.js")<boot.indexOf("./js/app.js"));
-  assert.match(sw,/\/js\/artifactRequest\.js/);
+  assert.ok(assets.indexOf("./js/artifactRequest.js")<assets.indexOf("./js/app.js"));
+  assert.match(sw,/OVLL_ASSETS\.precache/);
 });
 
 test("planner keeps document length requirements on the upstream writer", () => {
@@ -1405,7 +1405,7 @@ test("ordinary conversation uses Pointer messaging and preserves conversation me
   assert.match(app,/addAssistantMessage\(reply\)/);
   assert.match(api,/local\/turn/);
   assert.match(store,/workflowUserRequest:/);
-  assert.match(store,/SCHEMA_VERSION\s*=\s*8/);
+  assert.match(store,/SCHEMA_VERSION\s*=\s*9/);
 });
 
 test("chat controls share one rounded SVG language", () => {
@@ -1516,7 +1516,7 @@ test("explicit verification requests are promoted to workflow planning", () => {
   const entry=read("instructions/prompts/layers/entry.md");
   const core=read("instructions/prompts/core.md");
   assert.match(entry,/Interpret everyday language by the requested outcome/);
-  assert.match(core,/Preserve the current request/);
+  assert.match(core,/Keep context\.objective as the original task/);
   assert.match(entry,/Combine communication, IR construction, execution and functionization/);
 });
 
@@ -1530,7 +1530,7 @@ test("chat routing owns workflow decisions before planner execution", () => {
 test("Pointer can apply a patch and execute a target in one proposal",()=>{
   const app=read("front/js/app.js");
   const entry=read("instructions/prompts/layers/entry.md");
-  assert.match(app,/onActionStart:pointerActionStarted/);
+  assert.match(app,/onActionStart:action=>\{if\(owns\(\)\)pointerActionStarted\(action\)/);
   assert.match(app,/['"]run\.start['"]:async/);
   assert.match(app,/runLocalNodes\(\{targets/);
   assert.match(entry,/Combine communication, IR construction, execution and functionization/);
@@ -1544,8 +1544,8 @@ test("Pointer execution scope follows targets and dam mode",()=>{
 test("Pointer node tasks receive the actual request and constraints",()=>{
   const local=read("front/js/ovllPointerLocal.js");
   const host=read("backend/ovllPointer/localHost.js");
-  assert.match(local,/requestText:objective,taskConstraints,signal/);
-  assert.match(host,/context\.constraints=taskConstraints/);
+  assert.match(local,/requestText:objective,taskConstraints,taskContext,signal/);
+  assert.match(host,/context\.constraints=\[\.\.\.new Set\(\[\.\.\.context\.constraints,\.\.\.taskConstraints\]\)/);
   assert.match(host,/modules:\['run\.perform'\]/);
 });
 test("custom nodes use the canvas plugin pipeline and node picker catalog", () => {

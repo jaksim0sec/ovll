@@ -32,7 +32,8 @@ export function geminiNativeAdapter({apiKey,fetchImpl=fetch}={}){
   if(!apiKey||typeof fetchImpl!=='function')fail('PROVIDER_CONFIGURATION_REQUIRED',503);
   let blockedUntil=0;
   return {
-    async complete({model,messages,output='text',signal,maxOutputTokens}={}){
+    async complete({model,messages,output='text',signal,maxOutputTokens,wireSchema}={}){
+      let providerCalls=0;try{
       if(typeof model!=='string'||!/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$/.test(model))
         fail('INVALID_GEMINI_MODEL',422);
       if(!Array.isArray(messages))fail('INVALID_MODEL_REQUEST',422);
@@ -41,14 +42,14 @@ export function geminiNativeAdapter({apiKey,fetchImpl=fetch}={}){
       if(remaining>0)throw new ProviderError('PROVIDER_RATE_LIMIT','PROVIDER_RATE_LIMIT',429,remaining);
       const body=nativeMessages(messages);
       const generationConfig={};
-      if(output==='json')generationConfig.responseMimeType='application/json';
+      if(output==='json'){generationConfig.responseMimeType='application/json';if(wireSchema)generationConfig.responseJsonSchema=wireSchema.schema;}
       if(maxOutputTokens!==undefined)generationConfig.maxOutputTokens=maxOutputTokens;
       if(Object.keys(generationConfig).length)body.generationConfig=generationConfig;
       const url=BASE_URL+encodeURIComponent(model)+':generateContent';
       for(let attempt=0;attempt<2;attempt++){
         let response;
         try{
-          response=await fetchImpl(url,{method:'POST',signal,headers:{
+          providerCalls++;response=await fetchImpl(url,{method:'POST',signal,headers:{
             'x-goog-api-key':apiKey,'Content-Type':'application/json'
           },body:JSON.stringify(body)});
         }catch{
@@ -94,7 +95,7 @@ export function geminiNativeAdapter({apiKey,fetchImpl=fetch}={}){
         if(!text.trim())fail('PROVIDER_INVALID_OUTPUT');
         const usage=parsed?.usageMetadata;
         blockedUntil=0;
-        return {text,requestId:parsed?.responseId||null,usage:usage?{
+        return {text,requestId:parsed?.responseId||null,model:parsed?.modelVersion||model,providerCalls,usage:usage?{
           prompt_tokens:usage.promptTokenCount||0,
           completion_tokens:usage.candidatesTokenCount||0,
           total_tokens:usage.totalTokenCount||0,
@@ -103,6 +104,7 @@ export function geminiNativeAdapter({apiKey,fetchImpl=fetch}={}){
         }:null};
       }
       fail('PROVIDER_RATE_LIMIT',429);
+      }catch(error){error.providerCalls=providerCalls;throw error;}
     }
   };
 }

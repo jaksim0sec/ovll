@@ -43,12 +43,12 @@
     request('turns',{method:'POST',requestRef,body:{graphId,taskRef,turn:{actions}},signal});
   const localCatalog=({signal}={})=>request('local/catalog',{signal});
   const localReady=({signal}={})=>request('local/ready',{signal});
-  const localTurn=({snapshot,requestRef=uniqueId(),requestText,history,extraContext,signal})=>
-    request('local/turn',{method:'POST',body:{snapshot,requestRef,requestText,history,extraContext},signal});
-  const localResponse=({snapshot,requestRef=uniqueId(),requestText,actionResults,history,signal})=>
-    request('local/response',{method:'POST',body:{snapshot,requestRef,requestText,actionResults,history},signal});
-  const localNode=({snapshot,requestRef=uniqueId(),requestText,nodeId,inputArtifacts,taskConstraints,signal})=>
-    request('local/node',{method:'POST',body:{snapshot,requestRef,requestText,nodeId,inputArtifacts,taskConstraints},signal});
+  const localTurn=({snapshot,requestRef=uniqueId(),requestText,history,extraContext,taskContext,signal})=>
+    request('local/turn',{method:'POST',body:{snapshot,requestRef,requestText,history,extraContext,taskContext},signal});
+  const localResponse=({snapshot,requestRef=uniqueId(),requestText,actionResults,history,taskContext,signal})=>
+    request('local/response',{method:'POST',body:{snapshot,requestRef,requestText,actionResults,history,taskContext},signal});
+  const localNode=({snapshot,requestRef=uniqueId(),requestText,nodeId,inputArtifacts,taskConstraints,taskContext,signal})=>
+    request('local/node',{method:'POST',body:{snapshot,requestRef,requestText,nodeId,inputArtifacts,taskConstraints,taskContext},signal});
   const run=id=>request('runs/'+encodeURIComponent(id));
   const task=id=>request('tasks/'+encodeURIComponent(id));
   const artifact=id=>request('artifacts/'+encodeURIComponent(id));

@@ -225,7 +225,7 @@ test("approved custom icon selection is centralized without rejected icons",()=>
   const text=catalog.slice(start,end);
   const names=[...text.matchAll(/^\s+(?:'([^']+)'|([a-z][a-zA-Z0-9]*)):\s*\`/gm)]
     .map(item=>item[1]||item[2]);
-  assert.equal(names.length,19);
+  assert.equal(names.length,33);
   for(const name of ["open-book","flask","potted-plant","graduation-cap","pencil","lightbulb","hourglass","planet","headphones","coffee-cup","compass"]){
     assert.ok(names.includes(name),`missing ${name}`);
   }

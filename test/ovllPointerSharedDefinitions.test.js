@@ -70,8 +70,8 @@ test('builtins keep original UI port count and node request is never invented',(
   const snapshot={graph:{graphId:'g_ports',revision:0,nodes,connections:[]},definitions:catalog};
   const projected=window.OvllPointerProjection.projectGraph(snapshot,undefined,nodeDefinitionsPublic);
   for(const type of ['write','organize','file','createFile']){
-    assert.deepEqual(JSON.parse(JSON.stringify(projected.definitions[type].inputs)),JSON.parse(JSON.stringify(nodeDefinitionsPublic[type].inputs)));
-    assert.deepEqual(JSON.parse(JSON.stringify(projected.definitions[type].outputs)),JSON.parse(JSON.stringify(nodeDefinitionsPublic[type].outputs)));
+    assert.deepEqual(JSON.parse(JSON.stringify(projected.definitions[type].inputs)),JSON.parse(JSON.stringify(nodeDefinitionsPublic[type].inputs.map(p=>({...p,multiple:false,channel:'data'})))));
+    assert.deepEqual(JSON.parse(JSON.stringify(projected.definitions[type].outputs)),JSON.parse(JSON.stringify(nodeDefinitionsPublic[type].outputs.map(p=>({...p,channel:'data'})))));
   }
   assert.equal(projected.workflow.nodes.find(n=>n.id==='write').params.request,'');
   const custom={definitionId:'d_ui',version:1,purpose:'Visible name',instruction:'Internal policy',
@@ -85,7 +85,7 @@ test('builtins keep original UI port count and node request is never invented',(
   assert.equal(customProjected.definitions['pointer:d_ui:1'].params[0].default,'');
   assert.equal(customProjected.workflow.nodes[0].params.request,'');
 });
-test('legacy synthetic flow endpoints are visually redirected to existing single ports without losing routing',()=>{
+test('legacy synthetic flow endpoints remain distinct and preserve logical routing on unrelated edits',()=>{
   const {window}=browser(),definitions=getPointerCatalog().definitions;
   const graph={graphId:'g_links',revision:1,nodes:['write','organize'].map(type=>({
     nodeId:type,definitionRef:{definitionId:'builtin:'+type,version:1},settings:{},inputBindings:{}})),
@@ -93,15 +93,12 @@ test('legacy synthetic flow endpoints are visually redirected to existing single
       to:{nodeId:'organize',port:'flow_in'}}]};
   const snapshot={graph,definitions};
   const projected=window.OvllPointerProjection.projectGraph(snapshot,undefined,nodeDefinitionsPublic);
-  assert.deepEqual(JSON.parse(JSON.stringify(projected.workflow.links)),[['write.result','organize.in']]);
-  const patch=window.OvllPointerGraphPatch.build(snapshot,{nodes:projected.workflow.nodes,
-    connections:[{from:{node:'write',port:'result'},to:{node:'organize',port:'in'},data:{kind:'links'}}]});
-  assert.ok(patch,'legacy ports are migrated only with an actual edit');
+  assert.deepEqual(JSON.parse(JSON.stringify(projected.workflow.links)),[['write.next','organize.flow_in']]);
+  assert.equal(window.OvllPointerGraphPatch.build(snapshot,{nodes:projected.workflow.nodes,
+    connections:projected.workflow.connections}),null);
+  const nodes=JSON.parse(JSON.stringify(projected.workflow.nodes));nodes[0].data.params={request:'Use these sources'};
+  const patch=window.OvllPointerGraphPatch.build(snapshot,{nodes,connections:projected.workflow.connections});
   const repo=new MemoryGraphRepository();repo.restore('local',graph.graphId,snapshot);
   repo.apply('local',JSON.parse(JSON.stringify(patch.patch)));
-  const links=repo.get('local',graph.graphId).graph.connections;
-  assert.equal(links.length,1);
-  assert.equal(links[0].kind,'flow');
-  assert.equal(links[0].from.port,'result');
-  assert.equal(links[0].to.port,'in');
+  assert.deepEqual(repo.get('local',graph.graphId).graph.connections,graph.connections);
 });

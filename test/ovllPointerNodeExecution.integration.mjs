@@ -277,7 +277,7 @@ test('completion representation checker has a finite validation deadline',async(
  const {semanticFingerprint}=await import('../backend/ovllPointer/executionPlan.js');
  const attempts=await pool.query('SELECT attempt_id,node_id,input_refs FROM ov_attempts WHERE workspace_id=$1',[f.workspaceRef]);
  for(const a of attempts.rows){const node=snapshot.graph.nodes.find(n=>n.nodeId===a.node_id),definition=snapshot.definitions.find(d=>d.definitionId===node.definitionRef.definitionId);
-  await pool.query('UPDATE ov_attempts SET fingerprint=$3 WHERE workspace_id=$1 AND attempt_id=$2',[f.workspaceRef,a.attempt_id,semanticFingerprint({run:job.run,node,definition,inputRefs:a.input_refs})]);}
+  await pool.query('UPDATE ov_attempts SET fingerprint=$3 WHERE workspace_id=$1 AND attempt_id=$2',[f.workspaceRef,a.attempt_id,semanticFingerprint({snapshot,run:job.run,node,definition,inputRefs:a.input_refs})]);}
  const s=store({verifyRunEvidence:ctx=>verifyNodeRunEvidence({...ctx,maxValidationMs:20,validateRepresentation:async()=>new Promise(()=>{})})});
  await assert.rejects(s.settleRun({...job,status:'completed',evidenceRefs:outcome.evidenceRefs}),e=>e.code==='RUN_EVIDENCE_NOT_VERIFIED');
 });

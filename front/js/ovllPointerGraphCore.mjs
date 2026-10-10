@@ -1,4 +1,4 @@
-import {compatibleDataRepresentation} from './ovllPointerPortTypes.mjs';
+import {compatibleDataRepresentation,isFlowPort} from './ovllPointerPortTypes.mjs';
 export class KernelError extends Error {
   constructor(code, message = code, status = 422) {
     super(message); this.code = code; this.status = status;
@@ -20,6 +20,8 @@ function validate(graph, definitions) {
     if (!def) reject('UNKNOWN_DEFINITION');
     map.set(node.nodeId, def);
   }
+  const producers = new Set();
+  const nodeMap = new Map(graph.nodes.map(n=>[n.nodeId,n]));
   const seen = new Set(), edges = new Map([...map.keys()].map(n => [n, []]));
   for (const link of graph.connections) {
     if (seen.has(link.id)) reject('DUPLICATE_LINK');
@@ -31,6 +33,11 @@ function validate(graph, definitions) {
       const out = a.outputs.find(x => x.name === link.from.port);
       const input = b.inputs.find(x => x.name === link.to.port);
       if (!out || !input || !compatibleDataRepresentation(out.representation,input.representation)) reject('PORT_MISMATCH');
+      const inputKey=JSON.stringify([link.to.nodeId,link.to.port]);
+      if(producers.has(inputKey)||own(nodeMap.get(link.to.nodeId).inputBindings||{},link.to.port))reject('AMBIGUOUS_INPUT_PRODUCERS');
+      producers.add(inputKey);
+    } else if(!isFlowPort(a,link.from.port,'outputs')||!isFlowPort(b,link.to.port,'inputs')) {
+      reject('PORT_MISMATCH');
     }
     edges.get(link.from.nodeId).push(link.to.nodeId);
   }

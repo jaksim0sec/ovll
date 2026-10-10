@@ -14,13 +14,13 @@ function setup(){
  for(const name of ['workspaceStore','ovllPointerLocal','ovllPointerLocalActions','ovllPointerFunctions','ovllPointerGraphPatch','ovllPointerProjection'])
   vm.runInNewContext(readFileSync(new URL('../front/js/'+name+'.js',import.meta.url),'utf8'),{window,localStorage,console});
  const store=window.OvllWorkspaceStore,id=store.getActiveConversation().id;
- const local=window.createOvllPointerLocal({workspaceStore:store,loadCore:async()=>core,loadPlan:async()=>plan,loadCatalog:async()=>getPointerCatalog()});
+ const local=window.createOvllPointerLocal({workspaceStore:store,loadCore:async()=>core,loadPlan:async()=>plan,loadResults:()=>import('../front/js/ovllPointerResults.mjs'),fileStore:{getBlob:async()=>new Blob(['Original evidence'],{type:'text/plain'})},loadCatalog:async()=>getPointerCatalog()});
  return {window,store,local,id,graphId:local.graphId(id)};
 }
 test('uploaded source → reused and custom work → actual artifact → immutable new-input replay',async()=>{
  const {window:w,store,local,id,graphId}=setup();
  const initial=(await local.state(id)).graph;
- const edit=w.OvllPointerGraphPatch.build(initial,{nodes:[{id:'upload',type:'file',data:{name:'source.txt',mime:'text/plain',textPreview:'Original evidence',textTruncated:false}}],connections:[]});
+ const edit=w.OvllPointerGraphPatch.build(initial,{nodes:[{id:'upload',type:'file',data:{localFileId:'uploaded-source',name:'source.txt',mime:'text/plain',textPreview:'Original evidence',textTruncated:false}}],connections:[]});
  await local.turn({conversationId:id,graphId,actions:[{localKey:'upload',kind:'ir.applyPatch',args:{patch:edit.patch}}]});
  const fileId=(await local.state(id)).graph.graph.nodes[0].nodeId;
  let turns=0,nodes=0;
@@ -31,9 +31,9 @@ test('uploaded source → reused and custom work → actual artifact → immutab
    if(ctx.purpose==='Retain evidence')return{text:JSON.stringify({outputs:{status:'produced',values:{result:{ref:ctx.upstreamArtifacts[0].valueRef}}}})};
    const source=ctx.upstreamArtifacts[0]?.value||ctx.inputBindings.in;
    if(source==='New evidence')assert.deepEqual(data.context.constraints,['Keep actual names']);
-   return{text:JSON.stringify({outputs:{status:'produced',values:{result:{inline:'# Report\n\n'+(typeof source==='string'?source:source.textPreview)+'\n\n'+'Complete useful text. '.repeat(220)}}}})};
+   return{text:JSON.stringify({outputs:{status:'produced',values:{result:{inline:'# Report\n\n'+(typeof source==='string'?source:source.text)+'\n\n'+'Complete useful text. '.repeat(220)}}}})};
   }
-  turns++;assert.ok(data.context.materials[0].content.definitions.some(d=>d.definitionId==='builtin:write'));
+  turns++;assert.ok(data.context.materials[0].content.availableDefinitions.some(d=>d.definitionId==='builtin:write'));
   const ref=nodeId=>({nodeId}),temp=localNodeKey=>({localNodeKey});
   const link=(key,from,fromPort,to)=>({op:'link.add',localLinkKey:key,kind:'data',from:{node:from,port:fromPort},to:{node:to,port:'in'}});
   return{text:JSON.stringify({message:'Unverified proposal completion must not be a delivered result.',actions:[

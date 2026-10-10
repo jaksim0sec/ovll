@@ -31,21 +31,21 @@ export function createConfiguredModelProvider({env=process.env,fetchImpl=fetch}=
   if(gemini){
     if(!/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$/.test(model))
       throw new ProviderError('INVALID_GEMINI_MODEL');
-    gateway.register(providerId,geminiNativeAdapter({apiKey,fetchImpl}),{json:true});
+    gateway.register(providerId,geminiNativeAdapter({apiKey,fetchImpl}),{json:true,structuredOutput:true});
     if(env.GROQ_API_KEY){
       standby={providerId:'groq',model:env.GROQ_MODEL||'openai/gpt-oss-120b',
         maxOutputTokens:Number(raw)};
       gateway.register('groq',openAIChatAdapter({
         endpoint:'https://api.groq.com/openai/v1/chat/completions',
         apiKey:env.GROQ_API_KEY,fetchImpl
-      }),{json:true});
+      }),{json:true,structuredOutput:['openai/gpt-oss-20b','openai/gpt-oss-120b'].includes(standby.model)});
     }
   }else{
     let url;
     try{url=new URL(endpoint);}catch{throw new ProviderError('INVALID_MODEL_ENDPOINT');}
     if(url.protocol!=='https:'||url.username||url.password||url.hash||!url.hostname)
       throw new ProviderError('INSECURE_MODEL_ENDPOINT');
-    gateway.register(providerId,openAIChatAdapter({endpoint:url.href,apiKey,fetchImpl}),{json:true});
+    gateway.register(providerId,openAIChatAdapter({endpoint:url.href,apiKey,fetchImpl}),{json:true,structuredOutput:providerId==='groq'?['openai/gpt-oss-20b','openai/gpt-oss-120b'].includes(model):env.OVLL_POINTER_STRUCTURED_OUTPUTS==='true'});
   }
   const resolveModel=async()=>({providerId,model,output:'json',maxOutputTokens:Number(raw),
     ...(standby?{standby}:{} )});

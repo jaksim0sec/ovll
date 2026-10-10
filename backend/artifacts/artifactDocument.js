@@ -1,4 +1,5 @@
 const MAX_TEXT_CHARS = 420000;
+const MAX_DOCUMENT_LINES = 10000;
 
 function normalizeNewlines(value) {
   return String(value ?? "")
@@ -74,6 +75,7 @@ function semanticValue(value, depth = 0) {
     ) {
       return normalizeNewlines(value.previewText).trim();
     }
+    return "";
   }
 
   const semanticCandidates = [
@@ -120,8 +122,19 @@ export function extractArtifactContent(
   const values = [];
   let truncated = false;
   let length = 0;
+  let omittedCharacters = 0;
+  let sourceAvailability = "complete";
+  let unavailableSources = 0;
 
   for (const source of list) {
+    if(source&&typeof source==='object'&&(source.kind==='workflow-file'||source.kind==='workflow-artifact')&&typeof source.text!=='string'&&typeof source.previewText!=='string'){
+      unavailableSources++;sourceAvailability='unavailable';truncated=true;
+    }
+    if(source&&typeof source==='object'&&
+      (source.truncated===true||source.textTruncated===true||source.coverage?.truncated===true||
+       ((source.kind==='workflow-file'||source.kind==='workflow-artifact')&&typeof source.text!=='string'&&typeof source.previewText==='string'))){
+      if(sourceAvailability==='complete')sourceAvailability='partial';truncated=true;
+    }
     let text =
       semanticValue(source);
 
@@ -154,10 +167,12 @@ export function extractArtifactContent(
 
     if (remaining <= 0) {
       truncated = true;
-      break;
+      omittedCharacters += text.length;
+      continue;
     }
 
     if (text.length > remaining) {
+      omittedCharacters += text.length - remaining;
       text =
         text.slice(0, remaining);
       truncated = true;
@@ -171,6 +186,9 @@ export function extractArtifactContent(
 
   return {
     values,
+    omittedCharacters,
+    unavailableSources,
+    sourceAvailability,
     plainText:
       values.join("\n\n"),
     truncated:
@@ -272,10 +290,13 @@ export function createArtifactDocument(
       sources
     );
 
-  const lines =
-    normalizeNewlines(
-      content.plainText
-    ).split("\n");
+  const allLines=normalizeNewlines(content.plainText).split("\n");
+  const lines=allLines.slice(0,MAX_DOCUMENT_LINES);
+  if(allLines.length>MAX_DOCUMENT_LINES){
+    const kept=lines.join("\n");
+    content.omittedCharacters+=content.plainText.length-kept.length;
+    content.plainText=kept;content.truncated=true;
+  }
 
   const explicitTitle =
     inlineText(title);
@@ -603,6 +624,9 @@ export function createArtifactDocument(
     blocks,
     plainText:
       content.plainText,
+    unavailableSources:content.unavailableSources,
+    omittedCharacters:content.omittedCharacters,
+    sourceAvailability:content.sourceAvailability,
     truncated:
       content.truncated
   };

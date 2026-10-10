@@ -41,7 +41,7 @@ export class ModelGateway {
     if (!profile) fail('UNKNOWN_PROVIDER');
     return profile.capabilities;
   }
-  async complete({ providerId, model, messages, output = 'text', signal, maxOutputTokens } = {}) {
+  async complete({ providerId, model, messages, output = 'text', signal, maxOutputTokens,wireSchema } = {}) {
     const p = this.#providers.get(providerId);
     if (!p) fail('UNKNOWN_PROVIDER');
     if (output === 'json' && !p.capabilities.json) fail('CAPABILITY_NOT_SUPPORTED');
@@ -49,9 +49,10 @@ export class ModelGateway {
     for (const m of messages) {
       if (!['system','developer','user','assistant'].includes(m.role) || typeof m.content !== 'string') fail('INVALID_MESSAGE');
     }
-    const result = await p.adapter.complete({ model, messages, output, signal, maxOutputTokens });
+    const useSchema=output==='json'&&wireSchema&&p.capabilities.structuredOutput===true;
+    const result = await p.adapter.complete({ model, messages, output, signal, maxOutputTokens,...(useSchema?{wireSchema}:{}) });
     if (!result || typeof result.text !== 'string') fail('INVALID_PROVIDER_RESPONSE');
-    return { text: result.text, usage: result.usage || null, providerRequestId: result.requestId || null, providerId, model };
+    return { text: result.text, usage: result.usage || null, providerRequestId: result.requestId || null, providerId, model:result.model||model,providerCalls:result.providerCalls??1 };
   }
 }
 export function openAIChatAdapter({ endpoint, apiKey, fetchImpl = fetch } = {}) {
@@ -59,16 +60,18 @@ export function openAIChatAdapter({ endpoint, apiKey, fetchImpl = fetch } = {}) 
   // A short, explicitly signalled quota reset can recover; never blindly reissue on unknown limits.
   let blockedUntil = 0;
   return {
-    async complete({ model, messages, output, signal, maxOutputTokens }) {
+    async complete({ model, messages, output, signal, maxOutputTokens,wireSchema }) {
+      let providerCalls=0;try{
+      if(signal?.aborted)fail('MODEL_REQUEST_CANCELLED',499);
       const remaining = Math.ceil((blockedUntil - Date.now()) / 1000);
       if (remaining > 0) throw new ProviderError('PROVIDER_RATE_LIMIT', 'PROVIDER_RATE_LIMIT', 429, remaining);
       const body = { model, messages, stream: false };
       if (maxOutputTokens !== undefined) body.max_completion_tokens = maxOutputTokens;
-      if (output === 'json') body.response_format = { type: 'json_object' };
+      if (output === 'json') body.response_format = wireSchema?{type:'json_schema',json_schema:{name:wireSchema.name,strict:true,schema:wireSchema.schema}}:{ type: 'json_object' };
       for (let attempt = 0; attempt < 2; attempt++) {
         let response;
         try {
-          response = await fetchImpl(endpoint, { method: 'POST', signal, headers: { Authorization: 'Bearer ' + apiKey, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+          providerCalls++;response = await fetchImpl(endpoint, { method: 'POST', signal, headers: { Authorization: 'Bearer ' + apiKey, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
         } catch {
           if (signal?.aborted) fail('MODEL_REQUEST_CANCELLED', 499);
           fail('PROVIDER_NETWORK_ERROR', 502);
@@ -89,9 +92,10 @@ export function openAIChatAdapter({ endpoint, apiKey, fetchImpl = fetch } = {}) 
         if (choice?.finish_reason === 'length') fail('MODEL_OUTPUT_TRUNCATED');
         if (typeof choice?.message?.content !== 'string') fail('PROVIDER_INVALID_OUTPUT');
         blockedUntil = 0;
-        return { text: choice.message.content, usage: parsed.usage || null, requestId: parsed.id || null };
+        return { text: choice.message.content, usage: parsed.usage || null, requestId: parsed.id || null,model:parsed.model||model,providerCalls };
       }
       fail('PROVIDER_RATE_LIMIT', 429);
+      }catch(error){error.providerCalls=providerCalls;throw error;}
     }
   };
 }

@@ -289,7 +289,7 @@ test("frontend split and PWA shell include navigation infrastructure",()=>{
   const boot=
     fs.readFileSync(
       new URL(
-        "../front/js/boot.js",
+        "../front/asset-manifest.js",
         import.meta.url
       ),
       "utf8"
@@ -339,7 +339,7 @@ test("frontend split and PWA shell include navigation infrastructure",()=>{
   );
   assert.match(
     worker,
-    /\/js\/navigation\.js/
+    /OVLL_ASSETS\.precache/
   );
   assert.match(
     worker,

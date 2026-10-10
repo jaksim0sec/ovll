@@ -13,11 +13,13 @@
 
 ## 현재 코드의 진입점
 
-- `server.js`: Express 서버 엔트리, HTTP API, 현재 플래너/노드 카탈로그
-- `backend/ai/`: 현재 Gemini 기반 대화·실행 코드
+- **[2026-10-10 안정화 구현과 제한](STABILITY_2026-10-10.md)** — 실제 활성 경로, 변경 표, 마스코트 원인, 예산과 검증 범위
+
+- `server.js`: Express 서버 엔트리, stateless 로컬 모델/API 및 산출물 생성 API
+- `backend/ovllPointer/`: 활성 로컬 모델 호스트·공급자·계약·노드 카탈로그와 미전환 PostgreSQL 핵심틀
 - `backend/artifacts/`: 결과물 문서화·저장·PDF 렌더링
 - `backend/http/`: 요청 중단 등 HTTP 보조 기능
-- `front/`: 웹/PWA UI, 캔버스, 브라우저 실행기, 사용자 함수 저장
+- `front/`: 웹/PWA UI, 캔버스, 활성 로컬 실행기, localStorage 그래프·함수, IndexedDB 파일
 - `mobile/`: Capacitor 앱 포장
 - `test/`: 현재 코드의 회귀 테스트
 - `instructions/`: 현재 지침의 위치와 이후 계층형 지침 라이브러리 이관 기준

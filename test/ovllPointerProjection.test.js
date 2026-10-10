@@ -71,7 +71,7 @@ test('server node evidence status maps to existing canvas runtime state without 
   assert.equal(entries[1][1].status,'FAILED');
   assert.equal(entries[0][1].result.downloadUrl,undefined);
 });
-test('existing one-in one-out node layout remains unchanged and flow edges reuse those ports',()=>{
+test('existing data ports remain unchanged and sequencing uses reversible control sockets',()=>{
   const definitions=getPointerCatalog().definitions;
   const graph={graphId:'g_controls',revision:1,nodes:['write','organize'].map(type=>({nodeId:type,
     definitionRef:{definitionId:'builtin:'+type,version:1},settings:{},inputBindings:{}})),connections:[]};
@@ -93,9 +93,8 @@ test('existing one-in one-out node layout remains unchanged and flow edges reuse
   const saved=repo.get('local',graph.graphId);
   assert.equal(saved.graph.connections[0].to.port,'in');
   const restored=p.projectGraph(saved);
-  assert.deepEqual(Array.from(restored.workflow.links[0]),['write.result','organize.in']);
-  assert.equal(w.OvllPointerGraphPatch.build(saved,{nodes:restored.workflow.nodes,connections:[{
-    from:{node:'write',port:'result'},to:{node:'organize',port:'in'},data:{kind:'flow'}}]}),null);
+  assert.deepEqual(Array.from(restored.workflow.links[0]),['write.__flow_out_result','organize.__flow_in_in']);
+  assert.equal(w.OvllPointerGraphPatch.build(saved,{nodes:restored.workflow.nodes,connections:restored.workflow.connections}),null);
   const collision={...definitions[0],definitionId:'custom_controls',
     inputs:[{name:'in',role:'data',representation:'text'},{name:'flow_in',role:'more data',representation:'text'}],
     outputs:[{name:'next',role:'result',representation:'text'}]};

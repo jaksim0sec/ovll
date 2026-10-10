@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createLocalPointerHost} from '../backend/ovllPointer/localHost.js';
-import {createContractValidation} from '../backend/ovllPointer/validation.js';
+import {createContractValidation,splitModelMetadata} from '../backend/ovllPointer/validation.js';
 import {MemoryGraphRepository} from '../backend/ovllPointer/graph.js';
 const repo=new MemoryGraphRepository();
 repo.create('local','g');
@@ -16,7 +16,7 @@ const mk=(responses)=>createLocalPointerHost({
 });
 test('stateless local model turn uses actual context and preserves plain language without SQL',async()=>{
   const h=mk([{message:'안녕하세요'}]);
-  assert.deepEqual(await h.turn({snapshot:initial,requestRef:'r1',requestText:'안녕'}),{message:'안녕하세요'});
+  assert.deepEqual(splitModelMetadata(await h.turn({snapshot:initial,requestRef:'r1',requestText:'안녕'})).domain,{message:'안녕하세요'});
 });
 test('local model actions are proposals; graph state remains unchanged until browser commits',async()=>{
   const patch={graphId:'g',expectedGraphRevision:1,definitions:[],operations:[

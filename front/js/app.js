@@ -15,6 +15,7 @@
   const PointerProjection = global.OvllPointerProjection;
   const PointerGraphPatch = global.OvllPointerGraphPatch;
   const Presence = global.OvllPresence;
+  const PointerActivity = global.OvllPointerActivity;
   const WorkspaceStore = global.OvllWorkspaceStore;
   const FileStore = global.OvllFileStore;
   const ArtifactVisuals = global.OvllArtifactVisuals;
@@ -52,6 +53,7 @@
     !Navigation ||
     !API ||
     !Presence ||
+    !PointerActivity ||
     !WorkspaceStore ||
     !FileStore ||
     !ArtifactVisuals ||
@@ -130,6 +132,14 @@
     messageCount: 0
   };
 
+  const localOperations=PointerActivity.createOperations({
+    getConversationId:currentConversationId,isDestroyed:()=>state.destroyed
+  });
+  const runPresence=PointerActivity.createRunPresence({presence:Presence,
+    isActive:()=>!!localOperations.getCurrent()&&localOperations.isCurrent(localOperations.getCurrent())});
+  const serverPresence=PointerActivity.createRunPresence({presence:Presence,
+    isActive:()=>!state.destroyed&&pointerScope()?.storageMode==='postgres'});
+  const serverLiveNodes=new Map();
   const listeners = [];
 
   let conversationSwitchQueue =
@@ -652,7 +662,15 @@
     }
 
     const detail =
-      code ===
+      code === 'POINTER_TASK_BUDGET_EXCEEDED'
+        ? '작업 원문이나 변경 이력이 길이 한도를 넘었습니다. 원본과 제약을 보존하려면 새 대화에서 필요한 범위를 지정해 주세요.'
+        : code === 'FUNCTION_SUCCESSFUL_TARGET_REQUIRED'
+          ? '현재 작업에서 성공한 결과를 실행한 뒤 함수로 저장해 주세요.'
+        : code === 'FUNCTION_TARGET_SELECTION_REQUIRED'
+          ? '저장할 결과가 여러 개입니다. 함수에 포함할 결과를 지정해 주세요.'
+        : code === 'PROMPT_CONTEXT_TOO_LARGE' || code === 'INVALID_LOCAL_NODE_INPUT'
+          ? '이번 작업의 입력 범위가 한도를 넘었습니다. 자료를 나누거나 필요한 범위를 지정해 주세요.'
+        : code ===
         "LOCAL_MODEL_DAILY_BUDGET"
         ? "오늘의 모델 사용 한도에 도달했어. 다음 한도 갱신 후 다시 시도해 줘."
         : rateLimited
@@ -2569,8 +2587,10 @@
         "small"
       );
 
+    const availability=artifact?.localFileId?' · 이 기기에 저장됨':
+      (artifact?.availability==='temporary'||artifact?.remoteAvailability==='temporary')?' · 임시 링크'+(artifact.expiresAt?' · '+new Date(artifact.expiresAt).toLocaleString()+' 만료':''):'';
     meta.textContent =
-      `${artifactFormat(artifact)} · ${formatArtifactSize(artifact?.size)}`;
+      `${artifactFormat(artifact)} · ${formatArtifactSize(artifact?.size)}${availability}${artifact?.truncated?' · 일부 내용 생략됨':''}`;
 
     copy.append(
       title,
@@ -5916,8 +5936,14 @@
       }finally{state.pointerHydrating=false;}
     }
     if(scope.storageMode==='local'){
+      const rows=new Map();
       for(const run of WorkspaceStore.getConversation(scope.conversationId)?.state.pointerRuns||[])
-        if(run.graphRef?.graphId===scope.graphId)showLocalRun(run);
+        if(run.graphRef?.graphId===scope.graphId)for(const row of run.nodes||[])rows.set(row.nodeId,{...row,runId:run.runId});
+      const nodes=await global.OvllPointerLocal.validateResults(snapshot.graph,[...rows.values()],
+        getPointerTask(scope.conversationId)?{taskContext:getPointerTask(scope.conversationId)}:{});
+      if(state.destroyed||conversation!==state.activeConversationId)return snapshot.eventCursor;
+      state.canvas?.clearRuntimeNodeStates?.();
+      showLocalRun({nodes});
     }
     for(const run of snapshot.runs||[]){
       if(!run.runId)continue;
@@ -5937,15 +5963,23 @@
     // Load the actual authorized output values, never infer file URLs from opaque refs.
     for(const node of result.nodes||[]){
       if(node.status!=='success'||!Array.isArray(node.outputRefs)||!node.outputRefs.length)continue;
-      const entries=await Promise.all(node.outputRefs.slice(0,3).map(ref=>
+      const entries=await Promise.all(node.outputRefs.map(ref=>
         PointerAPI.artifact(ref).catch(()=>null)));
       if(state.destroyed||conversation!==state.activeConversationId)return;
       const report=global.OvllPointerProjection.artifactPreview(entries.filter(Boolean));
       if(report)state.canvas?.setRuntimeNodeState?.(node.nodeId,{
-        status:'SUCCESS',report,result:{report,outputRefs:node.outputRefs}
+        status:'SUCCESS',report,result:{report,outputRefs:node.outputRefs,
+          values:Object.fromEntries(entries.filter(entry=>entry?.content&&Object.prototype.hasOwnProperty.call(entry.content,'value'))
+            .map((entry,index)=>[(entry.artifact?.semanticRole||'결과')+' '+(index+1),{inline:entry.content.value}])),
+          incomplete:entries.some(entry=>!entry)}
       });
     }
     if(['completed','failed','cancelled','waiting'].includes(result.run.status)){
+      if(serverLiveNodes.has(runRef)){
+        serverPresence.update({runId:runRef,nodes:result.nodes||[]});
+        serverLiveNodes.delete(runRef);
+        if(!serverLiveNodes.size)serverPresence.reset();
+      }
       state.pointerRuns.delete(runRef);
       if(state.runtimeActivity){
         setRuntimeActivity(result.run.status==='completed'?'서버 실행 완료':'실행 확인 필요',
@@ -5975,6 +6009,13 @@
       event.type==='node.failed'||event.type==='node.blocked'||event.type==='node.outcome_unknown'||
       event.type.startsWith('run.')){
       if(!data.runRef||!state.pointerRunRefs.has(data.runRef))return;
+      if(event.type.startsWith('node.')){
+        const nodes=serverLiveNodes.get(data.runRef)||new Map();
+        const status={'node.started':'running','node.success':'success','node.failed':'failed',
+          'node.blocked':'blocked','node.outcome_unknown':'outcome_unknown'}[event.type];
+        if(status){nodes.set(data.nodeId,{nodeId:data.nodeId,status});serverLiveNodes.set(data.runRef,nodes);
+          serverPresence.update({runId:data.runRef,nodes:[...nodes.values()]});}
+      }
       if(event.type==='node.started'){
         state.canvas?.setRuntimeNodeState?.(data.nodeId,{status:'RUNNING'});
         setRuntimeActivity('노드 실행 중',{id:data.nodeId});
@@ -6080,6 +6121,7 @@
         done?'done':waiting||skipped?'skipped':'failed',fact.error||'',step);
   }
   function pointerNodeProgress(run){
+    runPresence.update(run);
     if(!state.runtimeActivity)return;
     for(const entry of run.nodes||[]){
       if(entry.status==='pending')continue;
@@ -6096,40 +6138,60 @@
   }
   function showLocalRun(run){
     for(const n of run.nodes||[]){
-      const status={running:'RUNNING',success:'SUCCESS',failed:'FAILED',
+      const status={running:'RUNNING',success:n.resultCurrent===false?'STALE':'SUCCESS',stale:'STALE',failed:'FAILED',
         blocked:'FAILED',cancelled:'SKIPPED',skipped:'SKIPPED',outcome_unknown:'FAILED'}[n.status];
       if(!status)continue;
       const report=Object.entries(n.outputs?.values||{}).map(([k,v])=>k+': '+
         String(typeof v?.inline==='string'?v.inline:JSON.stringify(v?.inline)||'')).join(' · ').slice(0,350);
       state.canvas?.setRuntimeNodeState?.(n.nodeId,{status,report:report||n.error||'',
-        ...(n.status==='success'?{result:{report,artifact:Object.values(n.outputs?.values||{}).map(v=>v.inline).find(v=>v&&typeof v==='object'&&v.downloadUrl)}}:{})});
+        ...(['success','stale'].includes(n.status)?{result:{report,values:clone(n.outputs?.values||{}),outputRefs:n.outputRefs||[],provenance:n.provenance,runId:n.runId||run.runId,resultCurrent:n.resultCurrent!==false,artifact:Object.values(n.outputs?.values||{}).map(v=>v.inline).find(v=>v&&typeof v==='object'&&v.downloadUrl)}}:{})});
     }
   }
   let localRunActive=null;
-  async function runLocalNodes({targets,damMode='closed',requestText='',snapshotOverride,taskConstraints=[],cache}={}){
+  async function runLocalNodes({targets,deliverableTargets,damMode='closed',requestText='',snapshotOverride,
+    taskConstraints=[],taskContext,cache,operation=localOperations.getCurrent()}={}){
     const scope=pointerScope();
     if(scope?.storageMode!=='local')throw new Error('LOCAL_SCOPE_UNAVAILABLE');
     if(localRunActive)throw new Error('LOCAL_RUN_ALREADY_ACTIVE');
+    if(!localOperations.isActive(operation))throw new Error('LOCAL_OPERATION_CANCELLED');
     const controller=new AbortController();
-    localRunActive={conversationId:scope.conversationId,controller,nodeIds:new Set(targets)};
+    const abort=()=>controller.abort();
+    operation.signal.addEventListener('abort',abort,{once:true});
+    if(operation.signal.aborted)abort();
+    const owned={conversationId:scope.conversationId,controller,nodeIds:new Set(targets),operation};
+    localRunActive=owned;
     try{
-      return await global.OvllPointerLocal.run({conversationId:scope.conversationId,targets,
-        damMode,requestText,snapshotOverride,taskConstraints,cache,signal:controller.signal,onProgress:run=>{
-          if(localRunActive)localRunActive.nodeIds=new Set(run.nodes.map(x=>x.nodeId));
-          if(currentConversationId()===scope.conversationId){
-            showLocalRun(run);
-            pointerNodeProgress(run);
-          }
+      return await global.OvllPointerLocal.run({conversationId:scope.conversationId,targets,deliverableTargets,
+        damMode,requestText,snapshotOverride,taskConstraints,taskContext,cache,signal:controller.signal,onProgress:run=>{
+          if(localRunActive!==owned||!localOperations.isCurrent(operation))return;
+          owned.nodeIds=new Set(run.nodes.map(x=>x.nodeId));
+          showLocalRun(run);
+          pointerNodeProgress(run);
         }});
-    }finally{localRunActive=null;}
+    }finally{
+      operation.signal.removeEventListener('abort',abort);
+      if(localRunActive===owned)localRunActive=null;
+    }
   }
-  function localRunSummary(run){return global.OvllPointerLocalActions.deliver(run);}
-  const localTerminalTargets=graph=>graph.nodes.filter(n=>!graph.connections.some(l=>
-    l.from.nodeId===n.nodeId)).map(n=>n.nodeId);
+  function localRunSummary(run){return global.OvllPointerLocalActions.present({facts:[{kind:'run.start',status:run.status,run}],runs:[run]});}
+  function getPointerTask(conversationId=currentConversationId()){
+    return WorkspaceStore.getConversation(conversationId)?.state.pointerTask||null;
+  }
+  async function successfulLocalTargets(snapshot,conversationId){
+    const rows=new Map(),runs=WorkspaceStore.getConversation(conversationId)?.state.pointerRuns||[];
+    for(const run of runs)for(const row of run.nodes||[])rows.set(row.nodeId,row);
+    const checked=await global.OvllPointerLocal.validateResults(snapshot,[...rows.values()],
+      getPointerTask(conversationId)?{taskContext:getPointerTask(conversationId)}:{});
+    const valid=new Set(checked.filter(row=>row.status==='success'&&row.resultCurrent).map(row=>row.nodeId));
+    const last=[...runs].reverse().find(run=>run.status==='completed'&&
+      (run.deliverableTargets||run.targets||[]).some(id=>valid.has(id)));
+    return (last?.deliverableTargets||last?.targets||[]).filter(id=>valid.has(id));
+  }
   async function runSavedLocalFunction(fn,bindings){
     const bound=global.OvllPointerFunctions.bind(fn,bindings);
     return runLocalNodes({snapshotOverride:bound.snapshot,targets:bound.targets,
-      requestText:bound.requestText,taskConstraints:bound.invariants});
+      requestText:bound.requestText,taskConstraints:bound.invariants,
+      taskContext:{objective:fn.purpose,requestText:bound.requestText,constraints:bound.invariants||[]}});
   }
   async function runLocalPrompt(text,options={}){
     if(state.destroyed||state.busy)return;
@@ -6140,6 +6202,8 @@
       addUserMessage(value);composerInput.value='';resizeComposer();scheduleComposerDraftSave(0);
     }
     const previousRequest=state.lastUserRequest;
+    const operation=localOperations.begin({conversationId:scope.conversationId,kind:'chat'});
+    const owns=()=>localOperations.isCurrent(operation);
     state.lastUserRequest=value;setBusy(true);Presence.thinking();
     beginRuntimeActivity('생각 중');
     try{
@@ -6154,11 +6218,13 @@
         upsertRuntimeStep('function:save','함수 저장 중','running');
         const graph=(await global.OvllPointerLocal.state(scope.conversationId)).graph;
         if(!graph.graph.nodes.length)throw new Error('LOCAL_FUNCTION_GRAPH_EMPTY');
-        const targets=localTerminalTargets(graph.graph);
+        const targets=await successfulLocalTargets(graph,scope.conversationId);
+        if(!targets.length)throw new Error('FUNCTION_SUCCESSFUL_TARGET_REQUIRED');
         const purpose=value.startsWith('/함수저장 ')?
           value.slice('/함수저장 '.length).trim():
-          state.workflowUserRequest||previousRequest||'새 함수';
-        const saved=global.OvllPointerFunctions.save({purpose,snapshot:graph,targets});
+          getPointerTask()?.objective||state.workflowUserRequest||previousRequest||'새 함수';
+        const saved=global.OvllPointerFunctions.save({purpose,snapshot:graph,targets,
+          invariants:getPointerTask()?.constraints||[]});
         upsertRuntimeStep('function:save','함수 저장 완료','done');
         addAssistantMessage('함수 초안을 저장했어: '+saved.purpose+
           '\n다시 실행하려면 `/함수실행 1 새로운 입력`처럼 요청하면 돼.');
@@ -6167,14 +6233,15 @@
       if(value.startsWith('/함수실행 ')){
         Presence.settle();
         upsertRuntimeStep('function:run','저장된 함수 실행 중','running');
-        const [id,...args]=value.slice('/함수실행 '.length).trim().split(/\s+/);
+        const {id,input,bindings:named}=PointerActivity.parseFunctionRequest(value.slice('/함수실행 '.length));
         const all=global.OvllPointerFunctions?.list()||[];
         const selected=/^[1-9][0-9]*$/.test(id)?all[Number(id)-1]:all.find(x=>x.id===id);
         const fn=selected?global.OvllPointerFunctions.get(selected.id):null;
         if(!fn)throw new Error('LOCAL_FUNCTION_NOT_FOUND');
-        const input=args.join(' '),ports=fn.inputs||[];
-        if(input&&ports.length!==1)throw new Error('FUNCTION_NAMED_INPUTS_REQUIRED');
-        const run=await runSavedLocalFunction(fn,input?{[ports[0].name]:input}:{});
+        const ports=fn.inputs||[];
+        if(!named&&input&&ports.length!==1)throw new Error('FUNCTION_NAMED_INPUTS_REQUIRED');
+        const run=await runSavedLocalFunction(fn,named||(input?{[ports[0].name]:input}:{}));
+        if(!owns())return;
         upsertRuntimeStep('function:run',run.status==='completed'?'저장된 함수 실행 완료':'저장된 함수 실행 확인 필요',
           run.status==='completed'?'done':'failed');
         addAssistantMessage(run.status==='completed'?'저장된 함수 실행 완료.\n'+localRunSummary(run):
@@ -6183,72 +6250,98 @@
       const actions=global.OvllPointerLocalActions;
       const conversationId=scope.conversationId,cache=new Map();
       const contextHistory=recentAiConversation(value).slice(-5).map(x=>x.role+': '+x.text);
-      const {facts,messages,runs}=await actions.coordinate({
-        isActive:()=>currentConversationId()===conversationId&&!state.destroyed,
-        onActionStart:pointerActionStarted,
-        onActionResult:pointerActionResult,
+      const taskContext=PointerActivity.createTaskContext(getPointerTask(conversationId),value);
+      const acceptTask=()=>WorkspaceStore.updateConversationPointerTask(conversationId,taskContext);
+      const {facts,messages,runs,checkpoint}=await actions.coordinate({
+        isActive:()=>localOperations.isActive(operation),
+        onActionStart:action=>{if(owns())pointerActionStarted(action);},
+        onActionResult:(action,fact)=>{if(owns())pointerActionResult(action,fact);},
+        readSource:(file,settings)=>global.OvllPointerLocal.readSource(file,settings),
+        onCheckpoint:checkpoint=>{if(owns()){acceptTask();WorkspaceStore.updateConversationPointerQuestion(conversationId,checkpoint);}},
         getContext:async()=>({snapshot:(await global.OvllPointerLocal.state(conversationId)).graph,
-          history:contextHistory,savedFunctions:(global.OvllPointerFunctions?.list()||[]).slice(0,10),
+          history:contextHistory,taskContext,pointerQuestion:WorkspaceStore.getConversation(conversationId)?.state.pointerQuestion,
+          savedFunctions:global.OvllPointerFunctions?.list()||[],
           runs:WorkspaceStore.getConversation(conversationId)?.state.pointerRuns||[]}),
-        request:context=>PointerAPI.localTurn({...context,requestText:value}),
+        request:context=>PointerAPI.localTurn({...context,requestText:value,taskContext,signal:operation.signal}),
         handlers:{
           'ir.applyPatch':async action=>{
-            if(currentConversationId()!==conversationId)throw new Error('LOCAL_CONVERSATION_CHANGED');
+            if(!localOperations.isActive(operation))throw new Error('LOCAL_CONVERSATION_CHANGED');
             const data=await global.OvllPointerLocal.turn({...scope,actions:[action]});
             const result=data.results[0];
             if(result.status!=='applied')throw new Error('LOCAL_PATCH_REJECTED');
-            await refreshPointerCanvas({force:true});return result;
+            try{acceptTask();}catch(error){
+              if(owns())showErrorNotice(error,{scope:'작업 맥락 저장',fallback:'구성 변경은 저장됐지만 작업 맥락을 저장하지 못했습니다'});
+              return {...result,taskStorageError:error?.code||error?.message};
+            }
+            try{await refreshPointerCanvas({force:true});}catch(error){
+              if(owns())showErrorNotice(error,{scope:'화면 반영 오류',fallback:'변경은 저장됐지만 화면을 갱신하지 못했어. 다시 열면 저장된 변경을 불러올 수 있어.'});
+              return {...result,projectionError:error?.code||error?.message||'LOCAL_PROJECTION_FAILED'};
+            }
+            return result;
           },
           'run.start':async(action,applied)=>{
             const targets=action.args.targets.map(x=>x.nodeId||
               (action.dependsOn||[]).includes(x.fromAction)&&applied.get(x.fromAction)?.createdRefs?.['node:'+x.localNodeKey]);
             if(!targets.length||targets.some(x=>!x))throw new Error('LOCAL_TARGET_UNRESOLVED');
-            const run=await runLocalNodes({targets,damMode:action.args.damMode||'closed',requestText:value,cache});
+            acceptTask();
+            const run=await runLocalNodes({targets,damMode:action.args.damMode||'closed',requestText:value,
+              taskContext,taskConstraints:taskContext.constraints,cache,operation});
             return {status:run.status,run};
           },
           'function.run':async action=>{
-            const fn=global.OvllPointerFunctions.get(action.args.functionRef);
+            const ref=action.args.functionRef;
+            const fn=typeof ref==='object'?global.OvllPointerFunctions.get(ref.id||ref.functionId,ref.version):
+              global.OvllPointerFunctions.get(ref);
             const run=await runSavedLocalFunction(fn,action.args.inputBindings);
             return {status:run.status,run};
           },
           'function.save':async action=>{
-            if(action.args.baseFunctionRef)throw new Error('LOCAL_FUNCTION_VERSION_UNSUPPORTED');
             const current=(await global.OvllPointerLocal.state(conversationId)).graph;
-            const saved=global.OvllPointerFunctions.saveDraft(action.args.function,current);
+            const targets=await successfulLocalTargets(current,conversationId);
+            const saved=global.OvllPointerFunctions.saveDraft(action.args.function,current,{
+              ...(targets.length?{targets}:{}),baseFunctionRef:action.args.baseFunctionRef});
             return {status:'saved',functionRef:saved.id,purpose:saved.purpose};
           },
           'question.ask':async action=>actions.question(action)
         }
       });
-      if(facts.some(r=>['applied','completed'].includes(r.status)))state.workflowUserRequest=value;
+      if(!owns())return;
+      if(!checkpoint&&!operation.signal.aborted)WorkspaceStore.updateConversationPointerQuestion(conversationId,null);
+      if(facts.some(r=>['applied','completed'].includes(r.status)))state.workflowUserRequest=taskContext.objective;
       let reply=actions.present({facts,messages,runs});
-      if(actions.needsLanguage({facts,messages,runs})){
+      if(!operation.signal.aborted&&actions.needsLanguage({facts,messages,runs})){
         const actionResults=facts.map(({run,...fact})=>({...fact,...(run?{run:{
-          status:run.status,targets:run.targets,nodes:(run.nodes||[]).map(n=>({
+          status:run.status,targets:run.targets,coverage:run.coverage,storage:run.storage,validity:run.validity,nodes:(run.nodes||[]).map(n=>({
             nodeId:n.nodeId,status:n.status,error:n.error||'',toolEffectStarted:!!n.toolEffectStarted
           }))
         }}:{})}));
         try{
           const snapshot=(await global.OvllPointerLocal.state(conversationId)).graph;
           const language=await PointerAPI.localResponse({snapshot,requestText:value,
-            history:contextHistory,actionResults});
-          if(currentConversationId()===conversationId&&language?.message?.trim())
-            reply=language.message.trim();
+            history:contextHistory,actionResults,taskContext,signal:operation.signal});
+          if(owns()&&language?.message?.trim())
+            reply=actions.withRunNotices(language.message.trim(),runs);
         }catch(error){
           console.warn('Pointer language fallback used',error?.code||error);
         }
       }
-      if(currentConversationId()===conversationId)addAssistantMessage(reply);
+      if(owns())addAssistantMessage(reply);
     }catch(error){
+      if(!owns())return;
+      if(operation.signal.aborted){addAssistantMessage('실행을 중단했어.');return;}
       upsertRuntimeStep('__local_error__','요청 처리 실패','failed',
         userFacingError(error,'작업을 처리하지 못했어.'));
       showErrorNotice(error,{scope:error?.status===429?undefined:'로컬 OvllPointer 오류',
         fallback:'작업을 처리하지 못했어.',
         ...(error?.status===429?{onRetry:()=>runLocalPrompt(value,{addUserMessage:false})}:{})});
     }finally{
-      finishRuntimeActivity({removeImmediately:!state.runtimeActivity?.order?.length});
-      Presence.settle();setBusy(false);
-      resizeComposer();focusComposerForDesktop();scheduleWorkspaceSave();
+      if(owns()){
+        runPresence.reset();
+        finishRuntimeActivity({removeImmediately:!state.runtimeActivity?.order?.length});
+        Presence.settle();setBusy(false);
+        resizeComposer();focusComposerForDesktop();scheduleWorkspaceSave();
+      }
+      localOperations.finish(operation);
     }
   }
 
@@ -6298,7 +6391,7 @@
     if(!scope)return;
     if(scope.storageMode==='local'){
       if(localRunActive?.conversationId===scope.conversationId&&
-        localRunActive.nodeIds.has(nodeId))localRunActive.controller.abort();
+        localRunActive.nodeIds.has(nodeId)){localRunActive.controller.abort();localOperations.cancel();}
       return;
     }
     const runRef=[...state.pointerRuns].find(ref=>(state.pointerRunTargets.get(ref)||[]).includes(nodeId));
@@ -6320,15 +6413,25 @@
     const scope=pointerScope();
     if(scope?.storageMode==='local'){
       if(localRunActive||state.busy)return;
-      beginRuntimeActivity('실행 준비 중');
+      const operation=localOperations.begin({conversationId:scope.conversationId,kind:'canvas'});
+      const owns=()=>localOperations.isCurrent(operation);
+      setBusy(true);beginRuntimeActivity('실행 준비 중');
       try{
-        const run=await runLocalNodes({targets:[nodeId],damMode:mode});
+        const taskContext=getPointerTask(scope.conversationId);
+        const run=await runLocalNodes({targets:[nodeId],damMode:mode,operation,taskContext,
+          requestText:taskContext?.requestText||'',taskConstraints:taskContext?.constraints||[]});
+        if(!owns())return;
         addAssistantMessage((run.status==='completed'?'노드 실행 완료.':'노드 실행 상태: '+run.status)+
           '\n'+localRunSummary(run));
       }catch(error){
+        if(!owns())return;
+        if(operation.signal.aborted){addAssistantMessage('실행을 중단했어.');return;}
         upsertRuntimeStep('__local_run_error__','노드 실행 실패','failed',error?.code||error?.message||'');
         showErrorNotice(error,{scope:'로컬 노드 실행',fallback:'노드 실행 실패'});
-      }finally{finishRuntimeActivity({removeImmediately:!state.runtimeActivity?.order?.length});}
+      }finally{
+        if(owns()){runPresence.reset();finishRuntimeActivity({removeImmediately:!state.runtimeActivity?.order?.length});Presence.settle();setBusy(false);scheduleWorkspaceSave();}
+        localOperations.finish(operation);
+      }
       return;
     }
     if(!scope||!scope.taskRef||!state.pointerGraphRevision||!state.canvas?.getNode?.(nodeId)){
@@ -7026,6 +7129,30 @@
     if(nodeId)void cancelPointerCanvasNode(nodeId);
   }
 
+  async function handleCanvasNodeResult(payload){
+    const conversationId=currentConversationId(),id=String(payload?.id||'');
+    if(!id||state.destroyed)return;
+    const runtime=payload.runtime||{},result=runtime.result||{};
+    if(result.artifact){await openArtifactPreview(result.artifact);return;}
+    const stored=result.runId?WorkspaceStore.getPointerNodeOutput?.(conversationId,result.runId,id):null;
+    const values=stored?.values||result.values||{};
+    const entries=Object.entries(values).map(([port,value])=>{
+      const output=value?.inline;
+      return port+'\n'+(typeof output==='string'?output:JSON.stringify(output,null,2));
+    });
+    const notes=[];
+    if(result.incomplete)notes.push('일부 결과를 불러오지 못했습니다 · 다시 열어 확인해 주세요');
+    if(runtime.status==='STALE'||result.resultCurrent===false)notes.push('이전 실행 결과 · 현재 작업에는 재실행이 필요합니다');
+    const coverage=result.provenance?.coverage;
+    if(coverage?.truncated)notes.push('원문 일부를 읽은 결과 · '+coverage.readBytes+' / '+coverage.totalBytes+' 바이트');
+    const text=[...notes,...entries].join('\n\n')||runtime.report||'표시할 결과가 없습니다';
+    if(state.destroyed||conversationId!==currentConversationId())return;
+    try{await openArtifactPreview({name:'노드 실행 결과',format:'txt',mime:'text/plain',
+      previewKind:'text',previewText:text});}
+    catch(error){if(!state.destroyed&&conversationId===currentConversationId())
+      showErrorNotice(error,{scope:'결과 보기',fallback:'결과를 표시하지 못했습니다'});}
+  }
+
   function openConversation(
     conversationId,
     options = {}
@@ -7093,6 +7220,8 @@
             );
         }
 
+        localOperations.invalidate();runPresence.reset();serverPresence.reset();serverLiveNodes.clear();
+        localRunActive?.controller.abort();
         state.workflowProposal =
           null;
 
@@ -7440,6 +7569,7 @@
     );
     canvas.on("workflowApplied", handleCanvasWorkflowApplied);
     canvas.on("nodeRun", handleCanvasNodeRun);
+    canvas.on("nodeResult", payload=>{void handleCanvasNodeResult(payload);});
     canvas.on(
       "nodeRunCancel",
       handleCanvasNodeRunCancel
@@ -7765,6 +7895,8 @@ listen(composerInput, "keydown", handleComposerKeydown);
     destroy() {
       if (state.destroyed) return;
 
+      localOperations.invalidate();localRunActive?.controller.abort();
+      runPresence.reset();serverPresence.reset();serverLiveNodes.clear();
       state.destroyed = true;
       clearTimeout(state.pointerEditTimer);
       state.pointerEditTimer=null;

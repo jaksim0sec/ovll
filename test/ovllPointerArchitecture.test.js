@@ -19,7 +19,7 @@ test('active entrypoint and UI use only Pointer model and run routes',()=>{
   assert.doesNotMatch(server,/legacyCompatibility|geminiExecution/);
   assert.match(app,/PointerAPI\.localTurn/);
   assert.doesNotMatch(app,/API\.(?:planWorkflow|finalizeRun)/);
-  assert.doesNotMatch(boot,/runtimeEngine\.js|runtimeFinalization\.js/);
+  assert.doesNotMatch(boot+read('front/asset-manifest.js'),/runtimeEngine\.js|runtimeFinalization\.js/);
   assert.match(read('front/runtime-config.js'),/pointerStorageMode:"local"/);
   assert.equal(localModelReady({}),false);
 });
@@ -48,6 +48,7 @@ test('synchronous script evaluation failure visibly ends the boot spinner',()=>{
   const sandbox={window,document,AbortController,console,
     fetch:()=>new Promise(()=>{}),navigator:{},
     localStorage:{getItem:()=>null},sessionStorage:{getItem:()=>null}};
+  vm.runInNewContext(read('front/asset-manifest.js'),sandbox);
   vm.runInNewContext(read('front/js/boot.js'),sandbox);
   assert.equal(typeof events.get('error'),'function');
   events.get('error')();

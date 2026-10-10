@@ -9,6 +9,7 @@ import {
 } from './backend/http/requestAbort.js';
 import {
   createStoredArtifact,
+  createArtifactAdmissionGuard,
   getStoredArtifact
 } from './backend/artifacts/artifactStore.js';
 import {
@@ -177,7 +178,7 @@ function serverRuntimeHealth() {
  * The frontend compares this server value with its locally stored version
  * before loading application assets.
  */
-const APP_VERSION = '2026.10.10.12';
+const APP_VERSION = '2026.10.10.13';
 
 /* =========================================================
    GENERATED ARTIFACT API
@@ -185,6 +186,7 @@ const APP_VERSION = '2026.10.10.12';
 
 app.post(
   '/api/create-artifact',
+  createArtifactAdmissionGuard(),
   async (req, res) => {
     const abortContext =
       bindRequestAbort(

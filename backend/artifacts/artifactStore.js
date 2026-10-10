@@ -2,6 +2,7 @@ import {deflateRawSync} from 'node:zlib';
 import {randomUUID} from 'node:crypto';
 import {
   renderPdfFallback,
+  pdfFallbackCoverage,
   renderPdfWithChrome
 } from './pdfRenderer.js';
 import {
@@ -10,8 +11,10 @@ import {
   extractHtmlArtifact
 } from './artifactDocument.js';
 
-const STORE = new Map();
-const TTL_MS = 2 * 60 * 60 * 1000;
+export const ARTIFACT_LIMITS=Object.freeze({ttlMs:2*60*60*1000,maxInputBytes:1048576,
+  maxArtifactBytes:4*1024*1024,maxTotalBytes:32*1024*1024,maxCount:64,maxConcurrent:2,
+  deadlineMs:30000,maxRows:5000,maxColumns:40});
+const artifactError=(code,status=413)=>Object.assign(new Error(code),{code,status});
 const MAX_TEXT_CHARS = 420000;
 
 function throwIfArtifactAborted(
@@ -55,13 +58,6 @@ const FORMAT_INFO = {
   RTF:  {ext: 'rtf',  mime: 'application/rtf'}
 };
 
-function prune() {
-  const now = Date.now();
-  for (const [id, item] of STORE.entries()) {
-    if (now - item.createdAt > TTL_MS) STORE.delete(id);
-  }
-}
-
 function formatName(value) {
   const raw = String(value || 'TXT').trim().toUpperCase().replace(/^\./, '');
   if (FORMAT_INFO[raw]) return raw;
@@ -69,7 +65,7 @@ function formatName(value) {
   if (raw === 'TEXT') return 'TXT';
   if (raw === 'WORD') return 'DOCX';
   if (raw === 'EXCEL' || raw === 'SHEET') return 'XLSX';
-  return 'TXT';
+  throw artifactError('ARTIFACT_UNSUPPORTED_FORMAT',422);
 }
 
 function previewKindForFormat(format) {
@@ -128,18 +124,65 @@ function sourceText(sources) {
   );
 }
 
-function tableRows(sources) {
-  const list = Array.isArray(sources) ? sources : [sources];
-  const candidate = list.length === 1 ? list[0] : list;
-  if (Array.isArray(candidate) && candidate.length && candidate.every(item => item && typeof item === 'object' && !Array.isArray(item))) {
-    const keys = [...new Set(candidate.flatMap(item => Object.keys(item)))].slice(0, 40);
-    return [keys, ...candidate.slice(0, 5000).map(item => keys.map(key => compactValue(item[key])))];
+function tableCandidate(sources) {
+  let value=Array.isArray(sources)&&sources.length===1?sources[0]:sources;
+  for(let depth=0;depth<8&&value&&typeof value==='object'&&!Array.isArray(value);depth++){
+    if(Array.isArray(value.rows))return value;
+    const inner=value.outputs?.result??value.result??value.text??value.content;
+    if(inner===undefined)break;value=inner;
   }
-  if (candidate && typeof candidate === 'object' && !Array.isArray(candidate)) {
-    return [['항목', '값'], ...Object.entries(candidate).slice(0, 5000).map(([key, value]) => [key, compactValue(value)])];
-  }
-  return sourceText(sources).split(/\r?\n/).slice(0, 5000).map(line => [line]);
+  return value;
 }
+function parseCsv(text){
+  const rows=[];let row=[],cell='',quoted=false;
+  text=String(text).replace(/^\uFEFF/,'');
+  let delimiter=',',headerQuoted=false,sawTab=false;
+  for(let i=0;i<text.length;i++){
+    const ch=text[i];
+    if(ch==='"'){if(headerQuoted&&text[i+1]==='"')i++;else headerQuoted=!headerQuoted;}
+    else if(!headerQuoted&&ch===','){sawTab=false;break;}
+    else if(!headerQuoted&&ch==='\t')sawTab=true;
+    else if(!headerQuoted&&(ch==='\n'||ch==='\r'))break;
+  }
+  if(sawTab)delimiter='\t';
+  for(let i=0;i<text.length;i++){
+    const ch=text[i];
+    if(ch==='"'){
+      if(quoted&&text[i+1]==='"'){cell+='"';i++;}
+      else if(quoted||cell==='')quoted=!quoted;
+      else cell+=ch;
+    }else if(!quoted&&ch===delimiter){row.push(cell);cell='';}
+    else if(!quoted&&(ch==='\n'||ch==='\r')){
+      if(ch==='\r'&&text[i+1]==='\n')i++;
+      row.push(cell);rows.push(row);row=[];cell='';
+    }else cell+=ch;
+  }
+  if(quoted)throw artifactError('ARTIFACT_INVALID_CSV',422);
+  if(cell!==''||row.length){row.push(cell);rows.push(row);}
+  return rows;
+}
+function tableData(sources){
+  const candidate=tableCandidate(sources);let rows,headers=false;
+  if(candidate&&Array.isArray(candidate.rows)){
+    rows=candidate.rows;
+    if(Array.isArray(candidate.headers)){rows=[candidate.headers,...rows];headers=true;}
+  }else if(Array.isArray(candidate)&&candidate.every(Array.isArray))rows=candidate;
+  else if(Array.isArray(candidate)&&candidate.length&&candidate.every(item=>item&&typeof item==='object'&&!Array.isArray(item))){
+    const keys=[...new Set(candidate.flatMap(item=>Object.keys(item)))];
+    rows=[keys,...candidate.map(item=>keys.map(key=>compactValue(item[key])))];headers=true;
+  }else if(candidate&&typeof candidate==='object'){
+    rows=[['항목','값'],...Object.entries(candidate).map(([key,value])=>[key,compactValue(value)])];headers=true;
+  }else{
+    const text=typeof candidate==='string'?candidate:sourceText(sources);
+    const table=createArtifactDocument([text]).blocks.find(block=>block.type==='table');
+    if(table){rows=[table.headers,...table.rows];headers=true;}else rows=parseCsv(text);
+  }
+  const rowLimit=ARTIFACT_LIMITS.maxRows+Number(headers),columnLimit=ARTIFACT_LIMITS.maxColumns;
+  const columnCount=rows.reduce((max,row)=>Math.max(max,Array.isArray(row)?row.length:1),0);
+  return {rows:rows.slice(0,rowLimit).map(row=>(Array.isArray(row)?row:[row]).slice(0,columnLimit).map(value=>compactValue(value))),
+    omittedRows:Math.max(0,rows.length-rowLimit),omittedColumns:Math.max(0,columnCount-columnLimit)};
+}
+function tableRows(sources){return tableData(sources).rows;}
 
 function csvEscape(value) {
   const text = String(value ?? '');
@@ -354,6 +397,7 @@ async function buildBuffer(
             signal
           }
         ),
+      coverage:pdfFallbackCoverage(canonicalDocument),
       renderer:
         'pdfkit-fallback'
     };
@@ -451,15 +495,16 @@ async function buildBuffer(
       'native'
   };
 }
-export async function createStoredArtifact(
+async function createArtifactInStore(
   input = {},
   options = {}
 ) {
-  prune();
+  const {store:STORE,limits,now,build}=options.storeContext;
 
   const signal =
     options.signal;
 
+  options.checkDeadline?.();
   throwIfArtifactAborted(
     signal
   );
@@ -520,13 +565,15 @@ export async function createStoredArtifact(
       sources
     );
 
+  if(document.unavailableSources>0)throw artifactError('ARTIFACT_SOURCE_UNAVAILABLE',422);
+
   if (!document.title) {
     document.title =
       title;
   }
 
   const built =
-    await buildBuffer(
+    await build(
       format,
       sources,
       {
@@ -538,6 +585,7 @@ export async function createStoredArtifact(
       }
     );
 
+  options.checkDeadline?.();
   throwIfArtifactAborted(
     signal
   );
@@ -545,6 +593,9 @@ export async function createStoredArtifact(
   const buffer =
     built.buffer;
 
+  if(buffer.length>limits.maxArtifactBytes)throw artifactError('ARTIFACT_OUTPUT_TOO_LARGE');
+  const total=[...STORE.values()].reduce((sum,item)=>sum+item.size,0);
+  if(total+buffer.length>limits.maxTotalBytes)throw artifactError('ARTIFACT_STORE_FULL',503);
   const id =
     randomUUID();
 
@@ -592,6 +643,10 @@ export async function createStoredArtifact(
         .slice(0, 6000);
   }
 
+  const tableCoverage=(format==='CSV'||format==='XLSX')?tableData(sources):{};
+  const coverage={omittedRows:(tableCoverage.omittedRows||0)+(built.coverage?.omittedRows||0),omittedColumns:(tableCoverage.omittedColumns||0)+(built.coverage?.omittedColumns||0),
+    omittedCharacters:((format==='CSV'||format==='XLSX'||format==='JSON')?0:(document.omittedCharacters||0))+(built.coverage?.omittedCharacters||0),sourceTruncated:(format==='CSV'||format==='XLSX'||format==='JSON')?document.sourceAvailability==='partial':document.truncated===true};
+  const truncated=coverage.sourceTruncated||coverage.omittedRows>0||coverage.omittedColumns>0||coverage.omittedCharacters>0;
   const item = {
     id,
     name,
@@ -601,15 +656,18 @@ export async function createStoredArtifact(
     size:
       buffer.length,
     createdAt:
-      Date.now(),
+      now(),
     buffer,
     renderer:
       built.renderer,
     targetPages,
     previewKind,
-    previewText
+    previewText,
+    truncated,coverage,availability:'temporary',expiresAt:now()+limits.ttlMs,
+    sourceAvailability:document.sourceAvailability||'complete'
   };
 
+  options.checkDeadline?.();
   throwIfArtifactAborted(
     signal
   );
@@ -644,6 +702,8 @@ export async function createStoredArtifact(
       item.previewKind,
     previewText:
       item.previewText,
+    truncated:item.truncated,coverage:item.coverage,availability:item.availability,
+    expiresAt:item.expiresAt,sourceAvailability:item.sourceAvailability,
     previewUrl:
       baseUrl +
       '?inline=1',
@@ -652,7 +712,50 @@ export async function createStoredArtifact(
   };
 }
 
-export function getStoredArtifact(id) {
-  prune();
-  return STORE.get(String(id || '')) || null;
+export function createArtifactStore({limits:overrides={},now=()=>Date.now(),build=buildBuffer}={}){
+  const limits={...ARTIFACT_LIMITS,...overrides},store=new Map();let active=0;
+  const prune=()=>{for(const [id,item] of store)if(now()>=item.expiresAt)store.delete(id);};
+  const stats=()=>{prune();return{count:store.size,active,totalBytes:[...store.values()].reduce((sum,item)=>sum+item.size,0)};};
+  const cleanup=setInterval(prune,Math.max(1,Math.min(limits.ttlMs,60000)));cleanup.unref?.();
+  async function createStoredArtifact(input={},options={}){
+    throwIfArtifactAborted(options.signal);prune();
+    formatName(input.format);
+    if(Buffer.byteLength(JSON.stringify(input),'utf8')>limits.maxInputBytes)throw artifactError('ARTIFACT_INPUT_TOO_LARGE');
+    if(active>=limits.maxConcurrent)throw artifactError('ARTIFACT_BUSY',503);
+    if(store.size+active>=limits.maxCount||stats().totalBytes+active*limits.maxArtifactBytes>=limits.maxTotalBytes)
+      throw artifactError('ARTIFACT_STORE_FULL',503);
+    active++;
+    const controller=new AbortController();
+    const onAbort=()=>controller.abort(options.signal.reason||artifactError('ARTIFACT_ABORTED',499));
+    options.signal?.addEventListener('abort',onAbort,{once:true});
+    let rejectAbort;
+    const aborted=new Promise((_resolve,reject)=>{rejectAbort=reject;});
+    const onInternalAbort=()=>rejectAbort(controller.signal.reason);
+    controller.signal.addEventListener('abort',onInternalAbort,{once:true});
+    const timer=setTimeout(()=>controller.abort(artifactError('ARTIFACT_DEADLINE',504)),limits.deadlineMs);
+    const deadlineAt=Date.now()+limits.deadlineMs;
+    const checkDeadline=()=>{if(Date.now()>=deadlineAt&&!controller.signal.aborted)controller.abort(artifactError('ARTIFACT_DEADLINE',504));};
+    const work=createArtifactInStore(input,{...options,signal:controller.signal,checkDeadline,storeContext:{store,limits,now,build}})
+      .finally(()=>{active--;clearTimeout(timer);options.signal?.removeEventListener('abort',onAbort);controller.signal.removeEventListener('abort',onInternalAbort);});
+    return Promise.race([work,aborted]);
+  }
+  return{createStoredArtifact,getStoredArtifact(id){prune();return store.get(String(id||''))||null;},stats,
+    dispose(){clearInterval(cleanup);store.clear();}};
+}
+const defaultStore=createArtifactStore();
+export const createStoredArtifact=defaultStore.createStoredArtifact;
+export const getStoredArtifact=defaultStore.getStoredArtifact;
+
+// Mount before the creation handler. The store independently enforces resource bounds.
+export function createArtifactAdmissionGuard({minutePerIp=12,maxClients=3000,now=()=>Date.now()}={}){
+  const recent=new Map();
+  return(req,res,next)=>{
+    const at=now();for(const [ip,bucket] of recent)if(at-bucket.start>=60000)recent.delete(ip);
+    const ip=req.ip||'unknown',bucket=recent.get(ip)||{start:at,count:0};
+    if(bucket.count>=minutePerIp||(!recent.has(ip)&&recent.size>=maxClients)){
+      const seconds=Math.max(1,Math.ceil((60000-(at-bucket.start))/1000));
+      return res.set('Retry-After',String(seconds)).status(429).json({ok:false,code:'ARTIFACT_RATE_LIMIT',retryAfterSeconds:seconds});
+    }
+    bucket.count++;recent.set(ip,bucket);next();
+  };
 }

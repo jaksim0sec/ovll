@@ -20,9 +20,9 @@ test('open scope expands flow downstream and its data predecessors, not sibling'
 test('pinning graph revisions is mandatory',()=>{
  assert.throws(()=>buildExecutionPlan(sample(),{...run(['middle']),graphRef:{graphId:'g',revision:3}}),e=>e.code==='PINNED_GRAPH_MISMATCH');
 });
-test('conditional branch semantics are refused until defined',()=>{
+test('undeclared conditional flow source is rejected',()=>{
  const s=sample();s.graph.connections.push({kind:'flow',from:{nodeId:'middle',port:'true'},to:{nodeId:'end',port:'input'}});
- assert.throws(()=>buildExecutionPlan(s,run(['end'])),e=>e.code==='CONDITIONAL_ROUTING_NOT_IMPLEMENTED');
+ assert.throws(()=>buildExecutionPlan(s,run(['end'])),e=>e.code==='PORT_MISMATCH');
 });
 test('fingerprints ignore visual layout but retain semantic settings, input refs and definition version',()=>{
  const s=sample(),runState=run(['middle']),node={...s.graph.nodes[0],settings:{temperature:0.1},inputBindings:{input:'example'}};
@@ -34,9 +34,9 @@ test('fingerprints ignore visual layout but retain semantic settings, input refs
  assert.notEqual(semanticFingerprint({...args,node:{...node,definitionRef:{definitionId:'d',version:2}}}),a);
 });
 
-test('custom branch flow ports refuse ambiguous routing before any node executes',()=>{
+test('unknown custom flow ports are rejected before any node executes',()=>{
  const s=sample();s.graph.connections[0].from.port='approved';
- assert.throws(()=>buildExecutionPlan(s,run(['middle'])),e=>e.code==='CONDITIONAL_ROUTING_NOT_IMPLEMENTED');
+ assert.throws(()=>buildExecutionPlan(s,run(['middle'])),e=>e.code==='PORT_MISMATCH');
 });
 test('subgraph execution is rejected during preflight',()=>{
  const s=sample();s.definitions[0]={...def,executorKind:'subgraph',procedureRef:'p'};
@@ -47,6 +47,6 @@ test('multiple data producers cannot silently overwrite one input port',()=>{
  assert.throws(()=>buildExecutionPlan(s,run(['end'])),e=>e.code==='AMBIGUOUS_INPUT_PRODUCERS');
 });
 test('missing required bound input is rejected at preflight',()=>{
- const s=sample();s.definitions[0]={...def,inputs:[{name:'needed',required:true,representation:'text'}]};
+ const s=sample();s.definitions[0]={...def,inputs:[{name:'input',representation:'text'},{name:'needed',required:true,representation:'text'}]};
  assert.throws(()=>buildExecutionPlan(s,run(['middle'])),e=>e.code==='REQUIRED_INPUT_MISSING');
 });

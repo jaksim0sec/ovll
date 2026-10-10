@@ -1,3 +1,4 @@
+import {MODEL_CONTEXT_LIMITS,jsonBytes} from './contextLimits.js';
 import {PRODUCT_COMMUNICATION_RULES} from '../ai/productInstructions.js';
 import { readFileSync } from 'node:fs';
 import { KernelError } from './graph.js';
@@ -39,11 +40,12 @@ export function createPromptComposer({validation=createContractValidation()}={})
     const ordered=[...selected].map(id=>modules.get(id)).sort((a,b)=>a.order-b.order||a.id.localeCompare(b.id));
     const details=ordered.filter(x=>x.id!=='core').map(x=>x.content).join('\n\n');
     const data=JSON.stringify({context,...(nodeContext===undefined?{}:{nodeContext}),...(extraContext===undefined?{}:{extraContext})});
-    if(Buffer.byteLength(data,'utf8')>65536)fail('PROMPT_CONTEXT_TOO_LARGE');
+    if(Buffer.byteLength(data,'utf8')>MODEL_CONTEXT_LIMITS.promptDataBytes)fail('PROMPT_CONTEXT_TOO_LARGE');
     const messages=[{role:'system',content:modules.get('core').content+'\n\n'+PRODUCT_COMMUNICATION_RULES}];
     if(details||nodeContext!==undefined)messages.push({role:'developer',content:details+
       (nodeContext===undefined?'':'\n\nFor this node execution return one JSON ModelTurn containing only "outputs". Use NodeOutput produced/blocked and the exact declared output ports. Do not propose other actions or invent tool executions.')});
     messages.push({role:'user',content:data});
+    if(jsonBytes(messages)>MODEL_CONTEXT_LIMITS.messageBytes)fail('PROMPT_MESSAGES_TOO_LARGE');
     return {assemblyVersion:registry.assemblyVersion,moduleIds:ordered.map(x=>x.id),messages};
   }
   return Object.freeze({assemble,assemblyVersion:registry.assemblyVersion,registryStatus:registry.status});

@@ -65,3 +65,61 @@ test('provider rate limit remains distinct from local budget and carries sanitiz
    assert.deepEqual(await result.json(),{error:{code:'PROVIDER_RATE_LIMIT',retryAfterSeconds:35}});
  }finally{await new Promise(resolve=>server.close(resolve));}
 });
+
+async function fixture(options, run) {
+ const app=express();app.use(express.json());mountLocalPointerRoutes(app,{enabled:()=>true,...options});
+ const server=await new Promise(resolve=>{const listener=app.listen(0,'127.0.0.1',()=>resolve(listener));});
+ const url='http://127.0.0.1:'+server.address().port+'/api/pointer/local/turn';
+ const post=(body={requestText:'hello'},signal)=>fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal});
+ try {await run(post,url);} finally {server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}
+}
+test('daily budget reserves concurrent admissions and settles trusted physical invocations',async()=>{
+ let release,entered;const start=new Promise(resolve=>entered=resolve);const gate=new Promise(resolve=>release=resolve);let calls=0;
+ await fixture({limits:{dailyPerIp:2,dailyGlobal:2,reserveProviderCalls:1},createHost:()=>({turn:async()=>{calls++;entered();await gate;return{message:'ok',_meta:{providerCalls:1}};}})},async post=>{
+  const first=post();await start;const second=post();await new Promise(resolve=>setTimeout(resolve,20));
+  const thirdPromise=post();await new Promise(resolve=>setTimeout(resolve,20));release();const third=await thirdPromise;await Promise.all([first,second]);
+  assert.equal(third.status,429);assert.equal(calls,2);
+  assert.equal((await post()).status,429);
+ });
+});
+test('queued disconnect abandons work and does not spend quota',async()=>{
+ let release,entered;const start=new Promise(resolve=>entered=resolve);const gate=new Promise(resolve=>release=resolve);let calls=0;
+ await fixture({limits:{dailyPerIp:2,dailyGlobal:2,reserveProviderCalls:1},createHost:()=>({turn:async()=>{calls++;entered();await gate;return{message:'ok'};}})},async post=>{
+  const first=post();await start;const controller=new AbortController();const queued=post(undefined,controller.signal).catch(()=>null);
+  await new Promise(resolve=>setTimeout(resolve,20));controller.abort();await queued;await new Promise(resolve=>setTimeout(resolve,20));
+  release();await first;assert.equal((await post()).status,200);assert.equal(calls,2);
+ });
+});
+test('deadline includes queue wait and invalid payload does not reserve provider budget',async()=>{
+ let calls=0;
+ await fixture({limits:{deadlineMs:35,dailyPerIp:2,dailyGlobal:2,reserveProviderCalls:1},createHost:()=>({turn:async({signal})=>{calls++;await new Promise(resolve=>setTimeout(resolve,80));if(signal.aborted)throw signal.reason;return{message:'late'};}})},async post=>{
+  assert.equal((await post({requestText:42})).status,422);
+  const responses=await Promise.all([post(),post()]);
+  assert.ok(responses.every(response=>response.status===504));assert.equal(calls,1);
+ });
+});
+test('readiness declares configuration and leaves live model health unproven',async()=>{
+ await fixture({createHost:()=>{throw new Error('must not probe');}},async(_post,url)=>{
+  const response=await fetch(url.replace('/turn','/ready'));const value=await response.json();
+  assert.equal(value.configured,true);assert.equal(value.modelHealth,'unverified');
+ });
+});
+
+test('repair physical usage consumes daily budget and zero-call host validation releases it',async()=>{
+ let calls=0;
+ await fixture({limits:{dailyPerIp:2,dailyGlobal:2,reserveProviderCalls:2},createHost:()=>({turn:async()=>{
+  calls++;if(calls===1)throw Object.assign(new Error('bad'),{code:'INVALID_LOCAL_MODEL_REQUEST',status:422,_meta:{providerCalls:0}});
+  return{message:'fixed',_meta:{providerCalls:2}};
+ }})},async post=>{
+  assert.equal((await post()).status,422);assert.equal((await post()).status,200);
+  assert.equal((await post()).status,429);assert.equal(calls,2);
+ });
+});
+
+test('overload rejection leaves model quota available for a later valid request',async()=>{
+ let release,entered;const start=new Promise(resolve=>entered=resolve);const gate=new Promise(resolve=>release=resolve);let calls=0;
+ await fixture({limits:{maxPending:1,dailyPerIp:2,dailyGlobal:2,reserveProviderCalls:1},createHost:()=>({turn:async()=>{calls++;entered();await gate;return{message:'ok'};}})},async post=>{
+  const first=post();await start;assert.equal((await post()).status,503);release();await first;
+  assert.equal((await post()).status,200);assert.equal((await post()).status,429);assert.equal(calls,2);
+ });
+});

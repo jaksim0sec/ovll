@@ -146,6 +146,7 @@ async function runStore(
             transaction
           );
       }catch(error){
+        try{transaction.abort();}catch{}
         reject(error);
         return;
       }
@@ -207,6 +208,10 @@ function metadataFromRecord(
 
   return {
     id:String(record.id || ""),
+    contentRevision:String(record.contentRevision||""),
+    availability:{localBytes:true,durable:true,durability:"browser_storage"},
+    truncated:record.truncated===true,
+    coverage:record.coverage||null,
     name:String(record.name || "파일"),
     mime:String(
       record.mime ||
@@ -386,6 +391,9 @@ async function putBlob(
   const record = {
     id,
     blob,
+    contentRevision:makeId(),
+    truncated:metadata.truncated===true,
+    coverage:metadata.coverage&&typeof metadata.coverage==="object"?JSON.parse(JSON.stringify(metadata.coverage)):null,
     name:cleanText(
       metadata.name ||
       "파일",
@@ -397,11 +405,7 @@ async function putBlob(
       "application/octet-stream",
       160
     ),
-    size:Number(
-      metadata.size ??
-      blob.size ??
-      0
-    ) || 0,
+    size:blob.size,
     source:cleanText(
       metadata.source ||
       "local",
@@ -526,87 +530,46 @@ async function putFile(
   );
 }
 
-async function putRemote(
-  url,
-  metadata={}
-){
-  const value =
-    String(url || "");
-
-  if(!value){
-    throw new Error(
-      "저장할 파일 URL이 없습니다."
-    );
-  }
-
-  const controller =
-    new AbortController();
-  const timeout =
-    global.setTimeout(
-      ()=>controller.abort(),
-      15000
-    );
-
-  let response;
-
+async function putRemote(url,metadata={}, {signal,maxBytes=32*1024*1024}={}){
+  const value=String(url||'');
+  if(!value||!/^(https?:\/\/|\/(?!\/)|blob:)/.test(value))throw new Error('LOCAL_FILE_URL_INVALID');
+  const fail=code=>Object.assign(new Error(code),{code,retryable:code==='LOCAL_FILE_TIMEOUT'});
+  if(signal?.aborted)throw fail('LOCAL_FILE_CANCELLED');
+  const limit=Math.max(1,Math.min(64*1024*1024,Number.isFinite(maxBytes)?Math.floor(maxBytes):32*1024*1024));
+  const controller=new AbortController();
+  const abort=()=>controller.abort();
+  signal?.addEventListener('abort',abort,{once:true});
+  const timeout=global.setTimeout(abort,15000);
+  let reader;
   try{
-    response =
-      await fetch(
-        value,
-        {
-          cache:"no-store",
-          signal:
-            controller.signal
-        }
-      );
-  }catch(error){
-    if(
-      controller.signal.aborted
-    ){
-      const timeoutError =
-        new Error(
-          "파일 로컬 저장 시간이 초과되었습니다."
-        );
-
-      timeoutError.code =
-        "LOCAL_FILE_TIMEOUT";
-      timeoutError.retryable =
-        true;
-
-      throw timeoutError;
+    const response=await fetch(value,{cache:'no-store',signal:controller.signal});
+    if(!response.ok)throw new Error('LOCAL_FILE_DOWNLOAD_FAILED:'+response.status);
+    const declared=Number(response.headers?.get?.('content-length')||0);
+    if(declared>limit)throw fail('LOCAL_FILE_TOO_LARGE');
+    let blob;
+    if(response.body?.getReader){
+      reader=response.body.getReader();const chunks=[];let size=0;
+      while(true){
+        if(controller.signal.aborted)throw fail(signal?.aborted?'LOCAL_FILE_CANCELLED':'LOCAL_FILE_TIMEOUT');
+        const chunk=await reader.read();if(chunk.done)break;
+        size+=chunk.value.byteLength;
+        if(size>limit){await reader.cancel();reader=null;throw fail('LOCAL_FILE_TOO_LARGE');}
+        chunks.push(chunk.value);
+      }
+      blob=new Blob(chunks,{type:metadata.mime||response.headers?.get?.('content-type')||'application/octet-stream'});
+    }else{
+      blob=await response.blob();
+      if(blob.size>limit)throw fail('LOCAL_FILE_TOO_LARGE');
     }
-
+    if(controller.signal.aborted)throw fail(signal?.aborted?'LOCAL_FILE_CANCELLED':'LOCAL_FILE_TIMEOUT');
+    return await putBlob(blob,{...metadata,mime:metadata.mime||blob.type||'application/octet-stream',size:blob.size});
+  }catch(error){
+    if(controller.signal.aborted)throw fail(signal?.aborted?'LOCAL_FILE_CANCELLED':'LOCAL_FILE_TIMEOUT');
     throw error;
   }finally{
-    global.clearTimeout(
-      timeout
-    );
+    global.clearTimeout(timeout);signal?.removeEventListener('abort',abort);
+    if(reader)try{await reader.cancel();}catch{}
   }
-
-  if(!response.ok){
-    throw new Error(
-      "파일을 로컬에 저장하지 못했습니다: " +
-      response.status
-    );
-  }
-
-  const blob =
-    await response.blob();
-
-  return putBlob(
-    blob,
-    {
-      ...metadata,
-      mime:
-        metadata.mime ||
-        blob.type ||
-        "application/octet-stream",
-      size:
-        metadata.size ??
-        blob.size ??
-        0
-    }
-  );
 }
 
 async function findByOriginId(

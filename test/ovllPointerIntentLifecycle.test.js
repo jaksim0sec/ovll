@@ -65,8 +65,8 @@ test('Pointer coordinator reports actual action start, completion and dependent 
 });
 
 test('Pointer user-facing steps track action boundaries, real nodes, and lifecycle',()=>{
-  assert.match(app,/onActionStart:pointerActionStarted/);
-  assert.match(app,/onActionResult:pointerActionResult/);
+  assert.match(app,/onActionStart:action=>\{if\(owns\(\)\)pointerActionStarted\(action\)/);
+  assert.match(app,/onActionResult:\(action,fact\)=>\{if\(owns\(\)\)pointerActionResult\(action,fact\)/);
   assert.match(app,/pointerNodeProgress\(run\)/);
   assert.match(app,/upsertRuntimeStep\('__thinking__','생각 완료','done'\)/);
   assert.match(app,/finishRuntimeActivity\(\{removeImmediately:!state\.runtimeActivity\?\.order\?\.length\}\)/);

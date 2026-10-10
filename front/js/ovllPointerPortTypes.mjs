@@ -14,3 +14,11 @@ export function matchesInputRepresentation(representation,value){
   if(representation==='array')return Array.isArray(value);
   return true; // 'json' or a custom type already validated by its producing executor
 }
+
+// Declared semantic ports also carry ordering in existing graphs. Reserved controls
+// exist independently of data ports; an absent arbitrary name is never a control.
+export function isFlowPort(definition, name, direction){
+  if(typeof name!=='string')return false;
+  return (definition?.[direction]||[]).some(p=>p.name===name)||
+    (direction==='outputs'?/^(next|flow_next_*)$/:/^(in|flow_in_*)$/).test(name);
+}

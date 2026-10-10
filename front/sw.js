@@ -1,49 +1,12 @@
-const CACHE = 'ovll-shell-v74';
+importScripts('/asset-manifest.js');
+const CACHE = 'ovll-shell-v75';
 
-const SHELL = [
-  '/home',
-  '/manifest.webmanifest',
-  '/pwa-icon.svg',
-  '/pwa-192.png',
-  '/pwa-512.png',
-  '/css/style.css',
-  '/css/ui.css',
-  '/css/node.css',
-  '/css/chat.css',
-  '/css/library.css',
-  '/css/shellMenu.css',
-  '/runtime-config.js',
-  '/js/boot.js',
-  '/js/functions.js',
-  '/js/fileStore.js',
-  '/js/artifactVisuals.js',
-  '/js/artifactRequest.js',
-  '/js/svgLibrary.js',
-  '/js/previewSandbox.js',
-  '/js/api.js',
-  '/js/canvasNode.js',
-  '/js/navigation.js',
-  '/js/ui.js',
-  '/js/workspaceStore.js',
-  '/js/ovllPointerApi.js',
-  '/js/ovllPointerProjection.js',
-  '/js/ovllPointerGraphPatch.js',
-  '/js/ovllPointerLocal.js',
-  '/js/ovllPointerFunctions.js',
-  '/js/ovllPointerLocalActions.js',
-  '/js/ovllPointerGraphCore.mjs',
-  '/js/ovllPointerPortTypes.mjs',
-  '/js/ovllPointerPlanCore.mjs',
-  '/js/libraryPage.js',
-  '/js/shellMenu.js',
-  '/js/ovllPresence.js',
-  '/js/app.js',
-  '/js/mascot.js'
-];
+const SHELL = self.OVLL_ASSETS.precache;
 
 function isMutableAsset(url) {
   return (
     url.pathname === '/runtime-config.js' ||
+    url.pathname === '/asset-manifest.js' ||
     url.pathname.startsWith('/css/') ||
     url.pathname.startsWith('/js/')
   );

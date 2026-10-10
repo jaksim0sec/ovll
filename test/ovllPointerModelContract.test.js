@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createLocalPointerHost} from '../backend/ovllPointer/localHost.js';
-import {createContractValidation} from '../backend/ovllPointer/validation.js';
+import {createContractValidation,splitModelMetadata} from '../backend/ovllPointer/validation.js';
 import {MemoryGraphRepository} from '../backend/ovllPointer/graph.js';
 const repo=new MemoryGraphRepository();
 repo.create('local','g');
@@ -19,7 +19,7 @@ const create=(responses,received)=>createLocalPointerHost({
 test('workflow contract includes executable graph patch port and target examples',async()=>{
   const received=[],host=create([valid],received);
   const turn=await host.turn({snapshot,requestRef:'req1',requestText:'요약 워크플로우 만들어'});
-  assert.deepEqual(turn,valid);
+  assert.deepEqual(splitModelMetadata(turn).domain,valid);
   assert.equal(received.length,1);
   const developer=received[0].messages.find(x=>x.role==='developer'&&x.content.includes('GraphPatch'));
   assert.match(developer.content,/representation/);
@@ -30,7 +30,7 @@ test('model JSON with incorrect GraphPatch ports is rejected and repaired once b
   const bad=structuredClone(valid);delete bad.actions[0].args.patch.definitions[0].outputs[0].role;
   const received=[],host=create([bad,valid],received);
   const turn=await host.turn({snapshot,requestRef:'req2',requestText:'워크플로우 만들어'});
-  assert.deepEqual(turn,valid);
+  assert.deepEqual(splitModelMetadata(turn).domain,valid);
   assert.equal(received.length,2);
   const correction=received[1].messages.at(-1);
   assert.match(correction.content,/Schema issues:/);
@@ -75,7 +75,7 @@ test('empty optional action and need arrays do not invalidate a useful direct re
   const received=[];
   const host=create([{message:'새 파일 요청을 확인했어.',actions:[],needs:[],outputs:null}],received);
   const result=await host.turn({snapshot,requestRef:'r_empty_optional',requestText:'앞의 요청을 계속해'});
-  assert.deepEqual(result,{message:'새 파일 요청을 확인했어.'});
+  assert.deepEqual(splitModelMetadata(result).domain,{message:'새 파일 요청을 확인했어.'});
   assert.equal(received.length,1,'no unnecessary repair request');
 });
 test('failed contract retains only safe schema issues and never applies invalid actions',async()=>{
@@ -126,7 +126,7 @@ test('single unnamed node.add gets a safe patch-local key without a second model
  assert.equal(received.length,1);
  assert.equal(actual.actions[0].args.patch.operations[0].localNodeKey,'node1');
  assert.equal(turn.actions[0].args.patch.operations[0].localNodeKey,undefined);
- assert.equal(createContractValidation().validateTurn(actual),true);
+ assert.equal(createContractValidation().validateTurn(splitModelMetadata(actual).domain),true);
 });
 test('new node temporary key is inferred only from one unambiguous run target',async()=>{
  const received=[];
@@ -141,7 +141,7 @@ test('new node temporary key is inferred only from one unambiguous run target',a
  ]};
  const result=await create([turn],received).turn({snapshot,requestRef:'key_referenced',requestText:'작성해서 실행해'});
  assert.equal(result.actions[0].args.patch.operations[0].localNodeKey,'vocab');
- assert.equal(createContractValidation().validateTurn(result),true);
+ assert.equal(createContractValidation().validateTurn(splitModelMetadata(result).domain),true);
  assert.equal(received.length,1);
 });
 test('ambiguous temporary node references still fail closed rather than invent a mapping',async()=>{
@@ -181,7 +181,7 @@ test('safe key and missing empty definitions normalize in one pass',async()=>{
  assert.equal(received.length,1);
  assert.deepEqual(result.actions[0].args.patch.definitions,[]);
  assert.equal(result.actions[0].args.patch.operations[0].localNodeKey,'node1');
- assert.equal(createContractValidation().validateTurn(result),true);
+ assert.equal(createContractValidation().validateTurn(splitModelMetadata(result).domain),true);
 });
 
 test('unique run.start target safely inherits the sole created node key',async()=>{
@@ -198,7 +198,7 @@ test('unique run.start target safely inherits the sole created node key',async()
   requestText:'이 노드 생성하고 실행'});
  assert.equal(received.length,1);
  assert.equal(actual.actions[1].args.targets[0].localNodeKey,'one');
- assert.equal(createContractValidation().validateTurn(actual),true);
+ assert.equal(createContractValidation().validateTurn(splitModelMetadata(actual).domain),true);
 });
 test('ambiguous run targets are never mapped to a guessed new node',async()=>{
  const received=[];
@@ -230,7 +230,7 @@ test('two independent existing-definition instances need no model-generated temp
   assert.deepEqual(result.actions[0].args.patch.operations.map(op=>op.localNodeKey),
     ['node1','node2']);
   assert.deepEqual(result.actions[0].args.patch.definitions,[]);
-  assert.equal(createContractValidation().validateTurn(result),true);
+  assert.equal(createContractValidation().validateTurn(splitModelMetadata(result).domain),true);
 });
 test('malformed link endpoint cannot be mislabeled as an unnamed node.add',async()=>{
   const received=[],bad={actions:[{localKey:'p',kind:'ir.applyPatch',args:{patch:{

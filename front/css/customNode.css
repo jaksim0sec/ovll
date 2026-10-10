@@ -326,8 +326,8 @@ small[data-tone="saved"]{
 }
 
 .ovll-function-color{
-  width:1rem;
-  height:1rem;
+  width:1.6rem;
+  height:1.6rem;
   padding:0;
   border-radius:999px;
   background:var(--function-color);
@@ -354,16 +354,19 @@ small[data-tone="saved"]{
 
 .ovll-function-icons{
   display:grid;
-  grid-template-columns:repeat(6,minmax(0,1fr));
+  grid-template-columns:repeat(4,minmax(0,1fr));
   gap:.28rem;
+  max-height:14rem;
+  overflow-y:auto;
 }
 
 .ovll-function-inspector .ovll-function-icon-option{
   display:grid;
   place-items:center;
   min-width:0;
-  min-height:2.42rem;
-  padding:0;
+  min-height:3.4rem;
+  padding:.35rem .15rem;
+  gap:.18rem;
   border:.0625rem solid var(--line);
   border-radius:.63rem;
   background:var(--ui-control-surface);
@@ -586,4 +589,40 @@ small[data-tone="saved"]{
   #custom-node-page{
     transition:none;
   }
+}
+
+.ovll-function-icon-label{
+  max-width:100%;
+  font-size:.58rem;
+  line-height:1.25;
+  overflow-wrap:anywhere;
+}
+.ovll-function-color-controls{
+  display:grid;
+  grid-template-columns:5rem minmax(0,1fr);
+  gap:.5rem;
+}
+.ovll-function-color-controls label{
+  display:grid;
+  gap:.3rem;
+  min-width:0;
+}
+.ovll-function-color-controls input[type="color"]{
+  width:100%;
+  min-height:2.75rem;
+  padding:.2rem;
+  cursor:pointer;
+}
+.ovll-function-field input[aria-invalid="true"]{
+  border-color:var(--danger,#c65353);
+}
+.ovll-function-field small{
+  font-size:.65rem;
+  color:var(--muted);
+  line-height:1.4;
+}
+@media (pointer:coarse){
+  .ovll-function-color{width:2.1rem;height:2.1rem;}
+  .ovll-function-icon-option{min-height:3.5rem;}
+  .ovll-function-colors{flex-wrap:wrap;gap:.55rem;}
 }

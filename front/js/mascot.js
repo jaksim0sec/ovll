@@ -2348,6 +2348,12 @@ function mount(world,canvas,options={}){
     const nodeId=
       detail?.nodeId;
 
+    if(['nodeSuccess','nodeError','success','error','cancelled','idle'].includes(name)){
+      if(nodeId&&activeTaskId&&String(nodeId)!==activeTaskId)return;
+      setEffectMode('idle');
+      clearTaskBehavior();
+    }
+
     if(name==="nodeSuccess"){
       orbitPausedUntil=performance.now()+600;
       if(nodeId&&nodeEl(nodeId)){
@@ -2543,8 +2549,16 @@ function mount(world,canvas,options={}){
     const node=
       nodeEl(id);
 
-    if(!node)
-      return false;
+    if(!node){
+      clearTaskBehavior();
+      activeTaskId=String(id);
+      orb.dataset.task='generic';
+      setMood('working');
+      setSatellite('orbit');
+      return true;
+    }
+
+    if(activeTaskId===String(id)&&taskTimer)return true;
 
     noteActivity();
     stopMotion();
@@ -2599,6 +2613,7 @@ function mount(world,canvas,options={}){
   }
 
   function setThinking(active=true){
+    if(orb.classList.contains('working'))return;
     clearTimeout(moodTimer);
 
     setEffectMode(

@@ -106,7 +106,7 @@ export function createNodeExecution({pool,executeNode,authorizeCapabilities,vali
       }
       const {inputRefs,inputArtifacts}=inputsFor(plan,nodeId,byNode,snapshot);
       for(const input of inputArtifacts)await bounded(()=>validateValue(definition.inputs.find(p=>p.name===input.port).representation,input.value,validateRepresentation));
-      const fingerprint=semanticFingerprint({run:job.run,node,definition,inputRefs,executorVersion:executionProfileId});
+      const fingerprint=semanticFingerprint({snapshot,run:job.run,node,definition,inputRefs,executorVersion:executionProfileId});
       const begun=await tx(pool,async c=>{
         await fenced(c,job);
         const previous=await successes(c,job,nodeId,fingerprint,definition,inputRefs,typeof validateNodeOutput==='function');
@@ -237,7 +237,7 @@ const membership=await client.query('SELECT role FROM ov_members WHERE workspace
       if(!output)return false;
       inputRefs.push(output.value_id);
     }
-    const expectedFingerprint=semanticFingerprint({run,node:step.node,definition:step.definition,inputRefs,executorVersion:executionProfileId});
+    const expectedFingerprint=semanticFingerprint({snapshot:pin.rows[0].snapshot,run,node:step.node,definition:step.definition,inputRefs,executorVersion:executionProfileId});
     const attempt=attempts.rows.find(a=>a.node_id===step.nodeId && a.fingerprint===expectedFingerprint);
     if(!attempt || json(attempt.input_refs)!==json(inputRefs)||!Array.isArray(attempt.output_refs)||!attempt.output_refs.length)return false;
     const artifacts=attempt.output_refs.map(id=>values.get(id));

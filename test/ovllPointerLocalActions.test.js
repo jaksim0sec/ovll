@@ -119,3 +119,62 @@ test('repeated actionless deletion claims finish with truthful no-change message
  assert.match(a.present(result),/적용하지 못했어/);
  assert.doesNotMatch(a.present(result),/삭제했습니다|기다려 주세요/);
 });
+
+test('delivery selection is distinct from execution targets and excludes unrelated partial traces',()=>{
+ const a=window.OvllPointerLocalActions;
+ const n=(nodeId,value)=>({nodeId,status:'success',outputs:{values:{result:{inline:value}}}});
+ assert.equal(a.deliver({status:'completed',targets:['a','b'],deliverableTargets:['b'],nodes:[n('a','Internal'),n('b','Final')]}),'Final');
+ assert.equal(a.deliver({status:'waiting',targets:['b'],nodes:[n('a','Internal'),{nodeId:'b',status:'blocked'}]}),'');
+});
+test('coordinator retains output refs for follow-up and stores question checkpoint across turns',async()=>{
+ const a=window.OvllPointerLocalActions;let calls=0,checkpoint;
+ const run={runId:'r1',status:'waiting',targets:['n'],nodes:[{nodeId:'n',status:'success',outputs:{values:{result:{inline:'Actual previous output'}}},outputRefs:['local:r1:n:result']}]};
+ const result=await a.coordinate({getContext:async()=>({snapshot:{graph:{graphId:'g',revision:2},definitions:[]}}),
+  onCheckpoint:cp=>{checkpoint=cp;},
+  request:async({extraContext})=>{calls++;
+   if(calls===1)return {actions:[{localKey:'r',kind:'run.start'}]};
+   assert.equal(extraContext.actionResults[0].run.nodes[0].outputs.values.result.inline,'Actual previous output');
+   assert.equal(extraContext.actionResults[0].run.nodes[0].outputRefs[0],'local:r1:n:result');
+   return {actions:[{localKey:'q',kind:'question.ask',args:{question:'Which source?',questionId:'q1'}}]};
+  },handlers:{'run.start':async()=>({status:'waiting',run}),'question.ask':action=>a.question(action)}});
+ assert.equal(calls,2);assert.equal(checkpoint.question,'Which source?');
+ assert.equal(checkpoint.awaitingInput,true);assert.equal(result.checkpoint.questionId,'q1');
+ assert.equal(checkpoint.actionResults[0].run.runId,'r1');
+});
+test('source metadata reports missing content and actual async source read discloses byte coverage',async()=>{
+ const a=window.OvllPointerLocalActions;
+ const context={snapshot:{graph:{nodes:[{nodeId:'f',settings:{file:{name:'notes.txt',localFileId:'id',textPreview:'Cached'}}}]}}};
+ const needs=[{kind:'value',selector:{scope:'ref',ref:'file:f',depth:'full'}}];
+ assert.equal(a.readNeeds(needs,context)[0].availability,'metadata_only');
+ const reads=await a.readNeedsAsync(needs,context,{readSource:async()=>({status:'success',value:{text:'Actual',coverage:{start:0,end:6,totalBytes:12,truncated:true},availability:'local_bytes'}})});
+ assert.equal(reads[0].content.text,'Actual');assert.equal(reads[0].truncated,true);
+ assert.equal(reads[0].coverage.totalBytes,12);
+});
+test('partial source/export and unsaved results are disclosed while stale successes are not delivered as current',()=>{
+ const a=window.OvllPointerLocalActions,n={nodeId:'a',status:'success',outputs:{values:{result:{inline:'Body'}}}};
+ const run={status:'completed',targets:['a'],nodes:[n],coverage:{sourceTruncated:true,outputTruncated:true},storage:{status:'failed',error:'QUOTA'}};
+ const text=a.present({runs:[run],facts:[{run}]});
+ assert.match(text,/일부/);assert.match(text,/저장/);
+ assert.equal(a.deliver({...run,nodes:[{...n,resultCurrent:false}]}),'');
+ assert.match(a.present({runs:[{...run,nodes:[{...n,resultCurrent:false}],validity:{snapshotCurrent:false}}]}),/바뀌/);
+});
+test('function discovery excludes saved values while ref reads preserve full contracts',async()=>{
+ const actions=window.OvllPointerLocalActions;
+ assert.equal(typeof actions.functionIndex,'function');
+ const functions=Array.from({length:30},(_,i)=>({id:'fn_'+i,version:1,purpose:'Review evidence '+i,
+  inputs:[{name:'in',representation:'text'}],outputs:[{name:'out',representation:'text'}],invariants:['Use sources'],
+  fixedInputs:{'n:constant':'x'.repeat(22000)},inputMap:{in:{nodeId:'n',port:'in'}},presentation:{view:[{id:'n',params:{text:'x'.repeat(10000)}}]}}));
+ const index=actions.functionIndex(functions);
+ assert.equal(index.length,30);assert.ok(JSON.stringify(index).length<32000);
+ assert.equal(index[0].fixedInputs,undefined);assert.equal(index[0].presentation,undefined);
+ const read=actions.readNeeds([{kind:'contract',selector:{scope:'ref',ref:'fn_20',depth:'full'}}],{savedFunctions:functions});
+ assert.equal(read[0].available,true);assert.equal(read[0].content[0].id,'fn_20');
+});
+test('language replies retain factual notices and optional function inputs stay optional',()=>{
+ const actions=window.OvllPointerLocalActions;
+ assert.equal(actions.functionIndex([{id:'f',version:1,purpose:'Test',inputs:[{name:'maybe',representation:'text'}]}])[0].inputs[0].required,false);
+ assert.equal(typeof actions.withRunNotices,'function');
+ const reply=actions.withRunNotices('Please provide the missing input',[{nodes:[],coverage:{sourceTruncated:true},storage:{status:'failed',error:'QUOTA'},validity:{snapshotCurrent:false}}]);
+ assert.ok(reply.includes('Please provide the missing input'));assert.ok(reply.includes('원문 일부'));
+ assert.ok(reply.includes('저장하지 못했어'));assert.ok(reply.includes('현재 결과로 사용할 수 없어'));
+});

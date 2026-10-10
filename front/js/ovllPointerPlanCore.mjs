@@ -1,4 +1,4 @@
-import {compatibleDataRepresentation} from './ovllPointerPortTypes.mjs';
+import {compatibleDataRepresentation,isFlowPort} from './ovllPointerPortTypes.mjs';
 export {matchesInputRepresentation} from './ovllPointerPortTypes.mjs';
 import {KernelError,computeScope} from './ovllPointerGraphCore.mjs';
 const reject=(code,status=422)=>{throw new KernelError(code,code,status);};
@@ -14,10 +14,11 @@ export function buildExecutionPlan(snapshot, run) {
   const outgoing=new Map([...selected].map(n=>[n,new Set()]));
   for(const link of graph.connections){
     if(!selected.has(link.from.nodeId)||!selected.has(link.to.nodeId))continue;
-    if(link.kind==='flow' && link.from.port!=='result' && link.from.port!=='next'){
-      const parent=nodes.get(link.from.nodeId),def=defs.get(parent?.definitionRef.definitionId+':'+parent?.definitionRef.version);
-      if(!def?.requiredCapabilities?.includes('branch.exclusive')||!def.outputs.some(p=>p.name===link.from.port))
-        reject('CONDITIONAL_ROUTING_NOT_IMPLEMENTED',501);
+    if(link.kind==='flow'){
+      const from=nodes.get(link.from.nodeId),to=nodes.get(link.to.nodeId);
+      const source=defs.get(from?.definitionRef.definitionId+':'+from?.definitionRef.version);
+      const destination=defs.get(to?.definitionRef.definitionId+':'+to?.definitionRef.version);
+      if(!isFlowPort(source,link.from.port,'outputs')||!isFlowPort(destination,link.to.port,'inputs'))reject('PORT_MISMATCH');
     }
     if(!['flow','data'].includes(link.kind)) reject('UNKNOWN_EDGE_KIND');
     parents.get(link.to.nodeId).add(link.from.nodeId);

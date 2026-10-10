@@ -21,14 +21,17 @@
       if(type===def.definitionId.slice(8)&&baseDefinitions[type]){
         // Builtins retain the existing server-owned visual contract.
         definitions[type]=clone(baseDefinitions[type]);
+        definitions[type].inputs=(definitions[type].inputs||[]).map(p=>({...p,multiple:false,channel:'data'}));
+        definitions[type].outputs=(definitions[type].outputs||[]).map(p=>({...p,channel:'data'}));
         continue;
       }
-      const port=p=>({id:p.name,name:p.role||p.name,type:p.representation,
-        accepts:[p.representation],required:p.required===true,multiple:true});
+      const port=(p,input=false)=>({id:p.name,name:p.role||p.name,type:p.representation,
+        accepts:[p.representation],required:p.required===true,
+        channel:'data',multiple:!input});
       definitions[type]={name:def.presentation?.name||def.purpose.slice(0,100),desc:def.purpose,
         color:/^#[0-9a-f]{6}$/i.test(def.presentation?.color||'')?def.presentation.color:'#7C6CF2',
         iconKey:def.presentation?.iconKey||'sparkle',tag:type.startsWith('pointer:')?'AI':type.toUpperCase(),
-        inputs:def.inputs.map(port),outputs:type==='createFile'?[]:def.outputs.map(port),
+        inputs:def.inputs.map(p=>port(p,true)),outputs:type==='createFile'?[]:def.outputs.map(p=>port(p)),
         params:[{id:'request',name:'요청사항',kind:'request',maxLength:2400,default:''}],
         ...(type.startsWith('pointer:')?{catalog:{group:'custom',groupLabel:'내 노드'}}:{})};
     }
@@ -46,15 +49,32 @@
       }
       return incoming;
     });
-    const nodeIds=new Set(nodes.map(n=>n.id)),links=[],data=[];
+    const nodeIds=new Set(nodes.map(n=>n.id)),links=[],data=[],connections=[];
     const types=new Map(nodes.map(n=>[n.id,n.type]));
+    const flowMaps=new Map(nodes.map(node=>[node.type,{inputs:{},outputs:{}}]));
     const visiblePort=(nodeId,name,direction,kind)=>{
-      const ports=definitions[types.get(nodeId)]?.[direction]||[];
-      if(ports.some(p=>p.id===name))return name;
-      if(kind==='flow'&&((direction==='outputs'&&/^flow_next_*$|^next$/.test(name))||
-        (direction==='inputs'&&/^flow_in_*$|^in$/.test(name)))&&ports.length)
-        return ports[0].id;
-      throw new Error('UNREPRESENTABLE_GRAPH_PORT');
+      const ui=definitions[types.get(nodeId)],ports=ui?.[direction]||[];
+      const def=defs.get(key(snapshot.graph.nodes.find(n=>n.nodeId===nodeId).definitionRef));
+      const logical=(def[direction]||[]).find(p=>p.name===name);
+      if(kind==='data'){
+        if(logical&&ports.some(p=>p.id===name&&p.channel!=='flow'))return name;
+        throw new Error('UNREPRESENTABLE_GRAPH_PORT');
+      }
+      const reserved=(direction==='outputs'?/^(next|flow_next_*)$/:/^(in|flow_in_*)$/).test(name);
+      if(!logical&&!reserved)throw new Error('UNREPRESENTABLE_GRAPH_PORT');
+      const mapped=flowMaps.get(types.get(nodeId))[direction];
+      if(mapped[name])return mapped[name];
+      let id=name;
+      if(logical){
+        const base='__flow_'+(direction==='outputs'?'out_':'in_')+name.slice(0,130);
+        id=base;let suffix=0;
+        while(ports.some(p=>p.id===id))id=base+'_'+(++suffix);
+      }
+      if(!ports.some(p=>p.id===id&&p.channel==='flow'))ports.push({id,
+        name:direction==='outputs'?(def.requiredCapabilities?.includes('branch.exclusive')?logical?.role||name:'다음'):'진행',
+        type:'control_flow',accepts:['control_flow'],channel:'flow',multiple:true,required:false});
+      ui[direction]=ports;mapped[name]=id;
+      return id;
     };
     for(const link of snapshot.graph.connections){
       if(!validRef(link?.from?.nodeId)||!validRef(link?.to?.nodeId)||
@@ -63,12 +83,20 @@
       if(!['flow','data'].includes(link.kind))throw new Error('UNSUPPORTED_CONNECTION_KIND');
       const fromPort=visiblePort(link.from.nodeId,link.from.port,'outputs',link.kind);
       const toPort=visiblePort(link.to.nodeId,link.to.port,'inputs',link.kind);
+      connections.push({id:link.id,from:{node:link.from.nodeId,port:fromPort},
+        to:{node:link.to.nodeId,port:toPort},data:{kind:link.kind,
+          pointer:{linkId:link.id,kind:link.kind,from:clone(link.from),to:clone(link.to)}}});
       (link.kind==='data'?data:links).push([
         link.from.nodeId+'.'+fromPort,link.to.nodeId+'.'+toPort
       ]);
     }
+    for(const node of nodes){
+      const mapped=flowMaps.get(node.type);
+      node.data.pointer.portMap={inputs:Object.fromEntries(Object.entries(mapped.inputs).map(([logical,visible])=>[visible,logical])),
+        outputs:Object.fromEntries(Object.entries(mapped.outputs).map(([logical,visible])=>[visible,logical]))};
+    }
     return {graphId:snapshot.graph.graphId,revision:snapshot.graph.revision,
-      definitions,workflow:{nodes,links,data}};
+      definitions,workflow:{nodes,links,data,connections}};
   }
   function applyGraph(canvas,snapshot,restoredView){
     if(!canvas?.getWorkflow||!canvas?.getBaseNodeDefinitions||

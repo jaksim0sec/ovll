@@ -16,7 +16,7 @@ test('model readiness endpoint never calls the model, and disabled service rejec
   try{
     const url='http://127.0.0.1:'+server.address().port;
     const health=await fetch(url+'/api/pointer/local/ready');
-    assert.equal(health.status,200);assert.deepEqual(await health.json(),{ready:false});
+    assert.equal(health.status,200);assert.deepEqual(await health.json(),{ready:false,configured:false,modelHealth:'unverified'});
     const response=await fetch(url+'/api/pointer/local/turn',{method:'POST',
       headers:{'Content-Type':'application/json'},body:JSON.stringify({requestText:'hello'})});
     assert.equal(response.status,503);
