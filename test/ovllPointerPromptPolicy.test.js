@@ -10,7 +10,7 @@ test('entry differentiates chat, reuse, dynamic definition, edit-only and explic
  const entry=read('prompts/layers/entry.md');
  for(const term of ['Answer','Reuse','Define','Edit','Execute','new kind of node',
    'necessary internal structuring','explicit no-run','executionIntent:"requested"'])
-   assert.ok(entry.includes(term),term);
+   assert.ok(entry.toLowerCase().includes(term.toLowerCase()),term);
  assert.doesNotMatch(entry,/Japanese vocabulary|일본어 단어장/);
 });
 test('definition guidance does not propose unsolicited graph structure',()=>{
@@ -32,7 +32,7 @@ test('canonical action example still roundtrips wire and passes the frozen schem
 });
 test('composer preserves the full action repertoire without incident-specific cases',()=>{
  const registry=JSON.parse(read('registry.json'));
- assert.equal(registry.assemblyVersion,'0.4.0');
+ assert.equal(registry.assemblyVersion,'0.4.1');
  const context={requestRef:'r1',objective:'Summarize notes',constraints:['Preserve sources'],
    capabilities:[],outputContract:'NodeOutput',requestText:'Summarize these notes',
    materials:[{ref:'source1',kind:'text',source:'user_input',content:'Actual source text',

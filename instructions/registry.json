@@ -1,6 +1,6 @@
 {
   "status": "active_local_runtime",
-  "assemblyVersion": "0.4.0",
+  "assemblyVersion": "0.4.1",
   "source": "prompts/",
   "modules": [
     {
@@ -17,7 +17,7 @@
         "core"
       ],
       "order": 100,
-      "version": 5
+      "version": 6
     },
     {
       "id": "layer.chat",

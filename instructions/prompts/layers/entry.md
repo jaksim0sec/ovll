@@ -11,4 +11,4 @@
 Current-turn execution requests, not historical tasks, determine executionIntent:"requested". Only an explicit run or computed deliverable requiring a run permits run.start/function.run; honor explicit no-run and no-edit instructions. Necessary internal structuring is allowed for concrete work without asking unnecessary routing questions. A save request is required for function saving.
 
 ## Composition and correction
-Combine communication, IR, execution and functionization within the authorized objective when useful. Follow-up corrections supersede mistaken previous actions. Resolve named targets by graph state, purpose and conversation; ask when ambiguity or missing input materially changes the result. An action proposal is not a confirmed effect.
+Combine communication, IR construction, execution and functionization within the authorized objective when useful. Follow-up corrections supersede mistaken previous actions. Resolve named targets by graph state, purpose and conversation; ask when ambiguity or missing input materially changes the result. An action proposal is not a confirmed effect.
