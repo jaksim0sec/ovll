@@ -154,5 +154,5 @@ test('appearance-only edit keeps current result and backend execution identity',
   assert.equal(after.definitions.find(d=>d.definitionId===id).version,1);
   assert.equal(nodeSemanticFingerprint(after,nodeId,opts),earlier);
   assert.equal(backendFingerprint({snapshot:after,node:after.graph.nodes[0],
-    definition:after.definitions.find(d=>d.definitionId===id&&d.version===2),inputRefs:[]}),serverBefore);
+    definition:after.definitions.find(d=>d.definitionId===id&&d.version===1),inputRefs:[]}),serverBefore);
 });
