@@ -29,9 +29,12 @@
       const port=(p,input=false)=>({id:p.name,name:p.role||p.name,type:p.representation,
         accepts:[p.representation],required:p.required===true,
         channel:'data',multiple:input?p.multiple!==false:true});
+      const requestedIcon=def.presentation?.iconKey||'sparkle';
+      const iconKey=global.OvllSvgLibrary?.has&&!global.OvllSvgLibrary.has(requestedIcon)?
+        'custom':requestedIcon;
       definitions[type]={name:def.presentation?.name||def.purpose.slice(0,100),desc:def.purpose,
         color:/^#[0-9a-f]{6}$/i.test(def.presentation?.color||'')?def.presentation.color:'#7C6CF2',
-        iconKey:def.presentation?.iconKey||'sparkle',tag:type.startsWith('pointer:')?'AI':type.toUpperCase(),
+        iconKey,tag:type.startsWith('pointer:')?'AI':type.toUpperCase(),
         inputs:def.inputs.map(p=>port(p,true)),outputs:type==='createFile'?[]:def.outputs.map(p=>port(p)),
         params:[{id:'request',name:'요청사항',kind:'request',maxLength:2400,default:''}],
         ...(type.startsWith('pointer:')?{catalog:{group:'custom',groupLabel:'내 노드'}}:{})};

@@ -2823,27 +2823,8 @@
         },
         "iconKey": {
           "type": "string",
-          "enum": [
-            "play",
-            "globe",
-            "notebook",
-            "scales",
-            "pen",
-            "folder",
-            "sparkle",
-            "custom",
-            "open-book",
-            "flask",
-            "potted-plant",
-            "graduation-cap",
-            "pencil",
-            "lightbulb",
-            "hourglass",
-            "planet",
-            "headphones",
-            "coffee-cup",
-            "compass"
-          ]
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_-]{0,63}$",
+          "description": "Server SVG catalog key. Unsupported identifiers use the canonical custom icon."
         },
         "color": {
           "type": "string",

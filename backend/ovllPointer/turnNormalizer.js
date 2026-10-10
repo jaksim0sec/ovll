@@ -1,12 +1,20 @@
+import {iconSvg} from './nodeCatalog.js';
 // Converts only unambiguous, non-semantic ModelTurn omissions into the wire contract.
 // Draft node keys are local graph-patch handles, not persistent identities.
 // This module never invents nodes, links, definitions, run targets or effects.
 const isKey=value=>typeof value==='string'&&/^[a-zA-Z0-9_.:-]{1,160}$/.test(value);
 const isObject=value=>value!==null&&typeof value==='object'&&!Array.isArray(value);
+const normalizePresentation=value=>{
+  if(!isObject(value)||typeof value.iconKey!=='string')return value;
+  const key=value.iconKey.trim();
+  return {...value,iconKey:Object.hasOwn(iconSvg,key)?key:'custom'};
+};
 // Only omit transport boilerplate for ordinary model tasks; never invent tool capabilities.
 function normalizeDefinition(d){
-  if(!isObject(d)||d.supersedes!==undefined||
-    d.executorKind!==undefined&&d.executorKind!=='model_task')return d;
+  if(!isObject(d))return d;
+  const draft={...d,...(d.presentation===undefined?{}:{presentation:normalizePresentation(d.presentation)})};
+  if(d.supersedes!==undefined||
+    d.executorKind!==undefined&&d.executorKind!=='model_task')return draft;
   const port=(value)=>isObject(value)&&typeof value.name==='string'?{
     ...value,role:value.role??value.name,representation:value.representation??'json'
   }:value;
@@ -14,7 +22,7 @@ function normalizeDefinition(d){
     d.inputs===undefined?[{name:'in',role:'입력',representation:'json',required:false}]:d.inputs;
   const outputs=Array.isArray(d.outputs)?d.outputs.map(port):
     d.outputs===undefined?[{name:'result',role:'결과',representation:'json',required:false}]:d.outputs;
-  return {...d,executorKind:d.executorKind??'model_task',inputs,outputs};
+  return {...draft,executorKind:d.executorKind??'model_task',inputs,outputs};
 }
 function patchOf(action){
   return action?.kind==='ir.applyPatch'&&isObject(action.args?.patch)?action.args.patch:null;
@@ -79,6 +87,9 @@ export function normalizeModelTurn(value){
     let patch={...source};
     if(Array.isArray(patch.definitions))
       patch.definitions=patch.definitions.map(normalizeDefinition);
+    if(Array.isArray(patch.operations))patch.operations=patch.operations.map(op=>
+      op?.op==='definition.appearance'&&op.presentation!==undefined?
+        {...op,presentation:normalizePresentation(op.presentation)}:op);
     if(Array.isArray(patch.operations)&&patch.definitions===undefined)patch.definitions=[];
     if(Array.isArray(patch.definitions)&&patch.operations===undefined)patch.operations=[];
     // A model may express a cosmetic-only revision as a partial definition.
