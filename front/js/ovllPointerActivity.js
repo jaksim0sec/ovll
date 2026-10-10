@@ -60,6 +60,7 @@ function createRunPresence({presence,isActive=()=>true,getNodeLabel=()=>''}={}){
     active=null;activeNode=null;transitions.clear();
   }
   return Object.freeze({update,reset});
+}
 
 function createTaskContext(previous,requestText){
   const text=String(requestText||'').trim();
