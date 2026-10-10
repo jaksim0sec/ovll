@@ -135,9 +135,16 @@
   const localOperations=PointerActivity.createOperations({
     getConversationId:currentConversationId,isDestroyed:()=>state.destroyed
   });
+  const presenceNodeLabel=nodeId=>{
+    const type=state.canvas?.getNode?.(nodeId)?.type;
+    return state.canvas?.getNodeDefinitions?.()?.[type]?.name||
+      state.nodeDefinitions?.[type]?.name||'노드';
+  };
   const runPresence=PointerActivity.createRunPresence({presence:Presence,
+    getNodeLabel:presenceNodeLabel,
     isActive:()=>!!localOperations.getCurrent()&&localOperations.isCurrent(localOperations.getCurrent())});
   const serverPresence=PointerActivity.createRunPresence({presence:Presence,
+    getNodeLabel:presenceNodeLabel,
     isActive:()=>!state.destroyed&&pointerScope()?.storageMode==='postgres'});
   const serverLiveNodes=new Map();
   const listeners = [];
@@ -5034,6 +5041,7 @@
     return state.canvas.addNode(
       "file",
       {
+        id:"result:"+artifactId,
         expanded: false,
         ...(source
           ? {
@@ -5056,6 +5064,7 @@
         data: {
           generated: true,
           artifactId,
+          sourceNodeId:String(sourceNodeId||""),
           localFileId:
             artifact.localFileId ||
             "",
@@ -5989,6 +5998,7 @@
         state.pointerGraphRevision=snapshot.graph.graph.revision;
         state.pointerGraphSnapshot=snapshot.graph;
         state.workflow=getCurrentWorkflow();
+        renderNodeBuilderOptions();
       }finally{state.pointerHydrating=false;}
     }
     if(scope.storageMode==='local'){
@@ -6160,7 +6170,8 @@
     return stages;
   }
   function pointerActionStarted(action){
-    Presence.settle();
+    if(['run.start','function.run'].includes(action.kind))Presence.thinking();
+    else Presence.settle();
     upsertRuntimeStep('__thinking__','생각 완료','done');
     for(const step of pointerActionStages(action))
       upsertRuntimeStep(step.id,step.label+' 중','running','',step);
@@ -6227,6 +6238,20 @@
           console.warn('OvllPointer canvas artifact projection failed',error);
           showErrorNotice(error,{scope:'결과물 노드 표시 오류',
             fallback:'결과물은 생성됐지만 캔버스에 표시하지 못했어.'});
+        }
+      }
+      if(localOperations.isCurrent(operation)){
+        for(const entry of run.nodes||[]){
+          if(entry.status!=='success'||entry.resultCurrent!==true||
+            entry.toolEffectStarted!==true||entry.effectConfirmed!==true)continue;
+          for(const output of Object.values(entry.outputs?.values||{})){
+            const artifact=output?.inline;
+            if(artifact&&typeof artifact==='object'&&artifact.id&&
+              typeof artifact.downloadUrl==='string'&&
+              /^(https?:\/\/|\/(?!\/)|blob:)/.test(artifact.downloadUrl)&&
+              !/[\s()<>"']/.test(artifact.downloadUrl))
+              ensureArtifactFileNode(entry.nodeId,artifact);
+          }
         }
       }
       return run;
@@ -6308,7 +6333,7 @@
         return;
       }
       if(value.startsWith('/함수실행 ')){
-        Presence.settle();
+        Presence.thinking();
         upsertRuntimeStep('function:run','저장된 함수 실행 중','running');
         const {id,input,bindings:named}=PointerActivity.parseFunctionRequest(value.slice('/함수실행 '.length));
         const all=global.OvllPointerFunctions?.list()||[];
@@ -6778,7 +6803,9 @@
 
   function handleComposerKeydown(event) {
     if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
-    if (global.matchMedia?.("(hover: none) and (pointer: coarse)")?.matches) return;
+    const mobile=global.navigator?.userAgentData?.mobile===true||
+      /Android|iPhone|iPad|iPod/i.test(String(global.navigator?.userAgent||""));
+    if(mobile||global.matchMedia?.("(hover: none) and (pointer: coarse)")?.matches) return;
 
     event.preventDefault();
 

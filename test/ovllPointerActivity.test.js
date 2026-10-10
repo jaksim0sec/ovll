@@ -142,3 +142,42 @@ test('all execution entry paths preserve partial coverage and storage warnings',
  const text=sandbox.summary({status:'completed',targets:['n'],coverage:{sourceTruncated:true},storage:{status:'failed',error:'QUOTA'},nodes:[{nodeId:'n',status:'success',outputs:{values:{result:{inline:'Part'}}}}]});
  assert.ok(text.includes('원문 일부'));assert.ok(text.includes('저장하지 못했어'));assert.ok(text.includes('Part'));
 });
+
+test('a running node animates and speaks once per transition',()=>{
+  const calls=[];
+  const presence={
+    workAtNode:(id,active)=>calls.push(['work',id,active]),
+    mascotState:(name,detail)=>calls.push([name,detail.nodeId]),
+    canvasStatus:(message,options)=>calls.push(['speech',message,options.hold])
+  };
+  const bridge=activity().createRunPresence({presence,getNodeLabel:id=>id==='a'?'조사하기':'작성하기'});
+  bridge.update({runId:'r',nodes:[{nodeId:'a',status:'running'}]});
+  bridge.update({runId:'r',nodes:[{nodeId:'a',status:'running'}]});
+  assert.equal(calls.filter(c=>c[0]==='speech').length,1);
+  assert.deepEqual(calls.find(c=>c[0]==='speech'),['speech','조사하기 실행 중',0]);
+  bridge.update({runId:'r',nodes:[{nodeId:'a',status:'success'},{nodeId:'b',status:'running'}]});
+  assert.deepEqual(calls.at(-2),['work','b',true]);
+  assert.deepEqual(calls.at(-1),['speech','작성하기 실행 중',0]);
+  bridge.reset();
+  assert.deepEqual(calls.at(-1),['work','b',false]);
+});
+test('mobile Enter inserts a newline while desktop Enter still submits',()=>{
+  const source=readFileSync(new URL('../front/js/app.js',import.meta.url),'utf8');
+  const start=source.indexOf('  function handleComposerKeydown(event) {');
+  const end=source.indexOf('  /* =======================================================',start);
+  assert.ok(start>=0&&end>start);
+  const method=source.slice(start,end);
+  function keydown(userAgent,coarse,shiftKey=false){
+    let sent=0,prevented=0;
+    const global={navigator:{userAgent},matchMedia:()=>({matches:coarse})};
+    const context={global,state:{busy:false},composerForm:{requestSubmit:()=>sent++}};
+    vm.runInNewContext(method+'\nthis.keydown=handleComposerKeydown;',context);
+    context.keydown({key:'Enter',shiftKey,isComposing:false,preventDefault:()=>prevented++});
+    return {sent,prevented};
+  }
+  assert.deepEqual(keydown('Mozilla/5.0 (Linux; Android 16)',false),{sent:0,prevented:0});
+  assert.deepEqual(keydown('Mozilla/5.0 (iPhone; CPU iPhone OS 17)',false),{sent:0,prevented:0});
+  assert.deepEqual(keydown('Mozilla/5.0 (Windows NT 10.0)',true),{sent:0,prevented:0});
+  assert.deepEqual(keydown('Mozilla/5.0 (Windows NT 10.0)',false),{sent:1,prevented:1});
+  assert.deepEqual(keydown('Mozilla/5.0 (Windows NT 10.0)',false,true),{sent:0,prevented:0});
+});

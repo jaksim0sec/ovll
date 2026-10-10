@@ -22,8 +22,9 @@ function createOperations({getConversationId,isDestroyed=()=>false}={}){
   return Object.freeze({begin,isCurrent,isActive:operation=>isCurrent(operation)&&!operation.signal.aborted,
     cancel,invalidate,finish,getCurrent:()=>current});
 }
-function createRunPresence({presence,isActive=()=>true}={}){
+function createRunPresence({presence,isActive=()=>true,getNodeLabel=()=>''}={}){
   const transitions=new Map();let active=null,activeNode=null;
+  const label=id=>String(getNodeLabel(id)||'노드').trim()||'노드';
   function update(run){
     if(!run||!isActive())return;
     for(const entry of run.nodes||[]){
@@ -32,15 +33,26 @@ function createRunPresence({presence,isActive=()=>true}={}){
       transitions.set(key,entry.status);
       if(previous!=='running'||entry.status==='running')continue;
       if(active===key){presence?.workAtNode?.(entry.nodeId,false);active=null;activeNode=null;}
-      if(entry.status==='success')presence?.mascotState?.('nodeSuccess',{nodeId:entry.nodeId});
-      else if(['failed','blocked','outcome_unknown'].includes(entry.status))
+      if(entry.status==='success'){
+        presence?.mascotState?.('nodeSuccess',{nodeId:entry.nodeId});
+        presence?.canvasStatus?.(label(entry.nodeId)+' 실행 완료',{hold:1700});
+      }else if(['failed','blocked','outcome_unknown'].includes(entry.status)){
         presence?.mascotState?.('nodeError',{nodeId:entry.nodeId});
-      else if(entry.status==='cancelled')presence?.mascotState?.('cancelled',{nodeId:entry.nodeId});
+        presence?.canvasStatus?.(label(entry.nodeId)+' 실행 실패',{hold:2200});
+      }else if(entry.status==='cancelled'){
+        presence?.mascotState?.('cancelled',{nodeId:entry.nodeId});
+        presence?.canvasStatus?.('실행 중단됨',{hold:1700});
+      }
     }
     const running=(run.nodes||[]).find(entry=>entry.status==='running');
     if(running){
       const key=String(run.runId)+':'+running.nodeId;
-      if(active!==key){presence?.workAtNode?.(running.nodeId,true);active=key;activeNode=running.nodeId;}
+      if(active!==key){
+        if(active)presence?.workAtNode?.(activeNode,false);
+        presence?.workAtNode?.(running.nodeId,true);
+        presence?.canvasStatus?.(label(running.nodeId)+' 실행 중',{hold:0});
+        active=key;activeNode=running.nodeId;
+      }
     }
   }
   function reset(){
@@ -48,7 +60,7 @@ function createRunPresence({presence,isActive=()=>true}={}){
     active=null;activeNode=null;transitions.clear();
   }
   return Object.freeze({update,reset});
-}
+
 function createTaskContext(previous,requestText){
   const text=String(requestText||'').trim();
   const history=Array.isArray(previous?.requestHistory)?

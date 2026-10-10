@@ -85,3 +85,14 @@ test('app refresh path reprojects verified files after successful local executio
   assert.match(source,/const run=await global\.OvllPointerLocal\.run\(/);
   assert.match(source,/await refreshPointerCanvas\(\{force:true\}\)/);
 });
+
+test('confirmed local artifacts have a canvas-node delivery path in addition to chat cards',()=>{
+  const source=readFileSync(new URL('../front/js/app.js',import.meta.url),'utf8');
+  const start=source.indexOf('  let localRunActive=null;');
+  const end=source.indexOf('  function localRunSummary(',start);
+  const fragment=source.slice(start,end);
+  assert.match(fragment,/entry\.toolEffectStarted!==true\|\|entry\.effectConfirmed!==true/);
+  assert.match(fragment,/ensureArtifactFileNode\(entry\.nodeId,artifact\)/);
+  assert.match(source,/id:"result:"\+artifactId/);
+  assert.match(source,/state\.pointerGraphSnapshot=snapshot\.graph;\s*state\.workflow=getCurrentWorkflow\(\);\s*renderNodeBuilderOptions\(\);/);
+});
