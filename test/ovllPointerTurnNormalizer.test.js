@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {normalizeModelTurn,diagnoseModelTurn} from '../backend/ovllPointer/turnNormalizer.js';
+import {normalizeModelTurn,diagnoseModelTurn,modelTurnShape} from '../backend/ovllPointer/turnNormalizer.js';
 import {createContractValidation} from '../backend/ovllPointer/validation.js';
 
 const nodeAdd=(definitionRef={definitionId:'builtin:write',version:1})=>({
@@ -115,4 +115,43 @@ test('malformed and duplicate definition handles have distinct diagnostics',()=>
   assert.equal(diagnostics[0].rule,'invalid');
   assert.equal(diagnostics[1].rule,'duplicate');
   assert.equal(diagnostics[1].path,'/actions/0/args/patch/definitions/2/localKey');
+});
+
+test('flat graph patch envelope is restored without changing graph intent',()=>{
+ const source={actions:[{localKey:'p',kind:'ir.applyPatch',args:{
+  graphId:'g',expectedGraphRevision:0,operations:[nodeAdd()]}}]};
+ const normalizations=[];
+ const output=normalizeModelTurn(source,{normalizations});
+ assert.equal(output.actions[0].args.patch.graphId,'g');
+ assert.equal(output.actions[0].args.patch.operations[0].localNodeKey,'node1');
+ assert.deepEqual(output.actions[0].args.patch.definitions,[]);
+ assert.equal(source.actions[0].args.patch,undefined);
+ assert.deepEqual(normalizations,['wrapPatch@0']);
+ assert.equal(validator.validateTurn(output),true);
+});
+test('a missing patch is diagnosed before missing dependent run handles',()=>{
+ const bad=normalizeModelTurn({actions:[
+  {localKey:'p',kind:'ir.applyPatch',args:{unknown:'shape'}},
+  {localKey:'r',kind:'run.start',dependsOn:['p'],args:{targets:[{fromAction:'p'}]}}
+ ]});
+ assert.deepEqual(diagnoseModelTurn(bad,validator.explainTurn(bad))[0],
+  {path:'/actions/0/args',rule:'required',missing:'patch'});
+});
+test('flat patch restoration rejects unknown fields and missing graph revisions',()=>{
+ const withExtras={actions:[{kind:'ir.applyPatch',args:{
+  graphId:'g',expectedGraphRevision:0,operations:[],secret:'untrusted'}}]};
+ assert.equal(normalizeModelTurn(withExtras).actions[0].args.patch,undefined);
+ const noRevision={actions:[{kind:'ir.applyPatch',args:{graphId:'g',operations:[]}}]};
+ assert.equal(normalizeModelTurn(noRevision).actions[0].args.patch,undefined);
+});
+test('structural telemetry never contains model values or arbitrary property names',()=>{
+ const raw={actions:[{kind:'ir.applyPatch',args:{
+  graphId:'g',expectedGraphRevision:0,operations:[{
+   op:'node.add',localNodeKey:'SENSITIVE-NODE',settings:{request:'SECRET PROMPT'}
+  }],privateProperty:'TOKEN-SECRET'}}]};
+ const shape=JSON.stringify(modelTurnShape(raw));
+ assert.ok(!shape.includes('SENSITIVE-NODE'));
+ assert.ok(!shape.includes('SECRET PROMPT'));
+ assert.ok(!shape.includes('TOKEN-SECRET'));
+ assert.ok(!shape.includes('privateProperty'));
 });

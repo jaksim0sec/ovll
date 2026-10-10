@@ -72,7 +72,36 @@ function allocateKeys(patch,actionKey,actions){
   return {...patch,operations:patch.operations.map(op=>assigned.has(op)?
     {...op,localNodeKey:assigned.get(op)}:op)};
 }
-export function normalizeModelTurn(value){
+
+const GRAPH_PATCH_FIELDS=new Set(['graphId','expectedGraphRevision','definitions','operations','adoption','expectedPlanEpoch','runRef']);
+function flatGraphPatch(a){
+  return isObject(a)&&Object.keys(a).every(k=>GRAPH_PATCH_FIELDS.has(k))&&
+    typeof a.graphId==='string'&&Number.isInteger(a.expectedGraphRevision)&&
+    (Array.isArray(a.operations)||Array.isArray(a.definitions));
+}
+export function modelTurnShape(value){
+  if(!isObject(value))return {kind:'other'};
+  const fields=(o,known)=>isObject(o)?{
+    keys:Object.keys(o).filter(k=>known.includes(k)).sort(),
+    unknown:Object.keys(o).filter(k=>!known.includes(k)).length
+  }:{kind:Array.isArray(o)?'array':typeof o};
+  return {totalActions:Array.isArray(value.actions)?value.actions.length:0,
+    actions:Array.isArray(value.actions)?value.actions.slice(0,8).map(a=>{
+      const args=a?.args,patch=isObject(args?.patch)?args.patch:flatGraphPatch(args)?args:null;
+      return {kind:['ir.applyPatch','run.start','function.run','function.save','run.retry','run.cancel','run.revise','question.ask','task.complete'].includes(a?.kind)?a.kind:'unknown',
+        action:fields(a,['localKey','kind','args','argsJson','dependsOn']),
+        args:fields(args,['patch','graphId','expectedGraphRevision','definitions','operations','targets','damMode','functionRef','inputBindings']),
+        ...(patch?{patch:fields(patch,['graphId','expectedGraphRevision','definitions','operations','adoption','expectedPlanEpoch','runRef']),
+          definitions:Array.isArray(patch.definitions)?patch.definitions.slice(0,6).map(d=>fields(d,['localKey','purpose','instruction','executorKind','inputs','outputs','presentation','supersedes'])):[],
+          operations:Array.isArray(patch.operations)?patch.operations.slice(0,10).map(op=>({kind:Object.hasOwn(PATCH_OPERATION_CONTRACTS,op?.op)?op.op:'unknown',
+            fields:fields(op,['op','localNodeKey','localLinkKey','kind','definitionRef','settings','from','to','presentation','inputBindings','nodeRef'])})):[]
+        }:{}),
+        targets:Array.isArray(args?.targets)?args.targets.slice(0,8).map(t=>fields(t,['nodeId','fromAction','localNodeKey'])):[],
+        dependsOnCount:Array.isArray(a?.dependsOn)?a.dependsOn.length:0};
+    }):[]};
+}
+
+export function normalizeModelTurn(value,{normalizations=[]}={}){
   if(!isObject(value))return value;
   const turn={...value};
   for(const key of ['actions','needs'])
@@ -82,9 +111,15 @@ export function normalizeModelTurn(value){
   if(turn.message===''&&Object.keys(turn).length>1)delete turn.message;
   if(!Array.isArray(turn.actions))return turn;
   const actions=turn.actions;
-  turn.actions=actions.map(action=>{
-    const source=patchOf(action);
-    if(!source)return action;
+  turn.actions=actions.map((action,index)=>{
+    let updated=action;
+    if(action?.kind==='ir.applyPatch'&&isObject(action.args)&&
+      !Object.hasOwn(action.args,'patch')&&flatGraphPatch(action.args)){
+      updated={...action,args:{patch:action.args}};
+      normalizations.push('wrapPatch@'+index);
+    }
+    const source=patchOf(updated);
+    if(!source)return updated;
     let patch={...source};
     if(Array.isArray(patch.definitions))
       patch.definitions=patch.definitions.map(normalizeDefinition);
@@ -106,7 +141,7 @@ export function normalizeModelTurn(value){
       }
     }
     patch=allocateKeys(patch,action.localKey,actions);
-    return {...action,args:{...action.args,patch}};
+    return {...updated,args:{...updated.args,patch}};
   });
   const patches=new Map(turn.actions.filter(action=>patchOf(action))
     .map(action=>[action.localKey,action.args.patch]));
@@ -126,6 +161,14 @@ export function normalizeModelTurn(value){
 // AJV oneOf reports errors for branches that were not intended by the model.
 // Report a missing temporary key only when its actual operation or target lacks it.
 export function diagnoseModelTurn(value,issues=[]){
+  const roots=[];
+  for(const [i,action] of (Array.isArray(value?.actions)?value.actions:[]).entries()){
+    if(action?.kind!=='ir.applyPatch'||isObject(action.args?.patch))continue;
+    roots.push({path:'/actions/'+i+'/args',
+      rule:action.args?.patch===undefined?'required':'invalid',
+      ...(action.args?.patch===undefined?{missing:'patch'}:{})});
+  }
+  if(roots.length)return roots.slice(0,4);
   const detected=[];
   for(const [i,action] of (Array.isArray(value?.actions)?value.actions:[]).entries()){
     const base='/actions/'+i+'/args/';

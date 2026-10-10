@@ -93,3 +93,33 @@ test('app task request history crosses every phase without losing accepted revis
  await host([{message:'done'}],calls).response({snapshot:snap,requestRef:'s',requestText:'Show summary',actionResults:[],taskContext});
  for(const call of calls){const data=JSON.parse(call.messages.at(-1).content);assert.deepEqual(data.extraContext.taskContext.requestHistory,taskContext.requestHistory);}
 });
+
+test('canonical complete action example round-trips the provider wire projection',async()=>{
+ const {canonicalTurnExample,toWireTurnExample,decodePhaseOutput,localModelContract}=
+  await import('../backend/ovllPointer/modelContract.js');
+ const example=canonicalTurnExample();
+ assert.deepEqual(decodePhaseOutput(toWireTurnExample(example),'turn'),example);
+ assert.match(localModelContract(),/"args":\{"patch"/);
+ assert.match(localModelContract(undefined,{wire:true}),/"argsJson":/);
+ assert.doesNotMatch(localModelContract(undefined,{wire:true}),/"args":\{"patch"/);
+});
+test('structured wire turn uses wire example and records unambiguous patch recovery',async()=>{
+ const patch={graphId:'g',expectedGraphRevision:0,operations:[
+  {op:'node.add',localNodeKey:'one',definitionRef:{definitionId:'builtin:write',version:1}}]};
+ const wire={executionIntent:'requested',message:null,needs:[],actions:[
+  {localKey:'p',kind:'ir.applyPatch',argsJson:JSON.stringify(patch),dependsOn:[]},
+  {localKey:'r',kind:'run.start',argsJson:JSON.stringify({
+   targets:[{fromAction:'p',localNodeKey:'one'}],damMode:'closed'}),dependsOn:['p']}
+ ]};
+ const calls=[],gateway={capabilities:()=>({structuredOutput:true}),
+  complete:async options=>{calls.push(options);return {text:JSON.stringify(wire)};}};
+ const h=createLocalPointerHost({resolveModel:async()=>({providerId:'fixture',model:'actual'}),gateway});
+ const result=await h.turn({snapshot:snapshot(),requestRef:'flat_wire',requestText:'Write and run'});
+ assert.equal(calls.length,1);
+ assert.deepEqual(result._meta.normalizations,['wrapPatch@0']);
+ assert.equal(result._meta.repairCount,0);
+ assert.equal(result.actions[0].args.patch.graphId,'g');
+ const policy=calls[0].messages.filter(x=>x.role==='developer').map(x=>x.content).join('\n');
+ assert.match(policy,/"argsJson":/);
+ assert.doesNotMatch(policy,/"args":\{"patch"/);
+});
