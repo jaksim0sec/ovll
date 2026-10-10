@@ -14,7 +14,10 @@ test('Gemini: rejected structured schema falls back to JSON mode once and caches
   const adapter=geminiNativeAdapter({apiKey:'fixture',fetchImpl:async(_url,options)=>{
     const body=JSON.parse(options.body);bodies.push(body);
     if(body.generationConfig.responseJsonSchema)return {ok:false,status:400,
-      json:async()=>({error:{status:'INVALID_ARGUMENT'}})};
+      json:async()=>({error:{status:'INVALID_ARGUMENT',details:[{
+        '@type':'type.googleapis.com/google.rpc.BadRequest',
+        fieldViolations:[{field:'generationConfig.responseJsonSchema',description:'Unsupported field'}]
+      }]}})};
     return {ok:true,status:200,json:async()=>({candidates:[{
       finishReason:'STOP',content:{parts:[{text:'{"message":"ok"}'}]}
     }]})};
@@ -109,4 +112,17 @@ test('recovered Gemini-style wire response still passes the full local ModelTurn
   const next=await host.turn({snapshot,requestRef:'schema_2',requestText:'안녕'});
   assert.equal(next._meta.providerCalls,1);
   assert.equal(calls,3);
+});
+
+test('Gemini unrelated INVALID_ARGUMENT does not waste a second request',async()=>{
+  let count=0;
+  const adapter=geminiNativeAdapter({apiKey:'fixture',fetchImpl:async()=>{count++;
+    return {ok:false,status:400,json:async()=>({error:{status:'INVALID_ARGUMENT',
+      message:'Unknown model or invalid request input'}})};
+  }});
+  const gateway=new ModelGateway();
+  gateway.register('gemini',adapter,{json:true,structuredOutput:true});
+  await assert.rejects(gateway.complete({...options,providerId:'gemini'}),e=>
+    e.code==='PROVIDER_HTTP_ERROR'&&e.providerStatus==='INVALID_ARGUMENT');
+  assert.equal(count,1);
 });

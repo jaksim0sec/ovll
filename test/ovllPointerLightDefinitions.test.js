@@ -156,3 +156,13 @@ test('appearance-only edit keeps current result and backend execution identity',
   assert.equal(backendFingerprint({snapshot:after,node:after.graph.nodes[0],
     definition:after.definitions.find(d=>d.definitionId===id&&d.version===1),inputRefs:[]}),serverBefore);
 });
+
+test('tool_task declaration must include both explicit inputs and outputs',()=>{
+ const make=(port)=>normalizeModelTurn(turn(patch(0,[{
+   ...draft(),executorKind:'tool_task',requiredCapabilities:['artifact.create'],
+   ...(port==='inputs'?{inputs:[]}:{outputs:[{name:'artifact',role:'artifact',representation:'json'}]})
+ }],[])));
+ const validator=createContractValidation();
+ assert.equal(validator.validateTurn(make('inputs')),false,'outputs still required');
+ assert.equal(validator.validateTurn(make('outputs')),false,'inputs still required');
+});

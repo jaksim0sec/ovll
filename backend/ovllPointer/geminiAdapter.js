@@ -72,15 +72,24 @@ export function geminiNativeAdapter({apiKey,fetchImpl=fetch}={}){
         }
         if(!response.ok){
           // Return only Google's structured status enum, never upstream messages or credentials.
-          let providerStatus=null;
+          let providerStatus=null,schemaRejected=false;
           try{
             const payload=await response.json();
+            const details=payload?.error?.details;
+            const badSchemaField=field=>typeof field==='string'&&
+              /(?:responseJsonSchema|response_json_schema)/i.test(field);
+            schemaRejected=Boolean(wireSchema)&&response.status===400&&
+              (Array.isArray(details)&&details.some(d=>
+                Array.isArray(d?.fieldViolations)&&d.fieldViolations.some(v=>
+                  badSchemaField(v?.field)))||
+              badSchemaField(payload?.error?.message));
             const candidate=payload?.error?.status;
             if(typeof candidate==='string'&&/^[A-Z_]{2,48}$/.test(candidate))
               providerStatus=candidate;
           }catch{}
           const error=new ProviderError('PROVIDER_HTTP_ERROR','PROVIDER_HTTP_ERROR',response.status);
           if(providerStatus)error.providerStatus=providerStatus;
+          if(schemaRejected)error.schemaRejected=true;
           throw error;
         }
         let parsed;

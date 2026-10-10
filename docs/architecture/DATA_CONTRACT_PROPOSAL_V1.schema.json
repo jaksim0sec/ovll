@@ -171,7 +171,9 @@
           },
           "then": {
             "required": [
-              "requiredCapabilities"
+              "requiredCapabilities",
+              "inputs",
+              "outputs"
             ],
             "properties": {
               "requiredCapabilities": {
@@ -1327,7 +1329,9 @@
       "properties": {
         "executionIntent": {
           "type": "string",
-          "enum": ["requested"]
+          "enum": [
+            "requested"
+          ]
         },
         "message": {
           "type": "string",
@@ -1360,10 +1364,26 @@
       "allOf": [
         {
           "anyOf": [
-            {"required": ["message"]},
-            {"required": ["actions"]},
-            {"required": ["outputs"]},
-            {"required": ["needs"]}
+            {
+              "required": [
+                "message"
+              ]
+            },
+            {
+              "required": [
+                "actions"
+              ]
+            },
+            {
+              "required": [
+                "outputs"
+              ]
+            },
+            {
+              "required": [
+                "needs"
+              ]
+            }
           ]
         },
         {

@@ -61,7 +61,7 @@ export class ModelGateway {
     }catch(error){
       // A provider may reject its structured-output schema before the model runs.
       // Retry once as plain JSON, keeping the same local semantic validation.
-      if(!useSchema||error?.code!=='PROVIDER_HTTP_ERROR'||error.status!==400||signal?.aborted)
+      if(!useSchema||error?.code!=='PROVIDER_HTTP_ERROR'||error.status!==400||signal?.aborted||providerId==='gemini'&&error.schemaRejected!==true)
         throw error;
       try{
         result=await p.adapter.complete(args);
