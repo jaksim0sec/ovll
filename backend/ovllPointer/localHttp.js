@@ -100,7 +100,8 @@ export function mountLocalPointerRoutes(app,{createHost=()=>createConfiguredLoca
     }catch(error){
       if(error?.code==='PROVIDER_HTTP_ERROR')
         console.warn('[OvllPointer upstream HTTP]',{
-          status:error.status,providerStatus:error.providerStatus||'UNKNOWN'
+          status:error.status,providerStatus:error.providerStatus||'UNKNOWN',
+          schemaFallbackAttempted:error.schemaFallbackAttempted===true
         });
       if(!res.headersSent&&!res.destroyed){
         const retryAfterSeconds=Number(error?.retryAfterSeconds);

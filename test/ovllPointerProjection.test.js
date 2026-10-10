@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
-import {getPointerCatalog} from '../backend/ovllPointer/nodeCatalog.js';
+import {getPointerCatalog,nodeDefinitionsPublic} from '../backend/ovllPointer/nodeCatalog.js';
 import {MemoryGraphRepository} from '../front/js/ovllPointerGraphCore.mjs';
 const source=readFileSync(new URL('../front/js/ovllPointerProjection.js',import.meta.url),'utf8');
 const window={};vm.runInNewContext(source,{window});
@@ -101,4 +101,34 @@ test('existing data ports remain unchanged and sequencing uses reversible contro
   const custom=p.projectGraph({definitions:[collision],graph:{...graph,nodes:[{nodeId:'custom',definitionRef:{definitionId:collision.definitionId,version:1}}]}}).definitions['pointer:custom_controls:1'];
   assert.deepEqual(custom.inputs.map(port=>port.id),['in','flow_in']);
   assert.deepEqual(custom.outputs.map(port=>port.id),['next']);
+});
+
+test('file-to-analysis-to-PDF edges use the same semantic types in the canvas and execution plan',()=>{
+ const catalog=getPointerCatalog().definitions;
+ const custom={definitionId:'d_school',version:1,purpose:'Reflect on reading',
+   instruction:'Read the supplied document and organize learning',
+   executorKind:'model_task',inputs:[{name:'in',role:'자료',representation:'json'}],
+   outputs:[{name:'result',role:'정리',representation:'json'}]};
+ const graph={graphId:'school',revision:1,nodes:[
+   {nodeId:'upload',definitionRef:{definitionId:'builtin:file',version:1}},
+   {nodeId:'notes',definitionRef:{definitionId:'d_school',version:1}},
+   {nodeId:'pdf',definitionRef:{definitionId:'builtin:createFile',version:1}}
+ ],connections:[
+   {id:'read',kind:'data',from:{nodeId:'upload',port:'file'},to:{nodeId:'notes',port:'in'}},
+   {id:'export',kind:'data',from:{nodeId:'notes',port:'result'},to:{nodeId:'pdf',port:'in'}}
+ ]};
+ const projected=p.projectGraph({graph,definitions:[...catalog,custom]},undefined,nodeDefinitionsPublic);
+ const fileOut=projected.definitions.file.outputs.find(port=>port.id==='file');
+ const notesIn=projected.definitions['pointer:d_school:1'].inputs[0];
+ const notesOut=projected.definitions['pointer:d_school:1'].outputs[0];
+ const pdfIn=projected.definitions.createFile.inputs.find(port=>port.id==='in');
+ assert.equal(fileOut.type,'json');
+ assert.equal(pdfIn.type,'json');
+ assert.equal(notesIn.type,'json');
+ assert.equal(notesOut.type,'json');
+ assert.equal(notesIn.accepts.includes(fileOut.type),true);
+ assert.equal(pdfIn.accepts.includes(notesOut.type),true);
+ assert.equal(projected.workflow.connections.length,2);
+ const repo=new MemoryGraphRepository();
+ assert.doesNotThrow(()=>repo.restore('w','school',{graph,definitions:[...catalog,custom]}));
 });

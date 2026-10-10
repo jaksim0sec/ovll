@@ -5,6 +5,7 @@
   const fail=code=>{const e=new Error(code);e.code=code;throw e;};
   const refKey=d=>'pointer:'+d.definitionId+':'+d.version;
   const typeFor=d=>d.version===1&&/^builtin:(research|organize|judge|write|file|createFile)$/.test(d.definitionId)?d.definitionId.slice(8):refKey(d);
+  const supportedTypes=snapshot=>new Set((snapshot?.definitions||[]).map(typeFor));
   function settingsFor(node,prior={}){
     const settings={...prior};
     const request=node.data?.params?.request??node.params?.request;
@@ -124,5 +125,5 @@
       x:node.x,y:node.y,expanded:node.expanded
     }))};
   }
-  global.OvllPointerGraphPatch=Object.freeze({build,resolvedView});
+  global.OvllPointerGraphPatch=Object.freeze({build,resolvedView,supportedTypes});
 })(window);

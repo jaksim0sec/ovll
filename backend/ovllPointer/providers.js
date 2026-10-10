@@ -32,6 +32,8 @@ export async function waitForRetry(seconds, signal) {
 }
 export class ModelGateway {
   #providers = new Map();
+  // Provider schema support can differ by model and phase, even when JSON mode works.
+  #rejectedWireSchemas = new Set();
   register(providerId, adapter, capabilities = {}) {
     if (!/^[a-z0-9_-]{1,48}$/.test(providerId) || typeof adapter?.complete !== 'function') fail('INVALID_PROVIDER_REGISTRATION');
     this.#providers.set(providerId, { adapter, capabilities: Object.freeze({ ...capabilities }) });
@@ -49,10 +51,35 @@ export class ModelGateway {
     for (const m of messages) {
       if (!['system','developer','user','assistant'].includes(m.role) || typeof m.content !== 'string') fail('INVALID_MESSAGE');
     }
-    const useSchema=output==='json'&&wireSchema&&p.capabilities.structuredOutput===true;
-    const result = await p.adapter.complete({ model, messages, output, signal, maxOutputTokens,...(useSchema?{wireSchema}:{}) });
-    if (!result || typeof result.text !== 'string') fail('INVALID_PROVIDER_RESPONSE');
-    return { text: result.text, usage: result.usage || null, providerRequestId: result.requestId || null, providerId, model:result.model||model,providerCalls:result.providerCalls??1 };
+    const schemaKey=wireSchema?.name?providerId+':'+model+':'+wireSchema.name:null;
+    const useSchema=output==='json'&&wireSchema&&p.capabilities.structuredOutput===true&&
+      !this.#rejectedWireSchemas.has(schemaKey);
+    const args={model,messages,output,signal,maxOutputTokens};
+    let result,schemaFallbackUsed=!!wireSchema&&p.capabilities.structuredOutput===true&&!useSchema;
+    try{
+      result=await p.adapter.complete({...args,...(useSchema?{wireSchema}:{})});
+    }catch(error){
+      // A provider may reject its structured-output schema before the model runs.
+      // Retry once as plain JSON, keeping the same local semantic validation.
+      if(!useSchema||error?.code!=='PROVIDER_HTTP_ERROR'||error.status!==400||signal?.aborted)
+        throw error;
+      try{
+        result=await p.adapter.complete(args);
+      }catch(fallbackError){
+        if(fallbackError&&typeof fallbackError==='object'){
+          fallbackError.providerCalls=(error.providerCalls??1)+(fallbackError.providerCalls??1);
+          fallbackError.schemaFallbackAttempted=true;
+        }
+        throw fallbackError;
+      }
+      this.#rejectedWireSchemas.add(schemaKey);
+      schemaFallbackUsed=true;
+      result={...result,providerCalls:(error.providerCalls??1)+(result.providerCalls??1)};
+    }
+    if(!result||typeof result.text!=='string')fail('INVALID_PROVIDER_RESPONSE');
+    return {text:result.text,usage:result.usage||null,providerRequestId:result.requestId||null,
+      providerId,model:result.model||model,providerCalls:result.providerCalls??1,
+      schemaFallbackUsed};
   }
 }
 export function openAIChatAdapter({ endpoint, apiKey, fetchImpl = fetch } = {}) {

@@ -48,3 +48,14 @@ test('unknown node types fail closed; two instances may scope requests independe
   assert.equal(result.patch.definitions.length,0);
   assert.deepEqual(Array.from(result.patch.operations,x=>x.settings.request),['changed 0','changed 1']);
 });
+
+test('node builder only offers types which have a canonical Pointer definition',()=>{
+ const supported=window.OvllPointerGraphPatch.supportedTypes(snapshot);
+ assert.equal(supported.has('pointer:d1:1'),true);
+ assert.equal(supported.has('custom:legacy'),false);
+ assert.equal(supported.has('file'),false);
+ assert.equal(supported.has('start'),false);
+ const extended={...snapshot,definitions:[...snapshot.definitions,
+   {definitionId:'builtin:file',version:1}]};
+ assert.equal(window.OvllPointerGraphPatch.supportedTypes(extended).has('file'),true);
+});

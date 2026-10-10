@@ -662,7 +662,13 @@
     }
 
     const detail =
-      code === 'POINTER_TASK_BUDGET_EXCEEDED'
+      code === 'UNSUPPORTED_UI_NODE_TYPE'
+        ? '현재 그래프에서 지원하지 않는 노드 종류야. 저장되지 않은 노드는 자동 실행하지 않아.'
+        : code === 'UNKNOWN_TARGET' || code === 'NODE_NOT_SAVED'
+          ? '실행할 노드가 현재 저장된 그래프에 없어. 먼저 노드 구성이 저장됐는지 확인해 줘.'
+        : code === 'CANVAS_RESTORING'
+          ? '캔버스를 불러오는 중이야. 화면 반영이 끝난 다음 실행해 줘.'
+        : code === 'POINTER_TASK_BUDGET_EXCEEDED'
         ? '작업 원문이나 변경 이력이 길이 한도를 넘었습니다. 원본과 제약을 보존하려면 새 대화에서 필요한 범위를 지정해 주세요.'
         : code === 'FUNCTION_SUCCESSFUL_TARGET_REQUIRED'
           ? '현재 작업에서 성공한 결과를 실행한 뒤 함수로 저장해 주세요.'
@@ -5684,11 +5690,33 @@
     return true;
   }
 
+  let pointerEditTask=null;
+  function startPointerEditCommit(){
+    if(pointerEditTask)return pointerEditTask;
+    const task=commitPointerCanvasEdit();
+    pointerEditTask=task;
+    void task.finally(()=>{if(pointerEditTask===task)pointerEditTask=null;}).catch(()=>{});
+    return task;
+  }
   function queuePointerEdit(){
     if(!pointerScope()||!state.pointerGraphSnapshot||state.pointerHydrating||state.destroyed||
       state.pointerEditInFlight||state.restoringConversation)return;
     clearTimeout(state.pointerEditTimer);
-    state.pointerEditTimer=setTimeout(()=>{state.pointerEditTimer=null;void commitPointerCanvasEdit();},700);
+    state.pointerEditTimer=setTimeout(()=>{
+      state.pointerEditTimer=null;
+      void startPointerEditCommit().catch(()=>{});
+    },700);
+  }
+  async function flushPointerCanvasEdit(nodeId){
+    if(state.pointerHydrating||state.restoringConversation)
+      throw new Error('CANVAS_RESTORING');
+    clearTimeout(state.pointerEditTimer);
+    state.pointerEditTimer=null;
+    const renamed=await (pointerEditTask||startPointerEditCommit());
+    const actualId=renamed?.[nodeId]||nodeId;
+    if(!state.pointerGraphSnapshot?.graph?.nodes?.some(node=>node.nodeId===actualId))
+      throw new Error('NODE_NOT_SAVED');
+    return actualId;
   }
 
   async function commitPointerCanvasEdit(){
@@ -5710,7 +5738,10 @@
         throw Object.assign(new Error(decision?.error?.code||'PATCH_REJECTED'),
           {code:decision?.error?.code||'PATCH_REJECTED'});
       state.pointerLocalView=PointerGraphPatch.resolvedView(local,decision.createdRefs,diff.newNodeKeys);
+      const renamed=Object.fromEntries(Object.entries(diff.newNodeKeys).map(([temporary,key])=>
+        [temporary,decision.createdRefs?.['node:'+key]]).filter(([,id])=>typeof id==='string'));
       await refreshPointerCanvas({force:true});
+      return renamed;
     }catch(error){
       state.pointerLocalView=null;
       try{await refreshPointerCanvas({force:true});}catch(reloadError){
@@ -5718,6 +5749,7 @@
       }
       showErrorNotice(error,{scope:'그래프 저장 오류',
         fallback:'서버에서 변경을 적용하지 못했습니다. 서버 상태로 복원합니다.'});
+      throw error;
     }finally{
       canvas.setInteractionEnabled?.(enabled);
       state.pointerEditInFlight=false;
@@ -6466,7 +6498,9 @@
       const owns=()=>localOperations.isCurrent(operation);
       setBusy(true);beginRuntimeActivity('실행 준비 중');
       try{
-        const run=await runLocalNodes({targets:[nodeId],damMode:mode,operation});
+        const persistedNodeId=await flushPointerCanvasEdit(nodeId);
+        if(!owns())return;
+        const run=await runLocalNodes({targets:[persistedNodeId],damMode:mode,operation});
         if(!owns())return;
         const delivery=localRunPresentation(run);
         addAssistantMessage(delivery.text,{artifacts:delivery.artifacts});
@@ -7663,6 +7697,8 @@
           history:true,
           svgLibrary:
             SvgLibrary,
+          filter:type=>!pointerScope()||
+            PointerGraphPatch.supportedTypes(state.pointerGraphSnapshot).has(type),
           beforeReset() {
             clearRuntimeConnections();
 

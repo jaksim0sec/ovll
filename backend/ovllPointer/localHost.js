@@ -83,6 +83,7 @@ export function createLocalPointerHost({gateway,resolveModel,validation=createCo
         try{
           const result=await gateway.complete({...active,output:'json',messages:callMessages,signal,...(projected?{wireSchema:wire}:{})});
           record.providerCalls=result.providerCalls??1;record.providerId=result.providerId||active.providerId;record.model=result.model||active.model;record.providerRequestId=result.providerRequestId||null;record.usage=result.usage||null;
+          if(result.schemaFallbackUsed)record.schemaFallbackUsed=true;
           meta.providerCalls+=record.providerCalls;meta.providerId=record.providerId;meta.model=record.model;
           if(result.usage){meta.usage??={};for(const [key,value] of Object.entries(result.usage))if(typeof value==='number'&&Number.isFinite(value))meta.usage[key]=(meta.usage[key]||0)+value;}
           return result;
