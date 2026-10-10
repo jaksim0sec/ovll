@@ -27,7 +27,7 @@ function harness(){
   const window={};
   for(const name of ['ovllPointerLocalActions','ovllPointerActivity'])
     vm.runInNewContext(readFileSync(new URL('../front/js/'+name+'.js',import.meta.url),'utf8'),{window,AbortController,console});
-  const messages=[],errors=[],executions=[],bindings=[],noop=()=>{};
+  const messages=[],errors=[],executions=[],bindings=[],fileNodes=[],noop=()=>{};
   const task={objective:'Export report',requestText:'Export report',constraints:[]};
   const snapshot={graph:{graphId:'g_a',revision:1,nodes:[]},definitions:[]};
   const fn={id:'saved-function',purpose:'Export report',inputs:[{name:'in',representation:'text'}]};
@@ -38,7 +38,8 @@ function harness(){
   };
   window.OvllPointerFunctions={list:()=>[fn],get:()=>fn,
     bind:(_fn,inputs)=>{bindings.push(inputs);return{snapshot,targets:['export'],requestText:'Export report',invariants:[]};}};
-  const state={destroyed:false,busy:false,runtimeActivity:{order:[]}};
+  const state={destroyed:false,busy:false,runtimeActivity:{order:[]},
+    canvas:{getNode:id=>({id})}};
   const sandbox={global:window,AbortController,console,state,
     localOperations:window.OvllPointerActivity.createOperations({getConversationId:()=> 'a'}),
     pointerScope:()=>({storageMode:'local',conversationId:'a'}),getPointerTask:()=>task,
@@ -48,6 +49,8 @@ function harness(){
     PointerAPI:{localTurn:async()=>({actions:[{localKey:'run',kind:'run.start',args:{targets:[{nodeId:'export'}]}}]}),
       localResponse:async()=>{throw Error('successful artifact must not request language inference');}},
     addAssistantMessage:(text,options={})=>messages.push({text,options}),
+    ensureArtifactFileNode:(nodeId,file)=>fileNodes.push({nodeId,file}),
+    flushPointerCanvasEdit:async nodeId=>nodeId,
     showErrorNotice:error=>errors.push(error),setBusy:value=>{state.busy=value;},
     composerInput:{value:''},Presence:{thinking:noop,settle:noop},runPresence:{reset:noop},
     recentAiConversation:()=>[],userFacingError:error=>error.message};
@@ -55,7 +58,7 @@ function harness(){
     'upsertRuntimeStep','pointerActionStarted','pointerActionResult','showLocalRun','pointerNodeProgress',
     'finishRuntimeActivity','focusComposerForDesktop','scheduleWorkspaceSave'])sandbox[name]=noop;
   vm.runInNewContext(appFunctions+'\nthis.prompt=runLocalPrompt;this.canvas=runPointerCanvasNode;',sandbox);
-  return {sandbox,messages,errors,executions,bindings};
+  return {sandbox,messages,errors,executions,bindings,fileNodes};
 }
 
 function assertCard(h){
@@ -63,6 +66,8 @@ function assertCard(h){
   assert.equal(h.messages.length,1);
   assert.ok(Array.isArray(h.messages[0].options.artifacts),'app must hand actual artifacts to existing message renderer');
   assert.deepEqual(JSON.parse(JSON.stringify(h.messages[0].options.artifacts)),[artifact]);
+  assert.deepEqual(JSON.parse(JSON.stringify(h.fileNodes)),[{nodeId:'export',file:artifact}],
+    'the same verified artifact must reach the canvas as well as the chat');
   assert.doesNotMatch(h.messages[0].text,/\/api\/artifacts\/|\]\(/);
 }
 
