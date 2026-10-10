@@ -5925,10 +5925,34 @@
       await PointerAPI.state(scope.graphId,scope.taskRef);
     if(state.destroyed||conversation!==state.activeConversationId)return snapshot.eventCursor;
     state.pointerEventCursor=snapshot.eventCursor;
+    let localNodes=[];
+    if(scope.storageMode==='local'){
+      const rows=new Map();
+      for(const run of WorkspaceStore.getConversation(scope.conversationId)?.state.pointerRuns||[])
+        if(run.graphRef?.graphId===scope.graphId)for(const row of run.nodes||[])
+          rows.set(row.nodeId,{...row,runId:run.runId});
+      localNodes=await global.OvllPointerLocal.validateResults(snapshot.graph,[...rows.values()],
+        getPointerTask(scope.conversationId)?{taskContext:getPointerTask(scope.conversationId)}:{});
+      if(state.destroyed||conversation!==state.activeConversationId)return snapshot.eventCursor;
+    }
     if(snapshot.graph?.graph?.revision>=state.pointerGraphRevision){
       state.pointerHydrating=true;
       try{
-        global.OvllPointerProjection.applyGraph(state.canvas,snapshot.graph,state.pointerLocalView);
+        const previousNodes=state.canvas.getWorkflow?.()?.nodes||[];
+        const resultFiles=scope.storageMode==='local'?
+          global.OvllPointerProjection.resultFileNodes(snapshot.graph,localNodes,previousNodes):[];
+        for(const node of resultFiles){
+          if(!node.data.localFileId)continue;
+          try{
+            const local=await FileStore.hydrate(node.data.localFileId);
+            if(local?.downloadUrl){
+              node.data.downloadUrl=local.downloadUrl;
+              node.data.previewUrl=local.previewUrl||local.downloadUrl;
+            }
+          }catch(error){console.warn('OvllPointer result file hydration failed',error);}
+        }
+        if(state.destroyed||conversation!==state.activeConversationId)return snapshot.eventCursor;
+        global.OvllPointerProjection.applyGraph(state.canvas,snapshot.graph,state.pointerLocalView,resultFiles);
         state.pointerLocalView=null;
         state.pointerGraphRevision=snapshot.graph.graph.revision;
         state.pointerGraphSnapshot=snapshot.graph;
@@ -5936,14 +5960,8 @@
       }finally{state.pointerHydrating=false;}
     }
     if(scope.storageMode==='local'){
-      const rows=new Map();
-      for(const run of WorkspaceStore.getConversation(scope.conversationId)?.state.pointerRuns||[])
-        if(run.graphRef?.graphId===scope.graphId)for(const row of run.nodes||[])rows.set(row.nodeId,{...row,runId:run.runId});
-      const nodes=await global.OvllPointerLocal.validateResults(snapshot.graph,[...rows.values()],
-        getPointerTask(scope.conversationId)?{taskContext:getPointerTask(scope.conversationId)}:{});
-      if(state.destroyed||conversation!==state.activeConversationId)return snapshot.eventCursor;
       state.canvas?.clearRuntimeNodeStates?.();
-      showLocalRun({nodes});
+      showLocalRun({nodes:localNodes});
     }
     for(const run of snapshot.runs||[]){
       if(!run.runId)continue;
@@ -6161,13 +6179,22 @@
     const owned={conversationId:scope.conversationId,controller,nodeIds:new Set(targets),operation};
     localRunActive=owned;
     try{
-      return await global.OvllPointerLocal.run({conversationId:scope.conversationId,targets,deliverableTargets,
+      const run=await global.OvllPointerLocal.run({conversationId:scope.conversationId,targets,deliverableTargets,
         damMode,requestText,snapshotOverride,taskConstraints,taskContext,cache,signal:controller.signal,onProgress:run=>{
           if(localRunActive!==owned||!localOperations.isCurrent(operation))return;
           owned.nodeIds=new Set(run.nodes.map(x=>x.nodeId));
           showLocalRun(run);
           pointerNodeProgress(run);
         }});
+      if(localOperations.isCurrent(operation)&&typeof refreshPointerCanvas==='function'){
+        try{await refreshPointerCanvas({force:true});}
+        catch(error){
+          console.warn('OvllPointer canvas artifact projection failed',error);
+          showErrorNotice(error,{scope:'결과물 노드 표시 오류',
+            fallback:'결과물은 생성됐지만 캔버스에 표시하지 못했어.'});
+        }
+      }
+      return run;
     }finally{
       operation.signal.removeEventListener('abort',abort);
       if(localRunActive===owned)localRunActive=null;

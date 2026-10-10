@@ -28,7 +28,11 @@
     const before=new Map(graph.nodes.map(n=>[n.nodeId,n]));
     const after=new Map(),defs=new Map(snapshot.definitions.flatMap(d=>[[typeFor(d),d],[refKey(d),d]]));
     const operations=[],definitions=[],added=new Map(),moved=new Map();
-    for(const [i,node] of workflow.nodes.entries()){
+    // Confirmed result files are projected UI entries until a user connects one.
+    const connected=new Set(workflow.connections.flatMap(link=>[link?.from?.node,link?.to?.node]));
+    const editableNodes=workflow.nodes.filter(node=>node?.type!=='file'||
+      node.data?.generated!==true||before.has(node.id)||connected.has(node.id));
+    for(const [i,node] of editableNodes.entries()){
       if(!safe(node?.id)||after.has(node.id))fail('INVALID_CANVAS_NODE');
       after.set(node.id,node);
       if(!before.has(node.id)){

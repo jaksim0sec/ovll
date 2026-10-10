@@ -98,11 +98,54 @@
     return {graphId:snapshot.graph.graphId,revision:snapshot.graph.revision,
       definitions,workflow:{nodes,links,data,connections}};
   }
-  function applyGraph(canvas,snapshot,restoredView){
+  function resultFileNodes(snapshot,verified=[],previous=[]){
+    const graph=snapshot?.graph;
+    if(!Array.isArray(graph?.nodes))return [];
+    const nodeIds=new Set(graph.nodes.map(n=>n.nodeId));
+    const canonicalFiles=new Set(graph.nodes.filter(n=>n.definitionRef?.definitionId==='builtin:file')
+      .map(n=>n.settings?.file?.localFileId).filter(Boolean));
+    const positions=new Map((previous||[]).map(n=>[n.id,n]));
+    const previousFiles=new Map((previous||[]).filter(n=>n.type==='file'&&n.data?.generated===true)
+      .map(n=>[n.data.artifactId,n]));
+    const latest=new Map();
+    for(const row of verified)if(nodeIds.has(row?.nodeId))latest.set(row.nodeId,row);
+    const seen=new Set(),files=[];
+    for(const [sourceId,row] of latest){
+      if(row.status!=='success'||row.resultCurrent===false||
+        row.toolEffectStarted!==true||row.effectConfirmed!==true)continue;
+      for(const output of Object.values(row.outputs?.values||{})){
+        const artifact=output?.inline;
+        if(!isObject(artifact))continue;
+        const artifactId=String(artifact.id||''),url=String(artifact.downloadUrl||'');
+        if(!/^[A-Za-z0-9_.:-]{1,135}$/.test(artifactId)||
+          !/^(https?:\/\/|\/(?!\/)|blob:)/.test(url)||/[\s()<>\"']/.test(url)||
+          seen.has(artifactId)||(artifact.localFileId&&canonicalFiles.has(artifact.localFileId)))continue;
+        seen.add(artifactId);
+        const prior=previousFiles.get(artifactId),source=positions.get(sourceId);
+        files.push({id:'result:'+artifactId,type:'file',expanded:prior?.expanded??false,
+          x:Number.isFinite(prior?.x)?prior.x:(Number(source?.x)||0)+220,
+          y:Number.isFinite(prior?.y)?prior.y:(Number(source?.y)||0)+(files.length%3)*54,
+          data:{generated:true,artifactId,sourceNodeId:sourceId,
+            localFileId:artifact.localFileId||'',name:artifact.name||'결과물',
+            mime:artifact.mime||'application/octet-stream',size:Number(artifact.size)||0,
+            format:artifact.format||'',renderer:artifact.renderer||'',
+            targetPages:artifact.targetPages??null,previewKind:artifact.previewKind||'',
+            previewText:artifact.previewText||'',downloadUrl:url,
+            previewUrl:artifact.previewUrl||url}});
+      }
+    }
+    return files;
+  }
+  function applyGraph(canvas,snapshot,restoredView,extraNodes=[]){
     if(!canvas?.getWorkflow||!canvas?.getBaseNodeDefinitions||
       !canvas?.setNodeDefinitions||!canvas?.applyWorkflowIR)throw new Error('POINTER_CANVAS_UNAVAILABLE');
     const base=canvas.getBaseNodeDefinitions();
     const projected=projectGraph(snapshot,Array.isArray(restoredView?.nodes)?restoredView:canvas.getWorkflow(),base);
+    const known=new Set(projected.workflow.nodes.map(n=>n.id));
+    for(const node of extraNodes){
+      if(node?.type!=='file'||node.data?.generated!==true||known.has(node.id))continue;
+      projected.workflow.nodes.push(clone(node));known.add(node.id);
+    }
     const legacy=Object.fromEntries(Object.entries(base)
       .filter(([type])=>!type.startsWith('pointer:')));
     canvas.setNodeDefinitions({...legacy,...projected.definitions});
@@ -139,5 +182,5 @@
       return String(role).slice(0,35)+': '+raw.replace(/\s+/g,' ').slice(0,140);
     }).filter(Boolean).join(' · ').slice(0,220);
   }
-  global.OvllPointerProjection=Object.freeze({projectGraph,applyGraph,statusNode,applyRunState,artifactPreview});
+  global.OvllPointerProjection=Object.freeze({projectGraph,applyGraph,resultFileNodes,statusNode,applyRunState,artifactPreview});
 })(window);
