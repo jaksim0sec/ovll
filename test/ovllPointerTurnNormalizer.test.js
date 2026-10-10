@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {normalizeModelTurn,diagnoseModelTurn,modelTurnShape,repairTargetHints} from '../backend/ovllPointer/turnNormalizer.js';
 import {createContractValidation} from '../backend/ovllPointer/validation.js';
+import {MemoryGraphRepository} from '../backend/ovllPointer/graph.js';
 
 const nodeAdd=(definitionRef={definitionId:'builtin:write',version:1})=>({
   op:'node.add',definitionRef
@@ -268,4 +269,91 @@ test('candidate hints are capped and do not copy user requests or model instruct
  const hints=repairTargetHints(turn,issues);
  assert.equal(hints[0].allowedLocalNodeKeys.length,8);
  assert.ok(!JSON.stringify(hints).includes('PRIVATE'));
+});
+
+
+test('missing definition localKey is recovered from the unique explicit node.add reference',()=>{
+ const definition={purpose:'Reusable reviewer',instruction:'Review the supplied evidence'};
+ const original={actions:[action([{...nodeAdd({localDefinitionKey:'reviewDraft'}),localNodeKey:'review'}],
+  {definitions:[definition]})]};
+ const events=[];
+ const turn=normalizeModelTurn(original,{normalizations:events});
+ assert.equal(turn.actions[0].args.patch.definitions[0].localKey,'reviewDraft');
+ assert.equal(original.actions[0].args.patch.definitions[0].localKey,undefined);
+ assert.equal(validator.validateTurn(turn),true);
+ assert.deepEqual(events,['definitionKey@0:0']);
+ assert.deepEqual(normalizeModelTurn(turn),turn);
+});
+test('new definition key may be recovered from node.update references, without changing nodeId',()=>{
+ const turn=normalizeModelTurn({actions:[action([{
+  op:'node.update',nodeId:'existing',definitionRef:{localDefinitionKey:'nextDefinition'}
+ }],{definitions:[{purpose:'Updated reviewer',instruction:'Keep evidence'}]})]});
+ assert.equal(turn.actions[0].args.patch.definitions[0].localKey,'nextDefinition');
+ assert.equal(turn.actions[0].args.patch.operations[0].nodeId,'existing');
+ assert.equal(validator.validateTurn(turn),true);
+});
+test('shared exact references to the same missing definition remain unambiguous',()=>{
+ const turn=normalizeModelTurn({actions:[action([
+  {...nodeAdd({localDefinitionKey:'shared'}),localNodeKey:'one'},
+  {...nodeAdd({localDefinitionKey:'shared'}),localNodeKey:'two'}
+ ],{definitions:[{purpose:'Shared',instruction:'Reuse'}]})]});
+ assert.equal(turn.actions[0].args.patch.definitions[0].localKey,'shared');
+ assert.equal(validator.validateTurn(turn),true);
+});
+test('unreferenced, multiple missing definitions and multiple unbound handles stay invalid',()=>{
+ const def=()=>({purpose:'Unique',instruction:'Work'});
+ const standalone=normalizeModelTurn({actions:[action([],{definitions:[def()]})]});
+ assert.equal(standalone.actions[0].args.patch.definitions[0].localKey,undefined);
+ assert.equal(validator.validateTurn(standalone),false);
+ const multiple=normalizeModelTurn({actions:[action([
+  {...nodeAdd({localDefinitionKey:'draft'}),localNodeKey:'n'}
+ ],{definitions:[def(),def()]})]});
+ assert.deepEqual(multiple.actions[0].args.patch.definitions.map(d=>d.localKey),[undefined,undefined]);
+ const twoHandles=normalizeModelTurn({actions:[action([
+  {...nodeAdd({localDefinitionKey:'first'}),localNodeKey:'a'},
+  {...nodeAdd({localDefinitionKey:'second'}),localNodeKey:'b'}
+ ],{definitions:[def()]})]});
+ assert.equal(twoHandles.actions[0].args.patch.definitions[0].localKey,undefined);
+});
+test('unknown, invalid and duplicate definition keys cannot be silently reassigned',()=>{
+ const def={purpose:'Check',instruction:'Verify'};
+ const missing=normalizeModelTurn({actions:[action([
+  {...nodeAdd({localDefinitionKey:'saved'}),localNodeKey:'n'}
+ ],{definitions:[{localKey:'saved',...def},{...def}]})]});
+ assert.equal(missing.actions[0].args.patch.definitions[1].localKey,undefined);
+ const invalid=normalizeModelTurn({actions:[action([
+  {...nodeAdd({localDefinitionKey:'saved'}),localNodeKey:'n'}
+ ],{definitions:[{localKey:'bad key',...def},{...def}]})]});
+ assert.equal(invalid.actions[0].args.patch.definitions[1].localKey,undefined);
+ const duplicate=normalizeModelTurn({actions:[action([
+  {...nodeAdd({localDefinitionKey:'other'}),localNodeKey:'n'}
+ ],{definitions:[{localKey:'dup',...def},{localKey:'dup',...def},{...def}]})]});
+ assert.equal(duplicate.actions[0].args.patch.definitions[2].localKey,undefined);
+});
+test('cross-action and invalid referenced handles never supply missing localKey',()=>{
+ const draft={purpose:'Current',instruction:'Only local refs'};
+ const patches={actions:[
+  action([],{definitions:[draft]}),
+  {...action([{...nodeAdd({localDefinitionKey:'fromOtherPatch'}),localNodeKey:'n'}]),localKey:'next'}
+ ]};
+ assert.equal(normalizeModelTurn(patches).actions[0].args.patch.definitions[0].localKey,undefined);
+ const malformed={actions:[action([{...nodeAdd({localDefinitionKey:'bad key'}),localNodeKey:'n'}],
+  {definitions:[draft]})]};
+ assert.equal(normalizeModelTurn(malformed).actions[0].args.patch.definitions[0].localKey,undefined);
+});
+
+test('recovered definition localKey resolves to persisted definition and node refs in graph kernel',()=>{
+ const turn=normalizeModelTurn({actions:[action([
+  {...nodeAdd({localDefinitionKey:'reference'}),localNodeKey:'reviewNode'}
+ ],{definitions:[{purpose:'Review',instruction:'Check sources'}]})]});
+ const store=new MemoryGraphRepository();
+ store.create('workspace','g');
+ let id=0;
+ const applied=store.apply('workspace',turn.actions[0].args.patch,()=>String(++id));
+ assert.equal(typeof applied.createdRefs['definition:reference'],'string');
+ assert.equal(typeof applied.createdRefs['node:reviewNode'],'string');
+ const item=store.get('workspace','g');
+ assert.equal(item.graph.nodes.length,1);
+ assert.equal(item.definitions.length,1);
+ assert.equal(item.graph.nodes[0].definitionRef.definitionId,item.definitions[0].definitionId);
 });

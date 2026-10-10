@@ -25,6 +25,28 @@ function normalizeDefinition(d){
     d.outputs===undefined?[{name:'result',role:'결과',representation:'json',required:false}]:d.outputs;
   return {...draft,executorKind:d.executorKind??'model_task',inputs,outputs};
 }
+// Bind a missing definition handle only to a single, explicit same-patch reference.
+function restoreDefinitionHandle(patch){
+  if(!Array.isArray(patch.definitions)||!Array.isArray(patch.operations))return null;
+  const drafts=patch.definitions;
+  const missing=drafts.map((d,i)=>isObject(d)&&d.localKey===undefined?i:-1).filter(i=>i>=0);
+  if(missing.length!==1||drafts.some(d=>!isObject(d)||d.localKey!==undefined&&!isKey(d.localKey)))return null;
+  const named=drafts.map(d=>d.localKey).filter(isKey);
+  if(new Set(named).size!==named.length)return null;
+  const referenced=new Set();
+  for(const op of patch.operations){
+    if(op?.op!=='node.add'&&op?.op!=='node.update')continue;
+    const ref=op.definitionRef;
+    if(!isObject(ref)||!Object.hasOwn(ref,'localDefinitionKey'))continue;
+    if(Object.keys(ref).length!==1||!isKey(ref.localDefinitionKey))return null;
+    if(!named.includes(ref.localDefinitionKey))referenced.add(ref.localDefinitionKey);
+  }
+  if(referenced.size!==1)return null;
+  const key=referenced.values().next().value,index=missing[0];
+  return {index,patch:{...patch,definitions:drafts.map((d,i)=>
+    i===index?{...d,localKey:key}:d)}};
+}
+
 function patchOf(action){
   return action?.kind==='ir.applyPatch'&&isObject(action.args?.patch)?action.args.patch:null;
 }
@@ -123,6 +145,8 @@ export function normalizeModelTurn(value,{normalizations=[]}={}){
     let patch={...source};
     if(Array.isArray(patch.definitions))
       patch.definitions=patch.definitions.map(normalizeDefinition);
+    const restored=restoreDefinitionHandle(patch);
+    if(restored){patch=restored.patch;normalizations.push('definitionKey@'+index+':'+restored.index);}
     if(Array.isArray(patch.operations))patch.operations=patch.operations.map(op=>
       op?.op==='definition.appearance'&&op.presentation!==undefined?
         {...op,presentation:normalizePresentation(op.presentation)}:op);
