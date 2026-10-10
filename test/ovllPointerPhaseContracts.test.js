@@ -123,3 +123,29 @@ test('structured wire turn uses wire example and records unambiguous patch recov
  assert.match(policy,/"argsJson":/);
  assert.doesNotMatch(policy,/"args":\{"patch"/);
 });
+
+test('ambiguous run-target repair receives producer-scoped candidates without logging key values',async()=>{
+ const patch={graphId:'g',expectedGraphRevision:0,definitions:[],operations:[
+  {op:'node.add',localNodeKey:'writer',definitionRef:{definitionId:'builtin:write',version:1}},
+  {op:'node.add',localNodeKey:'reviewer',definitionRef:{definitionId:'builtin:write',version:1}}
+ ]};
+ const first={executionIntent:'requested',actions:[
+  {localKey:'p',kind:'ir.applyPatch',args:{patch}},
+  {localKey:'r',kind:'run.start',dependsOn:['p'],
+   args:{targets:[{fromAction:'p'}],damMode:'closed'}}
+ ]};
+ const corrected=structuredClone(first);
+ corrected.actions[1].args.targets[0].localNodeKey='writer';
+ const calls=[];
+ const result=await host([first,corrected],calls).turn({
+  snapshot:snapshot(),requestRef:'repair_candidates',requestText:'Run only the new writer'});
+ assert.equal(calls.length,2);
+ const repair=calls[1].messages.at(-1).content;
+ assert.match(repair,/"fromAction":"p","allowedLocalNodeKeys":\["writer","reviewer"\]/);
+ assert.match(repair,/do not guess|only if|only when/i);
+ assert.equal(result.actions[1].args.targets[0].localNodeKey,'writer');
+ assert.equal(result._meta.repairCount,1);
+ const diagnostics=JSON.stringify(result._meta);
+ assert.ok(!diagnostics.includes('"writer"'));
+ assert.ok(!diagnostics.includes('"reviewer"'));
+});

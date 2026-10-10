@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {normalizeModelTurn,diagnoseModelTurn,modelTurnShape} from '../backend/ovllPointer/turnNormalizer.js';
+import {normalizeModelTurn,diagnoseModelTurn,modelTurnShape,repairTargetHints} from '../backend/ovllPointer/turnNormalizer.js';
 import {createContractValidation} from '../backend/ovllPointer/validation.js';
 
 const nodeAdd=(definitionRef={definitionId:'builtin:write',version:1})=>({
@@ -216,4 +216,56 @@ test('existing node IDs, no-run intent and invalid dependency shapes remain unch
  const noRun={actions:[source]};
  assert.equal(normalizeModelTurn(noRun).actions.length,1);
  assert.equal(normalizeModelTurn(noRun).executionIntent,undefined);
+});
+
+test('candidate repair identifies only valid handles from the referenced producer',()=>{
+ const turn=normalizeModelTurn({actions:[action([
+  {...nodeAdd(),localNodeKey:'writer'},{...nodeAdd(),localNodeKey:'reviewer'}
+ ]),{localKey:'run',kind:'run.start',dependsOn:['patch'],
+  args:{targets:[{fromAction:'patch'}]}}]});
+ const issues=diagnoseModelTurn(turn,validator.explainTurn(turn));
+ assert.deepEqual(repairTargetHints(turn,issues),[{
+  path:'/actions/1/args/targets/0/localNodeKey',
+  fromAction:'patch',allowedLocalNodeKeys:['writer','reviewer']
+ }]);
+});
+test('irrelevant issue and unique targets do not receive candidate repair hints',()=>{
+ const unique=normalizeModelTurn({actions:[action([
+  {...nodeAdd(),localNodeKey:'single'}
+ ]),{localKey:'run',kind:'run.start',dependsOn:['patch'],
+  args:{targets:[{fromAction:'patch'}]}}]});
+ assert.deepEqual(repairTargetHints(unique,[]),[]);
+ const ambiguous=normalizeModelTurn({actions:[action([
+  {...nodeAdd(),localNodeKey:'writer'},{...nodeAdd(),localNodeKey:'reviewer'}
+ ]),{localKey:'run',kind:'run.start',args:{targets:[{fromAction:'patch'}]}}]});
+ assert.deepEqual(repairTargetHints(ambiguous,[{path:'/actions/0/args',rule:'required',missing:'patch'}]),[]);
+});
+test('duplicate, malformed, unknown producer and persistent node target stay fail-closed',()=>{
+ const producer=action([{...nodeAdd(),localNodeKey:'same'},
+  {...nodeAdd(),localNodeKey:'same'}]);
+ const run={localKey:'run',kind:'run.start',args:{targets:[{fromAction:'patch'}]}};
+ const issues=[{path:'/actions/1/args/targets/0/localNodeKey',
+   rule:'required',missing:'localNodeKey'}];
+ assert.deepEqual(repairTargetHints({actions:[producer,run]},issues),[]);
+ producer.args.patch.operations[1].localNodeKey='bad key';
+ assert.deepEqual(repairTargetHints({actions:[producer,run]},issues),[]);
+ producer.args.patch.operations[1].localNodeKey='good';
+ assert.deepEqual(repairTargetHints({actions:[producer,{...run,
+  args:{targets:[{fromAction:'elsewhere'}]}}]},issues),[]);
+ assert.deepEqual(repairTargetHints({actions:[producer,{...run,
+  args:{targets:[{nodeId:'existing'}]}}]},issues),[]);
+});
+test('candidate hints are capped and do not copy user requests or model instructions',()=>{
+ const producer=action(Array.from({length:9},(_,i)=>({
+  ...nodeAdd(),localNodeKey:'handle'+i,settings:{request:'PRIVATE '+i}
+ })));
+ const turn={actions:[producer,{localKey:'run',kind:'run.start',
+  args:{targets:[{fromAction:'patch'}]}}]};
+ const issues=[{path:'/actions/1/args/targets/0/localNodeKey',
+  rule:'required',missing:'localNodeKey'}];
+ assert.deepEqual(repairTargetHints(turn,issues),[]);
+ producer.args.patch.operations.pop();
+ const hints=repairTargetHints(turn,issues);
+ assert.equal(hints[0].allowedLocalNodeKeys.length,8);
+ assert.ok(!JSON.stringify(hints).includes('PRIVATE'));
 });

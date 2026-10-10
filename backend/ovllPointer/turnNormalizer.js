@@ -268,3 +268,33 @@ export function diagnoseModelTurn(value,issues=[]){
   return trustworthy.length?trustworthy.slice(0,4):
     [{path:'/',rule:'schemaMismatch'}];
 }
+
+// Repair-only hints: never infer which of several nodes should execute.
+// Return identifiers from a single same-turn producing patch; no user content.
+export function repairTargetHints(turn,issues=[]){
+  if(!Array.isArray(turn?.actions)||!Array.isArray(issues))return [];
+  const actions=turn.actions,counts=new Map();
+  for(const action of actions)if(isKey(action?.localKey))
+    counts.set(action.localKey,(counts.get(action.localKey)||0)+1);
+  const hints=[];
+  for(const issue of issues){
+    if(issue?.missing!=='localNodeKey')continue;
+    const match=/^\/actions\/(\d+)\/args\/targets\/(\d+)\/localNodeKey$/.exec(issue.path);
+    if(!match)continue;
+    const index=Number(match[1]),targetIndex=Number(match[2]);
+    const action=actions[index],target=action?.args?.targets?.[targetIndex];
+    if(action?.kind!=='run.start'||!isObject(target)||target.nodeId!==undefined||
+      target.localNodeKey!==undefined||!isKey(target.fromAction)||
+      counts.get(target.fromAction)!==1)continue;
+    const producer=actions.find(a=>a?.localKey===target.fromAction);
+    const operations=patchOf(producer)?.operations;
+    if(!Array.isArray(operations))continue;
+    const adds=operations.filter(op=>op?.op==='node.add');
+    if(adds.length<2||adds.length>8)continue;
+    const keys=adds.map(op=>op.localNodeKey);
+    if(!keys.every(isKey)||new Set(keys).size!==keys.length)continue;
+    hints.push({path:issue.path,fromAction:target.fromAction,allowedLocalNodeKeys:keys});
+    if(hints.length===4)break;
+  }
+  return hints;
+}
