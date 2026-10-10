@@ -30,8 +30,8 @@ async function fixture({conditional=false,toolRoot=false}={}){
     {localKey:'patch',kind:'ir.applyPatch',args:{patch}},
     {localKey:'run',kind:'run.start',dependsOn:['patch'],args:{targets:[{fromAction:'patch',localNodeKey:'child'}]}}
   ]},{...scope,requestRef,graphId,taskRef:taskId});
-  assert.deepEqual(result.results.map(x=>x.status),['applied','scheduled']);
-  return {...scope,scope,graphId,taskId,createdRefs:result.results[0].createdRefs,runRef:result.results[1].runRef,store:s};
+  assert.deepEqual(result.results.map(x=>x.status),conditional?['rejected','rejected']:['applied','scheduled']);
+  return {...scope,scope,graphId,taskId,result,createdRefs:result.results[0].createdRefs,runRef:result.results[1].runRef,store:s};
 }
 before(async()=>{for(const file of ['001_initial.sql','002_node_evidence.sql','003_lifecycle.sql']){
   await pool.query(await readFile(new URL('../backend/ovllPointer/sql/'+file,import.meta.url),'utf8'));
@@ -112,13 +112,16 @@ test('Reclaimed pure-model run reuses persisted semantic attempts without a dupl
   const a=await pool.query('SELECT count(*)::int AS n FROM ov_attempts WHERE workspace_id=$1 AND run_id=$2',[f.workspaceRef,f.runRef]);
   assert.equal(a.rows[0].n,2);
 });
-test('Conditional flow branches are blocked instead of executing both outcomes',async()=>{
+test('Undeclared conditional flow is rejected before scheduling or executing either outcome',async()=>{
   const f=await fixture({conditional:true});
-  const job=await f.store.claimRun({workerRef:uid('worker'),workspaceRef:f.workspaceRef});
+  assert.equal(f.result.results[0].error.code,'PORT_MISMATCH');
+  assert.equal(f.result.results[1].error.code,'DEPENDENCY_NOT_APPLIED');
+  assert.equal((await f.store.readGraph(f.scope,f.graphId)).graph.revision,0);
   let calls=0;
   const run=createNodeExecution({pool,executeNode:async()=>{calls++;return produced('x');}});
-  await assert.rejects(run(job),e=>e.code==='CONDITIONAL_ROUTING_NOT_IMPLEMENTED');
+  await createRunWorker({store:f.store,executeRun:run,workerRef:uid('worker')}).workOnce({workspaceRef:f.workspaceRef});
   assert.equal(calls,0);
+  assert.equal((await pool.query('SELECT count(*)::int AS n FROM ov_attempts WHERE workspace_id=$1',[f.workspaceRef])).rows[0].n,0);
 });
 
 test('same Run and lease cannot execute simultaneously through two executor invocations',async()=>{
@@ -241,7 +244,7 @@ test('a data join waits for both producers and never treats flow-only edges as v
   {op:'node.add',localNodeKey:'other',definitionRef:{definitionId:f.createdRefs['definition:a'],version:1}},add('joined','join'),
   link('left',{nodeId:f.createdRefs['node:child']},{localNodeKey:'joined'},'left'),
   link('right',{localNodeKey:'other'},{localNodeKey:'joined'},'right'),
-  link('order',{nodeId:f.createdRefs['node:root']},{localNodeKey:'joined'},'enter','flow')
+  link('order',{nodeId:f.createdRefs['node:root']},{localNodeKey:'joined'},'in','flow')
  ]};
  const result=await f.store.submit({actions:[{localKey:'p',kind:'ir.applyPatch',args:{patch}},
   {localKey:'r',kind:'run.start',dependsOn:['p'],args:{targets:[{fromAction:'p',localNodeKey:'joined'}]}}
