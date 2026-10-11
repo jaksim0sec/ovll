@@ -141,8 +141,8 @@ test('reserved flow next shares the visible semantic output',()=>{
     definitionRef:{definitionId:'builtin:'+type,version:1},settings:{},inputBindings:{}})),
     connections:[{id:'flow1',kind:'flow',from:{nodeId:'write',port:'next'},to:{nodeId:'organize',port:'in'}}]};
   const projected=p.projectGraph({graph,definitions},undefined,nodeDefinitionsPublic);
-  assert.deepEqual(projected.definitions.write.outputs.map(x=>x.id),['result']);
-  assert.deepEqual(projected.definitions.organize.inputs.map(x=>x.id),['in']);
+  assert.deepEqual(Array.from(projected.definitions.write.outputs,x=>x.id),['result']);
+  assert.deepEqual(Array.from(projected.definitions.organize.inputs,x=>x.id),['in']);
   assert.deepEqual(Array.from(projected.workflow.links[0]),['write.result','organize.in']);
   assert.equal(projected.workflow.connections[0].data.pointer.from.port,'next');
 });

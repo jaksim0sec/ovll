@@ -94,7 +94,7 @@ test('builtins keep original UI port count and node request is never invented',(
   assert.equal(customProjected.definitions['pointer:d_ui:1'].params[0].default,'');
   assert.equal(customProjected.workflow.nodes[0].params.request,'');
 });
-test('legacy synthetic flow endpoints remain distinct and preserve logical routing on unrelated edits',()=>{
+test('legacy flow endpoints share visible sockets without altering saved logical routing',()=>{
   const {window}=browser(),definitions=getPointerCatalog().definitions;
   const graph={graphId:'g_links',revision:1,nodes:['write','organize'].map(type=>({
     nodeId:type,definitionRef:{definitionId:'builtin:'+type,version:1},settings:{},inputBindings:{}})),
@@ -102,7 +102,7 @@ test('legacy synthetic flow endpoints remain distinct and preserve logical routi
       to:{nodeId:'organize',port:'flow_in'}}]};
   const snapshot={graph,definitions};
   const projected=window.OvllPointerProjection.projectGraph(snapshot,undefined,nodeDefinitionsPublic);
-  assert.deepEqual(JSON.parse(JSON.stringify(projected.workflow.links)),[['write.next','organize.flow_in']]);
+  assert.deepEqual(JSON.parse(JSON.stringify(projected.workflow.links)),[['write.result','organize.in']]);
   assert.equal(window.OvllPointerGraphPatch.build(snapshot,{nodes:projected.workflow.nodes,
     connections:projected.workflow.connections}),null);
   const nodes=JSON.parse(JSON.stringify(projected.workflow.nodes));nodes[0].data.params={request:'Use these sources'};

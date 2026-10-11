@@ -124,7 +124,7 @@ test('server flow and data on shared sockets survive read, edit and save',()=>{
   const view=clone(projected.workflow);
   view.nodes[0].params.request='Change the writer request only';
   const patch=window.OvllPointerGraphPatch.build(snapshot,view).patch;
-  assert.deepEqual(patch.operations.map(op=>op.op),['node.update']);
+  assert.deepEqual(Array.from(patch.operations,op=>op.op),['node.update']);
   const repo=repository(snapshot);apply(repo,patch);
   assert.deepEqual(repo.get('w','g').graph.connections,graph.connections);
 });

@@ -36,11 +36,12 @@ test('multiple upstream data sources share a port, but fixed literals and single
  new MemoryGraphRepository().restore('w','g',s);
  assert.equal(plan(s).order.length,3);
 });
-test('implicit control endpoints remain distinct from data and survive an unrelated request edit',()=>{
+test('implicit control endpoints reuse semantic sockets and survive an unrelated request edit',()=>{
  const s=sample();s.definitions[0].inputs=[];s.graph.connections=[edge('flow','next','flow_in')];
  const w=ui(),projected=w.OvllPointerProjection.projectGraph(s);
- assert.deepEqual(Array.from(projected.workflow.links[0]),['a.next','b.flow_in']);
+ assert.deepEqual(Array.from(projected.workflow.links[0]),['a.summary','b.flow_in']);
  const ports=projected.definitions['pointer:d:1'];assert.ok(ports.inputs.some(p=>p.id==='flow_in'&&p.channel==='flow'));
+ assert.deepEqual(Array.from(ports.outputs,p=>p.id),['summary']);
  assert.equal(projected.workflow.connections[0].id,s.graph.connections[0].id);
  const workflow={nodes:clone(projected.workflow.nodes),connections:clone(projected.workflow.connections)};
  assert.equal(w.OvllPointerGraphPatch.build(s,workflow),null);
@@ -50,11 +51,11 @@ test('implicit control endpoints remain distinct from data and survive an unrela
  const repo=new MemoryGraphRepository();repo.restore('w','g',s);repo.apply('w',clone(edit.patch));
  assert.deepEqual(repo.get('w','g').graph.connections,s.graph.connections);
 });
-test('projected data input accepts fan-in and flow ports retain fan-in',()=>{
+test('projected data input shares its fan-in socket with flow',()=>{
  const s=sample();s.graph.connections=[edge('flow','next','flow_in')];
  const p=ui().OvllPointerProjection.projectGraph(s).definitions['pointer:d:1'];
  assert.equal(p.inputs.find(p=>p.id==='source').multiple,true);
- assert.equal(p.inputs.find(p=>p.id==='flow_in').multiple,true);
+ assert.equal(p.inputs.some(p=>p.id==='flow_in'),false);
 });
 test('backend result fingerprint remains current across unrelated revisions and excludes UI settings',()=>{
  const s=sample(),node=s.graph.nodes[0],args={run:{graphRef:{graphId:'g',revision:1},planEpoch:0},node,definition,inputRefs:['v1']};
@@ -65,34 +66,34 @@ test('backend result fingerprint remains current across unrelated revisions and 
  assert.notEqual(semanticFingerprint({...args,executorVersion:'provider/model-v2'}),fingerprint);
 });
 
-test('heterogeneous flow ports use control sockets and reverse to unchanged declared logical ports',()=>{
+test('heterogeneous flow ports reuse visible semantics and preserve canonical control links',()=>{
  const s=sample();s.definitions.push({...clone(definition),definitionId:'consumer',inputs:[{name:'payload',representation:'boolean'}]});
  s.graph.nodes[1].definitionRef={definitionId:'consumer',version:1};s.graph.connections=[edge('flow','summary','payload')];
  const w=ui(),p=w.OvllPointerProjection.projectGraph(s),c=p.workflow.connections[0];
- assert.notEqual(c.from.port,'summary');assert.notEqual(c.to.port,'payload');
- assert.equal(p.definitions['pointer:d:1'].outputs.find(port=>port.id===c.from.port).type,'control_flow');
- assert.equal(p.definitions['pointer:consumer:1'].inputs.find(port=>port.id===c.to.port).type,'control_flow');
+ assert.equal(c.from.port,'summary');assert.equal(c.to.port,'payload');
+ assert.equal(p.definitions['pointer:d:1'].outputs.find(port=>port.id===c.from.port).type,'text');
+ assert.equal(p.definitions['pointer:consumer:1'].inputs.find(port=>port.id===c.to.port).type,'boolean');
  assert.equal(w.OvllPointerGraphPatch.build(s,{nodes:p.workflow.nodes,connections:p.workflow.connections}),null);
  const changed=clone(p.workflow.nodes);changed[0].data.params={request:'Updated'};
  const patch=w.OvllPointerGraphPatch.build(s,{nodes:changed,connections:p.workflow.connections});
  assert.deepEqual(Array.from(patch.patch.operations,p=>p.op),['node.update']);
 });
 
-test('one control socket per logical endpoint handles repeated types and simultaneous data and flow links',()=>{
+test('shared semantic sockets handle repeated types and simultaneous data and flow links',()=>{
  const s=sample();s.graph.connections=[edge('data'),{...edge('flow'),id:'gate'},edge('flow','summary','source','b','other')];
  const w=ui(),p=w.OvllPointerProjection.projectGraph(s),outputs=p.definitions['pointer:d:1'].outputs;
- assert.equal(outputs.filter(port=>port.channel==='flow').length,1);
+ assert.equal(outputs.filter(port=>port.channel==='flow').length,0);
  assert.equal(p.workflow.connections[1].from.port,p.workflow.connections[2].from.port);
  assert.equal(p.workflow.connections[0].from.port,'summary');
- assert.notEqual(p.workflow.connections[0].from.port,p.workflow.connections[1].from.port);
+ assert.equal(p.workflow.connections[0].from.port,p.workflow.connections[1].from.port);
  assert.equal(w.OvllPointerGraphPatch.build(s,{nodes:p.workflow.nodes,connections:p.workflow.connections}),null);
  const repo=new MemoryGraphRepository();repo.restore('w','g',s);assert.equal(plan(s).order.length,2);
 });
 
-test('new canvas instances reverse inherited control sockets without copying another instance settings',()=>{
+test('new canvas instances accept explicit flow links on shared sockets without copying settings',()=>{
  const s=sample();s.graph.connections=[edge('flow')];const w=ui(),p=w.OvllPointerProjection.projectGraph(s);
  const nodes=clone(p.workflow.nodes);nodes.push({id:'new',type:'pointer:d:1',data:{}});
- const connections=clone(p.workflow.connections);connections.push({from:{node:'b',port:connections[0].from.port},to:{node:'new',port:connections[0].to.port}});
+ const connections=clone(p.workflow.connections);connections.push({from:{node:'b',port:connections[0].from.port},to:{node:'new',port:connections[0].to.port},data:{kind:'flow'}});
  const edit=w.OvllPointerGraphPatch.build(s,{nodes,connections}),add=edit.patch.operations.find(p=>p.op==='link.add');
  assert.equal(add.from.port,'summary');assert.equal(add.to.port,'source');assert.equal(add.kind,'flow');
  const repo=new MemoryGraphRepository();repo.restore('w','g',s);repo.apply('w',clone(edit.patch));
