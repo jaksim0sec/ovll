@@ -130,7 +130,14 @@ function save(options={}){
       possibilities=availableOutputs.filter(p=>p.nodeId===requested.nodeId&&p.port===requested.port);
     }else{
       possibilities=availableOutputs.filter(p=>p.qualifiedName===output.name);
-      if(!possibilities.length)possibilities=availableOutputs.filter(p=>p.port===output.name);
+      if(!possibilities.length){
+        possibilities=availableOutputs.filter(p=>p.port===output.name&&
+          p.representation===output.representation);
+        if(possibilities.length>1){
+          const selected=possibilities.filter(p=>p.target);
+          if(selected.length===1)possibilities=selected;
+        }
+      }
       if(!possibilities.length)possibilities=availableOutputs.filter(p=>p.target&&
         p.representation===output.representation);
     }

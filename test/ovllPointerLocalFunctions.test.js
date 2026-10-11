@@ -436,3 +436,26 @@ test('model function draft accepts exact explicit output map and rejects invente
  assert.equal(validator.validate('FunctionDraft',{...draft,
   outputMap:{summary:{nodeId:'write'}}}),false);
 });
+
+test('selected sink resolves shared result port without guessing among multiple targets',()=>{
+ const {f}=functionStore();
+ const snapshot={graph:{graphId:'g_sink',revision:1,nodes:[
+  {nodeId:'research',definitionRef:{definitionId:'d',version:1}},
+  {nodeId:'report',definitionRef:{definitionId:'d',version:1}}
+ ],connections:[{kind:'data',
+  from:{nodeId:'research',port:'result'},to:{nodeId:'report',port:'in'}}]},
+ definitions:[{definitionId:'d',version:1,executorKind:'model_task',
+  inputs:[{name:'in',role:'Evidence',representation:'text'}],
+  outputs:[{name:'result',role:'Text',representation:'text'}]}]};
+ const output=[{name:'result',role:'Report',representation:'text'}];
+ const saved=f.save({purpose:'Research then write',snapshot,targets:['report'],outputs:output});
+ assert.deepEqual(JSON.parse(JSON.stringify(saved.outputMap.result)),{nodeId:'report',port:'result'});
+ assert.throws(()=>f.save({purpose:'Two independent targets',snapshot,
+  targets:['research','report'],outputs:output}),/FUNCTION_OUTPUT_MAPPING_REQUIRED/);
+ const explicit=f.save({purpose:'Both results',snapshot,targets:['report'],
+  outputs:[{name:'sourceText',role:'Evidence',representation:'text'},
+   {name:'reportText',role:'Report',representation:'text'}],
+  outputMap:{sourceText:{nodeId:'research',port:'result'},reportText:{nodeId:'report',port:'result'}}});
+ assert.equal(explicit.outputMap.sourceText.nodeId,'research');
+ assert.equal(explicit.outputMap.reportText.nodeId,'report');
+});
