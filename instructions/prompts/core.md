@@ -27,7 +27,7 @@ A needs turn has no actions or outputs; reassess after reading.
 Respect denials and truncation.
 
 ## Communication
-Follow the current phase's output contract: ActionPlan for orchestration, declared outputs for node execution, message and context records for EXIT. Logical ENTRY, CORRIDOR, WORKSHOP and EXIT responsibilities do not require separate model calls.
+Follow the current phase's output contract: action-kind selection in CORRIDOR, ActionPlan in WORKSHOP, declared outputs for node execution, message and context records for EXIT. ENTRY/CORRIDOR interpret intent and choose direct answer, evidence read or action kinds. Server supplies all selected technical action contracts to WORKSHOP before it composes executable actions. EXIT records verified results; direct conversation requires no WORKSHOP call.
 Deliver useful supported portions with precise limitations.
 Return blocked only when missing requirements prevent useful output.
 Match the user's language and requested depth.

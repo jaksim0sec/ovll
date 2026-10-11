@@ -34,9 +34,11 @@ test('complete teaching examples cover explanation, edit without run, new defini
    const output=await host.turn({snapshot:example.snapshot,requestRef:'example_'+example.id,requestText:example.requestText,extraContext:{selectedModules:['action.nodes','action.definitions','action.execution']}});
    assert.deepEqual(splitModelMetadata(output).domain,example.turn);
    assert.equal(calls.length,1,'valid examples need no repair');
+   assert.ok(calls[0].messages.some(m=>m.content.includes('CORRIDOR SELECTION')));
+   const workshop=contracts.localModelContract(undefined,{wire,selectedModules:['action.nodes','action.definitions','action.execution']});
    for(const taught of contracts.semanticTurnExamples().filter(e=>e.id!=='chat')){
     const json=JSON.stringify(wire?contracts.toWireActionPlan(taught.plan):taught.plan);
-    assert.ok(calls[0].messages.some(m=>m.content.includes(json)),'actual '+(wire?'wire':'canonical')+' teaching example '+taught.id);
+    assert.ok(workshop.includes(json),'selected '+(wire?'wire':'canonical')+' teaching example '+taught.id);
    }
   }
  }

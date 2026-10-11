@@ -64,7 +64,7 @@ test('simple direct chat never receives the full action repertoire',async()=>{
  const {host,calls}=fixture([{message:'Hello'}]);
  await host.turn({snapshot,requestRef:'chat_short',requestText:'Hello'});
  const content=calls[0].messages.map(x=>x.content).join('\n');
- assert.match(content,/# ACTION DIRECTORY/);
+ assert.match(content,/# CORRIDOR SELECTION/);
  assert.doesNotMatch(content,/# SELECTED ACTION CONTRACTS/);
  assert.doesNotMatch(content,/# SELECTED EXAMPLES/);
 });
@@ -182,7 +182,7 @@ test('mixed module and data needs preserve reads and selected modules across req
  const first=await host.turn({snapshot,requestRef:'r',requestText:'Continue'});
  assert.equal(calls.length,1);assert.equal(first.needs.length,1);assert.equal(first.needs[0].kind,'history');
  await host.turn({snapshot,requestRef:'r',requestText:'Continue',extraContext:{selectedModules:first._meta.selectedModules,reads:[{kind:'history',available:true,content:'Original'}]}});
- assert.match(calls[1].messages.map(m=>m.content).join('\n'),/# DEFINE/);
+ assert.match(calls[1].messages.map(m=>m.content).join('\n'),/# CORRIDOR SELECTION/);
  assert.equal(JSON.parse(calls[1].messages.at(-1).content).extraContext.reads[0].content,'Original');
 });
 test('module selection shares the existing single correction and physical call budget',async()=>{

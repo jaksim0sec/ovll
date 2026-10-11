@@ -56,7 +56,46 @@ const ACTION_DETAIL_MODULES=Object.freeze({
  'action.execution':['execute'],
  'action.functions':['function.save']
 });
-export function localModelContract(nodeContext,{wire=false,selectedModules=[]}={}){
+export function actionModulesForKinds(kinds=[]){
+ const selected=new Set();
+ for(const kind of kinds){
+  if(!Object.hasOwn(SEMANTIC_ACTION_FIELDS,kind))throw Error('UNKNOWN_SEMANTIC_ACTION');
+  for(const [id,members] of Object.entries(ACTION_DETAIL_MODULES))if(members.includes(kind))selected.add(id);
+ }
+ return [...selected];
+}
+export function selectionOutputIssues(value){
+ const error=(path,rule)=>[{path,rule}];
+ if(!value||typeof value!=='object'||Array.isArray(value)||
+    Object.keys(value).some(k=>!['decision','actionKinds','message','needs'].includes(k)))
+  return error('/','invalidSelection');
+ if(!['answer','read','work'].includes(value.decision))return error('/decision','invalidSelectionDecision');
+ if(!Array.isArray(value.actionKinds)||value.actionKinds.length>16||
+    new Set(value.actionKinds).size!==value.actionKinds.length||
+    value.actionKinds.some(k=>typeof k!=='string'||!Object.hasOwn(SEMANTIC_ACTION_FIELDS,k)))
+  return error('/actionKinds','invalidSelectedActions');
+ if(value.needs!==undefined&&(!Array.isArray(value.needs)||value.needs.length>32))
+  return error('/needs','invalidSelectionNeeds');
+ if(value.decision==='work'&&(!value.actionKinds.length||value.needs?.length||value.message))
+  return error('/actionKinds','workRequiresActionKinds');
+ if(value.decision==='read'&&(!value.needs?.length||value.actionKinds.length||value.message))
+  return error('/needs','readRequiresNeeds');
+ if(value.decision==='answer'&&(typeof value.message!=='string'||!value.message.trim()||
+    value.actionKinds.length||value.needs?.length))
+  return error('/message','answerRequiresMessage');
+ return [];
+}
+export function localModelContract(nodeContext,{wire=false,selectedModules=[],selection=false,workshop=false}={}){
+ if(selection)return [
+  '# CORRIDOR SELECTION — decide the action kinds; do not write action payloads',
+  'Return JSON with decision:"answer"|"read"|"work", actionKinds:[], message:null, needs:[], taskContext:null unless work.',
+  'answer: return a complete direct message with actionKinds:[] and needs:[]; include EXIT context records.',
+  'read: request actual missing task evidence through needs with actionKinds:[] and no message.',
+  'work: select necessary semantic action kinds, including graph edits, dynamic definitions, execution and function saving if authorized; include taskContext:{objective,constraints}. Return no action payload, message or needs.',
+  'Available kinds: '+Object.keys(SEMANTIC_ACTION_FIELDS).join(', ')+'.',
+  wire?'Encode each need selector in selectorJson:JSON.stringify(selector).':'Use needs items {kind,selector,purpose}.',
+  'The server supplies exact contracts to WORKSHOP after you choose. Never classify user intent with a keyword dictionary.'
+ ].join('\n');
  if(nodeContext)return [
   'Return one JSON ModelTurn containing ONLY outputs: {"outputs":{"status":"produced","values":{"result":{"inline":"answer"}}}}.',
   'Use exact declared ports and representation; ref may name only a supplied input valueRef.',
@@ -67,16 +106,22 @@ export function localModelContract(nodeContext,{wire=false,selectedModules=[]}={
  const selected=new Set(selectedModules),has=id=>selected.has(id);
  const details=Object.entries(ACTION_DETAIL_MODULES).filter(([id])=>has(id));
  const out=[
+  '# WORKSHOP — server-supplied action contracts required before proposing actions',
   '# OUTPUT — ActionPlan '+ACTION_PLAN_CONTRACT,
   wire?'Return contract:"action-plan.v1", executionIntent:"requested"|null, message:string|null, actions:[], needs:[]. Each action is {"action":string,"payloadJson":JSON.stringify(semanticFields)}. Keep required null/empty wire fields.':
    'Return contract:"action-plan.v1" with needed message, actions, needs and executionIntent. Each action is {action,...semanticFields}.',
   'For a final direct answer return requestDigest, responseDigest, updated sessionContext and valid explicit constraints. Preserve exact prior conditions unless current user explicitly supersedes them; list exact old strings in supersededConstraints, otherwise []. With needs/actions EXIT fields are null.',
   'For actions return taskContext:{objective, constraints:[string]} containing applicable conditions; for needs/direct answers return taskContext:null.',
   wire?'Each need is {kind,selectorJson:JSON.stringify(selector),purpose}.':'Each need is {kind,selector,purpose}.',
-  '# ACTION DIRECTORY — READ SELECTED CONTRACTS',
-  ...Object.entries(ACTION_DETAIL_MODULES).map(([id,kinds])=>'prompt:'+id+' → '+kinds.join(', ')),
+  ...(workshop?[
+   'Generate only the selected action kinds, with the exact supplied contracts. Need actual task data? Use needs without actions; do not request technical contracts.',
+   'If your work requires an additional action kind, include that action: the host will withhold all execution, inject its contract and request a fresh WORKSHOP draft.'
+  ]:[
+   '# ACTION DIRECTORY — READ SELECTED CONTRACTS',
+   ...Object.entries(ACTION_DETAIL_MODULES).map(([id,kinds])=>'prompt:'+id+' → '+kinds.join(', ')),
+   'Before unfamiliar actions, request their details using needs with kind:"contract", selector scope:"ref" and the prompt:action.* module ref.'
+  ]),
   'question.ask:{question:string}. Read real graph, history, runs, function or artifact data with needs before referencing missing facts.',
-  'Before unfamiliar actions, request the selected details using needs with kind:"contract", selector scope:"ref", ref:"prompt:action.nodes" (replace with chosen directory entry), depth:"full" and a purpose. In wire format encode selector as selectorJson. Combine necessary contracts in one needs turn; never combine needs with actions.',
   'Only listed actions exist. No invented IDs, actions, file effects or completed results.'
  ];
  if(!details.length)return out.join('\n');
@@ -135,7 +180,13 @@ export function splitContextOutput(value){
 }
 export function phaseWireContract(phase,nodeContext){
  let schema,guidance;
- if(phase==='response'){
+ if(phase==='selection'){
+  schema=object({decision:{type:'string',enum:['answer','read','work']},
+   actionKinds:{type:'array',items:{type:'string',enum:Object.keys(SEMANTIC_ACTION_FIELDS)}},
+   message:nullable(string),needs:{type:'array',items:object({kind:string,selectorJson:string,purpose:string})},
+   taskContext:nullable(object({objective:string,constraints:{type:'array',items:string}})),...contextFields});
+  guidance='Corridor selection: decision answer/read/work, actionKinds only for work; no action payloads. Needs use selectorJson. Answer returns EXIT records; work returns taskContext. The server supplies work contracts.';
+ }else if(phase==='response'){
   schema=object({message:string,...contextFields});guidance='Response phase: return message grounded in ActionResults plus requestDigest, responseDigest, updated sessionContext (about two sentences) and valid explicit constraints. Keep exact previous conditions; supersededConstraints lists exact previous conditions replaced by an explicit current-user instruction, otherwise []. No actions, needs or outputs. Preserve exact facts and meaning without a fixed vocabulary.';
  }else if(phase==='node'){
   const ports=nodeContext.outputPorts.map(p=>p.name);
@@ -159,6 +210,14 @@ export function decodePhaseOutput(value,phase){
    values[item.port]=item.ref!==null?{ref:item.ref}:{inline:JSON.parse(item.valueJson)};
   }
   return {outputs:{status:domain.status,...(domain.status==='produced'?{values}:{}),...(domain.reason!==null?{reason:domain.reason}:{})}};
+ }
+ if(phase==='selection'){
+  if(Object.hasOwn(domain,'contract'))return decodePhaseOutput(domain,'turn');
+  if(domain.message===null)delete domain.message;
+  if(Array.isArray(domain.needs))domain.needs=domain.needs.map(need=>{
+   if(!Object.hasOwn(need,'selectorJson'))return need;
+   const {selectorJson,...rest}=need;return {...rest,selector:JSON.parse(selectorJson)};
+  });
  }
  if(phase==='turn'){
   if(Object.hasOwn(domain,'contract')){

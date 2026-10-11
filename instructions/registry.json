@@ -1,6 +1,6 @@
 {
   "status": "active_local_runtime",
-  "assemblyVersion": "0.7.0",
+  "assemblyVersion": "0.8.0",
   "source": "prompts/",
   "modules": [
     {
@@ -8,7 +8,7 @@
       "path": "prompts/core.md",
       "requires": [],
       "order": 0,
-      "version": 8
+      "version": 9
     },
     {
       "id": "layer.entry",
@@ -17,7 +17,7 @@
         "core"
       ],
       "order": 100,
-      "version": 10
+      "version": 11
     },
     {
       "id": "layer.corridor",
@@ -26,7 +26,7 @@
         "layer.entry"
       ],
       "order": 105,
-      "version": 3
+      "version": 4
     },
     {
       "id": "layer.chat",
@@ -243,7 +243,7 @@
         "layer.ir"
       ],
       "order": 215,
-      "version": 1
+      "version": 2
     },
     {
       "id": "action.definitions",
@@ -252,7 +252,7 @@
         "layer.ir"
       ],
       "order": 216,
-      "version": 1
+      "version": 2
     },
     {
       "id": "action.links",
@@ -261,7 +261,7 @@
         "layer.ir"
       ],
       "order": 217,
-      "version": 1
+      "version": 2
     },
     {
       "id": "action.execution",
@@ -270,7 +270,7 @@
         "layer.run"
       ],
       "order": 218,
-      "version": 1
+      "version": 2
     },
     {
       "id": "action.functions",
@@ -279,7 +279,7 @@
         "layer.function"
       ],
       "order": 219,
-      "version": 1
+      "version": 2
     }
   ]
 }
