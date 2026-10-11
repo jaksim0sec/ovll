@@ -231,3 +231,62 @@ test('graph draft requires explicit selection when unrelated sinks make its resu
  const revised=f.saveDraft({...draft,purpose:'Revised work'},snapshot,{targets:['result'],baseFunctionRef:{functionId:fn.id,version:1}});
  assert.equal(revised.id,fn.id);assert.equal(revised.version,2);
 });
+
+test('saved function replays fresh inputs while preserving independent per-node requests',async()=>{
+ const core=await import('../front/js/ovllPointerGraphCore.mjs');
+ const plan=await import('../front/js/ovllPointerPlanCore.mjs');
+ const results=await import('../front/js/ovllPointerResults.mjs');
+ const stored=new Map();
+ const window={crypto:{randomUUID:()=> 'replay-regression'},
+  localStorage:{getItem:key=>stored.get(key)||null,setItem:(key,value)=>stored.set(key,value)}};
+ vm.runInNewContext(script,{window});
+ const functions=window.OvllPointerFunctions;
+ const definitions=[
+  {definitionId:'d_research',version:1,purpose:'Research',instruction:'Read notes',
+   executorKind:'model_task',inputs:[{name:'in',representation:'text',required:true}],
+   outputs:[{name:'result',representation:'text'}]},
+  {definitionId:'d_write',version:1,purpose:'Write',instruction:'Draft from research',
+   executorKind:'model_task',inputs:[{name:'in',representation:'text',required:true}],
+   outputs:[{name:'result',representation:'text'}]}
+ ];
+ const snapshot={graph:{graphId:'g_replay',revision:1,nodes:[
+  {nodeId:'research',definitionRef:{definitionId:'d_research',version:1},
+   settings:{request:'Research the notes'},inputBindings:{in:'Old notes'}},
+  {nodeId:'write',definitionRef:{definitionId:'d_write',version:1},
+   settings:{request:'Write a sourced report'},inputBindings:{}}
+ ],connections:[{id:'l',kind:'data',from:{nodeId:'research',port:'result'},
+   to:{nodeId:'write',port:'in'}}]},definitions};
+ const fn=functions.save({purpose:'Reusable report',snapshot,targets:['write'],
+  invariants:['Preserve references']});
+ const state={pointerGraph:snapshot,pointerRuns:[]};
+ const workspaceStore={getConversation:()=>({state}),
+  updateConversationPointerRuns:(_id,runs)=>{state.pointerRuns=runs},
+  updateConversationPointerGraph:()=>{},getPointerDefinitions:()=>[]};
+ window.OvllWorkspaceStore=workspaceStore;
+ vm.runInNewContext(readFileSync(new URL('../front/js/ovllPointerLocal.js',import.meta.url),'utf8'),{window,console});
+ const local=window.createOvllPointerLocal({workspaceStore,
+  loadCore:async()=>core,loadPlan:async()=>plan,loadResults:async()=>results,
+  loadCatalog:async()=>({definitions})});
+ const app=readFileSync(new URL('../front/js/app.js',import.meta.url),'utf8');
+ const first=app.indexOf('async function runSavedLocalFunction(fn,bindings){');
+ const last=app.indexOf('  async function runLocalPrompt(',first);
+ assert.ok(first>=0&&last>first,'saved function replay entry point remains available');
+ const runSaved=new Function('global','runLocalNodes',app.slice(first,last)+
+  ';return runSavedLocalFunction;')(window,async args=>local.run({...args,conversationId:'c',
+    executeNode:async step=>{
+     seen.push({nodeId:step.nodeId,requestText:step.requestText,
+      boundInput:step.snapshot.graph.nodes.find(n=>n.nodeId===step.nodeId)?.inputBindings?.in,
+      upstream:Array.from(step.inputArtifacts,i=>i.value)});
+     return {status:'success',outputs:{status:'produced',values:{
+      result:{inline:step.nodeId==='research'?'Research evidence':'Final report'}}}};
+    }}));
+ const seen=[];
+ const run=await runSaved(fn,{[fn.inputs[0].name]:'Fresh notes'});
+ assert.equal(run.status,'completed');
+ assert.deepEqual(seen.map(x=>x.nodeId),['research','write']);
+ assert.deepEqual(seen.map(x=>x.requestText),['Research the notes','Write a sourced report']);
+ assert.equal(seen[0].boundInput,'Fresh notes');
+ assert.deepEqual(seen[1].upstream,['Research evidence']);
+ assert.equal(functions.get(fn.id).snapshot.graph.nodes[0].inputBindings.in,'Old notes');
+ assert.equal(fn.purpose,'Reusable report');
+});

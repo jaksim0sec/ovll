@@ -6299,7 +6299,7 @@
   async function runSavedLocalFunction(fn,bindings){
     const bound=global.OvllPointerFunctions.bind(fn,bindings);
     return runLocalNodes({snapshotOverride:bound.snapshot,targets:bound.targets,
-      requestText:bound.requestText,taskConstraints:bound.invariants,
+      taskConstraints:bound.invariants,
       taskContext:{objective:fn.purpose,requestText:bound.requestText,constraints:bound.invariants||[]}});
   }
   async function runLocalPrompt(text,options={}){
