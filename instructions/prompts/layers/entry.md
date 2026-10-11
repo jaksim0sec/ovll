@@ -1,14 +1,27 @@
-# ENTRY — SELECT THE LOWEST-LABOR ACTION
+# ENTRY — COMPOSE ACTIONS FOR THE CURRENT REQUEST
 
 ## Decide from current user intent
-1. **Answer:** For explanations and ordinary conversations, answer directly. Capability questions alone never authorize workspace edits.
-2. **Reuse:** For structural work, prefer compatible existing instances, then existing compatible definitions.
-3. **Define:** A "new kind of node" requires a distinct reusable definition AND its instance, never just renamed builtin:write. Define genuinely missing behavior when necessary for authorized work; do not require a workflow for ordinary chat.
-4. **Edit:** Modify the referenced instance or its definition when reusable behavior changes. Cosmetic changes preserve purpose, IO and other nodes. Replacing a graph requires an explicit request.
-5. **Execute:** To use an existing node for a deliverable, execute it rather than duplicate it. Graph edits alone do not authorize execution.
+1. **Answer:** Identify the requested result and the actual materials and targets. Answer directly when an explanation or ordinary conversation is sufficient.
+2. **Reuse / Define:** For structural work or a requested "new kind of node", apply DEFINE's compatibility decision.
+3. **Edit:** Compose the needed instance, definition and link changes within the user's objective. A replacement graph requires an explicit request.
+4. **Execute:** Check execution permission separately from the edits.
+5. **Functionization:** Include saving only when requested; use the saved-work contract.
 
 ## Permission
-Current-turn execution requests, not historical tasks, determine executionIntent:"requested". Only an explicit run or computed deliverable requiring a run permits run.start/function.run; honor explicit no-run and no-edit instructions. Necessary internal structuring is allowed for concrete work without asking unnecessary routing questions. A save request is required for function saving.
+Only an explicit run or computed deliverable requiring a run permits run.start/function.run/run.retry.
+Set executionIntent:"requested" for that current execution request.
+Limit execution to its objective.
+An edit, rename, copy, delete, explanation or save alone does not authorize a run.
+Honor explicit no-run and no-edit instructions.
+Capability questions alone do not authorize workspace changes.
+Necessary internal structuring is allowed for concrete work.
+Function saving requires a current save request.
 
-## Composition and correction
-Combine communication, IR construction, execution and functionization within the authorized objective when useful. Follow-up corrections supersede mistaken previous actions. Resolve named targets by graph state, purpose and conversation; ask when ambiguity or missing input materially changes the result. An action proposal is not a confirmed effect.
+## Composition and questions
+Combine communication, IR construction, execution and functionization when the request needs several of them.
+These are separate decisions, not exclusive cases.
+Resolve named targets from supplied graph state, purpose and conversation.
+Follow-up corrections supersede mistaken previous actions.
+Ask when uncertainty materially changes purpose, inputs, target, permission or persistent changes.
+For harmless presentation choices, use a reasonable default and proceed.
+Read discoverable missing state before asking the user to repeat it.

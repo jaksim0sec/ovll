@@ -14,27 +14,79 @@ export function toWireTurnExample(turn=canonicalTurnExample()){
     actions:(turn.actions||[]).map(a=>({localKey:a.localKey,kind:a.kind,argsJson:JSON.stringify(a.args),dependsOn:a.dependsOn||[]})),
     needs:(turn.needs||[]).map(n=>({kind:n.kind,selectorJson:JSON.stringify(n.selector),purpose:n.purpose}))};
 }
+export function canonicalTurnExamples(){
+ const empty={graph:{graphId:'g_actual',revision:0,nodes:[],connections:[]},definitions:[]};
+ const writer={...empty,graph:{...empty.graph,nodes:[{nodeId:'existing-write',
+  definitionRef:{definitionId:'builtin:write',version:1},settings:{request:'Write a report'},inputBindings:{}}]}};
+ return [
+  {id:'chat',requestText:'Explain reusable workflows in one sentence.',snapshot:empty,
+   turn:{message:'A reusable workflow preserves a useful procedure so it can work with new inputs.'}},
+  {id:'edit-only',requestText:'Shorten the existing writer request. Do not run it.',snapshot:writer,
+   turn:{actions:[{localKey:'p',kind:'ir.applyPatch',args:{patch:{graphId:'g_actual',
+    expectedGraphRevision:0,definitions:[],operations:[{op:'node.update',nodeId:'existing-write',
+     settings:{request:'Write a short report'}}]}}}]}},
+  {id:'new-kind',requestText:'Create a new kind of node for source reliability. Do not run it.',snapshot:empty,
+   turn:{actions:[{localKey:'p',kind:'ir.applyPatch',args:{patch:{graphId:'g_actual',expectedGraphRevision:0,
+    definitions:[{localKey:'d',purpose:'Assess source reliability',executorKind:'model_task',
+     instruction:'Assess supplied evidence, source reliability and limitations.',
+     inputs:[{name:'in',role:'evidence',representation:'json',required:false}],
+     outputs:[{name:'result',role:'assessment',representation:'json'}]}],
+    operations:[{op:'node.add',localNodeKey:'n',definitionRef:{localDefinitionKey:'d'}}]}}}]}},
+  {id:'compose-run',requestText:'Add a writer and run it to produce a report.',snapshot:empty,
+   turn:canonicalTurnExample()}
+ ];
+}
 export function localModelContract(nodeContext,{wire=false}={}){
-  if(nodeContext)return 'Return one JSON ModelTurn containing ONLY outputs: {"outputs":{"status":"produced","values":{"result":{"inline":"answer"}}}}. Use exact declared ports and representation; ref may name only a supplied input valueRef. An exclusive branch produces exactly one branch port. Missing required input: {"outputs":{"status":"blocked","reason":"specific blocker"}}. No actions or fabricated tool effects.';
-  return [
-    '# DECIDE — current user turn',
-    'Answer directly when sufficient; concrete work may use necessary internal structuring. Preserve explicit no-run and no-edit requests. Capability questions do not authorize edits.',
-    'First reuse matching existing instances; then existing compatible definition and its instances. Define a new reusable operation ONLY if none fits or a new node kind is explicitly requested. A new kind means new definition plus instance, not builtin:write disguised by renaming.',
-    '# IR — meaning and real references',
-    'GraphPatch requires actual graphId/expectedGraphRevision and definitions/operations. Supported operations: '+PATCH_OPERATION_KINDS.map(k=>k+'('+PATCH_OPERATION_CONTRACTS[k].required.filter(x=>x!=='op').join(',')+')').join('; ')+'.',
-    'Canonical ir.applyPatch args: {"patch":{"graphId":"g","expectedGraphRevision":0,"definitions":[],"operations":[]}}. node.add requires unique localNodeKey and definitionRef. Existing node uses nodeId; existing definition uses definitionRef:{definitionId,version}. New definition uses localKey, purpose, instruction; refer to it with definitionRef:{localDefinitionKey:"d"}.',
-    'Definitions retain reusable purpose, instruction and semantic IO, while instance settings/inputBindings carry current inputs. model_task defaults to optional JSON in/result ports; custom explicit ports require name,role,representation. presentation may have name,iconKey,color (#RRGGBB); icon keys: '+Object.keys(iconSvg).join(', ')+'. Unknown icon names use the custom icon; never output SVG markup or invented icon identifiers.',
-    'Data links transfer actual source values; flow links order work but provide no data. New endpoints use localNodeKey, existing ones nodeId. A literal inputBinding and data link on the same port conflict. file.read_local reads supplied real content, artifact.create exports a file; never forge /api/artifacts URLs, effects or absent capabilities.',
-    '# EXECUTION — authorization and truth',
-    'Edits, renames, copies and deletes do not authorize run.start. Set executionIntent:"requested" only for an explicit run or computed result requested by the current turn. Respect explicit no-run intent. Newly created targets use {fromAction,localNodeKey} and depend on the producer patch via dependsOn; existing targets use nodeId. Default damMode closed. Model proposals are not ActionResults. Node success, run completion and task completion are different facts.',
-    'Existing-result export: use extraContext.availableResults and exact refs, requesting needs when contents are omitted. Connect the actual existing source output by data link to builtin:createFile input, then run that target; never fabricate a replacement upstream node or substitute a preview. Report delivered files only from confirmed artifact.create results.',
-    '# EDITS AND SAVED FUNCTIONS',
-    'Custom cosmetic changes use ir.applyPatch.args.patch.operations definition.appearance with exact definitionRef and only changed presentation. Builtin definitions are read-only. Unused custom definition deletion uses definition.delete, removing authorized dependent local links/nodes in the same patch. Other conversations may block deletion; never claim unconfirmed changes.',
-    'function.run uses saved functionRef and fresh inputBindings. function.save requires authorization and semantic inputs/outputs/invariants with a confirmed graph or model_task procedure; never guess an uncommitted revision. For graph functions, match each declared output to an actual node output with the same representation; use exact nodeId:port or an unambiguous port name. For independent aliases or multiple outputs provide outputMap: {publicName:{nodeId,port}}. A model_task function uses its own declared output ports. Missing essential information uses needs without actions; after blocked execution do not invent effects.',
-    '# OUTPUT — '+(wire?'provider wire':'canonical ModelTurn'),
-    wire?'argsJson is JSON.stringify(the canonical action.args object), not GraphPatch. For ir.applyPatch it contains {"patch":{GraphPatch}}, never a bare GraphPatch. Return required null/empty wire fields.':'Emit only canonical message?,actions?,needs?,executionIntent?; actions use args, not argsJson.',
-    'Complete patch + authorized run example: '+JSON.stringify(wire?toWireTurnExample():canonicalTurnExample())
-  ].join('\n');
+ if(nodeContext)return [
+  'Return one JSON ModelTurn containing ONLY outputs: {"outputs":{"status":"produced","values":{"result":{"inline":"answer"}}}}.',
+  'Use exact declared ports and representation; ref may name only a supplied input valueRef.',
+  'An exclusive branch produces exactly one branch port.',
+  'Missing required input: {"outputs":{"status":"blocked","reason":"specific blocker"}}.',
+  'No actions or fabricated tool effects.'
+ ].join('\n');
+ return [
+  '# OUTPUT — '+(wire?'provider wire':'canonical ModelTurn'),
+  wire?
+   'Return executionIntent:"requested"|null, message:string|null, actions:[], needs:[]. Keep required null/empty wire fields.':
+   'Emit only needed message, actions, needs and executionIntent. Actions use args objects.',
+  wire?
+   'Each action has localKey, kind, argsJson and dependsOn:[]. argsJson = JSON.stringify(canonical action.args). For ir.applyPatch it encodes {"patch":{GraphPatch}}, never a bare GraphPatch.':
+   'ir.applyPatch action.args is {"patch":{GraphPatch}}, with the GraphPatch inside args.patch.',
+  wire?'Each need has kind, selectorJson:JSON.stringify(selector), purpose.':'Each need has kind, selector and purpose.',
+  '# REFERENCES — declarations and uses',
+  '| Thing | Declare | Refer to it |',
+  '| Action in this turn | actions[].localKey | dependsOn[]; target.fromAction |',
+  '| New definition in this patch | patch.definitions[].localKey | definitionRef:{localDefinitionKey:"d"} |',
+  '| Existing definition | actual definitionId and version | definitionRef:{definitionId,version} |',
+  '| New node in this patch | node.add.localNodeKey | endpoint.node:{localNodeKey}; target:{fromAction,localNodeKey} |',
+  '| Existing node | actual nodeId | node.update.nodeId; endpoint.node:{nodeId}; target:{nodeId} |',
+  '| New link in this patch | link.add.localLinkKey | patch-local link handle |',
+  'Action keys are turn-local. Definition/node/link handles are patch-local; applied createdRefs provide persistent IDs.',
+  '# PATCH — schema fields',
+  'GraphPatch requires actual graphId, expectedGraphRevision, definitions and operations.',
+  ...PATCH_OPERATION_KINDS.map(k=>k+'('+PATCH_OPERATION_CONTRACTS[k].required.filter(x=>x!=='op').join(',')+'): fields '+PATCH_OPERATION_CONTRACTS[k].fields.filter(x=>x!=='op').join(',')+'.'),
+  'A DefinitionDraft declares localKey, purpose and instruction.',
+  'Ordinary model_task drafts default executorKind and optional flexible JSON in/result ports.',
+  'Explicit ports require name, role and representation.',
+  'presentation may contain name, iconKey and color (#RRGGBB).',
+  'Icon keys: '+Object.keys(iconSvg).join(', ')+'.',
+  'Unknown icon names use the custom icon; never emit SVG markup or invented icon identifiers.',
+  '# RUN — target and dependency fields',
+  'New target: {fromAction:"p",localNodeKey:"n"}; the run action dependsOn includes its producer patch key "p".',
+  'Existing target: {nodeId:"actual-id"}. Default damMode is closed.',
+  '# SAVED ACTIONS — field shapes',
+  'function.run uses functionRef and fresh inputBindings.',
+  'function.save args.function requires purpose, inputs, outputs, invariants and procedure.',
+  'procedure is {kind:"model_task",instruction} or {kind:"graph",graphRef:{graphId,revision}}.',
+  'Graph inputMap/outputMap bind named ports to actual nodeId/port; apply EXTRACT for semantic matching.',
+  '# EXAMPLES — independent requests, not a sequence',
+  'Example refs belong only to each supplied fixture. Use the actual context refs for real work.',
+  ...canonicalTurnExamples().flatMap(e=>[
+   'Example '+e.id+' request: '+e.requestText,
+   'Fixture: '+JSON.stringify(e.snapshot.graph),
+   JSON.stringify(wire?toWireTurnExample(e.turn):e.turn)
+  ])
+ ].join('\n');
 }
 // Provider projection: closed envelopes avoid the domain schema's oneOf/conditionals
 // and unconstrained object keys. JSON payloads are decoded, then domain-validated.
@@ -51,7 +103,7 @@ export function phaseWireContract(phase,nodeContext){
   guidance='Node wire phase: return {status:"produced"|"blocked",values:[{port:exact_declared_port,valueJson:JSON.stringify(actual_value),ref:null}],reason:null}. For a supplied valueRef use ref and valueJson:null. Blocked uses values:[] and a specific reason. Do not duplicate ports. No actions or message.';
  }else{
   schema=object({executionIntent:nullable({type:'string',enum:['requested']}),message:nullable(string),actions:{type:'array',items:object({localKey:string,kind:{type:'string',enum:['ir.applyPatch','run.start','run.revise','run.cancel','run.retry','function.save','question.ask','task.complete','function.run']},argsJson:string,dependsOn:{type:'array',items:string}})},needs:{type:'array',items:object({kind:string,selectorJson:string,purpose:string})}});
-  guidance='Turn wire phase: output executionIntent:"requested"|null, message:string|null, actions:[], needs:[]. Each action has localKey, kind, argsJson, dependsOn:[]; argsJson = JSON.stringify(canonical action.args). For ir.applyPatch, argsJson encodes {"patch":{GraphPatch}}, NOT GraphPatch itself. Empty optional fields are stripped by the decoder. Needs have selectorJson and cannot share a turn with actions.';
+  guidance='Turn wire phase: use the provider wire envelope described in OUTPUT. Required null/empty fields are stripped by the decoder; nested action args and need selectors remain JSON strings.';
  }
  return {name:'ovll_'+phase,schema,guidance};
 }

@@ -19,8 +19,9 @@ test('definition guidance does not propose unsolicited graph structure',()=>{
  assert.match(d,/localDefinitionKey/);
  assert.doesNotMatch(d,/For an ordinary task without authorization for new workflow structure, propose/);
 });
-test('IR still distinguishes data flow, real file effects and atomic cosmetic edits',()=>{
- const x=read('prompts/layers/ir.md')+'\n'+read('prompts/micro/ir/patch.md');
+test('assembled rule owners preserve data flow, real file effects and atomic cosmetic edits',()=>{
+ const x=['core.md','layers/ir.md','micro/ir/patch.md','micro/ir/connect.md']
+  .map(path=>read('prompts/'+path)).join('\n');
  for(const term of ['multiple:false','file.read_local','artifact.create',
     'definition.appearance','definition.delete','runRef','ActionResults'])
     assert.ok(x.includes(term),term);
@@ -32,7 +33,7 @@ test('canonical action example still roundtrips wire and passes the frozen schem
 });
 test('composer preserves the full action repertoire without incident-specific cases',()=>{
  const registry=JSON.parse(read('registry.json'));
- assert.equal(registry.assemblyVersion,'0.4.1');
+ assert.match(registry.assemblyVersion,/^\d+\.\d+\.\d+$/);
  const context={requestRef:'r1',objective:'Summarize notes',constraints:['Preserve sources'],
    capabilities:[],outputContract:'NodeOutput',requestText:'Summarize these notes',
    materials:[{ref:'source1',kind:'text',source:'user_input',content:'Actual source text',
@@ -40,6 +41,7 @@ test('composer preserves the full action repertoire without incident-specific ca
  const out=createPromptComposer().assemble({context,moduleIds:[
    'layer.entry','layer.chat','layer.ir','ir.define','ir.patch','ir.connect',
    'layer.function','fn.extract','fn.reuse']});
+ assert.equal(out.assemblyVersion,registry.assemblyVersion);
  for(const id of ['core','layer.entry','layer.ir','ir.define','layer.function','fn.reuse'])
     assert.ok(out.moduleIds.includes(id),id);
  const txt=out.messages.map(m=>m.content).join('\n');

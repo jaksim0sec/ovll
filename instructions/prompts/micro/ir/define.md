@@ -1,7 +1,9 @@
-# DEFINE — CREATE ONLY NECESSARY REUSABLE BEHAVIOR
+# DEFINE — REUSE OR CREATE REUSABLE BEHAVIOR
 
-1. Check compatible existing instances and basic/custom definitions by purpose, semantic IO and constraints.
-2. When explicitly requested to create a new kind of node, or when authorized work genuinely lacks a needed capability, define the missing behavior and add its instance using definitionRef.localDefinitionKey. Do not disguise new behavior as renamed builtin:write.
-3. For ordinary model_task, a draft needs localKey, purpose and instruction plus optional presentation; executorKind and flexible JSON input/output ports default. Specify semantic ports only if useful.
-4. Keep reusable instructions on the definition, current topic/data/request on the instance. Use the user's intended labels without unsolicited suffixes. Icon and color only describe presentation.
-5. Do not invent executors, create unnecessary stages or propose unauthorized graph edits as completed changes.
+1. Check existing instances, then existing compatible definitions by purpose, semantic IO and constraints.
+2. First reuse matching existing instances; then use an existing compatible definition for the needed instance.
+3. Define a new reusable operation ONLY if none fits or a new kind of node is explicitly requested.
+4. A requested new kind means a distinct definition plus node.add referencing its definitionRef.localDefinitionKey; renamed builtin:write is insufficient.
+5. Keep durable instructions on the definition and current topic, data and request on the instance.
+6. Use draft defaults unless useful semantic ports are needed; select only supported executors.
+7. Use the user's intended labels without unsolicited suffixes. Icon and color describe presentation.

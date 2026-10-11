@@ -8,8 +8,9 @@ const patch=(definitions,operations)=>({kind:'ir.applyPatch',localKey:'p',
  args:{patch:{graphId:'g_eval',expectedGraphRevision:0,definitions,operations}}});
 const run=()=>({kind:'run.start',localKey:'r',dependsOn:['p'],
  args:{targets:[{fromAction:'p',localNodeKey:'n'}]}});
-test('evaluator represents six complementary task behaviors',()=>{
- assert.equal(PROMPT_EVAL_CASES.length,6);
+test('evaluator retains six task behaviors and adds four held-out boundaries',()=>{
+ assert.deepEqual(PROMPT_EVAL_CASES.map(c=>c.id),['chat','new-kind','edit-only','reuse-run','compose-run','pdf-export',
+  'explain-save','new-kind-run','multi-source','read-before-plan']);
  assert.equal(promptEvalSnapshot('reuse-run').graph.nodes[0].nodeId,'existing-write');
  assert.equal(promptEvalExtra('pdf-export').availableResults.items[0].resultCurrent,true);
 });
@@ -64,5 +65,6 @@ test('CLI dry run never accesses a live model or needs a key',()=>{
  const output=JSON.parse(run.stdout);
  assert.equal(output.dryRun,true);
  assert.deepEqual(output.cases,['chat','new-kind']);
- assert.equal(output.maximumHostCalls,8);
+ assert.equal(output.maximumHostCalls,12);
+ assert.equal(output.maximumPhysicalCalls,48);
 });

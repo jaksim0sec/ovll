@@ -1102,11 +1102,11 @@ test("artifact page targets survive Pointer export through the artifact API",()=
 test("planner keeps document length requirements on the upstream writer", () => {
   const core=read("instructions/prompts/core.md");
   const run=read("instructions/prompts/layers/run.md");
-  const contract=read("backend/ovllPointer/modelContract.js");
+  const connect=read("instructions/prompts/micro/ir/connect.md");
   assert.match(core,/negations, quantities, audience, format/);
   assert.match(run,/Perform the declared intellectual task/);
-  assert.match(contract,/Connect the actual existing source output by data link to builtin:createFile input/);
-  assert.match(contract,/never fabricate a replacement upstream node/);
+  assert.match(connect,/Connect the actual existing source output by data link to builtin:createFile input/);
+  assert.match(connect,/Never fabricate a replacement upstream node/);
 });
 
 test("PDFKit fallback keeps flowing text cheap and table rows anchored", () => {
