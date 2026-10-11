@@ -140,6 +140,8 @@ async function coordinate({getContext,request,handlers,isActive=()=>true,onActio
 function runEvidence(run){
   let budget=24000;
   return {runId:run.runId||'',status:run.status,graphRef:run.graphRef,targets:run.targets,
+    ...(run.outputMap?{outputMap:run.outputMap,requiredOutputs:run.requiredOutputs,functionOutputRefs:run.functionOutputRefs,
+      deliveryError:run.deliveryError}:{}),
     deliverableTargets:run.deliverableTargets,coverage:run.coverage,nodes:(run.nodes||[]).map(n=>{
       const row={nodeId:n.nodeId,status:n.status,error:n.error||'',reused:n.reused===true,
         outputRefs:n.outputRefs||Object.keys(n.outputs?.values||{}).map(port=>'local:'+run.runId+':'+n.nodeId+':'+port),
@@ -208,7 +210,10 @@ function deliveryContent(run){
   const delivery=run.deliverableTargets||run.targets||[];
   const selected=success.filter(n=>delivery.includes(n.nodeId));
   const artifacts=[];
-  const text=selected.flatMap(n=>Object.values(n.outputs?.values||{}).map(v=>{
+  const text=selected.flatMap(n=>(run.outputMap!==undefined?
+    Object.entries(run.outputMap).filter(([,target])=>target.nodeId===n.nodeId)
+      .map(([name,target])=>[name,n.outputs?.values?.[target.port]]):
+    Object.entries(n.outputs?.values||{})).filter(([,value])=>value!==undefined).map(([name,v])=>{
     const value=v.inline;
     if(value&&typeof value==='object'&&value.downloadUrl){
       // Only a confirmed runtime effect supplies cards. Model text and model
@@ -218,7 +223,9 @@ function deliveryContent(run){
         /^(https?:\/\/|\/(?!\/)|blob:)/.test(url)&&!/[\s()<>"]/.test(url))artifacts.push({...value});
       return String(value.name||'파일');
     }
-    return typeof value==='string'?value:JSON.stringify(value);
+    const content=typeof value==='string'?value:JSON.stringify(value);
+    const target=run.outputMap?.[name],publicLabel=target&&name!==target.nodeId+':'+target.port;
+    return content===undefined?undefined:publicLabel?name+': '+content:content;
   })).filter(Boolean).join('\n\n');
   return {text,artifacts};
 }
@@ -227,7 +234,9 @@ const question=action=>({status:'waiting',question:action.args.question,question
 function blocker(error){
   const known={FUNCTION_INPUT_REQUIRED:'저장 함수의 새 입력을 지정해줘.',FUNCTION_NAMED_INPUTS_REQUIRED:'여러 입력은 이름별로 지정해줘.',
     UNKNOWN_FUNCTION_INPUT:'저장 함수에 정의된 입력 이름을 사용해줘.',FUNCTION_INPUT_TYPE_MISMATCH:'입력 형식이 저장 함수와 맞지 않아.',
-    FUNCTION_INPUT_MAPPING_REQUIRED:'저장 함수의 입력 연결을 확인해야 해.',LOCAL_FUNCTION_NOT_FOUND:'저장된 함수를 찾지 못했어.',
+    FUNCTION_INPUT_MAPPING_REQUIRED:'저장 함수의 입력 연결을 확인해야 해.',
+    FUNCTION_OUTPUT_MAPPING_REQUIRED:'저장 함수의 출력 연결을 확인해 주세요.',
+    FUNCTION_OUTPUT_NOT_PRODUCED:'저장 함수에 지정된 출력이 생성되지 않았습니다.',LOCAL_FUNCTION_NOT_FOUND:'저장된 함수를 찾지 못했어.',
     LOCAL_TARGET_UNRESOLVED:'실행할 작업을 찾지 못했어.',REQUIRED_INPUT_MISSING:'실행에 필요한 입력이 빠졌어.',
     LOCAL_FILE_BYTES_UNAVAILABLE:'원본 파일 데이터가 없어. 파일을 다시 추가해줘.',LOCAL_FILE_PARSER_UNAVAILABLE:'이 파일 형식의 원문 분석 기능은 아직 제공되지 않아.',LOCAL_RUN_NOT_REACHED:'선행 작업이 멈춰 남은 작업을 실행하지 않았어.',
     WORKSPACE_REVISION_CONFLICT:'다른 탭에서 작업이 변경됐어. 저장된 내용을 다시 불러와줘.',
@@ -258,7 +267,7 @@ function presentation({facts=[],messages=[],runs=[]}={}){
     if(fact.question){if(!parts.includes(fact.question))parts.push(fact.question);continue;}
     if(fact.run){
       if(fact.run.status!=='completed')parts.push(fact.run.status==='cancelled'?'실행을 중단했어.':fact.run.status==='skipped'?'선택한 작업은 비활성 분기에 있어 실행하지 않았어.':
-        blocker(fact.run.nodes.find(n=>n.error)?.error)||'실행을 확인해야 해.');
+        blocker(fact.run.deliveryError||fact.run.nodes.find(n=>n.error)?.error)||'실행을 확인해야 해.');
     }else if(['failed','rejected','skipped','cancelled'].includes(fact.status))parts.push(blocker(fact.error));
     else if(fact.status==='saved')parts.push('함수 초안을 저장했어: '+fact.purpose);
     else if(fact.status==='applied'&&!runs.length)parts.push('작업 구성을 반영했어.');

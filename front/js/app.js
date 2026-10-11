@@ -6219,7 +6219,7 @@
     }
   }
   let localRunActive=null;
-  async function runLocalNodes({targets,deliverableTargets,damMode='closed',requestText='',snapshotOverride,
+  async function runLocalNodes({targets,deliverableTargets,outputMap,requiredOutputs,damMode='closed',requestText='',snapshotOverride,
     taskConstraints=[],taskContext,cache,operation=localOperations.getCurrent()}={}){
     const scope=pointerScope();
     if(scope?.storageMode!=='local')throw new Error('LOCAL_SCOPE_UNAVAILABLE');
@@ -6232,7 +6232,7 @@
     const owned={conversationId:scope.conversationId,controller,nodeIds:new Set(targets),operation};
     localRunActive=owned;
     try{
-      const run=await global.OvllPointerLocal.run({conversationId:scope.conversationId,targets,deliverableTargets,
+      const run=await global.OvllPointerLocal.run({conversationId:scope.conversationId,targets,deliverableTargets,outputMap,requiredOutputs,
         damMode,requestText,snapshotOverride,taskConstraints,taskContext,cache,signal:controller.signal,onProgress:run=>{
           if(localRunActive!==owned||!localOperations.isCurrent(operation))return;
           owned.nodeIds=new Set(run.nodes.map(x=>x.nodeId));
@@ -6298,7 +6298,7 @@
   }
   async function runSavedLocalFunction(fn,bindings){
     const bound=global.OvllPointerFunctions.bind(fn,bindings);
-    return runLocalNodes({snapshotOverride:bound.snapshot,targets:bound.targets,
+    return runLocalNodes({snapshotOverride:bound.snapshot,targets:bound.targets,outputMap:bound.outputMap,requiredOutputs:bound.requiredOutputs,
       taskConstraints:bound.invariants,
       taskContext:{objective:fn.purpose,requestText:bound.requestText,constraints:bound.invariants||[]}});
   }

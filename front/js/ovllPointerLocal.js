@@ -211,7 +211,7 @@
       return current;
     }
 
-    async function run({conversationId,targets,deliverableTargets,damMode='closed',requestText='',snapshotOverride,taskConstraints=[],taskContext,executorIdentity,
+    async function run({conversationId,targets,deliverableTargets,outputMap,requiredOutputs=[],damMode='closed',requestText='',snapshotOverride,taskConstraints=[],taskContext,executorIdentity,
       maxSourceBytes=64000,
       createArtifact=(input,options)=>global.AstraAPI.createArtifact(input,options),
       resolveArtifactRequest=params=>global.OvllArtifactRequest.resolve(params),cache=new Map(),
@@ -226,8 +226,28 @@
       const plan=buildExecutionPlan(snapshot,{graphRef:{graphId:snapshot.graph.graphId,
         revision:snapshot.graph.revision},planEpoch:0,targets:targetIds,damMode});
       if(plan.order.length>64)throw new Error('LOCAL_RUN_LIMIT');
+      if(outputMap!==undefined){
+        if(!outputMap||typeof outputMap!=='object'||Array.isArray(outputMap))
+          throw new Error('FUNCTION_OUTPUT_MAPPING_REQUIRED');
+        const mapped=new Set();
+        for(const [name,target] of Object.entries(outputMap)){
+          const item=plan.order.find(n=>n.nodeId===target?.nodeId);
+          if(!name||!target||Object.keys(target).length!==2||
+            !Object.hasOwn(target,'nodeId')||!Object.hasOwn(target,'port')||
+            !item?.definition.outputs.some(p=>p.name===target.port)||mapped.has(target.nodeId+':'+target.port))
+            throw new Error('FUNCTION_OUTPUT_MAPPING_REQUIRED');
+          mapped.add(target.nodeId+':'+target.port);
+        }
+        outputMap=copy(outputMap);
+        if(!Array.isArray(requiredOutputs)||new Set(requiredOutputs).size!==requiredOutputs.length||
+          requiredOutputs.some(name=>typeof name!=='string'||!Object.hasOwn(outputMap,name)))
+          throw new Error('FUNCTION_OUTPUT_MAPPING_REQUIRED');
+        requiredOutputs=copy(requiredOutputs);
+      }
       const runId='r_'+(global.crypto?.randomUUID?.()||Math.random().toString(36).slice(2));
-      const deliveryIds=(deliverableTargets||targetIds).map(x=>typeof x==='string'?x:x.nodeId);
+      const deliveryIds=(outputMap&&Object.keys(outputMap).length?
+        [...new Set(Object.values(outputMap).map(target=>target.nodeId))]:deliverableTargets||targetIds)
+        .map(x=>typeof x==='string'?x:x.nodeId);
       if(!deliveryIds.length||deliveryIds.some(id=>!plan.order.some(item=>item.nodeId===id)))
         throw new Error('LOCAL_DELIVERABLE_OUT_OF_SCOPE');
       const history=new Map();
@@ -238,6 +258,7 @@
       const priorResults=new Map((await validateResults(snapshot,[...history.values()],taskContext?{taskContext}:{}))
         .map(row=>[row.nodeId,row]));
       const record={runId,graphRef:plan.graphRef,targets:targetIds,deliverableTargets:deliveryIds,
+        ...(outputMap!==undefined?{outputMap,requiredOutputs}:{}),
         executionScope:plan.order.map(item=>item.nodeId),snapshot,taskContext:taskContext?copy(taskContext):undefined,
         requestText,taskConstraints:copy(taskConstraints),damMode,status:'running',
         startedAt:Date.now(),nodes:plan.order.map(x=>({nodeId:x.nodeId,status:'pending'}))};
@@ -267,6 +288,21 @@
         const currentSnapshot=!snapshotOverride&&current?.graph?.graphId===snapshot.graph.graphId?current:snapshot;
         const checked=await validateResults(currentSnapshot,record.nodes);
         for(const entry of record.nodes)if(entry.status==='success')entry.resultCurrent=checked.find(n=>n.nodeId===entry.nodeId)?.resultCurrent===true;
+        if(outputMap!==undefined){
+          const values=Object.create(null),refs=Object.create(null);
+          for(const [name,target] of Object.entries(outputMap)){
+            const row=record.nodes.find(n=>n.nodeId===target.nodeId),value=row?.outputs?.values?.[target.port];
+            if(row?.status==='success'&&row.resultCurrent===true&&value!==undefined){
+              values[name]=copy(value);refs[name]='local:'+runId+':'+target.nodeId+':'+target.port;
+            }
+          }
+          record.functionOutputs=values;record.functionOutputRefs=refs;
+          if(Object.keys(outputMap).length&&(!Object.keys(values).length||
+            requiredOutputs.some(name=>!Object.hasOwn(values,name)))){
+            record.coverage.complete=false;record.deliveryError='FUNCTION_OUTPUT_NOT_PRODUCED';
+            if(record.status==='completed')record.status='failed';
+          }
+        }
         record.validity={snapshotCurrent:record.nodes.filter(n=>n.status==='success').every(n=>n.resultCurrent),
           graphRef:currentSnapshot.graph?{graphId:currentSnapshot.graph.graphId,revision:currentSnapshot.graph.revision}:null};
         record.finishedAt=Date.now();
@@ -358,6 +394,8 @@
             inputs:inputs.map(({valueRef,...rest})=>rest),taskContext});
           let output;
           if(item.definition.executorKind==='model_task'){
+            const selectedPorts=Object.values(outputMap||{}).filter(target=>target.nodeId===item.nodeId);
+            const hasSelectedPorts=values=>selectedPorts.every(target=>Object.hasOwn(values||{},target.port));
             if((item.definition.requiredCapabilities||[]).some(c=>!['model_task','branch.exclusive'].includes(c)))
               throw new Error('LOCAL_EXECUTOR_UNAVAILABLE');
             const prior=!targetIds.includes(item.nodeId)&&priorResults.get(item.nodeId);
@@ -374,7 +412,7 @@
                 const value=prior.outputs?.values?.[link.from.port],input=definitionFor(link.to.nodeId)?.inputs.find(port=>port.name===link.to.port);
                 return !value?exclusive(item.nodeId):input&&matchesValue(input.representation,value.inline);
               });
-            const reusable=prior?.status==='success'&&prior.resultCurrent&&consumable&&results.isCurrentNodeResult(snapshot,item.nodeId,prior,
+            const reusable=prior?.status==='success'&&prior.resultCurrent&&consumable&&hasSelectedPorts(prior.outputs?.values)&&results.isCurrentNodeResult(snapshot,item.nodeId,prior,
               {inputArtifacts:inputs,dependencyResults:dependencies,taskConstraints,...(taskContext?{taskContext}:{}),
                 ...(executorIdentity!==undefined?{executorIdentity}:{})});
             if(reusable){
@@ -383,6 +421,7 @@
               output={status:'success',outputs:copy(prior.outputs),provenance:copy(prior.provenance||{}),_meta:copy(prior.execution||{})};
             }else {
               output=cache.get(fingerprint);
+              if(output&&!hasSelectedPorts(output.outputs?.values))output=undefined;
               if(output)entry.reused=true;
               else output=await executeNode({snapshot,nodeId:item.nodeId,inputArtifacts:inputs,requestText:objective,taskConstraints,taskContext,signal});
             }

@@ -217,6 +217,20 @@ function saveDraft(draft,snapshot,options={}){
 function bind(fn,bindings={}){
   if(!fn?.snapshot?.graph)throw new Error('LOCAL_FUNCTION_NOT_FOUND');
   const snapshot=extractSnapshot(fn.snapshot,fn.targets),inputs=fn.inputs||[],mapping=fn.inputMap||{};
+  if(fn.outputMap!==undefined){
+    if(!fn.outputMap||typeof fn.outputMap!=='object'||Array.isArray(fn.outputMap)||
+      Object.keys(fn.outputMap).length!==(fn.outputs||[]).length)
+      throw new Error('FUNCTION_OUTPUT_MAPPING_REQUIRED');
+    const destinations=new Set();
+    for(const output of fn.outputs||[]){
+      const target=fn.outputMap[output.name],node=snapshot.graph.nodes.find(n=>n.nodeId===target?.nodeId);
+      const definition=node&&snapshot.definitions.find(d=>d.definitionId===node.definitionRef?.definitionId&&d.version===node.definitionRef?.version);
+      if(!target||Object.keys(target).length!==2||!own(target,'nodeId')||!own(target,'port')||
+        !definition?.outputs?.some(p=>p.name===target.port&&p.representation===output.representation)||
+        destinations.has(target.nodeId+':'+target.port))throw new Error('FUNCTION_OUTPUT_MAPPING_REQUIRED');
+      destinations.add(target.nodeId+':'+target.port);
+    }
+  }
   if(fn.contractVersion>=2||inputs.length){
     for(const node of snapshot.graph.nodes)node.inputBindings={};
     const free=exposedInputs(snapshot,fn.targets);
@@ -244,7 +258,9 @@ function bind(fn,bindings={}){
     validateValue({...input,kind:target.kind},value);
     assignValue(node,target,value);
   }
-  return {snapshot,targets:clone(fn.targets),requestText:fn.purpose,invariants:clone(fn.invariants||[])};
+  return {snapshot,targets:clone(fn.targets),requestText:fn.purpose,invariants:clone(fn.invariants||[]),
+    ...(fn.outputMap!==undefined?{outputMap:clone(fn.outputMap),
+      requiredOutputs:(fn.outputs||[]).filter(output=>output.required===true).map(output=>output.name)}:{})};
 }
 global.OvllPointerFunctions=Object.freeze({save,saveDraft,list,get,bind,remove,normalizeColor,storageKey:KEY});
 })(window);
