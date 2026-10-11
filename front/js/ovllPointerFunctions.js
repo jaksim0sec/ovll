@@ -53,6 +53,8 @@ function save(options={}){
   let inputs=inherited('inputs'),outputs=inherited('outputs'),invariants=inherited('invariants')||[];
   if(base&&inputs===undefined)inputs=[];
   const inputMap=inherited('inputMap'),presentation=inherited('presentation');
+  const outputMap=own(options,'outputMap')?options.outputMap:
+    own(options,'outputs')&&base&&JSON.stringify(options.outputs)!==JSON.stringify(base.outputs)?undefined:base?.outputMap;
   let fixedInputs=inherited('fixedInputs')||{};
   if(typeof purpose!=="string"||!purpose.trim()||purpose.length>2400||
     !snapshot?.graph?.graphId||!Number.isInteger(snapshot.graph.revision)||
@@ -103,9 +105,42 @@ function save(options={}){
     });
     if(!mapped||mapped.required!==true)throw new Error('FUNCTION_REQUIRED_INPUT_CONTRACT');
   }
-  if(outputs===undefined||!outputs.length)outputs=snapshot.graph.nodes.filter(n=>targets.includes(n.nodeId)).flatMap(n=>{
-    const d=snapshot.definitions.find(d=>d.definitionId===n.definitionRef?.definitionId&&d.version===n.definitionRef?.version);
-    return (d?.outputs||[]).map(p=>({...p,name:n.nodeId+':'+p.name}));});
+  const availableOutputs=snapshot.graph.nodes.flatMap(node=>{
+    const definition=snapshot.definitions.find(d=>d.definitionId===node.definitionRef?.definitionId&&
+      d.version===node.definitionRef?.version);
+    return (definition?.outputs||[]).map(port=>({
+      nodeId:node.nodeId,port:port.name,representation:port.representation,
+      qualifiedName:node.nodeId+':'+port.name,target:targets.includes(node.nodeId),
+      definitionPort:port
+    }));
+  });
+  if(outputs===undefined||!outputs.length)
+    outputs=availableOutputs.filter(p=>p.target).map(p=>({...p.definitionPort,name:p.qualifiedName}));
+  if(outputMap!==undefined&&(!outputMap||typeof outputMap!=='object'||Array.isArray(outputMap)||
+    Object.keys(outputMap).some(name=>!outputs.some(port=>port?.name===name))))
+    throw new Error('FUNCTION_OUTPUT_MAPPING_REQUIRED');
+  const resolvedOutputMap=Object.create(null),assignedOutputs=new Set();
+  for(const output of outputs){
+    if(!output||typeof output.name!=='string'||!output.name||
+      typeof output.representation!=='string'||own(resolvedOutputMap,output.name))
+      throw new Error('FUNCTION_OUTPUT_MAPPING_REQUIRED');
+    const requested=outputMap&&own(outputMap,output.name)?outputMap[output.name]:null;
+    let possibilities;
+    if(requested){
+      possibilities=availableOutputs.filter(p=>p.nodeId===requested.nodeId&&p.port===requested.port);
+    }else{
+      possibilities=availableOutputs.filter(p=>p.qualifiedName===output.name);
+      if(!possibilities.length)possibilities=availableOutputs.filter(p=>p.port===output.name);
+      if(!possibilities.length)possibilities=availableOutputs.filter(p=>p.target&&
+        p.representation===output.representation);
+    }
+    if(possibilities.length!==1||possibilities[0].representation!==output.representation||
+      assignedOutputs.has(possibilities[0].qualifiedName))
+      throw new Error('FUNCTION_OUTPUT_MAPPING_REQUIRED');
+    const match=possibilities[0];
+    assignedOutputs.add(match.qualifiedName);
+    resolvedOutputMap[output.name]={nodeId:match.nodeId,port:match.port};
+  }
   if(!base&&latest(all).length>=30)throw new Error("LOCAL_FUNCTION_LIMIT");
   let appearance;
   if(presentation&&typeof presentation==='object'){
@@ -120,7 +155,7 @@ function save(options={}){
     if(Array.isArray(appearance.view))appearance.view=appearance.view.filter(n=>snapshot.graph.nodes.some(node=>node.nodeId===n.id));
   }
   const item={id:base?.id||"fn_"+global.crypto.randomUUID().replace(/-/g,""),version:base?base.version+1:1,purpose:purpose.trim(),
-    snapshot,targets:[...new Set(targets)],inputs:clone(inputs),inputMap:clone(mapping),outputs:clone(outputs),
+    snapshot,targets:[...new Set(targets)],inputs:clone(inputs),inputMap:clone(mapping),outputs:clone(outputs),outputMap:clone(resolvedOutputMap),
     invariants:clone(invariants),fixedInputs:clone(fixedInputs),contractVersion:2,verificationStatus:"draft",createdAt:Date.now(),
     ...(appearance?{presentation:appearance}:{})};
   global.localStorage.setItem(KEY,JSON.stringify([...all,item]));

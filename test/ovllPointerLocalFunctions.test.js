@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
+import {createContractValidation} from '../backend/ovllPointer/validation.js';
 const script=readFileSync(new URL('../front/js/ovllPointerFunctions.js',import.meta.url),'utf8');
 test('locally saved function is a pinned immutable unverified draft and can be reused',()=>{
  const data=new Map(),localStorage={getItem:k=>data.get(k)||null,setItem:(k,v)=>data.set(k,v)};
@@ -350,4 +351,88 @@ test('saving a reusable file operation requires an explicit fresh file or delibe
  const fresh=f.bind(fn,{[fn.inputs[0].name]:{name:'fresh.txt',textPreview:'new text'}});
  assert.equal(fresh.snapshot.graph.nodes[0].settings.file.name,'fresh.txt');
  assert.equal(f.get(fn.id).snapshot.graph.nodes[0].settings.file.name,'previous.txt');
+});
+
+test('function output contract rejects nonexistent or mislabeled result ports',()=>{
+ const {f}=functionStore(),snapshot={
+  graph:{graphId:'g_outputs',revision:1,nodes:[{
+   nodeId:'report',definitionRef:{definitionId:'d_report',version:1},
+   settings:{request:'Prepare sourced report'},inputBindings:{}
+  }],connections:[]},
+  definitions:[{definitionId:'d_report',version:1,executorKind:'model_task',
+   inputs:[],outputs:[{name:'result',role:'Report',representation:'text'}]}]
+ };
+ const base={purpose:'Reusable sourced report',snapshot,targets:['report']};
+ assert.throws(()=>f.save({...base,outputs:[{name:'result',role:'Report',representation:'json'}]}),
+  /FUNCTION_OUTPUT_MAPPING_REQUIRED/);
+ assert.throws(()=>f.save({...base,outputs:[{name:'missing',role:'Unknown',representation:'array'}]}),
+  /FUNCTION_OUTPUT_MAPPING_REQUIRED/);
+ const mapped=f.save({...base,outputs:[{name:'summary',role:'Report',representation:'text'}]});
+ assert.deepEqual(JSON.parse(JSON.stringify(mapped.outputMap.summary)),{nodeId:'report',port:'result'});
+ const auto=f.save(base);
+ assert.deepEqual(JSON.parse(JSON.stringify(auto.outputs)),[{name:'report:result',role:'Report',representation:'text'}]);
+ assert.deepEqual(JSON.parse(JSON.stringify(auto.outputMap['report:result'])),{nodeId:'report',port:'result'});
+});
+test('function output contract preserves precise multi-node selection and rejects ambiguous aliases',()=>{
+ const {f}=functionStore(),snapshot={graph:{graphId:'g_multi',revision:1,nodes:[
+  {nodeId:'source',definitionRef:{definitionId:'d',version:1}},
+  {nodeId:'report',definitionRef:{definitionId:'d',version:1}}
+ ],connections:[{kind:'data',from:{nodeId:'source',port:'result'},to:{nodeId:'report',port:'in'}}]},
+ definitions:[{definitionId:'d',version:1,executorKind:'model_task',
+  inputs:[{name:'in',representation:'text',required:false}],
+  outputs:[{name:'result',role:'Result',representation:'text'}]}]};
+ const base={purpose:'Compare research outputs',snapshot,targets:['report']};
+ const qualified=f.save({...base,outputs:[
+  {name:'source:result',role:'Evidence',representation:'text'},
+  {name:'report:result',role:'Report',representation:'text'}
+ ]});
+ assert.deepEqual(JSON.parse(JSON.stringify(qualified.outputMap)),{
+  'source:result':{nodeId:'source',port:'result'},
+  'report:result':{nodeId:'report',port:'result'}
+ });
+ assert.throws(()=>f.save({...base,outputs:[
+  {name:'report:result',representation:'text'},{name:'report:result',representation:'text'}
+ ]}),/FUNCTION_OUTPUT_MAPPING_REQUIRED/);
+ assert.throws(()=>f.save({...base,outputs:[
+  {name:'mystery',representation:'text'},{name:'other',representation:'text'}]
+ }),/FUNCTION_OUTPUT_MAPPING_REQUIRED/);
+ const labels=f.save({...base,outputs:[
+  {name:'evidence',role:'Evidence',representation:'text'},
+  {name:'report',role:'Report',representation:'text'}],
+  outputMap:{evidence:{nodeId:'source',port:'result'},report:{nodeId:'report',port:'result'}}
+ });
+ assert.equal(labels.outputMap.evidence.nodeId,'source');
+ assert.equal(labels.outputMap.report.nodeId,'report');
+});
+test('saved output mappings remain pinned across versions and leave the saved graph intact',()=>{
+ const {f,reload}=functionStore(),snapshot={graph:{graphId:'g_pinned',revision:1,
+  nodes:[{nodeId:'write',definitionRef:{definitionId:'d',version:1}}],connections:[]},
+  definitions:[{definitionId:'d',version:1,executorKind:'model_task',inputs:[],
+   outputs:[{name:'result',role:'text',representation:'text'}]}]};
+ const first=f.save({purpose:'Reusable text',snapshot,targets:['write'],
+  outputs:[{name:'summary',role:'Summary',representation:'text'}]});
+ const original=JSON.stringify(first.snapshot);
+ const second=f.save({baseFunctionRef:{id:first.id,version:1},
+  presentation:{name:'Updated appearance'}});
+ assert.deepEqual(JSON.parse(JSON.stringify(second.outputMap)),{summary:{nodeId:'write',port:'result'}});
+ assert.equal(JSON.stringify(reload().get(first.id,1).snapshot),original);
+ assert.equal(second.verificationStatus,'draft');
+ const renamed=f.save({baseFunctionRef:{id:first.id,version:2},
+  outputs:[{name:'newSummary',role:'Summary',representation:'text'}]});
+ assert.deepEqual(JSON.parse(JSON.stringify(renamed.outputMap)),{
+  newSummary:{nodeId:'write',port:'result'}});
+ assert.equal(reload().get(first.id,2).outputs[0].name,'summary');
+});
+
+test('model function draft accepts exact explicit output map and rejects invented map attributes',()=>{
+ const validator=createContractValidation();
+ const draft={purpose:'Compare sources',inputs:[],
+  outputs:[{name:'summary',role:'Summary',representation:'text'}],invariants:[],
+  procedure:{kind:'graph',graphRef:{graphId:'g',revision:1}},
+  outputMap:{summary:{nodeId:'write',port:'result'}}};
+ assert.equal(validator.validate('FunctionDraft',draft),true);
+ assert.equal(validator.validate('FunctionDraft',{...draft,
+  outputMap:{summary:{nodeId:'write',port:'result',fabricated:true}}}),false);
+ assert.equal(validator.validate('FunctionDraft',{...draft,
+  outputMap:{summary:{nodeId:'write'}}}),false);
 });
