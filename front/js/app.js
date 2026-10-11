@@ -564,6 +564,63 @@
     return text || fallback;
   }
 
+  function pointerValidationInfo(error, code, status) {
+    const token = value =>
+      typeof value === "string" && /^[A-Za-z][A-Za-z0-9_]{0,60}$/.test(value)
+        ? value : "";
+    const path = value =>
+      typeof value === "string" && /^\/(?:[A-Za-z0-9_]+\/?)*$/.test(value)
+        ? value.slice(0, 120) : "/";
+    const labels = {
+      required: "필수 값 누락",
+      additionalProperties: "허용되지 않은 필드",
+      invalidActionFields: "행동 필드 형식 오류",
+      unsupportedSemanticAction: "지원하지 않는 행동",
+      invalidSelector: "노드 또는 정의 참조 오류",
+      unknownNodeAlias: "생성 노드 참조를 찾지 못함",
+      unknownDefinitionAlias: "생성 정의 참조를 찾지 못함",
+      unknownDefinition: "정의 참조를 찾지 못함",
+      invalidEndpoint: "연결 포트 형식 오류",
+      invalidTargets: "실행 대상 형식 오류",
+      invalidCompiledTurn: "변환된 작업 계약 오류",
+      invalidActionPlan: "행동 계획 계약 오류",
+      explicitExecutionRequired: "실행 의도 누락",
+      executionNotAuthorized: "실행 권한 불일치",
+      taskContextRequiredForActions: "작업 맥락 누락",
+      type: "자료형 불일치",
+      enum: "허용되지 않은 값",
+      oneOf: "참조 구조 불일치",
+      schemaMismatch: "스키마 불일치",
+      maxBytes: "응답 크기 초과",
+      invalidJson: "JSON 형식 오류"
+    };
+    const issues = (Array.isArray(error?.validationIssues)
+      ? error.validationIssues.slice(0, 4) : []).map(issue => ({
+        path: path(issue?.path),
+        rule: token(issue?.rule) || "unknown",
+        ...(token(issue?.missing) ? {missing: token(issue.missing)} : {}),
+        ...(token(issue?.extra) ? {extra: token(issue.extra)} : {})
+      }));
+    const safeCode = /^[A-Z0-9_]{2,60}$/.test(code) ? code : "INVALID_MODEL_TURN";
+    const lines = issues.map((issue, index) => {
+      const action = /^\/actions\/(\d+)(?:\/|$)/.exec(issue.path);
+      const target = action ? "행동 " + (Number(action[1]) + 1) + " · " : "";
+      return (index + 1) + ". " + target + issue.path + " · " +
+        (labels[issue.rule] || "검증 규칙 불일치") + " [" + issue.rule + "]" +
+        (issue.missing ? " · 누락: " + issue.missing :
+          issue.extra ? " · 필드: " + issue.extra : "");
+    });
+    const safeStatus = Number.isInteger(status) && status >= 400 && status < 600 ? status : null;
+    return {
+      detail: [
+        "모델 응답이 작업 형식 검증을 통과하지 못했어. 작업 변경은 적용되지 않았어.",
+        "진단: " + safeCode + (safeStatus ? " · HTTP " + safeStatus : ""),
+        ...(lines.length ? lines : ["상세 검증 항목 없음"])
+      ].join("\n"),
+      diagnostics: {code: safeCode, status: safeStatus, issues}
+    };
+  }
+
   function errorPresentation(
     error,
     fallback =
@@ -590,6 +647,16 @@
         error?.message,
         ""
       );
+
+    const validationError =
+      code === "INVALID_MODEL_TURN" ||
+      code === "MODEL_INVALID_JSON" ||
+      Array.isArray(error?.validationIssues) && error.validationIssues.length > 0;
+    const validationInfo = validationError
+      ? pointerValidationInfo(error, code, status) : null;
+    if (validationInfo) {
+      console.warn("[OvllPointer validation]", validationInfo.diagnostics);
+    }
 
     const rateLimited =
       status === 429 ||
@@ -694,21 +761,8 @@
             : "모델 제공자의 요청 한도에 걸렸어. 잠시 후 다시 시도해 줘."
           : code === "LOCAL_MODEL_BUSY"
             ? "현재 작업이 몰려 대기 공간이 찼어. 잠시 후 다시 시도해 줘."
-            : code === "INVALID_MODEL_TURN" || code === "MODEL_INVALID_JSON"
-              ? "모델 응답이 작업 형식 검증을 통과하지 못했어. 작업 변경은 적용되지 않았어."+
-                (Array.isArray(error?.validationIssues)&&error.validationIssues.length?
-                  "\n"+error.validationIssues.slice(0,4).map((issue,index)=>{
-                    const field=issue.missing||issue.extra||issue.path?.split('/').filter(Boolean).at(-1)||'unknown';
-                    const description={
-                      required:"필수 값 누락",invalid:"값 또는 식별자 형식 오류",
-                      duplicate:"식별자 중복",additionalProperties:"허용되지 않는 필드",
-                      type:"자료형 불일치",enum:"허용되지 않는 값",
-                      oneOf:"참조 구조 불일치",schemaMismatch:"스키마 불일치",
-                      maxBytes:"응답 크기 한도 초과"
-                    }[issue.rule]||"계약 검증 실패";
-                    return (index+1)+". "+description+" ("+String(field).slice(0,60)+")"+
-                      " · 위치: "+String(issue.path||'/').slice(0,140);
-                  }).join("\n"):"")
+            : validationInfo
+              ? validationInfo.detail
             : code === "PROVIDER_HTTP_ERROR"
               ? status===400
                 ? "모델 요청 형식이 올바르지 않아 거부됐어. 요청 설정을 확인해야 해. (HTTP 400)"
@@ -726,11 +780,13 @@
 
     return {
       title,
-      detail:
-        cleanPublicMessage(
-          detail,
-          fallback
-        ),
+      detail: validationInfo
+        ? validationInfo.detail
+        : cleanPublicMessage(
+            detail,
+            fallback
+          ),
+      isValidationError: !!validationInfo,
       code:
         code ||
         (
@@ -858,6 +914,14 @@
 
     detail.textContent =
       presentation.detail;
+
+    if (presentation.isValidationError) {
+      detail.style.whiteSpace = "pre-wrap";
+      detail.style.overflowWrap = "anywhere";
+      detail.style.maxHeight = "11em";
+      detail.style.overflowY = "auto";
+      detail.style.textOverflow = "clip";
+    }
 
     copy.append(
       title,
