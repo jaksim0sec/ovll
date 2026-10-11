@@ -7,8 +7,8 @@ Dynamic definitions and builtin definitions use the same graph contracts.
 Preserve unrelated state and use only the stages that serve the work.
 
 ## Definition lifecycle
-Semantic behavior changes require a new definition version.
-Cosmetic name/icon/color changes use definition.appearance on the exact custom definitionRef.
+Semantic behavior changes use definition.revise with the complete changed contract; the host creates a new definition version.
+Cosmetic name/icon/color changes use definition.appearance on the exact existing custom definition selector.
 Change only the requested presentation fields and preserve purpose, IO and other nodes.
 Builtin definitions are read-only; their instance settings remain editable.
 Delete a custom definition with definition.delete after authorized local dependents are removed.

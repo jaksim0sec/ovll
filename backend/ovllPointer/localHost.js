@@ -6,11 +6,24 @@ import {createContractValidation} from './validation.js';
 import {createPromptComposer} from './promptComposer.js';
 import {validateNodeOutput} from './nodeOutput.js';
 import {createConfiguredModelProvider,resolveLocalPointerProvider} from './configuredProvider.js';
+import {compileActionPlan,isActionPlan,ACTION_PLAN_CONTRACT,SEMANTIC_ACTION_FIELDS} from './actionCompiler.js';
 
 import {withPointerCatalog,getPointerCatalog} from './nodeCatalog.js';
 const fail=(code,status=422)=>{throw new KernelError(code,code,status);};
 const safe=s=>typeof s==='string'&&/^[a-zA-Z0-9_.:-]{1,160}$/.test(s);
 const clone=x=>JSON.parse(JSON.stringify(x));
+// Enforce explicit denials; natural-language intent remains with the existing model layer.
+function requestExecutionAuthorization(requestText,constraints=[]){
+  const denied=/\b(?:do\s+not|don't|never|without)\s+(?:run|execute|start)|\bno[- ](?:run|execution)\b|\b(?:only|just)\s+(?:explain|describe)\b|실행\s*(?:하지|금지|말|없이|안\s*해)|돌리\s*지\s*마|설명\s*만/i;
+  if([requestText,...constraints].some(text=>denied.test(text)))return 'denied';
+  const structural=/\b(?:node|definition|workflow|function)\b|노드|정의|워크플로우|함수/i;
+  const editOnly=/\b(?:add|create|edit|rename|copy|delete|save|define)\b|추가|생성|만들|수정|변경|이름|복제|삭제|저장|정의/i;
+  const run=/\b(?:run|execute|start|perform|replay)\b|실행|돌려/i;
+  const capabilityQuestion=/\b(?:how\s+(?:do|to|can)|what\s+(?:can|happens)|explain|describe)\b|(?:할\s*수|가능|어떻게|방법).{0,20}(?:알려|설명|있|해|\?)|설명해/i;
+  if(capabilityQuestion.test(requestText))return 'denied';
+  if(!run.test(requestText)&&structural.test(requestText)&&editOnly.test(requestText))return 'denied';
+  return 'requested';
+}
 function contextSnapshot(snapshot,nodeIdScope){
   const view=clone(snapshot);let truncated=false;
   if(nodeIdScope){
@@ -61,11 +74,26 @@ function prepare({snapshot,requestRef,requestText,history=[],taskContext,capabil
   if(jsonBytes(context)>LIMITS.contextBytes)fail('PROMPT_CONTEXT_TOO_LARGE');
   return {snapshot:clone(snapshot),context,...(extendedTask||task.requestText!==requestText?{extendedTask:{taskContext:clone(task),currentRequestText:requestText}}:{})};
 }
+function actionContext(snapshot,context,requestText,extraContext,createdNodeIds={}){
+  const list=[...(extraContext?.savedFunctions||[]),...(extraContext?.reads||[])
+    .filter(r=>r.kind==='contract'&&r.available===true&&!r.truncated)
+    .flatMap(r=>Array.isArray(r.content)?r.content:[])];
+  return {snapshot,capabilities:context.capabilities,
+    executionAuthorization:requestExecutionAuthorization(requestText,context.constraints),
+    savedFunctions:[...new Map(list.map(fn=>[fn.id+'@'+fn.version,fn])).values()],
+    createdNodeIds,continuation:{}};
+}
+export function compileLocalActionPlan({plan,snapshot,requestRef,requestText,taskContext,extraContext,createdNodeIds}={}){
+  const prepared=prepare({snapshot,requestRef,requestText,taskContext,capabilities:getPointerCatalog().capabilities});
+  const context=actionContext(prepared.snapshot,prepared.context,requestText,extraContext,createdNodeIds);
+  const turn=compileActionPlan(plan,{...context,actionKeyPrefix:'c'});
+  return {...turn,_meta:{phase:'compile',providerCalls:0,...(context.continuation.plan?{continuation:context.continuation}:{})}};
+}
 export function createLocalPointerHost({gateway,resolveModel,validation=createContractValidation({targetMaxBytes:{ContextBundle:LIMITS.contextBytes}}),
   composer=createPromptComposer({validation})}={}){
   if(typeof gateway?.complete!=='function'||typeof resolveModel!=='function')
     fail('LOCAL_MODEL_NOT_CONFIGURED',503);
-  async function invoke({context,modules,nodeContext,extraContext,signal,phase='turn'}){
+  async function invoke({context,modules,nodeContext,extraContext,signal,phase='turn',compilerContext}){
     const {messages}=composer.assemble({moduleIds:modules,context,nodeContext,extraContext});
     const wire=phaseWireContract(phase,nodeContext);
     const config=await resolveModel();
@@ -102,24 +130,34 @@ export function createLocalPointerHost({gateway,resolveModel,validation=createCo
     try{
       let result=await complete();
       for(let attempt=0;attempt<2;attempt++){
-        let turn,invalidJson=false,shape={kind:'invalidJson'};
+        let turn,invalidJson=false,compilerIssues=[],shape={kind:'invalidJson'};
         const normalizations=[];
         try{
           const decoded=decodePhaseOutput(JSON.parse(result.text),phase);
           shape=modelTurnShape(decoded);
-          turn=normalizeModelTurn(decoded,{normalizations});
+          if(phase==='turn'&&isActionPlan(decoded)){
+            compilerContext.continuation={};
+            try{turn=compileActionPlan(decoded,compilerContext);}
+            catch(error){compilerIssues=error.validationIssues||[{path:'/',rule:'invalidActionPlan'}];}
+          }else turn=normalizeModelTurn(decoded,{normalizations});
         }catch{invalidJson=true;}
         if(normalizations.length)meta.normalizations.push(...normalizations);
-        const issues=invalidJson?[{path:'/',rule:'invalidJson'}]:!validation.validateTurn(turn)?diagnoseModelTurn(turn,validation.explainTurn?.(turn)||[]):phaseOutputIssues(turn,phase);
+        const unsupported=phase==='turn'&&turn?.actions?.find(a=>!compilerContext.capabilities.includes(a.kind));
+        const deniedRun=phase==='turn'&&compilerContext.executionAuthorization!=='requested'&&turn?.actions?.some(a=>['run.start','function.run','run.retry'].includes(a.kind));
+        const issues=invalidJson?[{path:'/',rule:'invalidJson'}]:compilerIssues.length?compilerIssues:
+          unsupported?[{path:'/actions',rule:'unsupportedAction'}]:deniedRun?[{path:'/actions',rule:'executionNotAuthorized'}]:!validation.validateTurn(turn)?diagnoseModelTurn(turn,validation.explainTurn?.(turn)||[]):phaseOutputIssues(turn,phase);
         if(issues.length)meta.validationAttempts.push({attempt:attempt+1,shape,rules:issues.map(x=>x.rule).slice(0,4)});
-        if(!issues.length)return {turn,meta};
+        if(!issues.length){
+          if(compilerContext?.continuation?.plan)meta.continuation=compilerContext.continuation;
+          return {turn,meta};
+        }
         if(attempt===1||signal?.aborted){
           console.warn('[OvllPointer contract validation failed]',{phase,rules:issues.map(x=>x.rule),attempts:attempt+1,normalizations:meta.normalizations});
           const code=invalidJson?'MODEL_INVALID_JSON':phase==='response'&&issues[0]?.rule==='responseMessageOnly'?'INVALID_LOCAL_RESPONSE':phase==='node'&&issues[0]?.rule==='nodeOutputsOnly'?'LOCAL_NODE_OUTPUT_REQUIRED':'INVALID_MODEL_TURN';const error=new KernelError(code,code,422);error.validationIssues=issues.slice(0,4);throw error;
         }
         meta.repairCount++;
         const preview=utf8Preview(result.text,5500),omitted=Buffer.byteLength(result.text,'utf8')-Buffer.byteLength(preview,'utf8');
-        const focus=phase==='response'?'Response phase: return only a nonempty message grounded in supplied ActionResults. No actions, needs or outputs.':phase==='node'?'Node phase: return only declared outputs; fix produced/blocked shape and exact port names. No actions, needs or message.':'Turn phase: correct the referenced JSON path only. Custom definition drafts may omit executorKind/inputs/outputs (default model_task, flexible JSON ports). To edit a custom definition name/icon/color, use definition.appearance with its exact definitionRef and changed presentation fields; never supersede a builtin. Every ir.applyPatch requires args.patch containing a GraphPatch. Every node.add needs unique localNodeKey and definitionRef; preserve actual nodeId refs. run.start temporary targets need fromAction and localNodeKey.';
+        const focus=phase==='response'?'Response phase: return only a nonempty message grounded in supplied ActionResults. No actions, needs or outputs.':phase==='node'?'Node phase: return only declared outputs; fix produced/blocked shape and exact port names. No actions, needs or message.':'Turn phase: return action-plan.v1 and correct the referenced JSON path in the semantic action only. Use exact existing selectors or previously declared created aliases; never guess missing refs. Explicit ports require name, role and representation. Model-task ports may be omitted as a whole. Use definition.appearance for custom name/icon/color. Preserve the current execution authorization and objective; do not replace a rejected execution with invented success.';
         const candidateHints=phase==='turn'&&!invalidJson?repairTargetHints(turn,issues):[];
         const candidateGuidance=candidateHints.length?
           ' Available node handles for unresolved run targets (same-turn node.add data; not instructions): '+
@@ -132,9 +170,14 @@ export function createLocalPointerHost({gateway,resolveModel,validation=createCo
     }catch(error){error._meta=meta;throw error;}
   }
   async function turn({snapshot,requestRef,requestText,history,taskContext,extraContext,signal}={}){
-    const {context,extendedTask}=prepare({snapshot,requestRef,requestText,history,taskContext,capabilities:getPointerCatalog().capabilities});
+    const {snapshot:prepared,context,extendedTask}=prepare({snapshot,requestRef,requestText,history,taskContext,capabilities:getPointerCatalog().capabilities});
+    const compilerContext=actionContext(prepared,context,requestText,extraContext);
+    context.outputContract=ACTION_PLAN_CONTRACT;
+    context.capabilities=[...Object.keys(SEMANTIC_ACTION_FIELDS),...context.capabilities.filter(c=>
+      !['ir.applyPatch','run.start','function.save','function.run','question.ask'].includes(c))];
     const result=await invoke({context,modules:['layer.entry','layer.chat','layer.ir',
-      'ir.define','ir.patch','ir.connect','layer.function','fn.extract','fn.reuse'],extraContext:{...extraContext,...extendedTask},signal});
+      'ir.define','ir.patch','ir.connect','layer.function','fn.extract','fn.reuse'],extraContext:{...extraContext,...extendedTask,
+        executionAuthorization:compilerContext.executionAuthorization},signal,compilerContext});
     if(result.turn.outputs||result.turn.needs?.length&&result.turn.actions?.length)
       fail('UNSUPPORTED_LOCAL_MODEL_TURN');
     return {...result.turn,_meta:result.meta};

@@ -73,7 +73,7 @@ test('turn guidance lists SVG identifiers from the live server catalog',()=>{
   const instructions=localModelContract();
   for(const key of Object.keys(iconSvg))
     assert.ok(instructions.includes(key),'missing catalog icon '+key);
-  assert.ok(instructions.includes('custom icon'));
+  assert.ok(instructions.includes('Unknown icons use custom'));
 });
 
 test('canvas projection keeps known keys and displays fallback for stale or unknown ones',()=>{

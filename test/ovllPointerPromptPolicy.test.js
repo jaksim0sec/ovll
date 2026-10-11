@@ -15,15 +15,15 @@ test('entry differentiates chat, reuse, dynamic definition, edit-only and explic
 });
 test('definition guidance does not propose unsolicited graph structure',()=>{
  const d=read('prompts/micro/ir/define.md');
- assert.match(d,/builtin:write/);
- assert.match(d,/localDefinitionKey/);
+ assert.match(d,/builtin writing node/);
+ assert.match(d,/created definition alias/);
  assert.doesNotMatch(d,/For an ordinary task without authorization for new workflow structure, propose/);
 });
 test('assembled rule owners preserve data flow, real file effects and atomic cosmetic edits',()=>{
  const x=['core.md','layers/ir.md','micro/ir/patch.md','micro/ir/connect.md']
   .map(path=>read('prompts/'+path)).join('\n');
  for(const term of ['multiple:false','file.read_local','artifact.create',
-    'definition.appearance','definition.delete','runRef','ActionResults'])
+    'definition.appearance','definition.delete','Active-run adoption is unavailable','ActionResults'])
     assert.ok(x.includes(term),term);
 });
 test('canonical action example still roundtrips wire and passes the frozen schema',()=>{

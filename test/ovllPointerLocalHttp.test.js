@@ -2,6 +2,19 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
 import {mountLocalPointerRoutes} from '../backend/ovllPointer/localHttp.js';
+test('compiler-only API produces canonical commands without creating or charging a model host',async()=>{
+ const app=express();app.use(express.json());let calls=0;
+ mountLocalPointerRoutes(app,{enabled:()=>false,createHost:()=>{calls++;throw Error('MODEL_MUST_NOT_RUN');}});
+ const server=await new Promise(resolve=>{const listener=app.listen(0,'127.0.0.1',()=>resolve(listener));});
+ try{
+  const response=await fetch('http://127.0.0.1:'+server.address().port+'/api/pointer/local/compile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+   snapshot:{graph:{graphId:'g',revision:0,nodes:[],connections:[]},definitions:[]},requestRef:'compile',requestText:'Add a writing node',
+   plan:{contract:'action-plan.v1',actions:[{action:'node.add',alias:'writer',definition:{kind:'builtin',type:'write'}}]}
+  })});
+  assert.equal(response.status,200);const body=await response.json();
+  assert.equal(body.actions[0].kind,'ir.applyPatch');assert.equal(body._meta.providerCalls,0);assert.equal(calls,0);
+ }finally{await new Promise(resolve=>server.close(resolve));}
+});
 test('stateless local model API is disabled by default and cannot invoke provider',async()=>{
  const app=express();app.use(express.json());
  let calls=0;mountLocalPointerRoutes(app,{enabled:()=>false,createHost:()=>{calls++;return{};}});

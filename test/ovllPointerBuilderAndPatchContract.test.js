@@ -16,17 +16,11 @@ const turn=last=>({actions:[{kind:'ir.applyPatch',localKey:'p',args:{patch:{
   operations:[node('first'),node('second'),last]
 }}}]});
 
-test('GraphPatch command names and required fields come from canonical schema, not a separate prompt list',()=>{
-  assert.deepEqual(PATCH_OPERATION_KINDS,[
-    'node.add','node.update','node.delete','definition.appearance',
-    'definition.delete','link.add','link.remove'
-  ]);
+test('semantic commands retain all canonical graph operation kinds without teaching internal fields',()=>{
+  assert.deepEqual(PATCH_OPERATION_KINDS,['node.add','node.update','node.delete','definition.appearance','definition.delete','link.add','link.remove']);
   const instruction=localModelContract();
-  for(const op of PATCH_OPERATION_KINDS){
-    assert.ok(instruction.includes(op+'('),op);
-    for(const field of PATCH_OPERATION_CONTRACTS[op].required)
-      if(field!=='op')assert.ok(instruction.includes(op+'('),'missing '+field);
-  }
+  for(const op of PATCH_OPERATION_KINDS)assert.ok(instruction.includes(op+':'),op);
+  for(const field of ['expectedGraphRevision','localNodeKey','localDefinitionKey','dependsOn'])assert.ok(!instruction.includes(field),field);
 });
 
 test('third unsupported graph operation reports invalidOperation with the actual allowed vocabulary',()=>{

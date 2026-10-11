@@ -76,6 +76,6 @@ test('Pointer user-facing steps track action boundaries, real nodes, and lifecyc
   const define=read('instructions/prompts/micro/ir/define.md');
   const contract=read('backend/ovllPointer/modelContract.js');
   assert.match(entry,/new kind of node/);
-  assert.match(define,/builtin:write/);
+  assert.match(define,/builtin writing node/);
   assert.match(contract,/definitionRef/);
 });

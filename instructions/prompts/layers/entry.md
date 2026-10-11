@@ -8,8 +8,8 @@
 5. **Functionization:** Include saving only when requested; use the saved-work contract.
 
 ## Permission
-Only an explicit run or computed deliverable requiring a run permits run.start/function.run/run.retry.
-Set executionIntent:"requested" for that current execution request.
+Only an explicit run or computed deliverable requiring a run permits execute.
+Set executionIntent:"requested" for that current execution request and respect the host-supplied executionAuthorization. If denied, request an explicit run instead of proposing one.
 Limit execution to its objective.
 An edit, rename, copy, delete, explanation or save alone does not authorize a run.
 Honor explicit no-run and no-edit instructions.

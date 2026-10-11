@@ -45,6 +45,8 @@
   const localReady=({signal}={})=>request('local/ready',{signal});
   const localTurn=({snapshot,requestRef=uniqueId(),requestText,history,extraContext,taskContext,signal})=>
     request('local/turn',{method:'POST',body:{snapshot,requestRef,requestText,history,extraContext,taskContext},signal});
+  const localCompile=({plan,snapshot,createdNodeIds,requestRef=uniqueId(),requestText,taskContext,extraContext,signal})=>
+    request('local/compile',{method:'POST',body:{plan,snapshot,createdNodeIds,requestRef,requestText,taskContext,extraContext},signal});
   const localResponse=({snapshot,requestRef=uniqueId(),requestText,actionResults,history,taskContext,signal})=>
     request('local/response',{method:'POST',body:{snapshot,requestRef,requestText,actionResults,history,taskContext},signal});
   const localNode=({snapshot,requestRef=uniqueId(),requestText,nodeId,inputArtifacts,taskConstraints,taskContext,signal})=>
@@ -98,5 +100,5 @@
     const poll=global.setInterval(()=>{void replay().then(connect);},3000);
     return ()=>{closed=true;global.clearInterval(poll);stream?.close();stream=null;};
   }
-  global.OvllPointerApi=Object.freeze({request,submit,turn,events,state,runState,graph,run,task,artifact,watch,uniqueId,localCatalog,localReady,localTurn,localNode,localResponse});
+  global.OvllPointerApi=Object.freeze({request,submit,turn,events,state,runState,graph,run,task,artifact,watch,uniqueId,localCatalog,localReady,localTurn,localCompile,localNode,localResponse});
 })(window);

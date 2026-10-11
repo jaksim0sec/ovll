@@ -6375,6 +6375,7 @@
             runs:await currentLocalRuns(snapshot,conversationId,taskContext)};
         },
         request:context=>PointerAPI.localTurn({...context,requestText:value,taskContext,signal:operation.signal}),
+        requestCompile:context=>PointerAPI.localCompile({...context,requestText:value,taskContext,signal:operation.signal}),
         handlers:{
           'ir.applyPatch':async action=>{
             if(!localOperations.isActive(operation))throw new Error('LOCAL_CONVERSATION_CHANGED');

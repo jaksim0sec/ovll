@@ -1,4 +1,4 @@
-import {createConfiguredLocalPointerHost} from './localHost.js';
+import {createConfiguredLocalPointerHost,compileLocalActionPlan} from './localHost.js';
 import {resolveLocalPointerProvider} from './configuredProvider.js';
 import {getPointerCatalog} from './nodeCatalog.js';
 import {MODEL_CONTEXT_LIMITS} from './contextLimits.js';
@@ -52,6 +52,14 @@ export function mountLocalPointerRoutes(app,{createHost=()=>createConfiguredLoca
   app.get('/api/pointer/local/ready',(_req,res)=>{
     const configured=!!enabled();
     res.set('Cache-Control','no-store').json({ready:configured,configured,modelHealth:'unverified'});
+  });
+  app.post('/api/pointer/local/compile',(req,res)=>{
+    res.set('Cache-Control','no-store');
+    try{
+      if(Buffer.byteLength(JSON.stringify(req.body),'utf8')>262144)throw failure('LOCAL_MODEL_PAYLOAD_TOO_LARGE',413);
+      res.json(compileLocalActionPlan(req.body));
+    }catch(error){res.status(error.status||422).json({error:{code:error.code||'INVALID_ACTION_PLAN',
+      ...(error.validationIssues?{validationIssues:error.validationIssues}: {})}});}
   });
   app.post('/api/pointer/local/:kind',async(req,res)=>{
     const kind=req.params.kind;res.set('Cache-Control','no-store');

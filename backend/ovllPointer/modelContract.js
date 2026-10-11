@@ -1,5 +1,5 @@
 import {iconSvg} from './nodeCatalog.js';
-import {PATCH_OPERATION_KINDS,PATCH_OPERATION_CONTRACTS} from './validation.js';
+import {ACTION_PLAN_CONTRACT,SEMANTIC_ACTION_FIELDS} from './actionCompiler.js';
 export function canonicalTurnExample(){
   return {executionIntent:'requested',actions:[
     {localKey:'p',kind:'ir.applyPatch',args:{patch:{graphId:'g_actual',
@@ -36,6 +36,19 @@ export function canonicalTurnExamples(){
    turn:canonicalTurnExample()}
  ];
 }
+export function semanticTurnExamples(){
+ return [
+  {id:'chat',plan:{contract:ACTION_PLAN_CONTRACT,message:'A reusable workflow preserves useful work for fresh inputs.'}},
+  {id:'edit-only',plan:{contract:ACTION_PLAN_CONTRACT,actions:[{action:'node.update',target:{kind:'existing',nodeId:'existing-write'},request:'Write a short report'}]}},
+  {id:'new-kind',plan:{contract:ACTION_PLAN_CONTRACT,actions:[{action:'node.define',alias:'review',purpose:'Assess source reliability',instruction:'Assess supplied evidence, source reliability and limitations.',createInstance:true}]}},
+  {id:'compose-run',plan:{contract:ACTION_PLAN_CONTRACT,executionIntent:'requested',actions:[{action:'node.add',alias:'report',definition:{kind:'builtin',type:'write'},request:'Write the requested report'},{action:'execute',target:{kind:'created',alias:'report'},damMode:'closed'}]}}
+ ];
+}
+export function toWireActionPlan(plan){
+ return {contract:ACTION_PLAN_CONTRACT,executionIntent:plan.executionIntent??null,message:plan.message??null,
+  actions:(plan.actions||[]).map(({action,...payload})=>({action,payloadJson:JSON.stringify(payload)})),
+  needs:(plan.needs||[]).map(({selector,...need})=>({...need,selectorJson:JSON.stringify(selector)}))};
+}
 export function localModelContract(nodeContext,{wire=false}={}){
  if(nodeContext)return [
   'Return one JSON ModelTurn containing ONLY outputs: {"outputs":{"status":"produced","values":{"result":{"inline":"answer"}}}}.',
@@ -45,47 +58,39 @@ export function localModelContract(nodeContext,{wire=false}={}){
   'No actions or fabricated tool effects.'
  ].join('\n');
  return [
-  '# OUTPUT — '+(wire?'provider wire':'canonical ModelTurn'),
-  wire?
-   'Return executionIntent:"requested"|null, message:string|null, actions:[], needs:[]. Keep required null/empty wire fields.':
-   'Emit only needed message, actions, needs and executionIntent. Actions use args objects.',
-  wire?
-   'Each action has localKey, kind, argsJson and dependsOn:[]. argsJson = JSON.stringify(canonical action.args). For ir.applyPatch it encodes {"patch":{GraphPatch}}, never a bare GraphPatch.':
-   'ir.applyPatch action.args is {"patch":{GraphPatch}}, with the GraphPatch inside args.patch.',
-  wire?'Each need has kind, selectorJson:JSON.stringify(selector), purpose.':'Each need has kind, selector and purpose.',
-  '# REFERENCES — declarations and uses',
-  '| Thing | Declare | Refer to it |',
-  '| Action in this turn | actions[].localKey | dependsOn[]; target.fromAction |',
-  '| New definition in this patch | patch.definitions[].localKey | definitionRef:{localDefinitionKey:"d"} |',
-  '| Existing definition | actual definitionId and version | definitionRef:{definitionId,version} |',
-  '| New node in this patch | node.add.localNodeKey | endpoint.node:{localNodeKey}; target:{fromAction,localNodeKey} |',
-  '| Existing node | actual nodeId | node.update.nodeId; endpoint.node:{nodeId}; target:{nodeId} |',
-  '| New link in this patch | link.add.localLinkKey | patch-local link handle |',
-  'Action keys are turn-local. Definition/node/link handles are patch-local; applied createdRefs provide persistent IDs.',
-  '# PATCH — schema fields',
-  'GraphPatch requires actual graphId, expectedGraphRevision, definitions and operations.',
-  ...PATCH_OPERATION_KINDS.map(k=>k+'('+PATCH_OPERATION_CONTRACTS[k].required.filter(x=>x!=='op').join(',')+'): fields '+PATCH_OPERATION_CONTRACTS[k].fields.filter(x=>x!=='op').join(',')+'.'),
-  'A DefinitionDraft declares localKey, purpose and instruction.',
-  'Ordinary model_task drafts default executorKind and optional flexible JSON in/result ports.',
-  'Explicit ports require name, role and representation.',
-  'presentation may contain name, iconKey and color (#RRGGBB).',
-  'Icon keys: '+Object.keys(iconSvg).join(', ')+'.',
-  'Unknown icon names use the custom icon; never emit SVG markup or invented icon identifiers.',
-  '# RUN — target and dependency fields',
-  'New target: {fromAction:"p",localNodeKey:"n"}; the run action dependsOn includes its producer patch key "p".',
-  'Existing target: {nodeId:"actual-id"}. Default damMode is closed.',
-  '# SAVED ACTIONS — field shapes',
-  'function.run uses functionRef and fresh inputBindings.',
-  'function.save args.function requires purpose, inputs, outputs, invariants and procedure.',
-  'procedure is {kind:"model_task",instruction} or {kind:"graph",graphRef:{graphId,revision}}.',
-  'Graph inputMap/outputMap bind named ports to actual nodeId/port; apply EXTRACT for semantic matching.',
-  '# EXAMPLES — independent requests, not a sequence',
-  'Example refs belong only to each supplied fixture. Use the actual context refs for real work.',
-  ...canonicalTurnExamples().flatMap(e=>[
-   'Example '+e.id+' request: '+e.requestText,
-   'Fixture: '+JSON.stringify(e.snapshot.graph),
-   JSON.stringify(wire?toWireTurnExample(e.turn):e.turn)
-  ])
+  '# OUTPUT — ActionPlan '+ACTION_PLAN_CONTRACT,
+  wire?'Return contract:"action-plan.v1", executionIntent:"requested"|null, message:string|null, actions:[], needs:[]. Each action is {action,payloadJson:JSON.stringify(the semantic fields below)}. Keep required null/empty fields.':
+   'Return contract:"action-plan.v1" with only needed message, actions, needs and executionIntent. Each action is {action,...semanticFields}.',
+  wire?'Each need has kind, selectorJson:JSON.stringify(selector), purpose.':'Each need has kind, selector, purpose.',
+  '# ACTION FIELDS',
+  ...Object.entries(SEMANTIC_ACTION_FIELDS).map(([name,fields])=>name+': '+fields.join(', ')+'.'),
+  '# REFERENCES AND MEANING',
+  'Node selector: {kind:"existing",nodeId:actual_id} or {kind:"created",alias:declared_alias}.',
+  'Definition selector: {kind:"builtin",type:"write"} or {kind:"existing",definitionId,version?} or {kind:"created",alias}.',
+  'Declare node/definition aliases before use; unique within each namespace. Never use a bare string as a node selector.',
+  'node.add requires alias and an explicit definition. request/settings are instance-specific; inputs are actual named input bindings.',
+  'node.update merges supplied settings/request into the selected instance and replaces inputs only when specified.',
+  'node.define requires alias, purpose, instruction. createInstance:true also creates that alias as an instance; instanceInputs are its bindings.',
+  'Ordinary model_task definitions may omit executorKind and ports for the existing flexible JSON in/result defaults.',
+  'Explicit ports require name, role, representation; preserve required/multiple. tool_task requires capabilities and explicit IO; subgraph requires procedureRef.',
+  'definition.revise requires alias, exact supersedes selector and complete purpose/instruction/executorKind/inputs/outputs.',
+  'presentation contains name, iconKey and color (#RRGGBB). Icon keys: '+Object.keys(iconSvg).join(', ')+'. Unknown icons use custom.',
+  'definition.appearance changes only requested metadata of an existing custom definition; builtins are read-only.',
+  'definition.delete removes the exact unused custom version. Other conversations can prevent deletion.',
+  'link.add requires explicit kind:data|flow and from/to:{node:NodeSelector,port:exact_port}. Data transfers values; flow orders execution.',
+  'link.remove requires actual linkId. node.delete requires target; removeIncidentLinks:true explicitly authorizes incident link removal only.',
+  'Put related graph edits together before execute/save/question; they commit atomically. Use a fresh turn/state for edits after execution.',
+  '# EXECUTION AND FUNCTIONS',
+  'execute requires target or targets:[NodeSelector], never both. Node default damMode:closed; open also follows downstream flow.',
+  'Function execute target:{kind:"function",ref:actual_function_id}, inputs:{named:fresh_value}. Read missing full contracts before binding.',
+  'Use executionIntent:"requested" only for the current authorized run/computed deliverable; never infer permission from history or edits.',
+  'function.save requires function:{purpose,inputs,outputs,invariants,procedure,inputMap?,outputMap?}. Preserve semantic IO and invariants.',
+  'procedure:{kind:"model_task",instruction} or {kind:"graph"}; the host supplies the current graph reference for the latter.',
+  'Graph inputMap/outputMap use {node:NodeSelector,port} or actual {nodeId,port}, with matching representations. The host binds created aliases to committed IDs before saving; input maps may additionally specify kind:input|file.',
+  'question.ask requires question. needs discovers supplied graph, definition, history, run, contract, value or artifact data without changing it.',
+  'Only the listed local actions are available. The host supplies mechanical references and dependencies. Empty actions do not complete a task.',
+  '# EXAMPLES — independent requests, use actual context for real work',
+  ...semanticTurnExamples().map(e=>e.id+': '+JSON.stringify(wire?toWireActionPlan(e.plan):e.plan))
  ].join('\n');
 }
 // Provider projection: closed envelopes avoid the domain schema's oneOf/conditionals
@@ -102,10 +107,10 @@ export function phaseWireContract(phase,nodeContext){
   schema=object({status:{type:'string',enum:['produced','blocked']},values:{type:'array',items:object({port:{type:'string',enum:ports},valueJson:nullable(string),ref:nullable(string)})},reason:nullable(string)});
   guidance='Node wire phase: return {status:"produced"|"blocked",values:[{port:exact_declared_port,valueJson:JSON.stringify(actual_value),ref:null}],reason:null}. For a supplied valueRef use ref and valueJson:null. Blocked uses values:[] and a specific reason. Do not duplicate ports. No actions or message.';
  }else{
-  schema=object({executionIntent:nullable({type:'string',enum:['requested']}),message:nullable(string),actions:{type:'array',items:object({localKey:string,kind:{type:'string',enum:['ir.applyPatch','run.start','run.revise','run.cancel','run.retry','function.save','question.ask','task.complete','function.run']},argsJson:string,dependsOn:{type:'array',items:string}})},needs:{type:'array',items:object({kind:string,selectorJson:string,purpose:string})}});
-  guidance='Turn wire phase: use the provider wire envelope described in OUTPUT. Required null/empty fields are stripped by the decoder; nested action args and need selectors remain JSON strings.';
+  schema=object({contract:{type:'string',enum:[ACTION_PLAN_CONTRACT]},executionIntent:nullable({type:'string',enum:['requested']}),message:nullable(string),actions:{type:'array',items:object({action:{type:'string',enum:Object.keys(SEMANTIC_ACTION_FIELDS)},payloadJson:string})},needs:{type:'array',items:object({kind:string,selectorJson:string,purpose:string})}});
+  guidance='Turn wire phase: use the provider wire envelope described in OUTPUT. Required null/empty fields are stripped by the decoder; semantic payloads and need selectors remain JSON strings; never return internal action args.';
  }
- return {name:'ovll_'+phase,schema,guidance};
+ return {name:phase==='turn'?'ovll_turn_action_plan_v1':'ovll_'+phase,schema,guidance};
 }
 export function decodePhaseOutput(value,phase){
  if(!value||typeof value!=='object'||Array.isArray(value))return value;
@@ -121,6 +126,16 @@ export function decodePhaseOutput(value,phase){
   return {outputs:{status:domain.status,...(domain.status==='produced'?{values}:{}),...(domain.reason!==null?{reason:domain.reason}:{})}};
  }
  if(phase==='turn'){
+  if(Object.hasOwn(domain,'contract')){
+   if(domain.contract!==ACTION_PLAN_CONTRACT)throw Error('UNKNOWN_ACTION_PLAN_CONTRACT');
+   if(Array.isArray(domain.actions))domain.actions=domain.actions.map(item=>{
+    if(!Object.hasOwn(item,'payloadJson'))return item;
+    if(Object.keys(item).some(k=>!['action','payloadJson'].includes(k))||typeof item.payloadJson!=='string')throw Error('INVALID_SEMANTIC_WIRE_FIELDS');
+    const payload=JSON.parse(item.payloadJson);
+    if(!payload||typeof payload!=='object'||Array.isArray(payload)||Object.hasOwn(payload,'action'))throw Error('INVALID_SEMANTIC_WIRE_PAYLOAD');
+    return {action:item.action,...payload};
+   });
+  }
   if(domain.executionIntent===null)delete domain.executionIntent;
    if(domain.message===null)delete domain.message;
   if(domain.actions?.length===0)delete domain.actions;

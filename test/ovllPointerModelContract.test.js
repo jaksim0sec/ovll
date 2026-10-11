@@ -21,10 +21,10 @@ test('workflow contract includes executable graph patch port and target examples
   const turn=await host.turn({snapshot,requestRef:'req1',requestText:'요약 워크플로우 만들어'});
   assert.deepEqual(splitModelMetadata(turn).domain,valid);
   assert.equal(received.length,1);
-  const developer=received[0].messages.find(x=>x.role==='developer'&&x.content.includes('GraphPatch'));
+  const developer=received[0].messages.find(x=>x.role==='developer'&&x.content.includes('# OUTPUT — ActionPlan'));
   assert.match(developer.content,/representation/);
-  assert.match(developer.content,/localDefinitionKey/);
-  assert.match(developer.content,/dependsOn/);
+  assert.match(developer.content,/created/);
+  assert.match(developer.content,/alias/);
 });
 test('model JSON with incorrect GraphPatch ports is rejected and repaired once before commit',async()=>{
   const bad=structuredClone(valid);delete bad.actions[0].args.patch.definitions[0].outputs[0].name;
@@ -65,8 +65,8 @@ test('validator explains the missing schema member without including user text',
 test('local wire examples include existing reuse, dynamic work, scoped requests and supported replay',async()=>{
  const received=[];await create([{message:'가능해'}],received).turn({snapshot,requestRef:'r5',requestText:'할 수 있는 일 알려줘'});
  const text=received[0].messages.filter(m=>m.role==='developer').map(m=>m.content).join('\n');
- assert.match(text,/builtin:write/);assert.match(text,/settings/);assert.match(text,/function.run/);
- assert.match(text,/localDefinitionKey/);assert.doesNotMatch(text,/Use only model_task executors/);
+ assert.match(text,/type:"write"/);assert.match(text,/settings/);assert.match(text,/Function execute/);
+ assert.match(text,/created/);assert.doesNotMatch(text,/Use only model_task executors/);
  const core=received[0].messages[0].content;
  assert.match(core,/capabilit/i);assert.match(core,/internal implementation/i);
 });
@@ -167,7 +167,7 @@ test('entry model contract instructs existing instance and definition reuse befo
  assert.match(prompts,/existing instances/);
  assert.match(prompts,/existing compatible definition/);
  assert.match(prompts,/ONLY if none/);
- assert.match(prompts,/localNodeKey/);
+ assert.match(prompts,/declared created aliases/);
 });
 
 test('safe key and missing empty definitions normalize in one pass',async()=>{

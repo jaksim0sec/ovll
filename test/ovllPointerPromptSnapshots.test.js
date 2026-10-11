@@ -23,8 +23,8 @@ test('snapshot inspection uses each pinned contract, schema and product policy i
   let baseline;
   for(const marker of ['before','after']){
    writeFileSync(contractPath,contract.replace('export function localModelContract(', 'function snapshotContract(')
-    .replace("name:'ovll_'+phase",`name:'${marker}_ovll_'+phase`)+
-    `\nexport function localModelContract(...args){return snapshotContract(...args)+'\\ncontract-${marker}';}\n`);
+    .replace('export function phaseWireContract(', 'function snapshotWire(')+
+    `\nexport function localModelContract(...args){return snapshotContract(...args)+'\\ncontract-${marker}';}\nexport function phaseWireContract(...args){const wire=snapshotWire(...args);return {...wire,name:'${marker}_ovll_'+args[0]};}\n`);
    writeFileSync(productPath,product.replace('= [','= [\n  "product-'+marker+'",'));
    git('add','backend','front','instructions','docs','package.json');git('commit','-m',marker);
    if(marker==='before')baseline=git('rev-parse','HEAD');

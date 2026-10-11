@@ -1518,7 +1518,7 @@ test("explicit verification requests are promoted to workflow planning", () => {
   const core=read("instructions/prompts/core.md");
   assert.match(entry,/Decide from current user intent/);
   assert.match(core,/Treat context\.requestText and context\.objective as the current user turn/);
-  assert.match(entry,/Only an explicit run or computed deliverable requiring a run permits run\.start\/function\.run/);
+  assert.match(entry,/Only an explicit run or computed deliverable requiring a run permits execute/);
   assert.match(entry,/Combine communication, IR construction, execution and functionization/);
 });
 

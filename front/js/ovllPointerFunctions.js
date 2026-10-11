@@ -195,6 +195,9 @@ function assignValue(node,target,value){
 }
 function saveDraft(draft,snapshot,options={}){
   draft={...draft,...(options.baseFunctionRef?{baseFunctionRef:options.baseFunctionRef}:{})};
+  if(typeof draft.baseFunctionRef==='string'){
+    const base=get(draft.baseFunctionRef);draft.baseFunctionRef={id:base.id,version:base.version};
+  }
   if(draft?.procedure?.kind==='model_task'){
     const baseRef=draft.baseFunctionRef,base=baseRef?get(baseRef.id||baseRef.functionId,baseRef.version):null;
     const oldNode=base?.snapshot?.graph?.nodes?.length===1?base.snapshot.graph.nodes[0]:null;
@@ -210,7 +213,9 @@ function saveDraft(draft,snapshot,options={}){
     draft.procedure.graphRef.revision!==snapshot.graph.revision)throw new Error('LOCAL_FUNCTION_GRAPH_MISMATCH');
   const sinks=snapshot.graph.nodes.filter(n=>!snapshot.graph.connections.some(l=>l.from.nodeId===n.nodeId)).map(n=>n.nodeId);
   const baseRef=draft.baseFunctionRef,base=baseRef?get(baseRef.id||baseRef.functionId,baseRef.version):null;
-  const targets=options.targets||base?.targets||(sinks.length===1?sinks:null);
+  const mapped=draft.outputs?.length&&draft.outputs.every(p=>draft.outputMap?.[p.name]?.nodeId)?
+    [...new Set(draft.outputs.map(p=>draft.outputMap[p.name].nodeId))]:null;
+  const targets=mapped||options.targets||base?.targets||(sinks.length===1?sinks:null);
   if(!targets?.length)throw new Error('FUNCTION_TARGET_SELECTION_REQUIRED');
   return save({...draft,snapshot,targets});
 }

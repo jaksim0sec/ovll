@@ -82,10 +82,10 @@ function functionIndex(functions){
     return item;
   });
 }
-async function coordinate({getContext,request,handlers,isActive=()=>true,onActionStart,onActionResult,onCheckpoint,readSource}={}){
+async function coordinate({getContext,request,requestCompile,handlers,isActive=()=>true,onActionStart,onActionResult,onCheckpoint,readSource}={}){
   const facts=[],messages=[],runs=[],seenReads=new Set();let reads=[],correction='',checkpoint=null;
   for(let step=0;step<3&&isActive();step++){
-    const context=await getContext();
+    let context=await getContext();
     const actionResults=facts.map(({run,...fact})=>({...fact,...(run?{run:runEvidence(run)}:{})}));
     const proposal=await request({snapshot:context.snapshot,history:context.history||[],
       ...(context.taskContext?{taskContext:context.taskContext}:{}),
@@ -101,13 +101,34 @@ async function coordinate({getContext,request,handlers,isActive=()=>true,onActio
     }
     const results=await execute(proposal.actions||[],handlers,{isActive,onActionStart,onActionResult});
     facts.push(...results);runs.push(...results.filter(r=>r.run).map(r=>r.run));
+    const continuation=proposal._meta?.continuation;
+    if(continuation){
+      if(!results.length||results.some(r=>!succeeded(r))||!isActive())break;
+      try{
+        if(typeof requestCompile!=='function')throw Error('LOCAL_COMPILE_UNAVAILABLE');
+        const createdNodeIds=Object.create(null);
+        for(const [alias,target] of Object.entries(continuation.aliasTargets||{})){
+          const producer=results.find(r=>r.localKey===target.fromAction&&r.status==='applied');
+          const nodeId=producer?.createdRefs?.['node:'+target.localNodeKey];
+          if(!nodeId)throw Error('LOCAL_TARGET_UNRESOLVED');
+          createdNodeIds[alias]=nodeId;
+        }
+        const current=await getContext();
+        const compiled=await requestCompile({plan:continuation.plan,snapshot:current.snapshot,createdNodeIds,
+          taskContext:current.taskContext,extraContext:{savedFunctions:functionIndex(current.savedFunctions||[]),reads}});
+        if(compiled._meta?.continuation)throw Error('LOCAL_COMPILE_CONTINUATION_LIMIT');
+        const remaining=await execute(compiled.actions||[],handlers,{isActive,onActionStart,onActionResult});
+        facts.push(...remaining);runs.push(...remaining.filter(r=>r.run).map(r=>r.run));
+        results.push(...remaining);context=current;
+      }catch(error){facts.push({kind:'function.save',status:'failed',error:error?.code||error?.message||'LOCAL_COMPILE_FAILED'});break;}
+    }
     if(!results.length){
       if(uncommittedMutationClaim(proposal.message)){
         if(facts.length)break; // Actual facts, never a later unsupported declaration, decide the reply.
         if(step<2){
           correction='The last response promised a graph change but proposed no actions. '+
             'No work has been scheduled or applied. If the requested operation is supported, '+
-            'return a valid ir.applyPatch action with exact graph refs and all required fields; '+
+            'return an action-plan.v1 with the needed semantic actions, exact selectors and declared aliases; '+
             'otherwise explain the blocker without claiming progress or asking the user to wait.';
           continue;
         }
@@ -131,7 +152,7 @@ async function coordinate({getContext,request,handlers,isActive=()=>true,onActio
     }
     const recoverable=results.some(r=>r.status==='waiting'||r.status==='failed'&&!r.run&&!['function.run','run.start'].includes(r.kind))&&
       !runs.some(run=>run.nodes.some(n=>n.toolEffectStarted));
-    if(!recoverable&&proposal.incomplete!==true)break;
+    if(continuation||!recoverable&&proposal.incomplete!==true)break;
   }
   return {facts,messages,runs,checkpoint};
 }

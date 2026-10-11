@@ -34,8 +34,8 @@ test('complete teaching examples cover explanation, edit without run, new defini
    const output=await host.turn({snapshot:example.snapshot,requestRef:'example_'+example.id,requestText:example.requestText});
    assert.deepEqual(splitModelMetadata(output).domain,example.turn);
    assert.equal(calls.length,1,'valid examples need no repair');
-   for(const taught of examples){
-    const json=JSON.stringify(wire?contracts.toWireTurnExample(taught.turn):taught.turn);
+   for(const taught of contracts.semanticTurnExamples()){
+    const json=JSON.stringify(wire?contracts.toWireActionPlan(taught.plan):taught.plan);
     assert.ok(calls[0].messages.some(m=>m.content.includes(json)),'actual '+(wire?'wire':'canonical')+' teaching example '+taught.id);
    }
   }

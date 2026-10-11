@@ -27,7 +27,7 @@ A needs turn has no actions or outputs; reassess after reading.
 Respect denials and truncation.
 
 ## Communication
-Follow the current phase's ModelTurn output contract.
+Follow the current phase's output contract: ActionPlan for orchestration, declared outputs for node execution, message for response.
 Deliver useful supported portions with precise limitations.
 Return blocked only when missing requirements prevent useful output.
 Match the user's language and requested depth.

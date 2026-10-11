@@ -41,6 +41,6 @@ test('Gemini uses one selected provider for entry, node execution and final lang
   for(const {url,body} of calls){
     assert.match(url,/generativelanguage\.googleapis\.com/);
     assert.equal(body.generationConfig.responseMimeType,'application/json');
-    assert.ok(body.systemInstruction.parts.some(x=>x.text.includes('ModelTurn')));
+    assert.ok(body.systemInstruction.parts.some(x=>x.text.includes('ActionPlan')));
   }
 });

@@ -112,8 +112,9 @@ test('canonical complete action example round-trips the provider wire projection
   await import('../backend/ovllPointer/modelContract.js');
  const example=canonicalTurnExample();
  assert.deepEqual(decodePhaseOutput(toWireTurnExample(example),'turn'),example);
- assert.match(localModelContract(),/"args":\{"patch"/);
- assert.match(localModelContract(undefined,{wire:true}),/"argsJson":/);
+ assert.match(localModelContract(),/action-plan.v1/);
+ assert.doesNotMatch(localModelContract(),/expectedGraphRevision/);
+ assert.match(localModelContract(undefined,{wire:true}),/"payloadJson":/);
  assert.doesNotMatch(localModelContract(undefined,{wire:true}),/"args":\{"patch"/);
 });
 test('structured wire turn uses wire example and records unambiguous patch recovery',async()=>{
@@ -133,7 +134,7 @@ test('structured wire turn uses wire example and records unambiguous patch recov
  assert.equal(result._meta.repairCount,0);
  assert.equal(result.actions[0].args.patch.graphId,'g');
  const policy=calls[0].messages.filter(x=>x.role==='developer').map(x=>x.content).join('\n');
- assert.match(policy,/"argsJson":/);
+ assert.match(policy,/"payloadJson":/);
  assert.doesNotMatch(policy,/"args":\{"patch"/);
 });
 
