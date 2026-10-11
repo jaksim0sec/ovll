@@ -31,14 +31,13 @@ test('compiler errors participate in the existing single repair with semantic pa
  assert.equal(result._meta.repairCount,1);assert.match(calls[1].messages.at(-1).content,/unknownDefinitionAlias/);
  assert.doesNotMatch(calls[1].messages.at(-1).content,/Every node.add needs unique localNodeKey/);
 });
-test('model intent alone cannot authorize execution during an edit-only request',async()=>{
- const bad={...plan([add,run]),executionIntent:'requested'};
- for(const requestText of ['Add a writer node','Add a writer node. Do not run it.','작성 노드만 만들어 실행하지 마']){
-  const calls=[],warn=console.warn;console.warn=()=>{};
-  try{await assert.rejects(host([bad,bad],calls).turn({snapshot,requestRef:'no_run',requestText}),e=>e.code==='INVALID_MODEL_TURN'&&e.validationIssues?.[0]?.rule==='executionNotAuthorized');}
-  finally{console.warn=warn;}
-  assert.equal(calls.length,2);assert.equal(snapshot.graph.nodes.length,0);
+test('execution still requires declared intent regardless of request wording',async()=>{
+ const bad=plan([add,run]),warn=console.warn;console.warn=()=>{};
+ try{
+ for(const requestText of ['Run the writer','Add a writer node','작성 노드만 만들어 실행하지 마']){
+  await assert.rejects(host([bad,bad]).turn({snapshot,requestRef:'no_intent',requestText}),e=>e.validationIssues?.[0]?.rule==='explicitExecutionRequired');
  }
+ }finally{console.warn=warn;}
 });
 test('current explicit execution and computed deliverable requests remain usable',async()=>{
  for(const requestText of ['Run the new writer','Can you run the writer?','Can you write a report about chocolate?','자료 신뢰도를 평가해줘','보고서를 작성해','Write a report about chocolate','PDF 파일로 내보내줘']){
@@ -46,22 +45,23 @@ test('current explicit execution and computed deliverable requests remain usable
  assert.equal(result.actions[1].kind,'run.start');
  }
 });
-test('legacy output cannot bypass an explicit no-run request',async()=>{
- const bad={executionIntent:'requested',actions:[{kind:'run.start',localKey:'run',args:{targets:[{nodeId:'n'}]}}]},warn=console.warn;console.warn=()=>{};
- try{await assert.rejects(host([bad,bad]).turn({snapshot,requestRef:'legacy_deny',requestText:'Do not run anything; explain this workflow'}),e=>e.validationIssues?.[0]?.rule==='executionNotAuthorized');}
- finally{console.warn=warn;}
+test('legacy execution uses declared intent without a lexical request veto',async()=>{
+ const legacy={executionIntent:'requested',actions:[{kind:'run.start',localKey:'run',args:{targets:[{nodeId:'n'}]}}]};
+ const result=await host([legacy]).turn({snapshot,requestRef:'legacy',requestText:'Run the node titled "Do not run"'});
+ assert.equal(result.actions[0].kind,'run.start');
 });
-test('explanatory questions do not grant execution by mentioning the run command',async()=>{
- const bad={...plan([add,run]),executionIntent:'requested'},warn=console.warn;console.warn=()=>{};
- try{await assert.rejects(host([bad,bad]).turn({snapshot,requestRef:'explain',requestText:'What happens when I run this node?'}),e=>e.validationIssues?.[0]?.rule==='executionNotAuthorized');}
- finally{console.warn=warn;}
+test('quoted words, explanations and other languages do not override model intent',async()=>{
+ for(const requestText of ['Run the writer titled "Do not run"','Run the writer and explain the result','Exécute ce workflow','このノードを実行して']){
+  const calls=[],result=await host([{...plan([add,run]),executionIntent:'requested'}],calls).turn({snapshot,requestRef:'semantic',requestText});
+  assert.equal(result.actions[1].kind,'run.start');assert.equal(calls.length,1);
+ }
 });
-test('history cannot grant execution and task constraints can explicitly deny it',async()=>{
- const bad={...plan([add,run]),executionIntent:'requested'},warn=console.warn;console.warn=()=>{};
- try{
- await assert.rejects(host([bad,bad]).turn({snapshot,requestRef:'history',requestText:'Add the node',history:['Run everything']}),e=>e.code==='INVALID_MODEL_TURN');
- await assert.rejects(host([bad,bad]).turn({snapshot,requestRef:'constraint',requestText:'Run the writer',taskContext:{constraints:['Do not run']}}),e=>e.code==='INVALID_MODEL_TURN');
- }finally{console.warn=warn;}
+test('request constraints and history stay available for model interpretation',async()=>{
+ const calls=[];
+ await host([plan([add])],calls).turn({snapshot,requestRef:'constraints',requestText:'Add the node',history:['Run everything'],taskContext:{constraints:['Do not run']}});
+ const context=JSON.parse(calls[0].messages.find(m=>m.role==='user').content).context;
+ assert.deepEqual(context.constraints,['Do not run']);assert.deepEqual(context.historyDigest,['Run everything']);
+ assert.match(calls[0].messages.map(m=>m.content).join('\n'),/Honor explicit no-run/);
 });
 test('semantic contract decoder rejects payload discriminator collisions and unknown versions',()=>{
  assert.throws(()=>decodePhaseOutput({contract:'action-plan.v1',actions:[{action:'node.add',payloadJson:'{"action":"execute"}'}]},'turn'));

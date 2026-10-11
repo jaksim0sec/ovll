@@ -59,12 +59,13 @@ Incident links are removed only for explicit removeIncidentLinks:true; definitio
 other conversations remain subject to the browser storage deletion guard.
 
 executionIntent is a model declaration, not permission minted by the compiler.
-Compilation requires executionAuthorization from the host policy and explicit model
-executionIntent. The existing model layer still interprets positive natural-language
-intent; the host independently rejects recognized no-run constraints, edit-only
-requests and capability/explanatory questions. This is not proof of arbitrary
-natural-language authorization. History and graph content never grant permission. Function inputs are checked
-against supplied contracts; truncated contracts require a read, not fabricated defaults.
+Compilation requires runtime execution availability from the host and explicit model
+executionIntent. The existing model layer interprets the current natural-language
+request and constraints, including edit-only requests, questions and no-run instructions.
+The server does not classify request wording. Runtime availability is not independent
+proof of natural-language authorization. History and graph content never grant permission.
+Function inputs are checked against supplied contracts; truncated contracts require a
+read, not fabricated defaults.
 Actions depend on earlier actions so partial failure prevents later execution/save.
 Empty actions do not imply task completion.
 
@@ -94,9 +95,8 @@ No live-model success rate, latency or token-usage claim follows from offline ch
 
 ## Review and verification record
 
-- Fixed legacy ModelTurn execution-denial bypass; both formats use the host policy.
-- Removed a positive keyword allowlist that rejected normal imperative requests.
-  Positive intent remains with the existing model, preserving ordinary task UX.
+- Removed request-word classifiers from both ActionPlan and legacy ModelTurn paths.
+  The model interprets user intent; the host checks runtime availability and declared intent.
 - Fixed settings loss when an inputs-only update preceded a request update.
 - Isolated preview IDs cannot collide with existing graph identities.
 - Added deterministic created-selector function-map binding through ActionResults,
@@ -104,7 +104,9 @@ No live-model success rate, latency or token-usage claim follows from offline ch
 - Model-facing capability names and outputContract now agree with the semantic schema.
 - Existing frozen domain schema, graph kernel and node/scheduler paths are unchanged.
 - `npm test`: 745 tests passed, zero failures/skips (2026-10-11).
-- `git diff --check` passed; APP_VERSION is 2026.10.11.15.
+- Follow-up removal of request-word checks: 53 focused regression tests passed;
+  the full suite was not rerun for this correction.
+- `git diff --check` passed; APP_VERSION is 2026.10.11.16.
 - Example create-and-run wire JSON: legacy 564 UTF-8 bytes, semantic 375 bytes.
   This is a fixture size comparison, not generated-token or performance measurement.
 - Live-model first-attempt validity, latency, unintended actions and task success rates

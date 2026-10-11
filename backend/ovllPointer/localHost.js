@@ -12,18 +12,6 @@ import {withPointerCatalog,getPointerCatalog} from './nodeCatalog.js';
 const fail=(code,status=422)=>{throw new KernelError(code,code,status);};
 const safe=s=>typeof s==='string'&&/^[a-zA-Z0-9_.:-]{1,160}$/.test(s);
 const clone=x=>JSON.parse(JSON.stringify(x));
-// Enforce explicit denials; natural-language intent remains with the existing model layer.
-function requestExecutionAuthorization(requestText,constraints=[]){
-  const denied=/\b(?:do\s+not|don't|never|without)\s+(?:run|execute|start)|\bno[- ](?:run|execution)\b|\b(?:only|just)\s+(?:explain|describe)\b|실행\s*(?:하지|금지|말|없이|안\s*해)|돌리\s*지\s*마|설명\s*만/i;
-  if([requestText,...constraints].some(text=>denied.test(text)))return 'denied';
-  const structural=/\b(?:node|definition|workflow|function)\b|노드|정의|워크플로우|함수/i;
-  const editOnly=/\b(?:add|create|edit|rename|copy|delete|save|define)\b|추가|생성|만들|수정|변경|이름|복제|삭제|저장|정의/i;
-  const run=/\b(?:run|execute|start|perform|replay)\b|실행|돌려/i;
-  const capabilityQuestion=/\b(?:how\s+(?:do|to|can)|what\s+(?:can|happens)|explain|describe)\b|(?:할\s*수|가능|어떻게|방법).{0,20}(?:알려|설명|있|해|\?)|설명해/i;
-  if(capabilityQuestion.test(requestText))return 'denied';
-  if(!run.test(requestText)&&structural.test(requestText)&&editOnly.test(requestText))return 'denied';
-  return 'requested';
-}
 function contextSnapshot(snapshot,nodeIdScope){
   const view=clone(snapshot);let truncated=false;
   if(nodeIdScope){
@@ -74,18 +62,18 @@ function prepare({snapshot,requestRef,requestText,history=[],taskContext,capabil
   if(jsonBytes(context)>LIMITS.contextBytes)fail('PROMPT_CONTEXT_TOO_LARGE');
   return {snapshot:clone(snapshot),context,...(extendedTask||task.requestText!==requestText?{extendedTask:{taskContext:clone(task),currentRequestText:requestText}}:{})};
 }
-function actionContext(snapshot,context,requestText,extraContext,createdNodeIds={}){
+function actionContext(snapshot,context,extraContext,createdNodeIds={}){
   const list=[...(extraContext?.savedFunctions||[]),...(extraContext?.reads||[])
     .filter(r=>r.kind==='contract'&&r.available===true&&!r.truncated)
     .flatMap(r=>Array.isArray(r.content)?r.content:[])];
   return {snapshot,capabilities:context.capabilities,
-    executionAuthorization:requestExecutionAuthorization(requestText,context.constraints),
+    executionAuthorization:context.capabilities.some(c=>c==='run.start'||c==='function.run')?'requested':'denied',
     savedFunctions:[...new Map(list.map(fn=>[fn.id+'@'+fn.version,fn])).values()],
     createdNodeIds,continuation:{}};
 }
 export function compileLocalActionPlan({plan,snapshot,requestRef,requestText,taskContext,extraContext,createdNodeIds}={}){
   const prepared=prepare({snapshot,requestRef,requestText,taskContext,capabilities:getPointerCatalog().capabilities});
-  const context=actionContext(prepared.snapshot,prepared.context,requestText,extraContext,createdNodeIds);
+  const context=actionContext(prepared.snapshot,prepared.context,extraContext,createdNodeIds);
   const turn=compileActionPlan(plan,{...context,actionKeyPrefix:'c'});
   return {...turn,_meta:{phase:'compile',providerCalls:0,...(context.continuation.plan?{continuation:context.continuation}:{})}};
 }
@@ -171,7 +159,7 @@ export function createLocalPointerHost({gateway,resolveModel,validation=createCo
   }
   async function turn({snapshot,requestRef,requestText,history,taskContext,extraContext,signal}={}){
     const {snapshot:prepared,context,extendedTask}=prepare({snapshot,requestRef,requestText,history,taskContext,capabilities:getPointerCatalog().capabilities});
-    const compilerContext=actionContext(prepared,context,requestText,extraContext);
+    const compilerContext=actionContext(prepared,context,extraContext);
     context.outputContract=ACTION_PLAN_CONTRACT;
     context.capabilities=[...Object.keys(SEMANTIC_ACTION_FIELDS),...context.capabilities.filter(c=>
       !['ir.applyPatch','run.start','function.save','function.run','question.ask'].includes(c))];

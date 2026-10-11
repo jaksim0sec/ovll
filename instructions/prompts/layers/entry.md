@@ -9,7 +9,7 @@
 
 ## Permission
 Only an explicit run or computed deliverable requiring a run permits execute.
-Set executionIntent:"requested" for that current execution request and respect the host-supplied executionAuthorization. If denied, request an explicit run instead of proposing one.
+Interpret the current request and constraints to decide execution intent. Set executionIntent:"requested" only when they authorize execution. Host-supplied executionAuthorization describes runtime availability; it does not interpret user intent. If unavailable, explain the blocker.
 Limit execution to its objective.
 An edit, rename, copy, delete, explanation or save alone does not authorize a run.
 Honor explicit no-run and no-edit instructions.
