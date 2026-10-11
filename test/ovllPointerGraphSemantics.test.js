@@ -114,3 +114,18 @@ test('custom data representations retain their meaning even when named like cont
   assert.equal(p.definitions['pointer:d:1'].inputs[0].channel,'data');
  }
 });
+
+test('linked node deletion honors later explicit link removals without silently removing edges',()=>{
+ const s=sample();s.graph.connections=[edge('data')];
+ const repo=new MemoryGraphRepository();repo.restore('w','g',s);
+ const change=operations=>({graphId:'g',expectedGraphRevision:1,definitions:[],operations});
+ assert.throws(()=>repo.apply('w',change([{op:'node.delete',nodeId:'a'}])),e=>e.code==='NODE_HAS_LINKS');
+ assert.equal(repo.get('w','g').graph.revision,1);
+ const removed=repo.apply('w',change([
+  {op:'node.delete',nodeId:'a'},
+  {op:'link.remove',linkId:s.graph.connections[0].id}
+ ]));
+ assert.equal(removed.graphRef.revision,2);
+ assert.deepEqual(repo.get('w','g').graph.nodes.map(n=>n.nodeId),['b','other']);
+ assert.equal(repo.get('w','g').graph.connections.length,0);
+});

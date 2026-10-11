@@ -205,6 +205,27 @@ function readNeeds(needs,{snapshot,history=[],runs=[],savedFunctions=[]}={}){
       ...(!available?{reason:'Not available in the current conversation; no external read performed.'}:{})};
   });
 }
+// Present typed run data readably while leaving stored output values untouched.
+function formatDeliveredValue(value,depth=0){
+  if(value===undefined)return undefined;
+  if(value===null)return 'null';
+  if(typeof value!=='object')return String(value);
+  if(depth>8)return JSON.stringify(value);
+  if(Array.isArray(value)){
+    const simple=value.every(item=>item===null||typeof item!=='object');
+    return value.map(item=>(simple?'- ':'')+formatDeliveredValue(item,depth+1)).join(simple?'\n':'\n\n');
+  }
+  const heading='#'.repeat(Math.min(depth+1,6)),subheading='#'.repeat(Math.min(depth+2,6));
+  return Object.entries(value).map(([key,item])=>{
+    if(key==='title'&&typeof item==='string')return heading+' '+item;
+    if(key==='content'&&typeof item==='string')return item;
+    if(key==='sections'&&Array.isArray(item))return formatDeliveredValue(item,depth);
+    const label=key==='overview'?'개요':key==='conclusion'?'결론':key;
+    const rendered=formatDeliveredValue(item,depth+1);
+    return item!==null&&typeof item==='object'||key==='overview'||key==='conclusion'?
+      subheading+' '+label+'\n\n'+rendered:'**'+label+'**: '+rendered;
+  }).filter(Boolean).join('\n\n');
+}
 function deliveryContent(run){
   const success=(run.nodes||[]).filter(n=>n.status==='success'&&n.resultCurrent!==false);
   const delivery=run.deliverableTargets||run.targets||[];
@@ -223,7 +244,7 @@ function deliveryContent(run){
         /^(https?:\/\/|\/(?!\/)|blob:)/.test(url)&&!/[\s()<>"]/.test(url))artifacts.push({...value});
       return String(value.name||'파일');
     }
-    const content=typeof value==='string'?value:JSON.stringify(value);
+    const content=formatDeliveredValue(value);
     const target=run.outputMap?.[name],publicLabel=target&&name!==target.nodeId+':'+target.port;
     return content===undefined?undefined:publicLabel?name+': '+content:content;
   })).filter(Boolean).join('\n\n');
@@ -249,6 +270,8 @@ function presentation({facts=[],messages=[],runs=[]}={}){
   const targets=new Map();
   for(const run of runs)for(const id of run.deliverableTargets||run.targets||[])targets.set((run.graphRef?.graphId||'')+':'+id,{run,id});
   const parts=[],artifacts=[],seenArtifacts=new Set();
+  const partialMutation=facts.some(f=>f.kind==='ir.applyPatch'&&f.status==='applied')&&
+    facts.some(f=>['failed','rejected','skipped','cancelled'].includes(f.status));
   function append(content){
     if(content.text&&!parts.includes(content.text))parts.push(content.text);
     for(const artifact of content.artifacts){
@@ -270,7 +293,8 @@ function presentation({facts=[],messages=[],runs=[]}={}){
         blocker(fact.run.deliveryError||fact.run.nodes.find(n=>n.error)?.error)||'실행을 확인해야 해.');
     }else if(['failed','rejected','skipped','cancelled'].includes(fact.status))parts.push(blocker(fact.error));
     else if(fact.status==='saved')parts.push('함수 초안을 저장했어: '+fact.purpose);
-    else if(fact.status==='applied'&&!runs.length)parts.push('작업 구성을 반영했어.');
+    else if(fact.status==='applied'&&!runs.length)parts.push(partialMutation?
+      '작업 구성 일부만 반영했어. 실패한 변경은 적용되지 않았어.':'작업 구성을 반영했어.');
   }
   parts.push(...runNotices(runs));
   return {text:[...new Set(parts.filter(Boolean))].join('\n\n')||

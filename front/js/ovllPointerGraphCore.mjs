@@ -123,6 +123,7 @@ export class MemoryGraphRepository {
     if (item.graph.revision !== patch.expectedGraphRevision) reject('STALE_REVISION', patch.graphId, 409);
     const next = clone(item), tempNodes = new Map(), tempDefs = new Map(), createdRefs = {};
     const defs = isArray(patch.definitions), ops = isArray(patch.operations);
+    const explicitLinkRemovals = new Set(ops.filter(op => op?.op === 'link.remove').map(op => op.linkId));
     if (!defs.length && !ops.length) reject('EMPTY_PATCH');
     if (defs.length > 64 || ops.length > 256) reject('PATCH_TOO_LARGE');
     for (const d of defs) {
@@ -187,7 +188,8 @@ export class MemoryGraphRepository {
       } else if (op.op === 'node.delete') {
         const n = next.graph.nodes.findIndex(x => x.nodeId === op.nodeId);
         if (n < 0) reject('UNKNOWN_NODE');
-        if (next.graph.connections.some(x => x.from.nodeId === op.nodeId || x.to.nodeId === op.nodeId)) reject('NODE_HAS_LINKS');
+        if (next.graph.connections.some(x => (x.from.nodeId === op.nodeId || x.to.nodeId === op.nodeId) &&
+            !explicitLinkRemovals.has(x.id))) reject('NODE_HAS_LINKS');
         next.graph.nodes.splice(n, 1);
       } else if (op.op === 'definition.appearance') {
         const ref=op.definitionRef;

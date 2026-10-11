@@ -158,3 +158,29 @@ test('revised required public outputs invalidate incomplete dependency history a
     assert.equal(run.functionOutputs.evidence.inline,'Verified evidence');
   }
 });
+
+test('structured deliverables are readable while original typed outputs stay intact',()=>{
+ const {window}=setup();
+ const data={title:'초콜릿의 역사',overview:'문명별 기원과 전파',
+  sections:[{title:'올메크 문명',content:'카카오를 음료로 활용'}],conclusion:'역사를 이해할 수 있음'};
+ const run={status:'completed',targets:['writer'],nodes:[{
+  nodeId:'writer',status:'success',resultCurrent:true,outputs:{values:{result:{inline:data}}}
+ }]};
+ const message=window.OvllPointerLocalActions.presentation({runs:[run]}).text;
+ assert.match(message,/# 초콜릿의 역사/);
+ assert.match(message,/## 개요\n\n문명별 기원과 전파/);
+ assert.match(message,/## 올메크 문명\n\n카카오를 음료로 활용/);
+ assert.match(message,/## 결론\n\n역사를 이해할 수 있음/);
+ assert.doesNotMatch(message,/\{"title":/);
+ assert.deepEqual(plain(run.nodes[0].outputs.values.result.inline),data);
+});
+test('mixed graph patch failures do not claim unqualified completion',()=>{
+ const {window}=setup();
+ const message=window.OvllPointerLocalActions.presentation({facts:[
+  {kind:'ir.applyPatch',status:'failed',error:'NODE_HAS_LINKS'},
+  {kind:'ir.applyPatch',status:'applied'}
+ ]}).text;
+ assert.match(message,/NODE_HAS_LINKS/);
+ assert.match(message,/작업 구성 일부만 반영했어/);
+ assert.doesNotMatch(message,/^작업 구성을 반영했어\.$/m);
+});
