@@ -3931,7 +3931,7 @@
         class="ovll-runtime-activity-summary"
         aria-expanded="true"
       >
-        <span class="ovll-runtime-activity-meta">준비 중</span>
+        <span class="ovll-runtime-activity-meta" role="status" aria-live="polite">준비 중</span>
         <svg class="ovll-runtime-activity-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
           <path d="M6.5 8 10 11.5 13.5 8" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
@@ -3942,32 +3942,18 @@
 
   function runtimeStepPresentation(id, options = {}) {
     const key=String(id||"");
-    const nodeId=String(options.nodeId||(
-      key.startsWith("node:")?key.slice(5):key));
+    const nodeId=key.startsWith("node:")?key.slice(5):key;
     const node=state.canvas?.getNode?.(nodeId);
+    const isNode=key.startsWith("node:")||!!node;
     const type=String(node?.type||options.nodeType||"");
     const definition=state.canvas?.getNodeDefinitions?.()?.[type]||
       state.nodeDefinitions?.[type];
-    const stage=key.startsWith("action:")?key.split(":").at(-1):"";
-    const systemIcons={
-      define:"custom",add:"nodeAdd",edit:"pencil",delete:"pencil",
-      connect:"canvasLayout",run:"play",save:"folder",ask:"open-book"
-    };
-    const fallback=systemIcons[stage]||(
-      key.startsWith("action:")?"canvasLayout":
-      key.startsWith("node:")?"custom":""
-    );
-    const iconKey=String(options.iconKey||definition?.iconKey||fallback);
-    const icon=SvgLibrary.get(iconKey)||(
-      fallback?SvgLibrary.get(fallback):""
-    );
-    const color=String(options.color||definition?.color||"");
-    return {
-      type:type||String(options.nodeType||"node"),
-      iconKey:icon?iconKey:"",
-      icon,
-      color:/^#[0-9a-f]{6}$/i.test(color)?color:""
-    };
+    const iconKey=isNode?String(definition?.iconKey||options.iconKey||"custom"):"";
+    const icon=isNode?(SvgLibrary.get(iconKey)||""):"";
+    const color=isNode?String(definition?.color||options.color||""):"";
+    return {type:type||String(options.nodeType||"node"),
+      iconKey:icon?iconKey:"",icon,
+      color:/^#[0-9a-f]{6}$/i.test(color)?color:""};
   }
 
   function runtimeStepMarkup() {
@@ -4042,12 +4028,8 @@
             activity.meta
               ?.textContent || ""
           ),
-        collapsed:
-          activity.row
-            ?.classList
-            .contains(
-              "is-collapsed"
-            ) === true,
+        collapsed:activity.userToggled
+          ?activity.row?.classList.contains("is-collapsed")===true:true,
         steps
       },
       blocks: [],
@@ -4107,14 +4089,6 @@
       body.querySelector(
         ".ovll-runtime-activity-steps"
       );
-
-    const compact =
-      runtime.steps.length <= 4;
-
-    row.classList.toggle(
-      "is-compact",
-      compact
-    );
 
     if (meta) {
       meta.textContent =
@@ -4205,18 +4179,8 @@
       );
     }
 
-    if (
-      runtime.collapsed === true &&
-      !compact
-    ) {
-      row.classList.add(
-        "is-collapsed"
-      );
-      summary?.setAttribute(
-        "aria-expanded",
-        "false"
-      );
-    }
+    row.classList.add("is-collapsed");
+    summary?.setAttribute("aria-expanded","false");
 
     summary?.addEventListener(
       "click",
@@ -4293,7 +4257,10 @@
       order: [],
       text: "",
       finished: false,
-      userToggled: false
+      userToggled: false,
+      activePhaseId:null,
+      activePhaseDoneText:"",
+      phaseSequence:0
     };
 
     state.runtimeActivity =
@@ -4365,62 +4332,20 @@
   }
 
   function syncRuntimeActivityMeta() {
-    const activity =
-      state.runtimeActivity;
-
-    if (!activity) return;
-
-    const count =
-      runtimeActivityCount(
-        activity
-      );
-
-    const failed =
-      activity.order.some(
-        id =>
-          activity.steps
-            .get(id)
-            ?.dataset
-            ?.status ===
-            "failed"
-      );
-
-    const compact =
-      count <= 4;
-
-    activity.row
-      ?.classList
-      .toggle(
-        "is-compact",
-        compact && count > 0
-      );
-
-    if (activity.finished) {
-      activity.meta.textContent =
-        failed
-          ? `${count}단계 · 일부 실패`
-          : `${count}단계 완료`;
-      return;
+    const activity=state.runtimeActivity;
+    if(!activity)return;
+    const steps=activity.order.map(id=>activity.steps.get(id)).filter(Boolean);
+    const count=steps.length;
+    const failed=steps.some(step=>step.dataset.status==="failed");
+    const running=steps.some(step=>step.dataset.status==="running");
+    activity.row?.classList.toggle("has-running-step",running);
+    if(activity.finished){
+      activity.meta.textContent=failed?count+"단계 · 일부 실패":count+"단계 완료";
+    }else{
+      activity.meta.textContent=count
+        ? count+"단계 "+(running?"진행 중":"처리됨")
+        : "준비 중";
     }
-
-    const running =
-      activity.order.filter(
-        id =>
-          activity.steps
-            .get(id)
-            ?.dataset
-            ?.status ===
-            "running"
-      ).length;
-
-    activity.meta.textContent =
-      running
-        ? count
-          ? `${count}단계 진행 중`
-          : "진행 중"
-        : count
-          ? `${count}단계`
-          : "준비 중";
   }
 
   function upsertRuntimeStep(
@@ -4566,66 +4491,38 @@
     return step;
   }
 
-  function setRuntimeActivity(
-    text,
-    options = {}
-  ) {
-    const value =
-      String(text || "").trim();
+  function completeRuntimePhase(status="done") {
+    const activity=state.runtimeActivity;
+    const id=activity?.activePhaseId;
+    if(!id)return;
+    const step=activity.steps.get(id);
+    if(step?.dataset.status==="running")upsertRuntimeStep(id,
+      status==="done"?activity.activePhaseDoneText||"확인 완료":"확인 중단됨",status);
+    activity.activePhaseId=null;
+  }
 
-    if (!value) return;
+  function startRuntimePhase(text,doneText="확인 완료") {
+    const activity=state.runtimeActivity;
+    if(!activity)return;
+    completeRuntimePhase();
+    const id="phase:"+(++activity.phaseSequence);
+    activity.activePhaseId=id;
+    activity.activePhaseDoneText=doneText;
+    upsertRuntimeStep(id,text,"running");
+  }
 
-    const id =
-      String(
-        options.id ||
-        "__status__"
-      );
-
-    if (
-      id === "__prepare__" ||
-      id === "__finalize__"
-    ) {
-      const activity =
-        state.runtimeActivity ||
-        (
-          beginRuntimeActivity(
-            value
-          ),
-          state.runtimeActivity
-        );
-
-      if (
-        activity?.meta
-      ) {
-        activity.meta.textContent =
-          id === "__prepare__"
-            ? "준비 중"
-            : value
-                .replace(
-                  /^실행\s*/,
-                  ""
-                )
-                .replace(
-                  /\s+/g,
-                  " "
-                )
-                .trim()
-                .slice(0, 42) ||
-              "결과 정리 중";
-      }
-
-      scrollChatToBottom();
+  function setRuntimeActivity(text,options={}) {
+    const value=String(text||"").trim();
+    if(!value)return;
+    const id=String(options.id||"__status__");
+    if(id==="__prepare__"||id==="__finalize__"){
+      const activity=state.runtimeActivity||
+        (beginRuntimeActivity(value),state.runtimeActivity);
+      if(activity?.meta)activity.meta.textContent=
+        id==="__prepare__"?"준비 중":value.replace(/^실행\s*/,"").slice(0,42)||"결과 정리 중";
       return;
     }
-
-    upsertRuntimeStep(
-      id,
-      value,
-      options.status ||
-        "running",
-      options.detail ||
-        ""
-    );
+    upsertRuntimeStep(id,value,options.status||"running",options.detail||"");
   }
 
   function completeRuntimeStep(
@@ -4694,29 +4591,12 @@
     activity.finished =
       true;
 
-    for (
-      const id of
-      activity.order
-    ) {
-      const step =
-        activity.steps.get(
-          id
-        );
-
-      if (
-        step?.dataset
-          ?.status ===
-          "running"
-      ) {
-        completeRuntimeStep(
-          id,
-          {
-            failed:
-              options.failed === true &&
-              id === "__finalize__"
-          }
-        );
-      }
+    completeRuntimePhase(options.failed===true?"failed":"done");
+    for(const id of activity.order){
+      const step=activity.steps.get(id);
+      if(step?.dataset?.status!=="running")continue;
+      upsertRuntimeStep(id,options.failed===true?"작업 실패":"완료 여부 확인 필요",
+        options.failed===true?"failed":"skipped");
     }
 
     activity.row
@@ -4727,10 +4607,7 @@
 
     syncRuntimeActivityMeta();
 
-    const shouldCollapse =
-      runtimeActivityCount(
-        activity
-      ) > 4;
+    const shouldCollapse = true;
 
     if (
       !activity.userToggled &&
@@ -6050,9 +5927,17 @@
       }
       state.pointerRuns.delete(runRef);
       if(state.runtimeActivity){
-        setRuntimeActivity(result.run.status==='completed'?'서버 실행 완료':'실행 확인 필요',
+        const status=result.run.status;
+        if(state.runtimeActivity.steps.has(runRef)){
+          upsertRuntimeStep(runRef,
+            status==='completed'?'워크플로우 실행 완료':
+            status==='failed'?'워크플로우 실행 실패':
+            status==='cancelled'?'워크플로우 실행 중단':'실행 확인 필요',
+            status==='completed'?'done':status==='failed'?'failed':'skipped');
+        }
+        setRuntimeActivity(status==='completed'?'서버 실행 완료':'실행 확인 필요',
           {id:'__finalize__'});
-        if(!state.pointerRuns.size)finishRuntimeActivity();
+        if(!state.pointerRuns.size)finishRuntimeActivity({failed:status==='failed'});
       }
     }else {
       state.pointerRuns.add(runRef);
@@ -6175,12 +6060,12 @@
       }[action.kind]||['요청 처리','sparkle'];
       stages.push({id:key,label:behavior[0],iconKey:behavior[1]});
     }
-    return stages;
+    return stages.length>1?[{id:key,label:'노드 구성'}]:stages;
   }
   function pointerActionStarted(action){
     if(['run.start','function.run'].includes(action.kind))Presence.thinking();
     else Presence.settle();
-    upsertRuntimeStep('__thinking__','생각 완료','done');
+    completeRuntimePhase();
     for(const step of pointerActionStages(action))
       upsertRuntimeStep(step.id,step.label+' 중','running','',step);
   }
@@ -6381,6 +6266,9 @@
       const {facts,messages,runs,checkpoint,contextRecord,pendingCovered}=await actions.coordinate({
         isActive:()=>localOperations.isActive(operation),
         onTaskContext:selected=>{if(owns())taskContext={...taskContext,objective:selected.objective,constraints:selected.constraints};},
+        onPhase:phase=>{if(owns())startRuntimePhase(
+          phase==='compile'?'실행 계획 구성 중':'요청 이해·계획 중',
+          phase==='compile'?'계획 구성 완료':'요청 이해 완료');},
         onActionStart:action=>{if(owns())pointerActionStarted(action);},
         onActionResult:(action,fact)=>{if(owns())pointerActionResult(action,fact);},
         readSource:(file,settings)=>global.OvllPointerLocal.readSource(file,settings),
@@ -6437,6 +6325,7 @@
         }
       });
       if(!owns())return;
+      completeRuntimePhase();
       if(!checkpoint&&!operation.signal.aborted)WorkspaceStore.updateConversationPointerQuestion(conversationId,null);
       if(facts.some(r=>['applied','completed'].includes(r.status)))state.workflowUserRequest=taskContext.objective;
       const delivery=actions.presentation({facts,messages,runs});
@@ -6450,8 +6339,10 @@
         }}:{})}));
         try{
           const snapshot=(await global.OvllPointerLocal.state(conversationId)).graph;
+          startRuntimePhase('답변 정리 중','답변 정리 완료');
           const language=await PointerAPI.localResponse({snapshot,requestText:value,
             additionalContext,actionResults,taskContext,signal:operation.signal});
+          if(owns())completeRuntimePhase();
           if(owns()&&language?.message?.trim()){
             reply=actions.groundedResponse(language.message.trim(),{facts,messages,runs});
             exitRecord=reply===language.message.trim()?language._meta?.contextRecord:null;
@@ -6466,6 +6357,7 @@
       }
     }catch(error){
       if(!owns())return;
+      completeRuntimePhase("failed");
       if(operation.signal.aborted){addAssistantMessage('실행을 중단했어.');return;}
       upsertRuntimeStep('__local_error__','요청 처리 실패','failed',
         userFacingError(error,'작업을 처리하지 못했어.'));
@@ -6499,9 +6391,11 @@
     const requestRef=PointerAPI.uniqueId(),scope=pointerScope();
     state.pointerRequestRef=requestRef;
     beginRuntimeActivity('요청 확인 중');
+    startRuntimePhase('요청 이해·계획 중','요청 이해 완료');
     try{
       const result=await PointerAPI.submit({requestRef,requestText:value,
         ...(scope?{graphId:scope.graphId,taskRef:scope.taskRef}:{})});
+      completeRuntimePhase();
       const scheduled=(result.results||[]).filter(r=>r.status==='scheduled'&&r.runRef);
       for(const item of scheduled){state.pointerRunRefs.add(item.runRef);state.pointerRuns.add(item.runRef);
         setRuntimeActivity('서버 실행 예약됨',{id:item.runRef});}
@@ -6516,12 +6410,12 @@
       addAssistantMessage(message);
       for(const item of scheduled)void refreshPointerRun(item.runRef).catch(error=>
         console.warn('OvllPointer run refresh failed',error));
-      if(!scheduled.length)finishRuntimeActivity({removeImmediately:true});
+      if(!scheduled.length)finishRuntimeActivity();
       Presence.settle();
     }catch(error){
       Presence.settle();
       showErrorNotice(error,{scope:'OvllPointer 요청 오류',fallback:'서버 요청을 처리하지 못했습니다.'});
-      finishRuntimeActivity({removeImmediately:true});
+      finishRuntimeActivity({failed:true});
     }finally{setBusy(false);resizeComposer();focusComposerForDesktop();}
   }
 

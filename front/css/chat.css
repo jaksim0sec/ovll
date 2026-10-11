@@ -6,10 +6,10 @@
 :is(#chat-messages,[data-ovll-chat-messages]) {
   width: min(42.5rem, 100%);
   margin: 0 auto;
-  padding: 1.35rem 0 1.85rem;
+  padding: .9rem 0 1.35rem;
   display: flex;
   flex-direction: column;
-  gap: 1.08rem;
+  gap: .78rem;
 }
 
 .astra-message {
@@ -39,9 +39,9 @@
 .astra-message-body {
   min-width: 0;
   color: var(--text);
-  font-size: 1.025rem;
-  font-weight: 500;
-  line-height: 1.68;
+  font-size: 1rem;
+  font-weight: 480;
+  line-height: 1.6;
   letter-spacing: -.015em;
   overflow-wrap: anywhere;
 }
@@ -69,10 +69,10 @@
 
 .astra-message-user
 .astra-message-body {
-  max-width: min(34rem, 84%);
-  padding: .76rem 1rem;
+  max-width: min(34rem, 86%);
+  padding: .64rem .88rem;
   border: 0;
-  border-radius: 1.16rem;
+  border-radius: 1.05rem;
   background:
     color-mix(
       in srgb,
@@ -80,9 +80,9 @@
       var(--panel) 52%
     );
   color: var(--text);
-  font-size: .98rem;
-  font-weight: 520;
-  line-height: 1.56;
+  font-size: .96rem;
+  font-weight: 500;
+  line-height: 1.5;
   letter-spacing: -.014em;
   white-space: pre-wrap;
   box-shadow: none;
@@ -111,9 +111,9 @@
   width: 100%;
   max-width: 42.5rem;
   padding: .04rem 0;
-  font-size: 1.06rem;
-  font-weight: 500;
-  line-height: 1.68;
+  font-size: 1rem;
+  font-weight: 480;
+  line-height: 1.62;
   letter-spacing: -.016em;
   white-space: normal;
 }
@@ -309,7 +309,7 @@
 }
 
 .astra-message-markup p {
-  margin: 0 0 .78rem;
+  margin: 0 0 .62rem;
 }
 
 .astra-message-markup h1,
@@ -806,7 +806,7 @@ tr:last-child td {
   display: flex;
   align-items: center;
   gap: .18rem;
-  margin-top: .42rem;
+  margin-top: .28rem;
   padding: .08rem;
   border-radius: .7rem;
   opacity: .68;
@@ -1074,7 +1074,7 @@ tr:last-child td {
   min-width: 0;
   align-self: stretch;
   max-width: 42.5rem;
-  margin-bottom: -.32rem;
+  margin-bottom: -.12rem;
   padding: 0;
   color:
     color-mix(
@@ -1082,23 +1082,13 @@ tr:last-child td {
       var(--text) 78%,
       transparent
     );
-  opacity: .72;
+  opacity: 1;
 }
 
 .ovll-runtime-activity-body {
   width: 100%;
   min-width: 0;
   max-width: 100%;
-}
-
-.ovll-runtime-activity.is-compact
-.ovll-runtime-activity-summary {
-  display: none;
-}
-
-.ovll-runtime-activity.is-compact
-.ovll-runtime-activity-steps {
-  padding-top: 0;
 }
 
 .ovll-runtime-activity-summary {
@@ -1169,8 +1159,8 @@ tr:last-child td {
       var(--text) 64%,
       transparent
     );
-  font-size: .74rem;
-  font-weight: 550;
+  font-size: .72rem;
+  font-weight: 560;
   white-space: nowrap;
 }
 
@@ -1200,7 +1190,7 @@ tr:last-child td {
   max-width: 100%;
   display: flex;
   flex-direction: column;
-  gap: .18rem;
+  gap: .12rem;
   max-height: 32rem;
   padding:
     .16rem
@@ -1230,9 +1220,9 @@ tr:last-child td {
   max-width: 100%;
   display: flex;
   flex-direction: row;
-  gap: .44rem;
+  gap: .38rem;
   align-items: start;
-  padding: .14rem 0;
+  padding: .1rem 0;
   opacity: 0;
   transform:
     translateY(.12rem);
@@ -1328,9 +1318,9 @@ tr:last-child td {
       var(--text) 84%,
       transparent
     );
-  font-size: .84rem;
-  font-weight: 530;
-  line-height: 1.46;
+  font-size: .8rem;
+  font-weight: 510;
+  line-height: 1.5;
   letter-spacing: -.012em;
   overflow-wrap: break-word;
 }
@@ -1353,6 +1343,32 @@ tr:last-child td {
 
 .ovll-runtime-step-detail[hidden] {
   display: none;
+}
+
+
+.ovll-runtime-step[data-status="running"] .ovll-runtime-step-label,
+.ovll-runtime-activity:not(.has-running-step):not(.is-complete) .ovll-runtime-activity-meta {
+  color: transparent;
+  background-image: linear-gradient(105deg,
+    color-mix(in srgb,var(--text) 58%,transparent) 10%,
+    color-mix(in srgb,var(--text) 95%,transparent) 46%,
+    color-mix(in srgb,var(--text) 58%,transparent) 82%);
+  background-size: 235% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: ovll-status-shimmer 2.3s ease-in-out infinite;
+}
+@keyframes ovll-status-shimmer {
+  from { background-position: 100% 50%; }
+  to { background-position: -100% 50%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ovll-runtime-step[data-status="running"] .ovll-runtime-step-label,
+  .ovll-runtime-activity:not(.has-running-step):not(.is-complete) .ovll-runtime-activity-meta {
+    animation: none;
+    background: none;
+    color: var(--sub);
+  }
 }
 
 @keyframes ovll-runtime-step-spin {

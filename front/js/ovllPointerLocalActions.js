@@ -82,12 +82,13 @@ function functionIndex(functions){
     return item;
   });
 }
-async function coordinate({getContext,request,requestCompile,handlers,isActive=()=>true,onActionStart,onActionResult,onCheckpoint,onTaskContext,readSource}={}){
+async function coordinate({getContext,request,requestCompile,handlers,isActive=()=>true,onActionStart,onActionResult,onPhase,onCheckpoint,onTaskContext,readSource}={}){
   const facts=[],messages=[],runs=[],seenReads=new Set(),covered=new Set();let selectedModules=[],reads=[],correction='',checkpoint=null,contextRecord=null,pendingRefs=[];
   for(let step=0;step<3&&isActive();step++){
     let context=await getContext();
     pendingRefs=context.additionalContext?.pendingRefs||[];
     const actionResults=facts.map(({run,...fact})=>({...fact,...(run?{run:runEvidence(run)}:{})}));
+    onPhase?.('understand');
     const proposal=await request({snapshot:context.snapshot,...(context.additionalContext?{additionalContext:context.additionalContext}:{history:context.history||[]}),
       ...(context.taskContext?{taskContext:context.taskContext}:{}),
       extraContext:{savedFunctions:functionIndex(context.savedFunctions||[]),availableResults:resultIndex(context),actionResults,reads,selectedModules,
@@ -120,6 +121,7 @@ async function coordinate({getContext,request,requestCompile,handlers,isActive=(
           createdNodeIds[alias]=nodeId;
         }
         const current=await getContext();
+        onPhase?.('compile');
         const compiled=await requestCompile({plan:continuation.plan,snapshot:current.snapshot,createdNodeIds,
           taskContext:current.taskContext,extraContext:{savedFunctions:functionIndex(current.savedFunctions||[]),reads}});
         if(compiled._meta?.continuation)throw Error('LOCAL_COMPILE_CONTINUATION_LIMIT');
