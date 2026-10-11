@@ -72,7 +72,7 @@ test('Pointer user-facing steps track action boundaries, real nodes, and lifecyc
   assert.match(app,/finishRuntimeActivity\(\{removeImmediately:!state\.runtimeActivity\?\.order\?\.length\}\)/);
   assert.match(app,/POINTER_WORKSPACE_UNAVAILABLE/);
   assert.match(app,/POINTER_WORKSPACE_UNAVAILABLE/);
-  const entry=read('instructions/prompts/layers/entry.md');
+  const entry=read('instructions/prompts/layers/corridor.md');
   const define=read('instructions/prompts/micro/ir/define.md');
   const contract=read('backend/ovllPointer/modelContract.js');
   assert.match(entry,/new kind of node/);

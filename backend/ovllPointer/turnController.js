@@ -1,3 +1,4 @@
+import {splitContextOutput} from './modelContract.js';
 import { KernelError } from './graph.js';
 import { createContractValidation } from './validation.js';
 
@@ -47,6 +48,7 @@ export function createTurnController({store,composer,gateway,prepareContext,reso
       }catch{/* Untrusted telemetry cannot certify execution. */}
       let value;
       try{value=JSON.parse(result.text);}catch{fail('MODEL_INVALID_JSON');}
+      if(phase==='response')value=splitContextOutput(value).domain;
       if(!validation.validateTurn(value))fail('INVALID_MODEL_TURN');
       return value;
     };
@@ -61,7 +63,7 @@ export function createTurnController({store,composer,gateway,prepareContext,reso
       checkContext(context);
       for(let step=0;step<maxModelTurns;step++){
         phase=step===0?'entry':'context';
-        turn=await invoke(step===0?['layer.entry']:['layer.entry','shared.context-read']);
+        turn=await invoke(step===0?['layer.entry','layer.corridor']:['layer.entry','layer.corridor','shared.context-read']);
         if(!turn.needs?.length)break;
         await progress('context_requested',{count:turn.needs.length});
         if(typeof fulfillNeeds!=='function'||step===maxModelTurns-1)break;

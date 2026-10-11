@@ -48,7 +48,7 @@ test('source comparison saves once and reuses with new materials without graph r
  const local=window.createOvllPointerLocal({workspaceStore,
   loadCore:async()=>graphCore,loadPlan:async()=>planCore,
   loadResults:async()=>resultCore,loadCatalog:async()=>({definitions:[defA,defB]})});
- const app=read('app.js'),start=app.indexOf('async function runSavedLocalFunction(fn,bindings){'),
+ const app=read('app.js'),start=app.indexOf('async function runSavedLocalFunction(fn,bindings'),
   end=app.indexOf('  async function runLocalPrompt(',start);
  assert.ok(start>=0&&end>start,'production replay entry point');
  const calls=[];

@@ -7,7 +7,7 @@ import {canonicalTurnExample,toWireTurnExample,decodePhaseOutput} from '../backe
 const read=name=>readFileSync(new URL('../instructions/'+name,import.meta.url),'utf8');
 
 test('entry differentiates chat, reuse, dynamic definition, edit-only and explicit execution',()=>{
- const entry=read('prompts/layers/entry.md');
+ const entry=read('prompts/layers/corridor.md');
  for(const term of ['Answer','Reuse','Define','Edit','Execute','new kind of node',
    'necessary internal structuring','explicit no-run','executionIntent:"requested"'])
    assert.ok(entry.toLowerCase().includes(term.toLowerCase()),term);

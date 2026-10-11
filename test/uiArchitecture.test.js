@@ -1514,24 +1514,24 @@ test("moderate workflow execution is confirmable directly from chat", () => {
 });
 
 test("explicit verification requests are promoted to workflow planning", () => {
-  const entry=read("instructions/prompts/layers/entry.md");
+  const entry=read("instructions/prompts/layers/corridor.md");
   const core=read("instructions/prompts/core.md");
   assert.match(entry,/Decide from current user intent/);
-  assert.match(core,/Treat context\.requestText and context\.objective as the current user turn/);
+  assert.match(core,/context\.objective and additionalContext supply the task\/session context/);
   assert.match(entry,/Only an explicit run or computed deliverable requiring a run permits execute/);
   assert.match(entry,/Combine communication, IR construction, execution and functionization/);
 });
 
 test("chat routing owns workflow decisions before planner execution", () => {
   const host=read("backend/ovllPointer/localHost.js"),app=read("front/js/app.js");
-  assert.match(host,/['"]layer\.entry['"],['"]layer\.chat['"],['"]layer\.ir['"]/);
+  assert.match(host,/['"]layer\.entry['"],['"]layer\.corridor['"],['"]layer\.response['"]/);
   assert.match(app,/PointerAPI\.localTurn/);
   assert.doesNotMatch(app,/API\.planWorkflow/);
 });
 
 test("Pointer can apply a patch and execute a target in one proposal",()=>{
   const app=read("front/js/app.js");
-  const entry=read("instructions/prompts/layers/entry.md");
+  const entry=read("instructions/prompts/layers/corridor.md");
   assert.match(app,/onActionStart:action=>\{if\(owns\(\)\)pointerActionStarted\(action\)/);
   assert.match(app,/['"]run\.start['"]:async/);
   assert.match(app,/runLocalNodes\(\{targets/);

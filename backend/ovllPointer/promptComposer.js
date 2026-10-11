@@ -48,5 +48,7 @@ export function createPromptComposer({validation=createContractValidation()}={})
     if(jsonBytes(messages)>MODEL_CONTEXT_LIMITS.messageBytes)fail('PROMPT_MESSAGES_TOO_LARGE');
     return {assemblyVersion:registry.assemblyVersion,moduleIds:ordered.map(x=>x.id),messages};
   }
-  return Object.freeze({assemble,assemblyVersion:registry.assemblyVersion,registryStatus:registry.status});
+  const index=()=>[...modules.values()].filter(m=>!['core','layer.entry','layer.corridor'].includes(m.id))
+    .map(m=>({ref:'prompt:'+m.id,kind:'contract',purpose:m.content.split('\n')[0].replace(/^#+\s*/,''),moduleId:m.id}));
+  return Object.freeze({assemble,index,assemblyVersion:registry.assemblyVersion,registryStatus:registry.status});
 }

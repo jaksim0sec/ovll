@@ -5798,7 +5798,8 @@
   }
 
   function recentAiConversation(
-    currentText
+    currentText,
+    full=false
   ) {
     const items =
       state.messages
@@ -5852,7 +5853,7 @@
       items.pop();
     }
 
-    return items.slice(-12);
+    return full?items:items.slice(-12);
   }
 
   function likelyWorkflowRequest(
@@ -6296,11 +6297,12 @@
       (run.deliverableTargets||run.targets||[]).some(id=>valid.has(id)));
     return (last?.deliverableTargets||last?.targets||[]).filter(id=>valid.has(id));
   }
-  async function runSavedLocalFunction(fn,bindings){
+  async function runSavedLocalFunction(fn,bindings,selectedTask){
     const bound=global.OvllPointerFunctions.bind(fn,bindings);
+    const constraints=[...new Set([...(bound.invariants||[]),...(selectedTask?.constraints||[])])];
     return runLocalNodes({snapshotOverride:bound.snapshot,targets:bound.targets,outputMap:bound.outputMap,requiredOutputs:bound.requiredOutputs,
-      taskConstraints:bound.invariants,
-      taskContext:{objective:fn.purpose,requestText:bound.requestText,constraints:bound.invariants||[]}});
+      taskConstraints:constraints,
+      taskContext:{objective:selectedTask?.objective||fn.purpose,requestText:bound.requestText,constraints}});
   }
   async function runLocalPrompt(text,options={}){
     if(state.destroyed||state.busy)return;
@@ -6313,6 +6315,19 @@
     const previousRequest=state.lastUserRequest;
     const operation=localOperations.begin({conversationId:scope.conversationId,kind:'chat'});
     const owns=()=>localOperations.isCurrent(operation);
+    const historyStart=recentAiConversation(undefined,true).length;
+    let contextHandled=false;
+    const rememberContext=(record,pendingCovered=false)=>{
+      contextHandled=true;
+      const originals=recentAiConversation(undefined,true);
+      const requestIndex=originals.findLastIndex(x=>x.role==='user'&&x.text.trim()===value);
+      const responseIndex=originals.findLastIndex((x,i)=>i>=historyStart&&x.role==='assistant');
+      const previous=WorkspaceStore.getConversation(scope.conversationId)?.state.pointerContext;
+      try{WorkspaceStore.updateConversationPointerContext(scope.conversationId,
+        PointerActivity.updateAdditionalContext(previous,record,{pendingCovered,
+          requestRef:requestIndex>=0?'history:'+requestIndex:null,responseRef:responseIndex>=0?'history:'+responseIndex:null}));}
+      catch(error){console.warn('Pointer context update failed; original conversation retained',error?.code||error?.message);}
+    };
     state.lastUserRequest=value;setBusy(true);Presence.thinking();
     beginRuntimeActivity('생각 중');
     try{
@@ -6358,18 +6373,21 @@
       }
       const actions=global.OvllPointerLocalActions;
       const conversationId=scope.conversationId,cache=new Map();
-      const contextHistory=recentAiConversation(value).slice(-5).map(x=>x.role+': '+x.text);
-      const taskContext=PointerActivity.createTaskContext(getPointerTask(conversationId),value);
+      const contextHistory=recentAiConversation(value,true).map(x=>x.role+': '+x.text);
+      const priorContext=WorkspaceStore.getConversation(conversationId)?.state.pointerContext;
+      const additionalContext=PointerActivity.additionalContextInput(priorContext);
+      let taskContext=PointerActivity.createTaskContext(getPointerTask(conversationId),value,additionalContext);
       const acceptTask=()=>WorkspaceStore.updateConversationPointerTask(conversationId,taskContext);
-      const {facts,messages,runs,checkpoint}=await actions.coordinate({
+      const {facts,messages,runs,checkpoint,contextRecord,pendingCovered}=await actions.coordinate({
         isActive:()=>localOperations.isActive(operation),
+        onTaskContext:selected=>{if(owns())taskContext={...taskContext,objective:selected.objective,constraints:selected.constraints};},
         onActionStart:action=>{if(owns())pointerActionStarted(action);},
         onActionResult:(action,fact)=>{if(owns())pointerActionResult(action,fact);},
         readSource:(file,settings)=>global.OvllPointerLocal.readSource(file,settings),
         onCheckpoint:checkpoint=>{if(owns()){acceptTask();WorkspaceStore.updateConversationPointerQuestion(conversationId,checkpoint);}},
         getContext:async()=>{
           const snapshot=(await global.OvllPointerLocal.state(conversationId)).graph;
-          return {snapshot,history:contextHistory,taskContext,
+          return {snapshot,history:contextHistory,taskContext,additionalContext,
             pointerQuestion:WorkspaceStore.getConversation(conversationId)?.state.pointerQuestion,
             savedFunctions:global.OvllPointerFunctions?.list()||[],
             runs:await currentLocalRuns(snapshot,conversationId,taskContext)};
@@ -6405,7 +6423,7 @@
             const ref=action.args.functionRef;
             const fn=typeof ref==='object'?global.OvllPointerFunctions.get(ref.id||ref.functionId,ref.version):
               global.OvllPointerFunctions.get(ref);
-            const run=await runSavedLocalFunction(fn,action.args.inputBindings);
+            const run=await runSavedLocalFunction(fn,action.args.inputBindings,taskContext);
             return {status:run.status,run};
           },
           'function.save':async action=>{
@@ -6423,6 +6441,7 @@
       if(facts.some(r=>['applied','completed'].includes(r.status)))state.workflowUserRequest=taskContext.objective;
       const delivery=actions.presentation({facts,messages,runs});
       let reply=delivery.text;
+      let exitRecord=contextRecord;
       if(!operation.signal.aborted&&actions.needsLanguage({facts,messages,runs})){
         const actionResults=facts.map(({run,...fact})=>({...fact,...(run?{run:{
           status:run.status,targets:run.targets,coverage:run.coverage,storage:run.storage,validity:run.validity,nodes:(run.nodes||[]).map(n=>({
@@ -6432,14 +6451,19 @@
         try{
           const snapshot=(await global.OvllPointerLocal.state(conversationId)).graph;
           const language=await PointerAPI.localResponse({snapshot,requestText:value,
-            history:contextHistory,actionResults,taskContext,signal:operation.signal});
-          if(owns()&&language?.message?.trim())
+            additionalContext,actionResults,taskContext,signal:operation.signal});
+          if(owns()&&language?.message?.trim()){
             reply=actions.groundedResponse(language.message.trim(),{facts,messages,runs});
+            exitRecord=reply===language.message.trim()?language._meta?.contextRecord:null;
+          }
         }catch(error){
           console.warn('Pointer language fallback used',error?.code||error);
         }
       }
-      if(owns())addAssistantMessage(reply,{artifacts:delivery.artifacts});
+      if(owns()){
+        addAssistantMessage(reply,{artifacts:delivery.artifacts});
+        rememberContext(exitRecord,pendingCovered);
+      }
     }catch(error){
       if(!owns())return;
       if(operation.signal.aborted){addAssistantMessage('실행을 중단했어.');return;}
@@ -6450,6 +6474,7 @@
         ...(error?.status===429?{onRetry:()=>runLocalPrompt(value,{addUserMessage:false})}:{})});
     }finally{
       if(owns()){
+        if(!contextHandled)rememberContext(null);
         runPresence.reset();
         finishRuntimeActivity({removeImmediately:!state.runtimeActivity?.order?.length});
         Presence.settle();setBusy(false);

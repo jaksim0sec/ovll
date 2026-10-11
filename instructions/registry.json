@@ -1,6 +1,6 @@
 {
   "status": "active_local_runtime",
-  "assemblyVersion": "0.5.1",
+  "assemblyVersion": "0.6.0",
   "source": "prompts/",
   "modules": [
     {
@@ -8,7 +8,7 @@
       "path": "prompts/core.md",
       "requires": [],
       "order": 0,
-      "version": 6
+      "version": 7
     },
     {
       "id": "layer.entry",
@@ -17,7 +17,16 @@
         "core"
       ],
       "order": 100,
-      "version": 9
+      "version": 10
+    },
+    {
+      "id": "layer.corridor",
+      "path": "prompts/layers/corridor.md",
+      "requires": [
+        "layer.entry"
+      ],
+      "order": 105,
+      "version": 1
     },
     {
       "id": "layer.chat",
@@ -62,7 +71,7 @@
         "core"
       ],
       "order": 150,
-      "version": 3
+      "version": 4
     },
     {
       "id": "shared.context-read",

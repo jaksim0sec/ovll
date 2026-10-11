@@ -269,7 +269,7 @@ test('saved function replays fresh inputs while preserving independent per-node 
   loadCore:async()=>core,loadPlan:async()=>plan,loadResults:async()=>results,
   loadCatalog:async()=>({definitions})});
  const app=readFileSync(new URL('../front/js/app.js',import.meta.url),'utf8');
- const first=app.indexOf('async function runSavedLocalFunction(fn,bindings){');
+ const first=app.indexOf('async function runSavedLocalFunction(fn,bindings');
  const last=app.indexOf('  async function runLocalPrompt(',first);
  assert.ok(first>=0&&last>first,'saved function replay entry point remains available');
  const runSaved=new Function('global','runLocalNodes',app.slice(first,last)+

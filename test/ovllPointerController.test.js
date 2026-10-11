@@ -84,3 +84,11 @@ test('all frozen behavior layers are composable without mandatory extra calls',(
     assert.equal(prompt.messages[0].role,'system');
   }
 });
+test('optional language phase accepts EXIT records without changing frozen ModelTurn storage',async()=>{
+ const f=setup([{actions:[{localKey:'cancel',kind:'run.cancel',args:{runRef:'run1'}}]},
+   {message:'Cancellation was rejected.',requestDigest:'Cancel run',responseDigest:'Reported rejection',sessionContext:'Cancellation failed.',constraints:[]}],{languageAfterActions:true});
+ const out=await f.controller.run({scope,requestRef:'r1',requestText:'hello'});
+ assert.equal(out.message,'Cancellation was rejected.');
+ assert.equal(f.submits.length,1);
+ assert.equal(f.submits[0].turn.requestDigest,undefined);
+});

@@ -19,7 +19,7 @@ function setup(){
     vm.runInNewContext(read(name),{window,console});
   const local=window.createOvllPointerLocal({workspaceStore,loadCore:async()=>core,
     loadPlan:async()=>plan,loadResults:async()=>results});
-  const app=read('app.js'),first=app.indexOf('async function runSavedLocalFunction(fn,bindings){'),
+  const app=read('app.js'),first=app.indexOf('async function runSavedLocalFunction(fn,bindings'),
     last=app.indexOf('  async function runLocalPrompt(',first);
   const replay=(executeNode,options={})=>new Function('global','runLocalNodes',app.slice(first,last)+
     ';return runSavedLocalFunction;')(window,args=>local.run({...args,...options,conversationId:'c',executeNode}));

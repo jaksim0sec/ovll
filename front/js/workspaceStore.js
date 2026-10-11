@@ -467,6 +467,21 @@ function normalizePointerQuestion(value){
     throw new Error('INVALID_POINTER_QUESTION');
   return clone(value);
 }
+function normalizePointerContext(value){
+  if(value==null)return null;
+  if(typeof value!=='object'||Array.isArray(value)||!Array.isArray(value.pendingTurns))throw new Error('INVALID_POINTER_CONTEXT');
+  const input={recentTurns:value.recentTurns,sessionContext:value.sessionContext,constraints:value.constraints,
+    pendingRefs:(value.pendingTurns||[]).flatMap(t=>[t?.requestRef,t?.responseRef]).filter(Boolean)};
+  const size=Array.from(JSON.stringify(input)).reduce((n,c)=>{const p=c.codePointAt(0);return n+(p>65535?4:p>2047?3:p>127?2:1);},0);
+  if(typeof value!=='object'||Array.isArray(value)||size>24000||JSON.stringify(value).length>96000||
+    !Array.isArray(value.recentTurns)||value.recentTurns.length>2||
+    value.recentTurns.some(t=>!t||[t.requestDigest,t.responseDigest].some(x=>typeof x!=='string'||!x.trim()||x.length>2400))||
+    typeof value.sessionContext!=='string'||value.sessionContext.length>2400||
+    !Array.isArray(value.constraints)||value.constraints.length>64||value.constraints.some(x=>typeof x!=='string'||!x.trim()||x.length>2400)||
+    !Array.isArray(value.pendingTurns)||value.pendingTurns.length>2||value.pendingTurns.some(t=>!t||[t.requestRef,t.responseRef].some(r=>r!==null&&(typeof r!=='string'||!/^history:[0-9]+$/.test(r)))))
+    throw new Error('INVALID_POINTER_CONTEXT');
+  return clone(value);
+}
 
 function normalizeConversationState(value){
   const source =
@@ -511,6 +526,7 @@ function normalizeConversationState(value){
     pointerGraph:normalizePointerGraph(source.pointerGraph ?? source.vnextGraph),
     pointerRuns:normalizePointerRuns(source.pointerRuns ?? source.vnextRuns),
     pointerTask:normalizePointerTask(source.pointerTask),
+    pointerContext:normalizePointerContext(source.pointerContext),
     pointerQuestion:normalizePointerQuestion(source.pointerQuestion)
   };
 }
@@ -1482,6 +1498,17 @@ function updateConversationPointerQuestion(conversationId,checkpoint){
   if(!persist('conversation:pointer-question'))throw new Error(storageStatus.error||'LOCAL_QUESTION_SAVE_FAILED');
   return clone(conversation.state.pointerQuestion);
 }
+function updateConversationPointerContext(conversationId,context){
+  const conversation=getConversation(conversationId);
+  if(!conversation)throw new Error('CONVERSATION_NOT_FOUND');
+  const previous=conversation.state.pointerContext;
+  conversation.state.pointerContext=normalizePointerContext(context);
+  if(!persist('conversation:pointer-context')){
+    conversation.state.pointerContext=previous;
+    throw new Error(storageStatus.error||'LOCAL_CONTEXT_SAVE_FAILED');
+  }
+  return clone(conversation.state.pointerContext);
+}
 
 function getPointerRun(conversationId,runId){
   return clone((getConversation(conversationId)?.state?.pointerRuns||[]).find(run=>run.runId===runId)||null);
@@ -1748,6 +1775,7 @@ const api = {
   getPointerDefinitions,
   updateConversationPointerRuns,
   updateConversationPointerTask,
+  updateConversationPointerContext,
   updateConversationPointerQuestion,
   getStorageStatus,
   getPointerRun,

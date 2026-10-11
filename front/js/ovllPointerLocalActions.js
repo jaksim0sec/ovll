@@ -82,22 +82,28 @@ function functionIndex(functions){
     return item;
   });
 }
-async function coordinate({getContext,request,requestCompile,handlers,isActive=()=>true,onActionStart,onActionResult,onCheckpoint,readSource}={}){
-  const facts=[],messages=[],runs=[],seenReads=new Set();let reads=[],correction='',checkpoint=null;
+async function coordinate({getContext,request,requestCompile,handlers,isActive=()=>true,onActionStart,onActionResult,onCheckpoint,onTaskContext,readSource}={}){
+  const facts=[],messages=[],runs=[],seenReads=new Set(),covered=new Set();let selectedModules=[],reads=[],correction='',checkpoint=null,contextRecord=null,pendingRefs=[];
   for(let step=0;step<3&&isActive();step++){
     let context=await getContext();
+    pendingRefs=context.additionalContext?.pendingRefs||[];
     const actionResults=facts.map(({run,...fact})=>({...fact,...(run?{run:runEvidence(run)}:{})}));
-    const proposal=await request({snapshot:context.snapshot,history:context.history||[],
+    const proposal=await request({snapshot:context.snapshot,...(context.additionalContext?{additionalContext:context.additionalContext}:{history:context.history||[]}),
       ...(context.taskContext?{taskContext:context.taskContext}:{}),
-      extraContext:{savedFunctions:functionIndex(context.savedFunctions||[]),availableResults:resultIndex(context),actionResults,reads,
+      extraContext:{savedFunctions:functionIndex(context.savedFunctions||[]),availableResults:resultIndex(context),actionResults,reads,selectedModules,
+        historyIndex:(context.history||[]).map((text,index)=>({ref:'history:'+index,kind:'history',role:String(text).split(':',1)[0]})),
         ...(context.pointerQuestion?{questionCheckpoint:context.pointerQuestion}:{}),
         ...(correction?{actionCorrection:correction}:{})}});
     if(!isActive())break;
+    selectedModules=proposal._meta?.selectedModules||selectedModules;
+    if(proposal.actions?.length&&proposal._meta?.taskContext&&onTaskContext){await onTaskContext(proposal._meta.taskContext);context=await getContext();if(!isActive())break;}
     if(proposal.needs?.length){
       const key=JSON.stringify(proposal.needs.map(n=>({kind:n.kind,selector:n.selector})));
       if(seenReads.has(key)||step===2){messages.push(proposal.message&&!uncommittedMutationClaim(proposal.message)?proposal.message:'현재 자료로 해결되지 않은 입력을 알려줘.');break;}
       seenReads.add(key);reads=await readNeedsAsync(proposal.needs,{...context,runs:[...(context.runs||[]),...runs]},
-        {readSource:readSource||context.readSource});continue;
+        {readSource:readSource||context.readSource});
+      for(const read of reads)if(read.available&&!read.truncated)for(const ref of read.sourceRefs||[])covered.add(ref);
+      continue;
     }
     const results=await execute(proposal.actions||[],handlers,{isActive,onActionStart,onActionResult});
     facts.push(...results);runs.push(...results.filter(r=>r.run).map(r=>r.run));
@@ -134,7 +140,7 @@ async function coordinate({getContext,request,requestCompile,handlers,isActive=(
         }
         messages.push('실행 가능한 변경 명령이 생성되지 않아 작업을 적용하지 못했어. '+
           '기존 노드와 정의는 그대로 유지했어.');
-      }else if(proposal.message)messages.push(proposal.message);
+      }else if(proposal.message){messages.push(proposal.message);contextRecord=proposal._meta?.contextRecord||null;}
       break;
     }
     const questionFact=results.find(r=>r.kind==='question.ask'&&r.status==='waiting');
@@ -154,7 +160,7 @@ async function coordinate({getContext,request,requestCompile,handlers,isActive=(
       !runs.some(run=>run.nodes.some(n=>n.toolEffectStarted));
     if(continuation||!recoverable&&proposal.incomplete!==true)break;
   }
-  return {facts,messages,runs,checkpoint};
+  return {facts,messages,runs,checkpoint,contextRecord,pendingCovered:pendingRefs.length>0&&pendingRefs.every(ref=>covered.has(ref))};
 }
 // Keep actual refs and bounded output evidence for follow-up. Full values remain
 // in run storage and can be requested through readNeeds rather than disappearing.
@@ -201,23 +207,26 @@ function readNeeds(needs,{snapshot,history=[],runs=[],savedFunctions=[]}={}){
     if(need.kind==='graph'&&selector.scope!=='ref'||need.kind==='graph'&&ref===snapshot?.graph?.graphId)content=snapshot?.graph;
     else if(need.kind==='definition')content=(snapshot?.definitions||[]).filter(d=>selector.scope!=='ref'||d.definitionId===ref);
     else if(need.kind==='history'&&selector.scope==='current')content=history;
+    else if(need.kind==='history'&&selector.scope==='ref'&&/^history:[0-9]+$/.test(ref||''))content=history[Number(ref.slice(8))];
     else if(need.kind==='run')content=runs.filter(r=>selector.scope!=='ref'||r.runId===ref);
     else if(need.kind==='contract')content=savedFunctions.filter(fn=>selector.scope!=='ref'||fn.id===ref).map(({presentation,createdAt,...contract})=>contract);
     else if(['value','artifact'].includes(need.kind)&&selector.scope==='ref'){
       for(const node of snapshot?.graph?.nodes||[]){
         if(ref==='file:'+node.nodeId)content=node.settings?.file;
         for(const [port,value] of Object.entries(node.inputBindings||{}))if(ref==='binding:'+node.nodeId+':'+port)content=value;
+        for(const [key,value] of Object.entries(node.settings||{}))if(ref==='setting:'+node.nodeId+':'+key)content=value;
       }
       for(const run of runs)for(const node of run.nodes||[])for(const [port,value] of Object.entries(node.outputs?.values||{}))
         if(ref==='local:'+run.runId+':'+node.nodeId+':'+port)content=value.inline;
     }
     const available=content!==undefined&&(!Array.isArray(content)||content.length>0);
-    const limited=Array.isArray(content)?content.slice(0,limit):content;
+    const limited=Array.isArray(content)?need.kind==='history'?content.slice(-limit):content.slice(0,limit):content;
     const raw=JSON.stringify(limited??null),budget=selector.depth==='full'?remaining:Math.min(remaining,6000);
     const fits=bytes(raw)<=budget,preview=raw.slice(0,Math.floor(budget/4));
     const truncated=!fits||Array.isArray(content)&&content.length>limit;
     remaining-=fits?bytes(raw):bytes(preview);
     return {ref:'read:'+index,kind:need.kind,selector,available,truncated,
+      ...(need.kind==='history'?{sourceRefs:selector.scope==='ref'?[ref]:history.slice(-limit).map((_,i)=>'history:'+(Math.max(0,history.length-limit)+i))}:{}),
       availability:selector.ref?.startsWith('file:')?'metadata_only':available?'inline':'unavailable',
       contentAvailable:available&&!selector.ref?.startsWith('file:'),
       coverage:{unit:'items',total:Array.isArray(content)?content.length:available?1:0,

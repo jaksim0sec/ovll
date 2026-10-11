@@ -62,7 +62,7 @@ function createRunPresence({presence,isActive=()=>true,getNodeLabel=()=>''}={}){
   return Object.freeze({update,reset});
 }
 
-function createTaskContext(previous,requestText){
+function createTaskContext(previous,requestText,additionalContext){
   const text=String(requestText||'').trim();
   const history=Array.isArray(previous?.requestHistory)?
     previous.requestHistory.filter(s=>typeof s==='string'&&s.trim()&&s.length<=2400).slice(-5):[];
@@ -70,7 +70,27 @@ function createTaskContext(previous,requestText){
   if(typeof prior==='string'&&prior.trim()&&prior!==text&&prior.length<=2400&&history.at(-1)!==prior)
     history.push(prior);
   // A new user turn is authoritative. Earlier tasks are background, not active constraints.
-  return {objective:text,requestText:text,constraints:[],requestHistory:history.slice(-6)};
+  return {objective:text,requestText:text,constraints:[],requestHistory:additionalContext?[]:history.slice(-6)};
+}
+function additionalContextInput(value){
+  return {recentTurns:(value?.recentTurns||[]).slice(-2),sessionContext:value?.sessionContext||'',
+    constraints:value?.constraints||[],...(value?.pendingTurns?.length?{pendingCount:value.pendingTurns.length,pendingRefs:value.pendingTurns.flatMap(t=>[t.requestRef,t.responseRef]).filter(Boolean),complete:false}:{}),
+    ...(value?.pendingOverflow?{pendingOverflow:true,complete:false}:{})};
+}
+const contextBytes=value=>Array.from(JSON.stringify(value)).reduce((n,c)=>{const p=c.codePointAt(0);return n+(p>65535?4:p>2047?3:p>127?2:1);},0);
+function updateAdditionalContext(previous,record,{requestRef=null,responseRef=null,pendingCovered=false}={}){
+  const next=JSON.parse(JSON.stringify(previous||{recentTurns:[],sessionContext:'',constraints:[],pendingTurns:[]}));
+  const valid=record&&[record.requestDigest,record.responseDigest,record.sessionContext].every(x=>typeof x==='string'&&x.trim()&&x.length<=2400)&&
+    Array.isArray(record.constraints)&&record.constraints.length<=64&&record.constraints.every(x=>typeof x==='string'&&x.trim()&&x.length<=2400)&&contextBytes(record)<=24000;
+  if(valid){
+    const candidate={...next,recentTurns:[...(next.recentTurns||[]),{requestDigest:record.requestDigest,responseDigest:record.responseDigest}].slice(-2),sessionContext:record.sessionContext,constraints:record.constraints,
+      ...(pendingCovered?{pendingTurns:[]}:{})};
+    // Leave room for pending references; never truncate a condition to meet admission.
+    if(contextBytes(additionalContextInput(candidate))<=23000)return candidate;
+  }
+  next.pendingTurns=[...(next.pendingTurns||[]),{requestRef,responseRef}];
+  if(next.pendingTurns.length>2){next.pendingTurns=next.pendingTurns.slice(-2);next.pendingOverflow=true;}
+  return next;
 }
 function parseFunctionRequest(text){
   const match=String(text||'').trim().match(/^(\S+)(?:\s+([\s\S]*))?$/);
@@ -83,5 +103,5 @@ function parseFunctionRequest(text){
   }
   return {id:match[1],input};
 }
-global.OvllPointerActivity=Object.freeze({createOperations,createRunPresence,createTaskContext,parseFunctionRequest});
+global.OvllPointerActivity=Object.freeze({createOperations,createRunPresence,createTaskContext,additionalContextInput,updateAdditionalContext,parseFunctionRequest});
 })(window);

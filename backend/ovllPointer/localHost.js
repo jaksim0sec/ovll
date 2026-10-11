@@ -1,5 +1,5 @@
 import {MODEL_CONTEXT_LIMITS as LIMITS,jsonBytes,utf8Preview} from './contextLimits.js';
-import {localModelContract,phaseWireContract,decodePhaseOutput,phaseOutputIssues} from './modelContract.js';
+import {localModelContract,phaseWireContract,decodePhaseOutput,phaseOutputIssues,splitContextOutput} from './modelContract.js';
 import {normalizeModelTurn,diagnoseModelTurn,modelTurnShape,repairTargetHints} from './turnNormalizer.js';
 import {MemoryGraphRepository,KernelError} from './graph.js';
 import {createContractValidation} from './validation.js';
@@ -23,6 +23,15 @@ function contextSnapshot(snapshot,nodeIdScope){
   const used=new Set(view.graph.nodes.map(n=>n.definitionRef.definitionId+'@'+n.definitionRef.version));
   view.availableDefinitions=view.definitions.filter(d=>!used.has(d.definitionId+'@'+d.version)).map(d=>({definitionId:d.definitionId,version:d.version,purpose:d.purpose,executorKind:d.executorKind,inputs:d.inputs,outputs:d.outputs,...(d.presentation?{presentation:d.presentation}:{})}));
   view.definitions=view.definitions.filter(d=>used.has(d.definitionId+'@'+d.version));
+  if(!nodeIdScope){
+    view.definitions=view.definitions.map(({definitionId,version,purpose,executorKind,inputs,outputs,presentation})=>({definitionId,version,purpose,executorKind,inputs,outputs,...(presentation?{presentation}:{})}));
+    view.graph.nodes=view.graph.nodes.map(n=>({nodeId:n.nodeId,definitionRef:n.definitionRef,
+      ...(n.presentation?{presentation:n.presentation}:{}),
+      ...(n.settings?.file?{file:{ref:'file:'+n.nodeId,name:String(n.settings.file.name||'').slice(0,180),mime:String(n.settings.file.mime||'').slice(0,120)}}:{}),requestPreview:String(n.settings?.request||'').slice(0,180),
+      valueRefs:[...Object.keys(n.inputBindings||{}).map(p=>'binding:'+n.nodeId+':'+p),
+        ...Object.keys(n.settings||{}).map(k=>'setting:'+n.nodeId+':'+k),...(n.settings?.file?['file:'+n.nodeId]:[])]}));
+    return {view,truncated:true};
+  }
   for(const node of view.graph.nodes){
     const file=node.settings?.file;
     if(file?.textPreview?.length>1000){file.valueRef='file:'+node.nodeId;file.textAvailableChars=file.textPreview.length;file.textPreview=file.textPreview.slice(0,1000);file.textTruncated=true;truncated=true;}
@@ -33,10 +42,18 @@ function contextSnapshot(snapshot,nodeIdScope){
   }
   return {view,truncated};
 }
-function prepare({snapshot,requestRef,requestText,history=[],taskContext,capabilities=[],nodeIdScope}){
+function prepare({snapshot,requestRef,requestText,history=[],taskContext,additionalContext,capabilities=[],nodeIdScope}){
+  if(additionalContext!==undefined){
+    if(!additionalContext||typeof additionalContext!=='object'||Array.isArray(additionalContext)||
+      jsonBytes(additionalContext)>24000||!Array.isArray(additionalContext.recentTurns)||additionalContext.recentTurns.length>2||
+      additionalContext.recentTurns.some(t=>!t||[t.requestDigest,t.responseDigest].some(x=>typeof x!=='string'||!x.trim()||x.length>2400))||
+      typeof additionalContext.sessionContext!=='string'||additionalContext.sessionContext.length>2400||
+      !Array.isArray(additionalContext.constraints)||additionalContext.constraints.length>64||
+      additionalContext.constraints.some(x=>typeof x!=='string'||!x.trim()||x.length>2400))fail('INVALID_ADDITIONAL_CONTEXT');
+  }
   if(taskContext!==undefined&&(!taskContext||typeof taskContext!=='object'||Array.isArray(taskContext)||Object.keys(taskContext).some(k=>!['objective','requestText','constraints','historyDigest','requestHistory'].includes(k))))fail('INVALID_TASK_CONTEXT');
   if(taskContext?.requestHistory!==undefined&&(!Array.isArray(taskContext.requestHistory)||taskContext.requestHistory.some(x=>typeof x!=='string'||!x.trim())||JSON.stringify(taskContext.requestHistory).length>12000))fail('INVALID_TASK_CONTEXT');
-  const task={...(taskContext?.requestHistory?{requestHistory:clone(taskContext.requestHistory)}:{}),objective:taskContext?.objective??requestText,requestText:taskContext?.requestText??requestText,constraints:taskContext?.constraints??[],historyDigest:taskContext?.historyDigest??(Array.isArray(history)?history:[]).slice(-6).filter(x=>typeof x==='string'&&x.trim()).map(x=>x.slice(0,800))};
+  const task={...(taskContext?.requestHistory?{requestHistory:clone(taskContext.requestHistory)}:{}),objective:taskContext?.objective??requestText,requestText:taskContext?.requestText??requestText,constraints:taskContext?.constraints??[],historyDigest:additionalContext?[]:taskContext?.historyDigest??(Array.isArray(history)?history:[]).slice(-6).filter(x=>typeof x==='string'&&x.trim()).map(x=>x.slice(0,800))};
   if([task.objective,task.requestText].some(x=>typeof x!=='string'||!x.trim()||x.length>LIMITS.maxTaskTextChars)||!Array.isArray(task.constraints)||task.constraints.length>64||task.constraints.some(x=>typeof x!=='string'||!x.trim()||x.length>2400)||!Array.isArray(task.historyDigest)||task.historyDigest.length>6||task.historyDigest.some(x=>typeof x!=='string'||!x.trim()||x.length>2400))fail('INVALID_TASK_CONTEXT');
   if(!safe(requestRef)||typeof requestText!=='string'||!requestText.trim()||requestText.length>LIMITS.maxRequestChars||
     !snapshot?.graph||!safe(snapshot.graph.graphId)||!Array.isArray(snapshot.graph.nodes)||
@@ -60,7 +77,7 @@ function prepare({snapshot,requestRef,requestText,history=[],taskContext,capabil
     }
   }
   if(jsonBytes(context)>LIMITS.contextBytes)fail('PROMPT_CONTEXT_TOO_LARGE');
-  return {snapshot:clone(snapshot),context,...(extendedTask||task.requestText!==requestText?{extendedTask:{taskContext:clone(task),currentRequestText:requestText}}:{})};
+  return {snapshot:clone(snapshot),context,...(extendedTask||task.requestText!==requestText||additionalContext?{extendedTask:{...(extendedTask||task.requestText!==requestText?{taskContext:clone(task)}:{}),currentRequestText:requestText,...(additionalContext?{additionalContext:clone(additionalContext)}:{})}}:{})};
 }
 function actionContext(snapshot,context,extraContext,createdNodeIds={}){
   const list=[...(extraContext?.savedFunctions||[]),...(extraContext?.reads||[])
@@ -81,7 +98,7 @@ export function createLocalPointerHost({gateway,resolveModel,validation=createCo
   composer=createPromptComposer({validation})}={}){
   if(typeof gateway?.complete!=='function'||typeof resolveModel!=='function')
     fail('LOCAL_MODEL_NOT_CONFIGURED',503);
-  async function invoke({context,modules,nodeContext,extraContext,signal,phase='turn',compilerContext}){
+  async function invoke({context,modules,nodeContext,extraContext,signal,phase='turn',compilerContext,budget}){
     const {messages}=composer.assemble({moduleIds:modules,context,nodeContext,extraContext});
     const wire=phaseWireContract(phase,nodeContext);
     const config=await resolveModel();
@@ -93,6 +110,8 @@ export function createLocalPointerHost({gateway,resolveModel,validation=createCo
       if(jsonBytes(messages)>LIMITS.messageBytes)fail('PROMPT_MESSAGES_TOO_LARGE');
       const call=async()=>{
         const projected=supportsWire();
+        // Reserve bounded transport retry/schema fallback before another module call.
+        if(budget&&budget.providerCalls+(projected?4:2)>LIMITS.maxProviderCalls)fail('MODEL_CALL_BUDGET_EXHAUSTED');
         const callMessages=projected?[
           messages[0],{role:'developer',content:phase==='turn'?localModelContract(undefined,{wire:true}):wire.guidance},
           ...messages.slice(2),...(phase==='turn'?[{role:'developer',content:wire.guidance}]:[])
@@ -103,10 +122,10 @@ export function createLocalPointerHost({gateway,resolveModel,validation=createCo
           const result=await gateway.complete({...active,output:'json',messages:callMessages,signal,...(projected?{wireSchema:wire}:{})});
           record.providerCalls=result.providerCalls??1;record.providerId=result.providerId||active.providerId;record.model=result.model||active.model;record.providerRequestId=result.providerRequestId||null;record.usage=result.usage||null;
           if(result.schemaFallbackUsed)record.schemaFallbackUsed=true;
-          meta.providerCalls+=record.providerCalls;meta.providerId=record.providerId;meta.model=record.model;
+          meta.providerCalls+=record.providerCalls;if(budget)budget.providerCalls+=record.providerCalls;meta.providerId=record.providerId;meta.model=record.model;
           if(result.usage){meta.usage??={};for(const [key,value] of Object.entries(result.usage))if(typeof value==='number'&&Number.isFinite(value))meta.usage[key]=(meta.usage[key]||0)+value;}
           return result;
-        }catch(error){record.providerCalls=error.providerCalls??1;record.error=error.code||'MODEL_ERROR';meta.providerCalls+=record.providerCalls;throw error;}
+        }catch(error){record.providerCalls=error.providerCalls??1;record.error=error.code||'MODEL_ERROR';meta.providerCalls+=record.providerCalls;if(budget)budget.providerCalls+=record.providerCalls;throw error;}
       };
       try{return await call();}catch(error){
         const transient=error?.code==='PROVIDER_RATE_LIMIT'||error?.code==='PROVIDER_NETWORK_ERROR'||error?.code==='PROVIDER_HTTP_ERROR'&&error.status>=500&&error.status<600;
@@ -118,12 +137,17 @@ export function createLocalPointerHost({gateway,resolveModel,validation=createCo
     try{
       let result=await complete();
       for(let attempt=0;attempt<2;attempt++){
-        let turn,invalidJson=false,compilerIssues=[],shape={kind:'invalidJson'};
+        let turn,contextRecord=null,selectedTask=null,invalidJson=false,compilerIssues=[],shape={kind:'invalidJson'};
         const normalizations=[];
         try{
-          const decoded=decodePhaseOutput(JSON.parse(result.text),phase);
+          const raw=JSON.parse(result.text);
+          const split=phase==='node'?{domain:raw,contextRecord:null}:splitContextOutput(raw);
+          contextRecord=split.contextRecord;selectedTask=split.taskContext;
+          if(phase==='turn')compilerIssues=split.taskIssues||[];
+          const decoded=decodePhaseOutput(split.domain,phase);
           shape=modelTurnShape(decoded);
-          if(phase==='turn'&&isActionPlan(decoded)){
+          if(phase==='turn'&&compilerContext.requireTaskContext&&decoded?.actions?.length&&!selectedTask)compilerIssues=[{path:'/taskContext',rule:'taskContextRequiredForActions'}];
+          if(!compilerIssues.length&&phase==='turn'&&isActionPlan(decoded)){
             compilerContext.continuation={};
             try{turn=compileActionPlan(decoded,compilerContext);}
             catch(error){compilerIssues=error.validationIssues||[{path:'/',rule:'invalidActionPlan'}];}
@@ -136,16 +160,18 @@ export function createLocalPointerHost({gateway,resolveModel,validation=createCo
           unsupported?[{path:'/actions',rule:'unsupportedAction'}]:deniedRun?[{path:'/actions',rule:'executionNotAuthorized'}]:!validation.validateTurn(turn)?diagnoseModelTurn(turn,validation.explainTurn?.(turn)||[]):phaseOutputIssues(turn,phase);
         if(issues.length)meta.validationAttempts.push({attempt:attempt+1,shape,rules:issues.map(x=>x.rule).slice(0,4)});
         if(!issues.length){
+          if(phase==='turn'&&turn.actions?.length&&selectedTask)meta.taskContext=selectedTask;
+          meta.contextRecord=phase!=='node'&&!turn.actions?.length&&!turn.needs?.length&&turn.message?.trim()?contextRecord:null;
           if(compilerContext?.continuation?.plan)meta.continuation=compilerContext.continuation;
           return {turn,meta};
         }
-        if(attempt===1||signal?.aborted){
+        if(attempt===1||signal?.aborted||budget?.repairCount>=1){
           console.warn('[OvllPointer contract validation failed]',{phase,rules:issues.map(x=>x.rule),attempts:attempt+1,normalizations:meta.normalizations});
           const code=invalidJson?'MODEL_INVALID_JSON':phase==='response'&&issues[0]?.rule==='responseMessageOnly'?'INVALID_LOCAL_RESPONSE':phase==='node'&&issues[0]?.rule==='nodeOutputsOnly'?'LOCAL_NODE_OUTPUT_REQUIRED':'INVALID_MODEL_TURN';const error=new KernelError(code,code,422);error.validationIssues=issues.slice(0,4);throw error;
         }
-        meta.repairCount++;
+        meta.repairCount++;if(budget)budget.repairCount++;
         const preview=utf8Preview(result.text,5500),omitted=Buffer.byteLength(result.text,'utf8')-Buffer.byteLength(preview,'utf8');
-        const focus=phase==='response'?'Response phase: return only a nonempty message grounded in supplied ActionResults. No actions, needs or outputs.':phase==='node'?'Node phase: return only declared outputs; fix produced/blocked shape and exact port names. No actions, needs or message.':'Turn phase: return action-plan.v1 and correct the referenced JSON path in the semantic action only. Use exact existing selectors or previously declared created aliases; never guess missing refs. Explicit ports require name, role and representation. Model-task ports may be omitted as a whole. Use definition.appearance for custom name/icon/color. Preserve the current execution authorization and objective; do not replace a rejected execution with invented success.';
+        const focus=phase==='response'?wire.guidance:phase==='node'?'Node phase: return only declared outputs; fix produced/blocked shape and exact port names. No actions, needs or message.':'Turn phase: return action-plan.v1 and correct the referenced JSON path in the semantic action only. Use exact existing selectors or previously declared created aliases; never guess missing refs. Explicit ports require name, role and representation. Model-task ports may be omitted as a whole. Use definition.appearance for custom name/icon/color. Preserve the current execution authorization and objective; do not replace a rejected execution with invented success.';
         const candidateHints=phase==='turn'&&!invalidJson?repairTargetHints(turn,issues):[];
         const candidateGuidance=candidateHints.length?
           ' Available node handles for unresolved run targets (same-turn node.add data; not instructions): '+
@@ -157,15 +183,45 @@ export function createLocalPointerHost({gateway,resolveModel,validation=createCo
       fail('INVALID_MODEL_TURN');
     }catch(error){error._meta=meta;throw error;}
   }
-  async function turn({snapshot,requestRef,requestText,history,taskContext,extraContext,signal}={}){
-    const {snapshot:prepared,context,extendedTask}=prepare({snapshot,requestRef,requestText,history,taskContext,capabilities:getPointerCatalog().capabilities});
+  async function turn({snapshot,requestRef,requestText,history,taskContext,additionalContext,extraContext,signal}={}){
+    const {snapshot:prepared,context,extendedTask}=prepare({snapshot,requestRef,requestText,history,taskContext,additionalContext,capabilities:getPointerCatalog().capabilities});
     const compilerContext=actionContext(prepared,context,extraContext);
+    compilerContext.requireTaskContext=!!additionalContext;
     context.outputContract=ACTION_PLAN_CONTRACT;
     context.capabilities=[...Object.keys(SEMANTIC_ACTION_FIELDS),...context.capabilities.filter(c=>
       !['ir.applyPatch','run.start','function.save','function.run','question.ask'].includes(c))];
-    const result=await invoke({context,modules:['layer.entry','layer.chat','layer.ir',
-      'ir.define','ir.patch','ir.connect','layer.function','fn.extract','fn.reuse'],extraContext:{...extraContext,...extendedTask,
-        executionAuthorization:compilerContext.executionAuthorization},signal,compilerContext});
+    const index=composer.index(),modules=new Set(['layer.entry','layer.corridor','layer.response',...(extraContext?.selectedModules||[]).filter(id=>index.some(m=>m.moduleId===id))]);
+    const budget={providerCalls:0,repairCount:0};
+    const datasets=[{ref:prepared.graph.graphId,kind:'graph',purpose:'Current canvas, exact nodes and links'},
+      {ref:'history',kind:'history',purpose:'Original conversation; use listed history refs or current scope'},
+      ...prepared.definitions.map(d=>({ref:d.definitionId,kind:'definition',version:d.version,purpose:d.purpose})),
+      ...(extraContext?.savedFunctions||[]).map(f=>({ref:f.id,kind:'contract',purpose:f.purpose})),
+      ...(extraContext?.availableResults?.items||[]).map(r=>({ref:r.runId,kind:'run',nodeId:r.nodeId,status:r.status,outputs:r.outputs.map(o=>({ref:o.ref,port:o.port}))})),...index];
+    const supplied={...extraContext,...extendedTask,datasets,executionAuthorization:compilerContext.executionAuthorization};
+    let result,aggregate=null;
+    const account=meta=>{
+      if(!aggregate){aggregate=clone(meta);return;}
+      aggregate.providerCalls+=meta.providerCalls;aggregate.repairCount+=meta.repairCount;
+      aggregate.calls.push(...meta.calls);aggregate.normalizations.push(...meta.normalizations);aggregate.validationAttempts.push(...meta.validationAttempts);
+      aggregate.providerId=meta.providerId;aggregate.model=meta.model;aggregate.contextRecord=meta.contextRecord;delete aggregate.taskContext;if(meta.taskContext)aggregate.taskContext=meta.taskContext;
+      if(meta.fallback)aggregate.fallback=meta.fallback;
+      if(meta.continuation)aggregate.continuation=meta.continuation;
+      if(meta.usage){aggregate.usage??={};for(const [k,v] of Object.entries(meta.usage))aggregate.usage[k]=(aggregate.usage[k]||0)+v;}
+    };
+    for(let step=0;step<3;step++){
+      try{result=await invoke({context,modules:[...modules],extraContext:supplied,signal,compilerContext,budget});}
+      catch(error){if(error._meta){account(error._meta);error._meta=aggregate;}throw error;}
+      account(result.meta);
+      const requested=(result.turn.needs||[]).filter(n=>n.kind==='contract'&&n.selector?.scope==='ref'&&index.some(m=>m.ref===n.selector.ref));
+      if(!requested.length)break;
+      let added=false;
+      for(const need of requested){const id=index.find(m=>m.ref===need.selector.ref).moduleId;if(!modules.has(id)){modules.add(id);added=true;}}
+      const external=(result.turn.needs||[]).filter(n=>!requested.includes(n));
+      if(external.length){result.turn.needs=external;break;}
+      if(!added||step===2||budget.providerCalls+(gateway.capabilities?.(aggregate.providerId)?.structuredOutput?4:2)>LIMITS.maxProviderCalls)break;
+    }
+    aggregate.selectedModules=[...modules].filter(id=>index.some(m=>m.moduleId===id));
+    result.meta=aggregate;
     if(result.turn.outputs||result.turn.needs?.length&&result.turn.actions?.length)
       fail('UNSUPPORTED_LOCAL_MODEL_TURN');
     return {...result.turn,_meta:result.meta};
@@ -201,11 +257,11 @@ export function createLocalPointerHost({gateway,resolveModel,validation=createCo
         values:Object.fromEntries(checked.map(x=>[x.port.name,{inline:x.value}]))},
       provenance:Object.fromEntries(Array.isArray(checked)?checked.map(x=>[x.port.name,x.sourceRefs]):[]),validatedPorts:checked.length||0,_meta:result.meta};
   }
-  async function response({snapshot,requestRef,requestText,actionResults=[],history=[],taskContext,signal}={}){
+  async function response({snapshot,requestRef,requestText,actionResults=[],history=[],taskContext,additionalContext,signal}={}){
     if(!Array.isArray(actionResults)||actionResults.length>32||
       Buffer.byteLength(JSON.stringify(actionResults),'utf8')>24000)
       fail('INVALID_LOCAL_RESPONSE_FACTS');
-    const {context,extendedTask}=prepare({snapshot,requestRef,requestText,history,taskContext,
+    const {context,extendedTask}=prepare({snapshot,requestRef,requestText,history,taskContext,additionalContext,
       capabilities:[]});
     const result=await invoke({context,modules:['layer.response','response.present'],
       extraContext:{actionResults:clone(actionResults),...extendedTask},phase:'response',signal});

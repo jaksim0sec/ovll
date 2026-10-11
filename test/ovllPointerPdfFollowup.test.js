@@ -35,6 +35,9 @@ test('existing research → connected PDF export → saved file metadata preserv
     const data=JSON.parse(messages.at(-1).content);
     assert.equal(data.extraContext.availableResults.items[0].nodeId,source);
     assert.equal(data.extraContext.availableResults.items[0].resultCurrent,true);
+    if(!messages.some(m=>m.content.includes('Existing-result export')))return {text:JSON.stringify({needs:[{
+      kind:'contract',selector:{scope:'ref',ref:'prompt:ir.connect',depth:'full'},purpose:'Read the existing-result export contract'
+    }]})};
     assert.match(messages.map(m=>m.content).join('\n'),/Existing-result export/);
     return{text:JSON.stringify({message:'PDF 완료라는 제안은 실행 근거가 아니다',executionIntent:'requested',actions:[
       {localKey:'p',kind:'ir.applyPatch',args:{patch:{graphId,expectedGraphRevision:1,definitions:[],operations:[

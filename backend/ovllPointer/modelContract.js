@@ -60,7 +60,9 @@ export function localModelContract(nodeContext,{wire=false}={}){
  return [
   '# OUTPUT — ActionPlan '+ACTION_PLAN_CONTRACT,
   wire?'Return contract:"action-plan.v1", executionIntent:"requested"|null, message:string|null, actions:[], needs:[]. Each action is {action,payloadJson:JSON.stringify(the semantic fields below)}. Keep required null/empty fields.':
-   'Return contract:"action-plan.v1" with only needed message, actions, needs and executionIntent. Each action is {action,...semanticFields}.',
+   'Return contract:"action-plan.v1" with needed message, actions, needs, executionIntent and the phase metadata below. Each action is {action,...semanticFields}.',
+  'For a final direct answer, also return requestDigest, responseDigest, updated sessionContext and valid explicit constraints. With needs/actions these EXIT fields are null.',
+  'For actions, also return taskContext:{objective, constraints:[string]} selecting the current goal and only applicable retained conditions; never import unrelated prior task restrictions. For needs/direct answers use taskContext:null.',
   wire?'Each need has kind, selectorJson:JSON.stringify(selector), purpose.':'Each need has kind, selector, purpose.',
   '# ACTION FIELDS',
   ...Object.entries(SEMANTIC_ACTION_FIELDS).map(([name,fields])=>name+': '+fields.join(', ')+'.'),
@@ -99,17 +101,33 @@ export function localModelContract(nodeContext,{wire=false}={}){
 const object=properties=>({type:'object',properties,required:Object.keys(properties),additionalProperties:false});
 const nullable=schema=>({anyOf:[schema,{type:'null'}]});
 const string={type:'string'};
+const contextFields={requestDigest:nullable(string),responseDigest:nullable(string),sessionContext:nullable(string),constraints:nullable({type:'array',items:string})};
+export function splitContextOutput(value){
+ if(!value||typeof value!=='object'||Array.isArray(value))return {domain:value,contextRecord:null};
+ const {requestDigest,responseDigest,sessionContext,constraints,taskContext,...domain}=value;
+ const taskValid=taskContext==null||typeof taskContext==='object'&&!Array.isArray(taskContext)&&
+  Object.keys(taskContext).every(k=>['objective','constraints'].includes(k))&&
+  typeof taskContext.objective==='string'&&taskContext.objective.trim()&&taskContext.objective.length<=12000&&
+  Array.isArray(taskContext.constraints)&&taskContext.constraints.length<=64&&taskContext.constraints.every(x=>typeof x==='string'&&x.trim()&&x.length<=2400)&&
+  JSON.stringify(taskContext.constraints).length<=12000&&
+  Buffer.byteLength(JSON.stringify(taskContext),'utf8')<=48000;
+ const texts=[requestDigest,responseDigest,sessionContext];
+ const valid=texts.every(x=>typeof x==='string'&&x.trim()&&x.length<=2400)&&
+  Array.isArray(constraints)&&constraints.length<=64&&constraints.every(x=>typeof x==='string'&&x.trim()&&x.length<=2400)&&
+  Buffer.byteLength(JSON.stringify({requestDigest,responseDigest,sessionContext,constraints}),'utf8')<=24000;
+ return {domain,contextRecord:valid?{requestDigest,responseDigest,sessionContext,constraints}:null,taskContext:taskValid?taskContext:null,taskIssues:taskValid?[]:[{path:'/taskContext',rule:'invalidTaskContext'}]};
+}
 export function phaseWireContract(phase,nodeContext){
  let schema,guidance;
  if(phase==='response'){
-  schema=object({message:string});guidance='Response phase: return only {"message":"user-facing explanation grounded in ActionResults"}. No actions, needs or outputs.';
+  schema=object({message:string,...contextFields});guidance='Response phase: return message grounded in ActionResults plus requestDigest, responseDigest, updated sessionContext (about two sentences) and all valid explicit constraints. No actions, needs or outputs. Preserve meaning and exact conditions; context records are concise natural language, not a fixed vocabulary.';
  }else if(phase==='node'){
   const ports=nodeContext.outputPorts.map(p=>p.name);
   schema=object({status:{type:'string',enum:['produced','blocked']},values:{type:'array',items:object({port:{type:'string',enum:ports},valueJson:nullable(string),ref:nullable(string)})},reason:nullable(string)});
   guidance='Node wire phase: return {status:"produced"|"blocked",values:[{port:exact_declared_port,valueJson:JSON.stringify(actual_value),ref:null}],reason:null}. For a supplied valueRef use ref and valueJson:null. Blocked uses values:[] and a specific reason. Do not duplicate ports. No actions or message.';
  }else{
-  schema=object({contract:{type:'string',enum:[ACTION_PLAN_CONTRACT]},executionIntent:nullable({type:'string',enum:['requested']}),message:nullable(string),actions:{type:'array',items:object({action:{type:'string',enum:Object.keys(SEMANTIC_ACTION_FIELDS)},payloadJson:string})},needs:{type:'array',items:object({kind:string,selectorJson:string,purpose:string})}});
-  guidance='Turn wire phase: use the provider wire envelope described in OUTPUT. Required null/empty fields are stripped by the decoder; semantic payloads and need selectors remain JSON strings; never return internal action args.';
+  schema=object({contract:{type:'string',enum:[ACTION_PLAN_CONTRACT]},executionIntent:nullable({type:'string',enum:['requested']}),message:nullable(string),actions:{type:'array',items:object({action:{type:'string',enum:Object.keys(SEMANTIC_ACTION_FIELDS)},payloadJson:string})},needs:{type:'array',items:object({kind:string,selectorJson:string,purpose:string})},taskContext:nullable(object({objective:string,constraints:{type:'array',items:string}})),...contextFields});
+  guidance='Turn wire phase: use the provider wire envelope described in OUTPUT. For a final direct answer include requestDigest, responseDigest, updated sessionContext and valid explicit constraints; with needs/actions use null context fields. Required null/empty fields are stripped by the decoder; semantic payloads and need selectors remain JSON strings; never return internal action args.';
  }
  return {name:phase==='turn'?'ovll_turn_action_plan_v1':'ovll_'+phase,schema,guidance};
 }
