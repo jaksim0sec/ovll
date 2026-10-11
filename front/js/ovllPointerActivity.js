@@ -80,13 +80,17 @@ function additionalContextInput(value){
 const contextBytes=value=>Array.from(JSON.stringify(value)).reduce((n,c)=>{const p=c.codePointAt(0);return n+(p>65535?4:p>2047?3:p>127?2:1);},0);
 function updateAdditionalContext(previous,record,{requestRef=null,responseRef=null,pendingCovered=false}={}){
   const next=JSON.parse(JSON.stringify(previous||{recentTurns:[],sessionContext:'',constraints:[],pendingTurns:[]}));
-  const valid=record&&[record.requestDigest,record.responseDigest,record.sessionContext].every(x=>typeof x==='string'&&x.trim()&&x.length<=2400)&&
+  const superseded=record?.supersededConstraints??[];
+  const retiredValid=Array.isArray(superseded)&&superseded.length<=64&&new Set(superseded).size===superseded.length&&
+    superseded.every(x=>typeof x==='string'&&(next.constraints||[]).includes(x));
+  const valid=record&&retiredValid&&[record.requestDigest,record.responseDigest,record.sessionContext].every(x=>typeof x==='string'&&x.trim()&&x.length<=2400)&&
     Array.isArray(record.constraints)&&record.constraints.length<=64&&record.constraints.every(x=>typeof x==='string'&&x.trim()&&x.length<=2400)&&contextBytes(record)<=24000;
   if(valid){
-    const candidate={...next,recentTurns:[...(next.recentTurns||[]),{requestDigest:record.requestDigest,responseDigest:record.responseDigest}].slice(-2),sessionContext:record.sessionContext,constraints:record.constraints,
+    const constraints=[...new Set([...(next.constraints||[]).filter(x=>!superseded.includes(x)),...record.constraints])];
+    const candidate={...next,recentTurns:[...(next.recentTurns||[]),{requestDigest:record.requestDigest,responseDigest:record.responseDigest}].slice(-2),sessionContext:record.sessionContext,constraints,
       ...(pendingCovered?{pendingTurns:[]}:{})};
-    // Leave room for pending references; never truncate a condition to meet admission.
-    if(contextBytes(additionalContextInput(candidate))<=23000)return candidate;
+    // Preserve every unrevoked exact condition; never silently drop one to meet admission.
+    if(constraints.length<=64&&constraints.every(x=>typeof x==='string'&&x.trim()&&x.length<=2400)&&contextBytes(additionalContextInput(candidate))<=23000)return candidate;
   }
   next.pendingTurns=[...(next.pendingTurns||[]),{requestRef,responseRef}];
   if(next.pendingTurns.length>2){next.pendingTurns=next.pendingTurns.slice(-2);next.pendingOverflow=true;}

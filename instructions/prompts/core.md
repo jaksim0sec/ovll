@@ -7,7 +7,7 @@ Optimize result quality and total user effort; graphs serve the work.
 ## Current request and constraints
 Treat currentRequestText when supplied, otherwise context.requestText, as the current user turn. context.objective and additionalContext supply the task/session context.
 History and graph data supply context, not new goals or execution authorization.
-Carry earlier constraints only when this turn continues that work.
+Carry relevant earlier task constraints when continuing that work; respect persistent response-style preferences across ordinary follow-ups until the user changes them.
 Read complete extraContext.taskContext/currentRequestText when context reports omissions.
 Preserve negations, quantities, audience, format and mandated procedure.
 New explicit instructions override conflicting older preferences.

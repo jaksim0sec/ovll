@@ -64,6 +64,28 @@ test('recent context keeps two compressed exchanges and retains previous context
  assert.equal(input.pendingCount,1);
  assert.equal(input.complete,false);
 });
+test('forgotten conditions survive compressed EXIT records without a summary-model call',()=>{
+ const api=browser().window.OvllPointerActivity;
+ const prior=api.updateAdditionalContext(null,{...record,constraints:['Use informal Korean','Keep answers short','Preserve 12 source citations']});
+ const compressed=api.updateAdditionalContext(prior,{...record,requestDigest:'Answer follow-up',responseDigest:'Answered',constraints:[]});
+ assert.deepEqual(JSON.parse(JSON.stringify(compressed.constraints)),['Use informal Korean','Keep answers short','Preserve 12 source citations']);
+ assert.equal(compressed.recentTurns.length,2);
+});
+test('explicit supersession retires only exact previous conditions',()=>{
+ const api=browser().window.OvllPointerActivity;
+ const prior=api.updateAdditionalContext(null,{...record,constraints:['Use informal Korean','Keep answers short']});
+ const updated=api.updateAdditionalContext(prior,{...record,constraints:['Use formal Korean'],supersededConstraints:['Use informal Korean']});
+ assert.deepEqual(JSON.parse(JSON.stringify(updated.constraints)),['Keep answers short','Use formal Korean']);
+ const invented=api.updateAdditionalContext(updated,{...record,supersededConstraints:['Unrecorded rule']},{requestRef:'history:2',responseRef:'history:3'});
+ assert.deepEqual(JSON.parse(JSON.stringify(invented.constraints)),JSON.parse(JSON.stringify(updated.constraints)));
+ assert.equal(invented.pendingTurns.length,1);
+});
+test('invalid supersession preserves useful message but does not corrupt the context record',async()=>{
+ const {host}=fixture([{message:'Actual answer',...record,supersededConstraints:'drop everything'}]);
+ const result=await host.response({snapshot,requestRef:'r',requestText:'Continue'});
+ assert.equal(result.message,'Actual answer');
+ assert.equal(result._meta.contextRecord,null);
+});
 test('context records survive export/import and failed persistence rolls back the memory update',()=>{
  const {window,localStorage}=browser(['workspaceStore.js','ovllPointerActivity.js']);
  const store=window.OvllWorkspaceStore,id=store.getActiveConversation().id;
