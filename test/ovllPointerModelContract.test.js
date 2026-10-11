@@ -18,7 +18,7 @@ const create=(responses,received)=>createLocalPointerHost({
 });
 test('workflow contract includes executable graph patch port and target examples',async()=>{
   const received=[],host=create([valid],received);
-  const turn=await host.turn({snapshot,requestRef:'req1',requestText:'요약 워크플로우 만들어'});
+  const turn=await host.turn({snapshot,requestRef:'req1',requestText:'요약 워크플로우 만들어',extraContext:{selectedModules:['action.nodes','action.definitions']}});
   assert.deepEqual(splitModelMetadata(turn).domain,valid);
   assert.equal(received.length,1);
   const developer=received[0].messages.find(x=>x.role==='developer'&&x.content.includes('# OUTPUT — ActionPlan'));
@@ -63,7 +63,7 @@ test('validator explains the missing schema member without including user text',
   assert.equal(validator.explainTurn(valid).length,0);
 });
 test('local wire examples include existing reuse, dynamic work, scoped requests and supported replay',async()=>{
- const received=[];await create([{message:'가능해'}],received).turn({snapshot,requestRef:'r5',requestText:'할 수 있는 일 알려줘'});
+ const received=[];await create([{message:'가능해'}],received).turn({snapshot,requestRef:'r5',requestText:'할 수 있는 일 알려줘',extraContext:{selectedModules:['action.nodes','action.definitions','action.execution','action.functions']}});
  const text=received[0].messages.filter(m=>m.role==='developer').map(m=>m.content).join('\n');
  assert.match(text,/type:"write"/);assert.match(text,/settings/);assert.match(text,/Function execute/);
  assert.match(text,/created/);assert.doesNotMatch(text,/Use only model_task executors/);

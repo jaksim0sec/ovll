@@ -105,7 +105,7 @@ export function createLocalPointerHost({gateway,resolveModel,validation=createCo
     let active={providerId:config.providerId,model:config.model,maxOutputTokens:config.maxOutputTokens??2048};
     const meta={phase,providerId:active.providerId,model:active.model,usage:null,calls:[],providerCalls:0,repairCount:0,fallback:null,normalizations:[],validationAttempts:[]};
     const supportsWire=()=>gateway.capabilities?.(active.providerId)?.structuredOutput===true;
-    messages.splice(1,0,{role:'developer',content:(phase==='response'?wire.guidance:localModelContract(nodeContext))});
+    messages.splice(1,0,{role:'developer',content:(phase==='response'?wire.guidance:localModelContract(nodeContext,{selectedModules:modules}))});
     const complete=async()=>{
       if(jsonBytes(messages)>LIMITS.messageBytes)fail('PROMPT_MESSAGES_TOO_LARGE');
       const call=async()=>{
@@ -113,7 +113,7 @@ export function createLocalPointerHost({gateway,resolveModel,validation=createCo
         // Reserve bounded transport retry/schema fallback before another module call.
         if(budget&&budget.providerCalls+(projected?4:2)>LIMITS.maxProviderCalls)fail('MODEL_CALL_BUDGET_EXHAUSTED');
         const callMessages=projected?[
-          messages[0],{role:'developer',content:phase==='turn'?localModelContract(undefined,{wire:true}):wire.guidance},
+          messages[0],{role:'developer',content:phase==='turn'?localModelContract(undefined,{wire:true,selectedModules:modules}):wire.guidance},
           ...messages.slice(2),...(phase==='turn'?[{role:'developer',content:wire.guidance}]:[])
         ]:messages;
         if(jsonBytes(callMessages)>LIMITS.messageBytes)fail('PROMPT_MESSAGES_TOO_LARGE');

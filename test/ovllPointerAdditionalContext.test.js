@@ -32,6 +32,42 @@ test('ordinary response carries exit records separately from the unchanged actio
  assert.doesNotMatch(instructions,/# DEFINE/);
  assert.doesNotMatch(instructions,/# EXTRACT/);
 });
+test('unselected action families stay out of initial canonical and wire prompts',async()=>{
+ for(const structuredOutput of [false,true]){
+  const calls=[],responses=[
+   {needs:[{kind:'contract',selector:{scope:'ref',ref:'prompt:action.definitions',depth:'full'},purpose:'Need custom node contract'}]},
+   {message:'Ready for the custom definition'}
+  ];
+  const wire=output=>({contract:'action-plan.v1',executionIntent:null,message:output.message??null,
+   actions:[],needs:(output.needs||[]).map(({selector,...n})=>({...n,selectorJson:JSON.stringify(selector)})),
+   taskContext:null,requestDigest:null,responseDigest:null,sessionContext:null,constraints:null,supersededConstraints:null});
+  const host=createLocalPointerHost({resolveModel:async()=>({providerId:'fixture',model:'offline'}),
+   gateway:{capabilities:()=>({structuredOutput}),complete:async request=>{calls.push(request);
+    const next=responses.shift();return {text:JSON.stringify(structuredOutput?wire(next):next),providerCalls:1};}}});
+  const output=await host.turn({snapshot,requestRef:'select_'+structuredOutput,requestText:'Define a new kind'});
+  assert.equal(calls.length,2,'only one detailed module retrieval');
+  const initial=calls[0].messages.map(x=>x.content).join('\n');
+  const detailed=calls[1].messages.map(x=>x.content).join('\n');
+  assert.match(initial,/prompt:action\.definitions/);
+  assert.doesNotMatch(initial,/## action\.definitions/);
+  assert.doesNotMatch(initial,/# SELECTED EXAMPLES/);
+  assert.match(detailed,/## action\.definitions/);
+  assert.match(detailed,/node\.define requires alias/);
+  assert.doesNotMatch(detailed,/## action\.nodes/);
+  assert.doesNotMatch(detailed,/## action\.functions/);
+  assert.ok(detailed.length>initial.length);
+  assert.ok(output._meta.selectedModules.includes('action.definitions'));
+  assert.ok(!output._meta.selectedModules.includes('action.nodes'));
+ }
+});
+test('simple direct chat never receives the full action repertoire',async()=>{
+ const {host,calls}=fixture([{message:'Hello'}]);
+ await host.turn({snapshot,requestRef:'chat_short',requestText:'Hello'});
+ const content=calls[0].messages.map(x=>x.content).join('\n');
+ assert.match(content,/# ACTION DIRECTORY/);
+ assert.doesNotMatch(content,/# SELECTED ACTION CONTRACTS/);
+ assert.doesNotMatch(content,/# SELECTED EXAMPLES/);
+});
 test('model selects detail modules through existing needs without a word-based intent classifier',async()=>{
  const {host,calls}=fixture([{needs:[{kind:'contract',selector:{scope:'ref',ref:'prompt:ir.define',depth:'full'},purpose:'Read the dynamic definition contract'}]},{message:'Definition contract read',...record}]);
  const result=await host.turn({snapshot,requestRef:'r',requestText:'Design my reusable task'});

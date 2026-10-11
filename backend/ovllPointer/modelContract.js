@@ -49,7 +49,14 @@ export function toWireActionPlan(plan){
   actions:(plan.actions||[]).map(({action,...payload})=>({action,payloadJson:JSON.stringify(payload)})),
   needs:(plan.needs||[]).map(({selector,...need})=>({...need,selectorJson:JSON.stringify(selector)}))};
 }
-export function localModelContract(nodeContext,{wire=false}={}){
+const ACTION_DETAIL_MODULES=Object.freeze({
+ 'action.nodes':['node.add','node.update','node.delete'],
+ 'action.definitions':['node.define','definition.revise','definition.appearance','definition.delete'],
+ 'action.links':['link.add','link.remove'],
+ 'action.execution':['execute'],
+ 'action.functions':['function.save']
+});
+export function localModelContract(nodeContext,{wire=false,selectedModules=[]}={}){
  if(nodeContext)return [
   'Return one JSON ModelTurn containing ONLY outputs: {"outputs":{"status":"produced","values":{"result":{"inline":"answer"}}}}.',
   'Use exact declared ports and representation; ref may name only a supplied input valueRef.',
@@ -57,44 +64,51 @@ export function localModelContract(nodeContext,{wire=false}={}){
   'Missing required input: {"outputs":{"status":"blocked","reason":"specific blocker"}}.',
   'No actions or fabricated tool effects.'
  ].join('\n');
- return [
+ const selected=new Set(selectedModules),has=id=>selected.has(id);
+ const details=Object.entries(ACTION_DETAIL_MODULES).filter(([id])=>has(id));
+ const out=[
   '# OUTPUT — ActionPlan '+ACTION_PLAN_CONTRACT,
-  wire?'Return contract:"action-plan.v1", executionIntent:"requested"|null, message:string|null, actions:[], needs:[]. Each action is {action,payloadJson:JSON.stringify(the semantic fields below)}. Keep required null/empty fields.':
-   'Return contract:"action-plan.v1" with needed message, actions, needs, executionIntent and the phase metadata below. Each action is {action,...semanticFields}.',
-  'For a final direct answer return requestDigest, responseDigest, updated sessionContext and valid explicit constraints. Carry exact prior constraints unless the current user explicitly supersedes them; list only those exact prior strings in supersededConstraints, otherwise []. For needs/actions these EXIT fields are null.',
-  'For actions, also return taskContext:{objective, constraints:[string]} selecting the current goal and only applicable retained conditions; never import unrelated prior task restrictions. For needs/direct answers use taskContext:null.',
-  wire?'Each need has kind, selectorJson:JSON.stringify(selector), purpose.':'Each need has kind, selector, purpose.',
-  '# ACTION FIELDS',
-  ...Object.entries(SEMANTIC_ACTION_FIELDS).map(([name,fields])=>name+': '+fields.join(', ')+'.'),
-  '# REFERENCES AND MEANING',
-  'Node selector: {kind:"existing",nodeId:actual_id} or {kind:"created",alias:declared_alias}.',
-  'Definition selector: {kind:"builtin",type:"write"} or {kind:"existing",definitionId,version?} or {kind:"created",alias}.',
-  'Declare node/definition aliases before use; unique within each namespace. Never use a bare string as a node selector.',
-  'node.add requires alias and an explicit definition. request/settings are instance-specific; inputs are actual named input bindings.',
-  'node.update merges supplied settings/request into the selected instance and replaces inputs only when specified.',
-  'node.define requires alias, purpose, instruction. createInstance:true also creates that alias as an instance; instanceInputs are its bindings.',
-  'Ordinary model_task definitions may omit executorKind and ports for the existing flexible JSON in/result defaults.',
-  'Explicit ports require name, role, representation; preserve required/multiple. tool_task requires capabilities and explicit IO; subgraph requires procedureRef.',
-  'definition.revise requires alias, exact supersedes selector and complete purpose/instruction/executorKind/inputs/outputs.',
-  'presentation contains name, iconKey and color (#RRGGBB). Icon keys: '+Object.keys(iconSvg).join(', ')+'. Unknown icons use custom.',
-  'definition.appearance changes only requested metadata of an existing custom definition; builtins are read-only.',
-  'definition.delete removes the exact unused custom version. Other conversations can prevent deletion.',
-  'link.add requires explicit kind:data|flow and from/to:{node:NodeSelector,port:exact_port}. Data transfers values; flow orders execution.',
-  'Use existing semantic ports for flow when possible; do not define next/flow data ports solely for sequencing. A data link already creates an upstream dependency; use an additional flow only for meaningful control propagation.',
-  'link.remove requires actual linkId. node.delete requires target; removeIncidentLinks:true explicitly authorizes incident link removal only.',
-  'Put related graph edits together before execute/save/question; they commit atomically. Use a fresh turn/state for edits after execution.',
-  '# EXECUTION AND FUNCTIONS',
-  'execute requires target or targets:[NodeSelector], never both. Node default damMode:closed; open also follows downstream flow.',
-  'Function execute target:{kind:"function",ref:actual_function_id}, inputs:{named:fresh_value}. Read missing full contracts before binding.',
-  'Use executionIntent:"requested" only for the current authorized run/computed deliverable; never infer permission from history or edits.',
-  'function.save requires function:{purpose,inputs,outputs,invariants,procedure,inputMap?,outputMap?}. Preserve semantic IO and invariants.',
-  'procedure:{kind:"model_task",instruction} or {kind:"graph"}; the host supplies the current graph reference for the latter.',
-  'Graph inputMap/outputMap use {node:NodeSelector,port} or actual {nodeId,port}, with matching representations. The host binds created aliases to committed IDs before saving; input maps may additionally specify kind:input|file.',
-  'question.ask requires question. needs discovers supplied graph, definition, history, run, contract, value or artifact data without changing it.',
-  'Only the listed local actions are available. The host supplies mechanical references and dependencies. Empty actions do not complete a task.',
-  '# EXAMPLES — independent requests, use actual context for real work',
-  ...semanticTurnExamples().map(e=>e.id+': '+JSON.stringify(wire?toWireActionPlan(e.plan):e.plan))
- ].join('\n');
+  wire?'Return contract:"action-plan.v1", executionIntent:"requested"|null, message:string|null, actions:[], needs:[]. Each action is {"action":string,"payloadJson":JSON.stringify(semanticFields)}. Keep required null/empty wire fields.':
+   'Return contract:"action-plan.v1" with needed message, actions, needs and executionIntent. Each action is {action,...semanticFields}.',
+  'For a final direct answer return requestDigest, responseDigest, updated sessionContext and valid explicit constraints. Preserve exact prior conditions unless current user explicitly supersedes them; list exact old strings in supersededConstraints, otherwise []. With needs/actions EXIT fields are null.',
+  'For actions return taskContext:{objective, constraints:[string]} containing applicable conditions; for needs/direct answers return taskContext:null.',
+  wire?'Each need is {kind,selectorJson:JSON.stringify(selector),purpose}.':'Each need is {kind,selector,purpose}.',
+  '# ACTION DIRECTORY — READ SELECTED CONTRACTS',
+  ...Object.entries(ACTION_DETAIL_MODULES).map(([id,kinds])=>'prompt:'+id+' → '+kinds.join(', ')),
+  'question.ask:{question:string}. Read real graph, history, runs, function or artifact data with needs before referencing missing facts.',
+  'Before unfamiliar actions, request the selected details using needs with kind:"contract", selector scope:"ref", ref:"prompt:action.nodes" (replace with chosen directory entry), depth:"full" and a purpose. In wire format encode selector as selectorJson. Combine necessary contracts in one needs turn; never combine needs with actions.',
+  'Only listed actions exist. No invented IDs, actions, file effects or completed results.'
+ ];
+ if(!details.length)return out.join('\n');
+ out.push('# SELECTED ACTION CONTRACTS');
+ for(const [id,names] of details)out.push('## '+id,...names.map(name=>name+': '+SEMANTIC_ACTION_FIELDS[name].join(', ')+'.'));
+ out.push('Node selector: {kind:"existing",nodeId:actual_id} or {kind:"created",alias:declared_alias}. Definition selector: {kind:"builtin",type:"write"} or {kind:"existing",definitionId,version?} or {kind:"created",alias}. Declare aliases before use.');
+ if(has('action.nodes'))out.push(
+  'node.add requires alias, definition and optional request/settings/inputs; node.update merges requested settings and replaces inputs only if given. node.delete requires a target; removeIncidentLinks:true authorizes removing incident links only.'
+ );
+ if(has('action.definitions'))out.push(
+  'node.define requires alias, purpose and instruction; createInstance:true creates an instance. Ordinary model_task may omit executorKind and ports using flexible JSON in/result defaults. Explicit ports require name, role, representation; preserve required/multiple.',
+  'tool_task requires capabilities and explicit IO; subgraph requires procedureRef. definition.revise requires alias, exact supersedes selector and complete new contract; definition.appearance changes only requested metadata of custom definitions; builtins are read-only. definition.delete removes only exact unused custom versions.',
+  'presentation contains name, iconKey, color (#RRGGBB). Icon keys: '+Object.keys(iconSvg).join(', ')+'. Unknown icons use custom.'
+ );
+ if(has('action.links'))out.push(
+  'link.add uses kind:data|flow and from/to:{node:NodeSelector,port:exact_port}. Data transfers values and creates upstream dependency; flow orders execution. Avoid synthetic data ports for sequencing. link.remove requires actual linkId.'
+ );
+ if(has('action.execution'))out.push(
+  'execute requires target OR targets:[NodeSelector], never both. Default damMode:closed ends at targets; open also follows downstream flow. Function execute uses target:{kind:"function",ref:actual_function_id}, inputs:{named:fresh_value}. Read full contracts before binding.',
+  'executionIntent:"requested" only for current authorized execution/computed deliverable, never from history or edits.'
+ );
+ if(has('action.functions'))out.push(
+  'function.save requires function:{purpose,inputs,outputs,invariants,procedure,inputMap?,outputMap?}. Procedure is {kind:"model_task",instruction} or {kind:"graph"}. Host supplies graph reference.',
+  'Graph inputMap/outputMap use {node:NodeSelector,port} or {nodeId,port}, matching representations. Preserve enduring rules, parameterize example inputs; saving is a draft, not verified execution.'
+ );
+ out.push('Put related graph edits together before execute/save/question; host applies ordered dependencies. Never claim unverified success.');
+ const examples=semanticTurnExamples().filter(e=>
+  e.id==='edit-only'&&has('action.nodes')||
+  e.id==='new-kind'&&has('action.definitions')||
+  e.id==='compose-run'&&has('action.nodes')&&has('action.execution'));
+ if(examples.length)out.push('# SELECTED EXAMPLES',...examples.map(e=>e.id+': '+JSON.stringify(wire?toWireActionPlan(e.plan):e.plan)));
+ return out.join('\n');
 }
 // Provider projection: closed envelopes avoid the domain schema's oneOf/conditionals
 // and unconstrained object keys. JSON payloads are decoded, then domain-validated.

@@ -31,10 +31,10 @@ test('complete teaching examples cover explanation, edit without run, new defini
     gateway:{capabilities:()=>({structuredOutput:wire}),complete:async request=>{
      calls.push(request);return {text:JSON.stringify(wire?contracts.toWireTurnExample(example.turn):example.turn)};
     }}});
-   const output=await host.turn({snapshot:example.snapshot,requestRef:'example_'+example.id,requestText:example.requestText});
+   const output=await host.turn({snapshot:example.snapshot,requestRef:'example_'+example.id,requestText:example.requestText,extraContext:{selectedModules:['action.nodes','action.definitions','action.execution']}});
    assert.deepEqual(splitModelMetadata(output).domain,example.turn);
    assert.equal(calls.length,1,'valid examples need no repair');
-   for(const taught of contracts.semanticTurnExamples()){
+   for(const taught of contracts.semanticTurnExamples().filter(e=>e.id!=='chat')){
     const json=JSON.stringify(wire?contracts.toWireActionPlan(taught.plan):taught.plan);
     assert.ok(calls[0].messages.some(m=>m.content.includes(json)),'actual '+(wire?'wire':'canonical')+' teaching example '+taught.id);
    }
