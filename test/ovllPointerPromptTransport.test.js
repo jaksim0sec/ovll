@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {mkdtempSync,writeFileSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
-import {spawnSync} from 'node:child_process';
+import {execFileSync,spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 
 const root=fileURLToPath(new URL('..',import.meta.url));
@@ -16,8 +16,11 @@ function evaluate(stub,standby=false){
    GEMINI_API_KEY:'fixture-secret-never-send',GROQ_API_KEY:standby?'standby-secret-never-send':'',
    GROQ_MODEL:'openai/gpt-oss-120b',OVLL_POINTER_MAX_OUTPUT_TOKENS:'2048',
    OVLL_POINTER_MODEL_API_KEY:'',OVLL_VNEXT_MODEL_API_KEY:''};
+  // Transport isolation needs equal hosts, not repository history. A shallow
+  // CI checkout contains HEAD but need not contain the product baseline.
+  const sha=execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim();
   const run=spawnSync(process.execPath,['--import',preload,join(root,'scripts/eval-pointer-prompts.mjs'),
-   '--allow-live','--baseline','2face8a','--candidate','2face8a','--cases','chat'],{cwd:root,encoding:'utf8',env});
+   '--allow-live','--baseline',sha,'--candidate',sha,'--cases','chat'],{cwd:root,encoding:'utf8',env});
   assert.equal(run.status,0,run.stderr);
   assert.doesNotMatch(run.stdout,/fixture-secret|standby-secret|https:\/\/|Offline transport answer/);
   return JSON.parse(run.stdout);
