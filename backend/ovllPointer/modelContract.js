@@ -212,7 +212,7 @@ export function decodePhaseOutput(value,phase){
   return {outputs:{status:domain.status,...(domain.status==='produced'?{values}:{}),...(domain.reason!==null?{reason:domain.reason}:{})}};
  }
  if(phase==='selection'){
-  if(Object.hasOwn(domain,'contract'))return decodePhaseOutput(domain,'turn');
+  if(!Object.hasOwn(domain,'decision'))return decodePhaseOutput(domain,'turn');
   if(domain.message===null)delete domain.message;
   if(Array.isArray(domain.needs))domain.needs=domain.needs.map(need=>{
    if(!Object.hasOwn(need,'selectorJson'))return need;

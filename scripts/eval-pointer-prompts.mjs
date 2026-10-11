@@ -78,7 +78,8 @@ const report=await withPromptEvalSnapshots({repoRoot,baseline,candidate},async v
       mode:request.wireSchema?'wire':'canonical',...requestSummary(request)});
      if(!inspect)return configured.modelGateway.complete(request);
      return {text:JSON.stringify(request.wireSchema?
-      {executionIntent:null,message:'Offline request inspection.',actions:[],needs:[]}:
+      {decision:'answer',actionKinds:[],message:'Offline request inspection.',needs:[],taskContext:null,
+       requestDigest:null,responseDigest:null,sessionContext:null,constraints:null,supersededConstraints:null}:
       {message:'Offline request inspection.'}),providerCalls:0};
     }
    };

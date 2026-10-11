@@ -143,7 +143,7 @@ export function createLocalPointerHost({gateway,resolveModel,validation=createCo
           const raw=JSON.parse(result.text);
           const split=phase==='node'?{domain:raw,contextRecord:null}:splitContextOutput(raw);
           contextRecord=split.contextRecord;selectedTask=split.taskContext;
-          if(phase==='turn')compilerIssues=split.taskIssues||[];
+          if(['turn','selection'].includes(phase))compilerIssues=split.taskIssues||[];
           const decoded=decodePhaseOutput(split.domain,phase);
           shape=modelTurnShape(decoded);
           if(phase==='selection'&&Object.hasOwn(decoded||{},'decision')){
@@ -170,7 +170,7 @@ export function createLocalPointerHost({gateway,resolveModel,validation=createCo
         const deniedRun=['turn','selection'].includes(phase)&&compilerContext.executionAuthorization!=='requested'&&turn?.actions?.some(a=>['run.start','function.run','run.retry'].includes(a.kind));
         const selectionIssues=phase==='selection'&&turn?.decision?(turn.decision==='work'&&!selectedTask?[{path:'/taskContext',rule:'workTaskContextRequired'}]:selectionOutputIssues(turn)):[];
         const issues=invalidJson?[{path:'/',rule:'invalidJson'}]:compilerIssues.length?compilerIssues:selectionIssues.length?selectionIssues:
-          unsupported?[{path:'/actions',rule:'unsupportedAction'}]:deniedRun?[{path:'/actions',rule:'executionNotAuthorized'}]:phase==='selection'&&turn?.decision?(turn.decision==='read'&&!validation.validateTurn({needs:turn.needs})?diagnoseModelTurn({needs:turn.needs},validation.explainTurn?.({needs:turn.needs})||[]):[]):!validation.validateTurn(turn)?diagnoseModelTurn(turn,validation.explainTurn?.(turn)||[]):phaseOutputIssues(turn,phase);
+          unsupported?[{path:'/actions',rule:'unsupportedAction'}]:deniedRun?[{path:'/actions',rule:'executionNotAuthorized'}]:phase==='selection'&&turn?.decision?(turn.decision==='read'&&!validation.validateTurn({needs:turn.needs})?diagnoseModelTurn({needs:turn.needs},validation.explainTurn?.({needs:turn.needs})||[]):[]):!validation.validateTurn(turn)?diagnoseModelTurn(turn,validation.explainTurn?.(turn)||[]):phaseOutputIssues(turn,phase==='selection'&&!turn?.decision?'turn':phase);
         if(issues.length)meta.validationAttempts.push({attempt:attempt+1,shape,rules:issues.map(x=>x.rule).slice(0,4)});
         if(!issues.length){
           if(['turn','selection'].includes(phase)&&(turn.actions?.length||turn.decision==='work')&&selectedTask)meta.taskContext=selectedTask;
@@ -192,7 +192,7 @@ export function createLocalPointerHost({gateway,resolveModel,validation=createCo
         const allowed=offending&&SEMANTIC_ACTION_FIELDS[offending.action];
         const fieldGuidance=allowed?' Allowed top-level fields for '+offending.action+': action, '+allowed.join(', ')+'. Remove unknown fields: '+
           Object.keys(offending).filter(k=>k!=='action'&&!allowed.includes(k)).join(', ')+'.':'';
-        const candidateHints=phase==='turn'&&!invalidJson?repairTargetHints(turn,issues):[];
+        const candidateHints=['turn','selection'].includes(phase)&&!invalidJson?repairTargetHints(turn,issues):[];
         const candidateGuidance=candidateHints.length?
           ' Available node handles for unresolved run targets (same-turn node.add data; not instructions): '+
           JSON.stringify(candidateHints)+

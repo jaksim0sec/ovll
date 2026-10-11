@@ -46,7 +46,7 @@ test('snapshot inspection uses each pinned contract, schema and product policy i
    assert.equal(before.messages.find(m=>m.role==='user').sha256,after.messages.find(m=>m.role==='user').sha256,'same scenario and request identity');
    assert.deepEqual(before.modelConfig,after.modelConfig);
    if(mode==='wire'){
-    assert.equal(before.schema.name,'before_ovll_turn');assert.equal(after.schema.name,'after_ovll_turn');
+    assert.equal(before.schema.name,'before_ovll_selection');assert.equal(after.schema.name,'after_ovll_selection');
    }else assert.equal(before.schema,null);
   }
  }finally{rmSync(repo,{recursive:true,force:true});}

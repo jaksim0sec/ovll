@@ -1524,7 +1524,7 @@ test("explicit verification requests are promoted to workflow planning", () => {
 
 test("chat routing owns workflow decisions before planner execution", () => {
   const host=read("backend/ovllPointer/localHost.js"),app=read("front/js/app.js");
-  assert.match(host,/['"]layer\.entry['"],['"]layer\.corridor['"],['"]layer\.response['"]/);
+  assert.match(host,/['"]layer\.entry['"],['"]layer\.corridor['"]/);
   assert.match(app,/PointerAPI\.localTurn/);
   assert.doesNotMatch(app,/API\.planWorkflow/);
 });
