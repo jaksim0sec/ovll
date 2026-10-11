@@ -312,3 +312,42 @@ test('reused function validates object/array inputs before any model or tool cal
   assert.equal(JSON.stringify(functions.get(saved.id).snapshot),before);
  }
 });
+
+test('saved function cannot mask a required node input with optional or absent contract',()=>{
+ const {f}=functionStore(),snapshot={graph:{graphId:'g_required',revision:1,
+  nodes:[{nodeId:'source',definitionRef:{definitionId:'source_def',version:1},
+   inputBindings:{source:'old sample'},settings:{request:'Analyze material'}}],connections:[]},
+  definitions:[{definitionId:'source_def',version:1,executorKind:'model_task',
+   purpose:'Analyze',instruction:'Analyze material',
+   inputs:[{name:'source',role:'Input material',representation:'text',required:true}],
+   outputs:[{name:'result',role:'Answer',representation:'text'}]}]};
+ const args={purpose:'Repeat source analysis',snapshot,targets:['source']};
+ const aliased={name:'material',role:'Fresh material',representation:'text'};
+ assert.throws(()=>f.save({...args,inputs:[]}),/FUNCTION_REQUIRED_INPUT_CONTRACT/);
+ assert.throws(()=>f.save({...args,inputs:[{...aliased,required:false}],
+  inputMap:{material:{nodeId:'source',port:'source'}}}),/FUNCTION_REQUIRED_INPUT_CONTRACT/);
+ const saved=f.save({...args,inputs:[{...aliased,required:true}],
+  inputMap:{material:{nodeId:'source',port:'source'}}});
+ assert.equal(f.bind(saved,{material:'new input'}).snapshot.graph.nodes[0].inputBindings.source,'new input');
+ assert.throws(()=>f.bind(saved,{}),/FUNCTION_INPUT_REQUIRED/);
+ const pinned=f.save({...args,inputs:[],fixedInputs:{'source:source':'approved constant'}});
+ assert.equal(f.bind(pinned).snapshot.graph.nodes[0].inputBindings.source,'approved constant');
+ assert.equal(f.get(saved.id).snapshot.graph.nodes[0].inputBindings.source,'old sample');
+});
+test('saving a reusable file operation requires an explicit fresh file or deliberate fixed file',()=>{
+ const {f}=functionStore();
+ const snapshot={graph:{graphId:'g_required_file',revision:1,nodes:[{nodeId:'file',
+  definitionRef:{definitionId:'builtin:file',version:1},
+  settings:{file:{name:'previous.txt',textPreview:'old text'}}}],connections:[]},
+  definitions:[{definitionId:'builtin:file',version:1,executorKind:'tool_task',
+   requiredCapabilities:['file.read_local'],inputs:[],
+   outputs:[{name:'file',role:'File',representation:'json'}]}]};
+ const options={purpose:'Read a fresh file',snapshot,targets:['file']};
+ assert.throws(()=>f.save({...options,inputs:[]}),/FUNCTION_REQUIRED_INPUT_CONTRACT/);
+ const fn=f.save(options);
+ assert.equal(fn.inputs.length,1);
+ assert.throws(()=>f.bind(fn,{}),/FUNCTION_INPUT_REQUIRED/);
+ const fresh=f.bind(fn,{[fn.inputs[0].name]:{name:'fresh.txt',textPreview:'new text'}});
+ assert.equal(fresh.snapshot.graph.nodes[0].settings.file.name,'fresh.txt');
+ assert.equal(f.get(fn.id).snapshot.graph.nodes[0].settings.file.name,'previous.txt');
+});

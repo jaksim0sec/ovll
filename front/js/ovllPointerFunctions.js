@@ -93,6 +93,16 @@ function save(options={}){
     if(destinations.has(name))throw new Error('FUNCTION_FIXED_INPUT_CONFLICT');
     validateValue(exposed.find(p=>p.name===name),fixedInputs[name]);
   }
+  // A persisted function cannot advertise a required underlying port as optional.
+  // The contract must supply it afresh or explicitly pin its value.
+  for(const required of exposed.filter(p=>p.required===true)){
+    if(own(fixedInputs,required.name))continue;
+    const mapped=inputs.find(input=>{
+      const target=mapping[input.name];
+      return target?.nodeId===required.nodeId&&target.port===required.port;
+    });
+    if(!mapped||mapped.required!==true)throw new Error('FUNCTION_REQUIRED_INPUT_CONTRACT');
+  }
   if(outputs===undefined||!outputs.length)outputs=snapshot.graph.nodes.filter(n=>targets.includes(n.nodeId)).flatMap(n=>{
     const d=snapshot.definitions.find(d=>d.definitionId===n.definitionRef?.definitionId&&d.version===n.definitionRef?.version);
     return (d?.outputs||[]).map(p=>({...p,name:n.nodeId+':'+p.name}));});
