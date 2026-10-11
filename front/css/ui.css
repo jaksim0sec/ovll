@@ -261,7 +261,8 @@
       var(--composer-live-height) +
       var(--safe-bottom) +
       var(--bottom-dock-lift) +
-      1rem
+      1rem +
+      clamp(5rem, 16dvh, 11rem)
     )
     max(1.0625rem, var(--safe-left));
   scrollbar-width: none;

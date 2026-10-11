@@ -80,9 +80,9 @@
       var(--panel) 52%
     );
   color: var(--text);
-  font-size: .96rem;
+  font-size: 1rem;
   font-weight: 500;
-  line-height: 1.5;
+  line-height: 1.56;
   letter-spacing: -.014em;
   white-space: pre-wrap;
   box-shadow: none;
@@ -111,9 +111,9 @@
   width: 100%;
   max-width: 42.5rem;
   padding: .04rem 0;
-  font-size: 1rem;
-  font-weight: 480;
-  line-height: 1.62;
+  font-size: 1.04rem;
+  font-weight: 490;
+  line-height: 1.64;
   letter-spacing: -.016em;
   white-space: normal;
 }
@@ -1091,6 +1091,16 @@ tr:last-child td {
   max-width: 100%;
 }
 
+.ovll-runtime-activity.is-compact .ovll-runtime-activity-summary {
+  display:none;
+}
+.ovll-runtime-activity:not(.is-complete) .ovll-runtime-activity-chevron {
+  visibility:hidden;
+}
+.ovll-runtime-activity-summary:disabled {
+  cursor:default;
+}
+
 .ovll-runtime-activity-summary {
   appearance: none;
   -webkit-appearance: none;
@@ -1156,11 +1166,11 @@ tr:last-child td {
   color:
     color-mix(
       in srgb,
-      var(--text) 64%,
+      var(--text) 76%,
       transparent
     );
-  font-size: .72rem;
-  font-weight: 560;
+  font-size: .8rem;
+  font-weight: 580;
   white-space: nowrap;
 }
 
@@ -1315,12 +1325,12 @@ tr:last-child td {
   color:
     color-mix(
       in srgb,
-      var(--text) 84%,
+      var(--text) 90%,
       transparent
     );
-  font-size: .8rem;
-  font-weight: 510;
-  line-height: 1.5;
+  font-size: .875rem;
+  font-weight: 525;
+  line-height: 1.52;
   letter-spacing: -.012em;
   overflow-wrap: break-word;
 }

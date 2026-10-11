@@ -2035,6 +2035,7 @@ function mount(world,canvas,options={}){
   }
 
   function ensureVisible(){
+    if(UI?.getMode?.()!=="canvas"||(UI?.getProgress?.()??1)<.999)return;
     if(drag||nodeDragging||connectionDragging||layoutAnchor||performance.now()<typingUntil) return;
     const view=
       viewport.getBoundingClientRect();
@@ -2543,6 +2544,7 @@ function mount(world,canvas,options={}){
 
       restoreGaze();
       scheduleIdleBehavior();
+      scheduleVisible();
       return false;
     }
 
@@ -3730,6 +3732,7 @@ function mount(world,canvas,options={}){
     setSituation,
     workAtNode,
     centerInViewport,
+    scheduleVisible,
 
     destroy(){
       destroyed=true;
@@ -3860,6 +3863,7 @@ function bindMascotUI(
       event=>{
         if(event?.mode==="canvas"){
           revealFirstCanvas();
+          requestAnimationFrame(()=>mascot.scheduleVisible?.());
         }
       }
     );

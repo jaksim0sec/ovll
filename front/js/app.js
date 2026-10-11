@@ -4179,8 +4179,13 @@
       );
     }
 
-    row.classList.add("is-collapsed");
-    summary?.setAttribute("aria-expanded","false");
+    const collapsible=runtime.steps.length>=3;
+    row.classList.toggle("is-compact",!collapsible);
+    if(summary)summary.disabled=!collapsible;
+    if(collapsible){
+      row.classList.add("is-collapsed");
+      summary?.setAttribute("aria-expanded","false");
+    }
 
     summary?.addEventListener(
       "click",
@@ -4258,6 +4263,7 @@
       text: "",
       finished: false,
       userToggled: false,
+      messageIndex:state.messages.length,
       activePhaseId:null,
       activePhaseDoneText:"",
       phaseSequence:0
@@ -4266,9 +4272,11 @@
     state.runtimeActivity =
       activity;
 
+    if(summary)summary.disabled=true;
     summary?.addEventListener(
       "click",
       () => {
+        if(!activity.finished||runtimeActivityCount(activity)<3)return;
         activity.userToggled =
           true;
 
@@ -4607,7 +4615,9 @@
 
     syncRuntimeActivityMeta();
 
-    const shouldCollapse = true;
+    const shouldCollapse = runtimeActivityCount(activity)>=3;
+    activity.row?.classList.toggle("is-compact",!shouldCollapse);
+    if(activity.summary)activity.summary.disabled=!shouldCollapse;
 
     if (
       !activity.userToggled &&
@@ -4654,9 +4664,10 @@
       record &&
       options.persist !== false
     ) {
-      state.messages.push(
-        record
-      );
+      const index=Math.max(0,Math.min(
+        activity.messageIndex??state.messages.length,
+        state.messages.length));
+      state.messages.splice(index,0,record);
       scheduleWorkspaceSave();
     }
 
