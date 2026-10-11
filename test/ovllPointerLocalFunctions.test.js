@@ -290,3 +290,25 @@ test('saved function replays fresh inputs while preserving independent per-node 
  assert.equal(functions.get(fn.id).snapshot.graph.nodes[0].inputBindings.in,'Old notes');
  assert.equal(fn.purpose,'Reusable report');
 });
+
+test('reused function validates object/array inputs before any model or tool call',()=>{
+ const storage=new Map(),window={
+  localStorage:{getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value)},
+  crypto:{randomUUID:()=> 'type-check'}};
+ vm.runInNewContext(script,{window});const functions=window.OvllPointerFunctions;
+ for(const [representation,valid,invalid] of [
+  ['object',{document:'fresh'},['wrong']],
+  ['array',[{document:'fresh'}],{document:'wrong'}]
+ ]){
+  const saved=functions.saveDraft({purpose:'Normalize source data',
+   inputs:[{name:'data',role:'Input',representation,required:true}],
+   outputs:[{name:'result',role:'Normalized',representation:'json'}],
+   invariants:['Keep provenance'],
+   procedure:{kind:'model_task',instruction:'Normalize input faithfully'}});
+  const before=JSON.stringify(functions.get(saved.id).snapshot);
+  assert.throws(()=>functions.bind(saved,{data:invalid}),/FUNCTION_INPUT_TYPE_MISMATCH/);
+  const bound=functions.bind(saved,{data:valid});
+  assert.deepEqual(JSON.parse(JSON.stringify(bound.snapshot.graph.nodes[0].inputBindings.data)),valid);
+  assert.equal(JSON.stringify(functions.get(saved.id).snapshot),before);
+ }
+});

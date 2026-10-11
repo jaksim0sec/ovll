@@ -127,6 +127,8 @@ function validateValue(input,value){
     return;
   }
   const rep=input.representation;
+  if(rep==='object'&&(value===null||typeof value!=='object'||Array.isArray(value))||
+    rep==='array'&&!Array.isArray(value))throw new Error('FUNCTION_INPUT_TYPE_MISMATCH');
   if(['text','structured_text','document'].includes(rep)&&typeof value!=='string'||rep==='boolean'&&typeof value!=='boolean'||
     rep==='number'&&(typeof value!=='number'||!Number.isFinite(value))||value===undefined)throw new Error('FUNCTION_INPUT_TYPE_MISMATCH');
 }
