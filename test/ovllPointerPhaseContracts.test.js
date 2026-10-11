@@ -134,8 +134,12 @@ test('structured wire turn uses wire example and records unambiguous patch recov
  assert.equal(result._meta.repairCount,0);
  assert.equal(result.actions[0].args.patch.graphId,'g');
  const policy=calls[0].messages.filter(x=>x.role==='developer').map(x=>x.content).join('\n');
- assert.match(policy,/"payloadJson":/);
- assert.doesNotMatch(policy,/"args":\{"patch"/);
+ assert.match(policy,/CORRIDOR SELECTION/);
+ assert.doesNotMatch(policy,/"payloadJson":/,'the corridor must not create action fields');
+ const {localModelContract}=await import('../backend/ovllPointer/modelContract.js');
+ const workshop=localModelContract(undefined,{wire:true,selectedModules:['action.nodes','action.execution'],workshop:true});
+ assert.match(workshop,/"payloadJson":/,'the workshop owns the action payload contract');
+ assert.doesNotMatch(workshop,/"args":\{"patch"/);
 });
 
 test('ambiguous run-target repair receives producer-scoped candidates without logging key values',async()=>{
