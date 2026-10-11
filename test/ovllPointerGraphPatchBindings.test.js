@@ -108,3 +108,23 @@ test('explicit single-producer input still rejects two connections atomically',(
   assert.throws(()=>apply(repo,build(snapshot,view)),error=>error.code==='AMBIGUOUS_INPUT_PRODUCERS');
   assert.deepEqual(repo.get('w','g'),snapshot);
 });
+
+test('server flow and data on shared sockets survive read, edit and save',()=>{
+  const definitions=getPointerCatalog().definitions;
+  const graph={graphId:'g',revision:3,nodes:['write','organize'].map(type=>({
+    nodeId:type,definitionRef:{definitionId:'builtin:'+type,version:1},settings:{},inputBindings:{}})),
+    connections:[
+      {id:'control',kind:'flow',from:{nodeId:'write',port:'next'},to:{nodeId:'organize',port:'in'}},
+      {id:'value',kind:'data',from:{nodeId:'write',port:'result'},to:{nodeId:'organize',port:'in'}}
+    ]};
+  const snapshot={graph,definitions},projected=window.OvllPointerProjection.projectGraph(snapshot);
+  assert.deepEqual(projected.definitions.write.outputs.map(p=>p.id),['result']);
+  assert.deepEqual(projected.definitions.organize.inputs.map(p=>p.id),['in']);
+  assert.equal(window.OvllPointerGraphPatch.build(snapshot,projected.workflow),null);
+  const view=clone(projected.workflow);
+  view.nodes[0].params.request='Change the writer request only';
+  const patch=window.OvllPointerGraphPatch.build(snapshot,view).patch;
+  assert.deepEqual(patch.operations.map(op=>op.op),['node.update']);
+  const repo=repository(snapshot);apply(repo,patch);
+  assert.deepEqual(repo.get('w','g').graph.connections,graph.connections);
+});

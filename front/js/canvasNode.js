@@ -2888,6 +2888,7 @@
       }
 
       if (
+        kind === 'data' &&
         !compatible(
           output,
           input

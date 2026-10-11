@@ -93,7 +93,9 @@ test('existing data ports remain unchanged and sequencing uses reversible contro
   const saved=repo.get('local',graph.graphId);
   assert.equal(saved.graph.connections[0].to.port,'in');
   const restored=p.projectGraph(saved);
-  assert.deepEqual(Array.from(restored.workflow.links[0]),['write.__flow_out_result','organize.__flow_in_in']);
+  assert.deepEqual(Array.from(restored.workflow.links[0]),['write.result','organize.in']);
+  assert.deepEqual(restored.definitions.write.outputs.map(p=>p.id),['result']);
+  assert.deepEqual(restored.definitions.organize.inputs.map(p=>p.id),['in']);
   assert.equal(w.OvllPointerGraphPatch.build(saved,{nodes:restored.workflow.nodes,connections:restored.workflow.connections}),null);
   const collision={...definitions[0],definitionId:'custom_controls',
     inputs:[{name:'in',role:'data',representation:'text'},{name:'flow_in',role:'more data',representation:'text'}],
@@ -131,4 +133,16 @@ test('file-to-analysis-to-PDF edges use the same semantic types in the canvas an
  assert.equal(projected.workflow.connections.length,2);
  const repo=new MemoryGraphRepository();
  assert.doesNotThrow(()=>repo.restore('w','school',{graph,definitions:[...catalog,custom]}));
+});
+
+test('reserved flow next shares the visible semantic output',()=>{
+  const definitions=getPointerCatalog().definitions;
+  const graph={graphId:'g_next',revision:1,nodes:['write','organize'].map(type=>({nodeId:type,
+    definitionRef:{definitionId:'builtin:'+type,version:1},settings:{},inputBindings:{}})),
+    connections:[{id:'flow1',kind:'flow',from:{nodeId:'write',port:'next'},to:{nodeId:'organize',port:'in'}}]};
+  const projected=p.projectGraph({graph,definitions},undefined,nodeDefinitionsPublic);
+  assert.deepEqual(projected.definitions.write.outputs.map(x=>x.id),['result']);
+  assert.deepEqual(projected.definitions.organize.inputs.map(x=>x.id),['in']);
+  assert.deepEqual(Array.from(projected.workflow.links[0]),['write.result','organize.in']);
+  assert.equal(projected.workflow.connections[0].data.pointer.from.port,'next');
 });

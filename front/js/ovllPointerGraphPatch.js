@@ -43,17 +43,21 @@
         added.set(node.id,localNodeKey);
       }else if(!defs.has(node.type))fail('UNSUPPORTED_UI_NODE_TYPE');
     }
-    // New instances inherit the type's control sockets, but no instance metadata.
-    const typePortMaps=new Map();
+    // Compare visible links to their exact saved identities before converting ports.
+    const typePortMaps=new Map(),projectedLinks=new Map();
     if(global.OvllPointerProjection?.projectGraph){
-      for(const node of global.OvllPointerProjection.projectGraph(snapshot).workflow.nodes)
+      const projected=global.OvllPointerProjection.projectGraph(snapshot);
+      for(const node of projected.workflow.nodes)
         typePortMaps.set(node.type,node.data.pointer.portMap);
+      for(const link of projected.workflow.connections)
+        if(link.id)projectedLinks.set(link.id,link);
     }
     for(const node of after.values())if(!typePortMaps.has(node.type)&&node.data?.pointer?.portMap)
       typePortMaps.set(node.type,node.data.pointer.portMap);
     const key=(kind,from,fromPort,to,toPort)=>JSON.stringify([kind,from,fromPort,to,toPort]);
-    const original=new Map();
+    const original=new Map(),originalById=new Map();
     for(const link of graph.connections){
+      if(link.id)originalById.set(link.id,link);
       const k=key(link.kind,link.from.nodeId,link.from.port,link.to.nodeId,link.to.port);
       if(original.has(k))fail('DUPLICATE_GRAPH_CONNECTION');
       original.set(k,link);
@@ -68,9 +72,19 @@
       const f=link?.from,t=link?.to;
       if(!safe(f?.node)||!safe(t?.node)||!safe(f.port)||!safe(t.port)||
         !after.has(f.node)||!after.has(t.node))fail('INVALID_CANVAS_CONNECTION');
-      const logical=(endpoint,direction)=>({...endpoint,port:kind==='flow'?
-        typePortMaps.get(after.get(endpoint.node)?.type)?.[direction]?.[endpoint.port]||endpoint.port:endpoint.port});
-      const from=logical(f,'outputs'),to=logical(t,'inputs');
+      const previous=originalById.get(link.id),visible=projectedLinks.get(link.id);
+      const unchanged=previous&&visible&&previous.kind===kind&&
+        visible.from.node===f.node&&visible.from.port===f.port&&
+        visible.to.node===t.node&&visible.to.port===t.port;
+      const logical=(endpoint,direction)=>{
+        const type=after.get(endpoint.node)?.type;
+        const declared=defs.get(type)?.[direction]||[];
+        const mapped=kind==='flow'&&!declared.some(p=>p.name===endpoint.port)?
+          typePortMaps.get(type)?.[direction]?.[endpoint.port]:null;
+        return {...endpoint,port:mapped||endpoint.port};
+      };
+      const from=unchanged?{node:f.node,port:previous.from.port}:logical(f,'outputs');
+      const to=unchanged?{node:t.node,port:previous.to.port}:logical(t,'inputs');
       const k=key(kind,from.node,from.port,to.node,to.port);
       if(desired.has(k))fail('DUPLICATE_CANVAS_CONNECTION');
       desired.set(k,{kind,from,to});

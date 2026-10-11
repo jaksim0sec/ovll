@@ -78,6 +78,7 @@ export function localModelContract(nodeContext,{wire=false}={}){
   'definition.appearance changes only requested metadata of an existing custom definition; builtins are read-only.',
   'definition.delete removes the exact unused custom version. Other conversations can prevent deletion.',
   'link.add requires explicit kind:data|flow and from/to:{node:NodeSelector,port:exact_port}. Data transfers values; flow orders execution.',
+  'Use existing semantic ports for flow when possible; do not define next/flow data ports solely for sequencing. A data link already creates an upstream dependency; use an additional flow only for meaningful control propagation.',
   'link.remove requires actual linkId. node.delete requires target; removeIncidentLinks:true explicitly authorizes incident link removal only.',
   'Put related graph edits together before execute/save/question; they commit atomically. Use a fresh turn/state for edits after execution.',
   '# EXECUTION AND FUNCTIONS',

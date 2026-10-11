@@ -5,7 +5,7 @@
 3. Preserve every independent source, its originating node/port and provenance.
 4. JSON ports can carry strings or structured materials.
 5. Respect required inputs, real ports/representations and declared branch/merge contracts.
-6. Avoid cycles, dangling endpoints and redundant edges.
+6. Avoid cycles, dangling endpoints and redundant edges. Data links also establish upstream dependencies; add flow links only for necessary control propagation and reuse semantic ports instead of redundant next/flow data ports.
 7. Consuming an existing result requires a data link from its exact output; instructions naming the source or flow alone do not transfer data.
 8. A data link and literal inputBinding on the same port conflict; remove a replaced binding in that atomic patch.
 9. Independent source literals are valid for actual user or conversation material.

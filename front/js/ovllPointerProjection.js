@@ -71,15 +71,14 @@
       }
       const reserved=(direction==='outputs'?/^(next|flow_next_*)$/:/^(in|flow_in_*)$/).test(name);
       if(!logical&&!reserved)throw new Error('UNREPRESENTABLE_GRAPH_PORT');
+      if(logical&&ports.some(p=>p.id===name))return name;
       const mapped=flowMaps.get(types.get(nodeId))[direction];
       if(mapped[name])return mapped[name];
-      let id=name;
-      if(logical){
-        const base='__flow_'+(direction==='outputs'?'out_':'in_')+name.slice(0,130);
-        id=base;let suffix=0;
-        while(ports.some(p=>p.id===id))id=base+'_'+(++suffix);
-      }
-      if(!ports.some(p=>p.id===id&&p.channel==='flow'))ports.push({id,
+      // Share a visible data socket for control when it already expresses this endpoint.
+      const semantic=def[direction]||[];
+      const shared=!logical&&reserved&&semantic.length===1&&ports.some(p=>p.id===semantic[0].name);
+      const id=shared?semantic[0].name:name;
+      if(!ports.some(p=>p.id===id))ports.push({id,
         name:direction==='outputs'?(def.requiredCapabilities?.includes('branch.exclusive')?logical?.role||name:'다음'):'진행',
         type:'control_flow',accepts:['control_flow'],channel:'flow',multiple:true,required:false});
       ui[direction]=ports;mapped[name]=id;
