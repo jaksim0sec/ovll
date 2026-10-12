@@ -1279,16 +1279,20 @@ test("desktop root type is slightly smaller without shrinking mobile type", () =
 });
 
 
-test("composer send control has a smaller desktop circle with a fuller arrow", () => {
+test("composer send circle is compact while its hit target and arrow remain usable", () => {
   const css = compact(read("front/css/ui.css"));
 
   assert.match(
     css,
-    /#composer-submit\s*\{[^}]*width:\s*2\.2rem[^}]*height:\s*2\.2rem[^}]*min-width:\s*2\.2rem[^}]*min-height:\s*2\.2rem/
+    /#composer-submit\s*\{[^}]*width:\s*2\.5rem[^}]*height:\s*2\.5rem[^}]*min-width:\s*2\.5rem[^}]*min-height:\s*2\.5rem/
   );
   assert.match(
     css,
-    /#composer-submit svg\s*\{[^}]*width:\s*1\.16rem[^}]*height:\s*1\.16rem[^}]*stroke-width:\s*1\.65/
+    /#composer-submit::before\s*\{[^}]*width:\s*2\.25rem[^}]*height:\s*2\.25rem/
+  );
+  assert.match(
+    css,
+    /#composer-submit svg\s*\{[^}]*width:\s*1\.25rem[^}]*height:\s*1\.25rem[^}]*stroke-width:\s*1\.65/
   );
   assert.match(
     css,
