@@ -903,10 +903,17 @@ function mount(world,canvas,options={}){
           const data=canvas.getNode?.(String(id));
           const title=String(data?.title||node.querySelector(".vc-node-title,.vc-file-title")?.textContent||"선택한")
             .replace(/\s+/g," ").trim()||"선택한";
-          input.value=title+" 노드를 검토하고 개선할 점을 알려줘";
-          input.dispatchEvent(new global.Event("input",{bubbles:true}));
+          const prompt=title+" 노드를 검토하고 개선할 점을 알려줘";
+          const rich=composerElement?.ovllRichComposer;
+          if(rich){
+            rich.setDraft(prompt);
+            rich.element.dispatchEvent(new global.Event("input",{bubbles:true}));
+          }else{
+            input.value=prompt;
+            input.dispatchEvent(new global.Event("input",{bubbles:true}));
+          }
         }
-        input.focus();
+        (composerElement?.ovllRichComposer?.element||input).focus();
       }
     }else if(action==="next"){
       const next=canvas.getWorkflow?.().connections?.find(
