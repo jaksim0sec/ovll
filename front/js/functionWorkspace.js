@@ -120,6 +120,10 @@ function createOvllFunctionWorkspace(
     .composerInput
     .placeholder=
     "함수 흐름을 어떻게 만들까?";
+  workspace.composerEditor?.setPlaceholder(
+    "함수 흐름을 어떻게 만들까?"
+  );
+  workspace.composerEditor?.setAttachmentEnabled(false);
 
   if(
     workspace.elements
@@ -1107,6 +1111,7 @@ function createOvllFunctionWorkspace(
       return;
     }
 
+    workspace.composerEditor?.clear();
     workspace.elements
       .composerInput
       .value="";
