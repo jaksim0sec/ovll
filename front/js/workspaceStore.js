@@ -137,6 +137,7 @@ function emptyConversationState(){
     messages:[],
     canvas:emptyCanvas(),
     composerDraft:"",
+    composerDraftParts:null,
     lastUserRequest:"",
     workflowUserRequest:"",
     pointerGraph:null,
@@ -483,6 +484,23 @@ function normalizePointerContext(value){
   return clone(value);
 }
 
+function normalizeComposerDraftParts(value){
+  if(!Array.isArray(value)||!value.length||value.length>256)return null;
+  const result=[];
+  for(const item of value){
+    if(!item||typeof item!=="object")return null;
+    if(item.type==="text"){
+      if(typeof item.text!=="string"||item.text.length>24000)return null;
+      result.push({type:"text",text:item.text});
+    }else if(["node_type","node_instance","function"].includes(item.type)){
+      if(typeof item.id!=="string"||!item.id||item.id.length>150||
+         typeof item.label!=="string"||item.label.length>120)return null;
+      result.push({type:item.type,id:item.id,label:item.label});
+    }else return null;
+  }
+  return result;
+}
+
 function normalizeConversationState(value){
   const source =
     value &&
@@ -513,6 +531,7 @@ function normalizeConversationState(value){
         source.composerDraft ||
         ""
       ).slice(0,24000),
+    composerDraftParts:normalizeComposerDraftParts(source.composerDraftParts),
     lastUserRequest:
       String(
         source.lastUserRequest ||
@@ -1521,7 +1540,8 @@ function getPointerNodeOutput(conversationId,runId,nodeId,port){
 
 function updateConversationDraft(
   conversationId,
-  draft
+  draft,
+  draftParts
 ){
   const conversation =
     getConversation(
@@ -1535,17 +1555,20 @@ function updateConversationDraft(
   const value =
     String(draft || "")
       .slice(0,24000);
+  const parts=normalizeComposerDraftParts(draftParts);
 
   if(
-    conversation.state
-      ?.composerDraft === value
+    conversation.state?.composerDraft===value &&
+    JSON.stringify(conversation.state?.composerDraftParts||null)===
+      JSON.stringify(parts)
   ){
     return clone(conversation);
   }
 
   conversation.state = {
     ...conversation.state,
-    composerDraft:value
+    composerDraft:value,
+    composerDraftParts:parts
   };
   conversation.updatedAt =
     now();
