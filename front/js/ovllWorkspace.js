@@ -166,6 +166,17 @@ function createOvllWorkspace(host,options={}){
   let nodeBuilder=null;
   let destroyed=false;
 
+  const composerEditor=global.OvllComposer?.mount({
+    form:elements.composerForm,
+    input:elements.composerInput,
+    attach:elements.composerAttach,
+    submit:elements.composerSubmit,
+    styleRoot:options.composerStyleRoot||shell,
+    getDefinitions:()=>canvas?.getNodeDefinitions?.()||global.nodeDefinitions||{},
+    getCanvasNodes:()=>canvas?.getWorkflow?.()?.nodes||[],
+    getFunctions:()=>global.OvllPointerFunctions?.list?.()||[]
+  });
+
   const ui=
     options.ui||
     createUI({
@@ -234,6 +245,7 @@ function createOvllWorkspace(host,options={}){
 
     elements.composerForm.classList.toggle("is-busy",busy);
     elements.composerSubmit.disabled=busy;
+    composerEditor?.setBusy(busy);
     return api;
   }
 
@@ -344,6 +356,10 @@ function createOvllWorkspace(host,options={}){
   }
 
   function resizeComposer(){
+    if(composerEditor){
+      composerEditor.resize();
+      return api;
+    }
     const form=
       elements.composerForm;
     const input=
@@ -471,7 +487,7 @@ function createOvllWorkspace(host,options={}){
     });
 
     listen(
-      elements.composerInput,
+      composerEditor?.element||elements.composerInput,
       "input",
       event=>{
         resizeComposer();
@@ -481,7 +497,7 @@ function createOvllWorkspace(host,options={}){
     );
 
     if(adapter.onKeydown){
-      listen(elements.composerInput,"keydown",event=>adapter.onKeydown(event,api));
+      listen(composerEditor?.element||elements.composerInput,"keydown",event=>adapter.onKeydown(event,api));
     }
 
     if(adapter.onAttach&&elements.composerAttach){
@@ -621,6 +637,7 @@ function createOvllWorkspace(host,options={}){
     root:shell,
     elements,
     slots,
+    composerEditor,
     ui,
     presence,
     busyTarget,
