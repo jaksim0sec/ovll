@@ -7,6 +7,7 @@ const scripts=Object.freeze([
   "./js/artifactVisuals.js",
   "./js/artifactRequest.js",
   "./js/svgLibrary.js",
+  "./js/ovllComposer.js",
   "./js/previewSandbox.js",
   "./js/api.js",
   "./js/ovllPointerApi.js",
@@ -41,7 +42,8 @@ const styles=Object.freeze([
   "./css/chat.css",
   "./css/library.css",
   "./css/customNode.css",
-  "./css/shellMenu.css"
+  "./css/shellMenu.css",
+  "./css/composer.css"
 ]);
 const modules=Object.freeze([
   "./js/ovllPointerGraphCore.mjs",
