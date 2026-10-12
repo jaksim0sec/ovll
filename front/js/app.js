@@ -132,6 +132,13 @@
     messageCount: 0
   };
 
+  const composerEditor=global.OvllComposer?.mount({
+    form:composerForm,input:composerInput,attach:composerAttach,submit:composerSubmit,
+    getDefinitions:()=>state.nodeDefinitions||{},
+    getCanvasNodes:()=>state.canvas?.getWorkflow?.()?.nodes||[],
+    getFunctions:()=>global.OvllPointerFunctions?.list?.()||[]
+  });
+
   const localOperations=PointerActivity.createOperations({
     getConversationId:currentConversationId,isDestroyed:()=>state.destroyed
   });
@@ -436,6 +443,10 @@
               composerInput.value ||
               ""
             ).slice(0,24000),
+          composerDraftParts:
+            composerEditor?.hasRefs()
+              ? composerEditor.getParts()
+              : null,
           lastUserRequest:
             state.lastUserRequest,
           workflowUserRequest:
@@ -514,7 +525,10 @@
           WorkspaceStore
             .updateConversationDraft?.(
               conversationId,
-              draft
+              draft,
+              composerEditor?.hasRefs()
+                ? composerEditor.getParts()
+                : null
             );
         },
         delay
@@ -5383,17 +5397,21 @@
     }
 
     try {
-      composerInput.focus({
+      (composerEditor?.element||composerInput).focus({
         preventScroll: true
       });
     } catch {
-      composerInput.focus();
+      (composerEditor?.element||composerInput).focus();
     }
 
     return true;
   }
 
   function resizeComposer() {
+    if(composerEditor){
+      composerEditor.resize();
+      return;
+    }
     composerForm.classList.remove(
       "is-expanded"
     );
@@ -5505,6 +5523,7 @@
     state.busy = !!busy;
     composerInput.disabled = false;
     composerSubmit.disabled = state.busy;
+    composerEditor?.setBusy(state.busy);
     composerForm.classList.toggle("is-busy", state.busy);
     composerForm.setAttribute(
       "aria-busy",
@@ -6270,7 +6289,7 @@
     if(state.pointerMigrationError){showErrorNotice(state.pointerMigrationError,{scope:'작업 이관 오류',fallback:'이전 작업을 안전하게 전환할 수 없어 실행을 중단했어.'});return;}
     if(!value||!scope)return;
     if(options.addUserMessage!==false){
-      addUserMessage(value);composerInput.value='';resizeComposer();scheduleComposerDraftSave(0);
+      addUserMessage(value);composerEditor?.clear();composerInput.value='';resizeComposer();scheduleComposerDraftSave(0);
     }
     const previousRequest=state.lastUserRequest;
     const operation=localOperations.begin({conversationId:scope.conversationId,kind:'chat'});
@@ -6458,6 +6477,7 @@
     state.lastUserRequest=value;
     if(options.addUserMessage!==false){
       addUserMessage(value);
+      composerEditor?.clear();
       composerInput.value='';
       resizeComposer();
       scheduleComposerDraftSave(0);
@@ -6587,6 +6607,9 @@
 
     if (document.activeElement === composerInput) {
       composerInput.blur();
+    }
+    if(document.activeElement===composerEditor?.element){
+      composerEditor.element.blur();
     }
 
     await runPrompt(text);
@@ -7384,13 +7407,16 @@
               ""
             );
 
-          composerInput.value =
-            String(
-              conversation
-                .state
-                ?.composerDraft ||
-              ""
-            ).slice(0,24000);
+          const draftParts=conversation.state?.composerDraftParts;
+          if(composerEditor){
+            composerEditor.setDraft(
+              Array.isArray(draftParts)&&draftParts.length
+                ? draftParts
+                : String(conversation.state?.composerDraft||"").slice(0,24000)
+            );
+          }else{
+            composerInput.value=String(conversation.state?.composerDraft||"").slice(0,24000);
+          }
           resizeComposer();
 
           const memory =
@@ -7799,8 +7825,8 @@
 
     listen(composerForm, "submit", handleSubmit);
     listen(chatMessages, "click", handleMessageClick);
-listen(composerInput, "input", handleComposerInput);
-listen(composerInput, "keydown", handleComposerKeydown);
+listen(composerEditor?.element||composerInput, "input", handleComposerInput);
+listen(composerEditor?.element||composerInput, "keydown", handleComposerKeydown);
     listen(global, "resize", resizeComposer);
 
     listen(global, "orientationchange", () => {
