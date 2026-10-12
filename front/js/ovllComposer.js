@@ -123,8 +123,13 @@
       const rootStyle = root.style;
       rootStyle.setProperty("--composer-input-height", editor.style.height);
       const formHeight = form.getBoundingClientRect().height;
+      const rootComputed = global.getComputedStyle(doc.documentElement);
+      const configured = rootComputed.getPropertyValue("--composer-height").trim();
+      const base = parseFloat(configured);
+      const baseHeight = Number.isFinite(base) ?
+        (configured.endsWith("rem") ? base * (parseFloat(rootComputed.fontSize) || 16) : base) : 88;
       rootStyle.setProperty("--composer-form-height", formHeight + "px");
-      rootStyle.setProperty("--composer-live-height", Math.max(formHeight, 54) + "px");
+      rootStyle.setProperty("--composer-live-height", Math.max(formHeight, baseHeight) + "px");
       return formHeight;
     }
     function changed() {
