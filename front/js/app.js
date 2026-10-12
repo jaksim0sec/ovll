@@ -3604,8 +3604,11 @@
         options.blocks
       );
     } else {
+      // Keep stable reference IDs in the request/history, not in the visible bubble.
       body.textContent =
-        value;
+        role==="user"
+          ? value.replace(/〔(?:노드 타입|캔버스 노드|저장 함수):[^〕]{1,160}〕/g,"")
+          : value;
     }
 
     message.appendChild(body);
