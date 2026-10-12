@@ -748,7 +748,9 @@ function createOvllFunctionWorkspace(
 
     workspace.appendMessage(
       role,
-      value,
+      role==="user"
+        ? value.replace(/〔(?:노드 타입|캔버스 노드|저장 함수):[^〕]{1,160}〕/g,"")
+        : value,
       options
     );
   }
