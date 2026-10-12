@@ -87,12 +87,14 @@
             label: node.dataset.ovllRefLabel });
           return;
         }
-        if (node.tagName === "BR") { textPart(result, "\n"); return; }
-        const block = node !== editor && /^(DIV|P)$/i.test(node.tagName);
-        if (block && result.length) {
-          const last = result[result.length - 1];
-          if (last.type !== "text" || !last.text.endsWith("\n")) textPart(result, "\n");
+        if (node.tagName === "BR") {
+          // Browsers add a terminal BR as a caret placeholder after a line break.
+          if (node.nextSibling === null && node.previousSibling?.nodeName === "BR") return;
+          textPart(result, "\n"); return;
         }
+        const block = node !== editor && /^(DIV|P)$/i.test(node.tagName);
+        if (block && result.length) textPart(result, "\n");
+        if (block && node.childNodes.length === 1 && node.firstChild?.nodeName === "BR") return;
         for (const child of node.childNodes) visit(child);
       }
       for (const child of editor.childNodes) visit(child);
@@ -104,7 +106,7 @@
         const prefix = p.type === "node_type" ? "노드 타입" :
           p.type === "node_instance" ? "캔버스 노드" : "저장 함수";
         return "@" + p.label + "〔" + prefix + ":" + p.id + "〕";
-      }).join("").replace(/\n+$/, "");
+      }).join("");
     }
     function syncValue() { input.value = plainValue(); }
     function hasRefs() { return parts().some(p => p.type !== "text"); }
@@ -306,6 +308,11 @@
     function choose(item) {
       if (!item) return;
       if (!item.action) { insertTag(item); return; }
+      if (openType === "commands" && mentionRange) {
+        selectedRange = mentionRange.cloneRange();
+        selectedRange.deleteContents();
+        selectedRange.collapse(true);
+      }
       if (item.action === "remove-tag" && selectedTag) {
         selectedTag.remove(); closeMenu(); update();
         editor.dispatchEvent(new Event("input", { bubbles: true }));
