@@ -43,7 +43,7 @@ function createShell(host,options={}){
         <input data-ovll-composer-file-input type="file" hidden>
         <button data-ovll-composer-attach type="button" aria-label="파일 추가" title="파일 추가">
           <svg viewBox="0 0 20 20" fill="none" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-            <path d="M10 5v10M5 10h10"></path>
+            <path d="M10 3.75v12.5M3.75 10h12.5"></path>
           </svg>
         </button>
         <textarea
