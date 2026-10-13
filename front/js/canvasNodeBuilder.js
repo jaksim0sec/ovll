@@ -53,10 +53,7 @@ function createCanvasNodeBuilder(options={}){
 
   root.innerHTML=`
     <div id="${panelId}" class="canvas-node-builder-panel" data-canvas-node-builder-panel role="dialog" aria-label="노드 추가">
-      <div class="canvas-node-builder-header">
-        <span>노드 추가</span>
-        <span class="canvas-node-builder-hint">워크플로우를 직접 조립해봐요</span>
-      </div>
+      <div class="canvas-node-builder-header">노드 추가</div>
       <div class="canvas-node-builder-list" data-canvas-node-builder-list></div>
     </div>
     <div class="canvas-node-builder-actions">
@@ -170,11 +167,23 @@ function createCanvasNodeBuilder(options={}){
         icon.innerHTML=SvgLibrary?.get?.(definition.iconKey)||definition.icon||"";
         icon.querySelector("svg")?.classList.add("svg-icon");
 
-        const name=document.createElement("span");
+        const info=document.createElement("span");
+        info.className="canvas-node-builder-info";
+
+        const name=document.createElement("strong");
         name.className="canvas-node-builder-name";
         name.textContent=definition.name||type;
+        info.appendChild(name);
 
-        button.append(icon,name);
+        const description=String(definition.desc||"").trim();
+        if(description){
+          const detail=document.createElement("small");
+          detail.className="canvas-node-builder-description";
+          detail.textContent=description;
+          info.appendChild(detail);
+        }
+
+        button.append(icon,info);
         grid.appendChild(button);
       }
 
