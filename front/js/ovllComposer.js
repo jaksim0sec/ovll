@@ -3,7 +3,7 @@
   "use strict";
 
   const glyphs = Object.freeze({
-    mention: '<circle cx="9.35" cy="9.8" r="2.35"/><path d="M11.7 9.8v2.1c0 1.36 1.26 1.86 2.2 1.02a6.9 6.9 0 1 0-2.08 3.53"/>',
+    mention: '<circle cx="10" cy="10" r="3"/><path d="M13 7.1v3.9a2.4 2.4 0 0 0 4.8 0v-1a7.8 7.8 0 1 0-3.35 6.4"/>',
     canvas: '<rect x="3.25" y="3.25" width="5.6" height="5.6" rx="2"/><rect x="11.15" y="11.15" width="5.6" height="5.6" rx="2"/><path d="M8.85 6.05h1.7a3.4 3.4 0 0 1 3.4 3.4v1.7"/>',
     slash: '<rect x="3" y="4" width="14" height="12" rx="2.5"/><path d="m6.4 8 2.3 2-2.3 2M10.7 12.2h3.1"/>',
     plus: '<path d="M10 3.8v12.4M3.8 10h12.4"/>',
