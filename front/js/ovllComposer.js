@@ -14,7 +14,7 @@
     arrow: '<path d="m7.2 4.7 5.2 5.3-5.2 5.3"/>',
     enter: '<path d="M15.8 5.2v4.4a3.5 3.5 0 0 1-3.5 3.5H4.8m3-3-3 3 3 3"/>'
   });
-  const svg = (name) => '<svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (glyphs[name] || glyphs.workflow) + '</svg>';
+  const svg = (name) => '<svg viewBox="0 0 20 20" width="20" height="20" preserveAspectRatio="xMidYMid meet" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (glyphs[name] || glyphs.workflow) + '</svg>';
   const escapeId = value => String(value || "").slice(0, 150);
   const mobile = () => global.matchMedia?.("(hover: none) and (pointer: coarse)")?.matches ||
     /Android|iPhone|iPad|iPod/i.test(global.navigator?.userAgent || "");
@@ -116,14 +116,18 @@
       submit.disabled = busy || !input.value.trim();
     }
     function resize() {
-      editor.style.height = "auto";
-      const height = Math.min(Math.max(editor.scrollHeight, 30), 160);
-      const expanded = hasRefs() || input.value.includes("\n") || height > 36;
+      // Let the rich text and inline chips determine the row height.
+      // Measuring an already expanded grid would keep single-line drafts expanded.
+      editor.style.height = "";
+      const refs = hasRefs();
+      const hasNewline = input.value.includes("\n");
+      if (!refs && !hasNewline) form.classList.remove("is-expanded");
+      const expanded = refs || hasNewline || editor.scrollHeight > 38;
       form.classList.toggle("is-expanded", expanded);
-      editor.style.height = Math.min(Math.max(editor.scrollHeight, expanded ? 44 : 30), 160) + "px";
+      const height = editor.getBoundingClientRect().height;
       const root = config.styleRoot || doc.documentElement;
       const rootStyle = root.style;
-      rootStyle.setProperty("--composer-input-height", editor.style.height);
+      rootStyle.setProperty("--composer-input-height", height + "px");
       const formHeight = form.getBoundingClientRect().height;
       const rootComputed = global.getComputedStyle(doc.documentElement);
       const configured = rootComputed.getPropertyValue("--composer-height").trim();
@@ -175,6 +179,7 @@
       tag.addEventListener("click", event => {
         event.stopPropagation();
         selectedTag = tag;
+        prepareManualPicker();
         openMenu("tag");
       });
       return tag;
@@ -184,7 +189,7 @@
       if (!range || !editor.contains(range.commonAncestorContainer)) {
         range = doc.createRange(); range.selectNodeContents(editor); range.collapse(false);
       }
-      editor.focus();
+      if (!mobile()) editor.focus();
       range.deleteContents();
       const tag = createTag(item);
       const space = doc.createTextNode(" ");
@@ -222,6 +227,12 @@
           detail: fn.purpose || "저장된 함수", iconKey: fn.iconKey || "custom", category: "함수" });
       }
       return refs;
+    }
+    function prepareManualPicker() {
+      remember();
+      // Opening a picker is not an intent to type. Dismiss an existing IME,
+      // but retain the saved range so choosing a node never reopens it.
+      if (mobile() && doc.activeElement === editor) editor.blur();
     }
     function closeMenu() {
       picker.hidden = true;
@@ -295,7 +306,7 @@
     function insertText(text) {
       const sel = global.getSelection();
       const range = selectedRange || caretRange();
-      editor.focus();
+      if (!mobile()) editor.focus();
       if (!range || !editor.contains(range.commonAncestorContainer)) { focusEnd(); return insertText(text); }
       range.deleteContents();
       const node = doc.createTextNode(text);
@@ -397,9 +408,12 @@
     editor.addEventListener("mouseup", remember);
     editor.addEventListener("blur", () => { if (openType === "tag") return; });
     [mention, canvas, commands].forEach(btn => btn.setAttribute("aria-expanded", "false"));
-    mention.addEventListener("click", () => { remember(); openMenu("nodes"); editor.focus(); });
-    canvas.addEventListener("click", () => { remember(); openMenu("canvas"); editor.focus(); });
-    commands.addEventListener("click", () => { remember(); openMenu("commands"); editor.focus(); });
+    [mention, canvas, commands].forEach(btn => {
+      btn.addEventListener("pointerdown", remember);
+    });
+    mention.addEventListener("click", () => { prepareManualPicker(); openMenu("nodes"); });
+    canvas.addEventListener("click", () => { prepareManualPicker(); openMenu("canvas"); });
+    commands.addEventListener("click", () => { prepareManualPicker(); openMenu("commands"); });
     form.addEventListener("submit", syncValue, { capture: true });
     doc.addEventListener("pointerdown", event => {
       if (!form.contains(event.target)) closeMenu();
