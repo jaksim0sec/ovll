@@ -85,7 +85,7 @@ test("workspace orchestrator and reusable node builder are available", () => {
   assert.match(builder,/createCanvasNodeBuilder/);
   assert.match(builder,/options\.beforeReset/);
   assert.match(builder,/data-canvas-node-builder-list/);
-  assert.match(assets,/\.\/js\/canvasNodeBuilder\.js/);
+  assert.match(assets,/\.\/js\/canvasSkillBuilder\.js/);
   assert.match(assets,/\.\/js\/ovllWorkspace\.js/);
 });
 
