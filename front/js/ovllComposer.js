@@ -5,7 +5,7 @@
   const glyphs = Object.freeze({
     mention: '<circle cx="9.35" cy="9.8" r="2.35"/><path d="M11.7 9.8v2.1c0 1.36 1.26 1.86 2.2 1.02a6.9 6.9 0 1 0-2.08 3.53"/>',
     canvas: '<rect x="3.25" y="3.25" width="5.3" height="5.3" rx="1.45"/><rect x="11.45" y="11.45" width="5.3" height="5.3" rx="1.45"/><path d="M8.55 5.9h2.1a2 2 0 0 1 2 2v3.55"/>',
-    slash: '<path d="M12.8 3.9 7.2 16.1"/>',
+    slash: '<rect x="3" y="4" width="14" height="12" rx="2.5"/><path d="m6.4 8 2.3 2-2.3 2M10.7 12.2h3.1"/>',
     plus: '<path d="M10 3.8v12.4M3.8 10h12.4"/>',
     up: '<path d="M10 15V4.8m-4.2 4.3L10 4.8l4.2 4.3"/>',
     folder: '<path d="M3.2 6.3c0-1.1.9-2 2-2h2.3l1.5 1.5h5.8c1.1 0 2 .9 2 2v6.1c0 1.1-.9 2-2 2H5.2c-1.1 0-2-.9-2-2z"/>',
@@ -41,21 +41,29 @@
     const mention = doc.createElement("button");
     const canvas = doc.createElement("button");
     const commands = doc.createElement("button");
-    function tool(button, name, label) {
+    function tool(button, name, label, shortLabel) {
       button.type = "button";
       button.className = "ovll-rich-tool ovll-rich-" + name;
       button.innerHTML = svg(name);
+      const caption = doc.createElement("span");
+      caption.className = "ovll-rich-tool-label";
+      caption.textContent = shortLabel;
+      button.appendChild(caption);
       button.setAttribute("aria-label", label);
       button.title = label;
     }
-    tool(mention, "mention", "노드 및 저장 함수 태그");
-    tool(canvas, "canvas", "캔버스 노드 참조");
-    tool(commands, "slash", "빠른 명령");
+    tool(mention, "mention", "노드 및 저장 함수 태그", "참조");
+    tool(canvas, "canvas", "캔버스 노드 참조", "캔버스");
+    tool(commands, "slash", "빠른 명령", "명령");
     if (attach) attach.title = "파일 추가";
+    // The editor and the toolbar are separate layout regions. This prevents
+    // legacy ID-based grid placement rules from moving controls into text.
+    const toolbar = doc.createElement("div");
+    toolbar.className = "ovll-rich-toolbar";
+    if (attach) toolbar.appendChild(attach);
+    toolbar.append(mention, canvas, commands);
     form.insertBefore(editor, submit);
-    form.insertBefore(mention, submit);
-    form.insertBefore(canvas, submit);
-    form.insertBefore(commands, submit);
+    form.insertBefore(toolbar, submit);
     form.appendChild(picker);
     form.classList.add("ovll-composer-rich");
     if (attach) attach.classList.add("ovll-rich-attach");
@@ -122,7 +130,7 @@
       const refs = hasRefs();
       const hasNewline = input.value.includes("\n");
       if (!refs && !hasNewline) form.classList.remove("is-expanded");
-      const expanded = refs || hasNewline || editor.scrollHeight > 38;
+      const expanded = refs || hasNewline || editor.scrollHeight > 42;
       form.classList.toggle("is-expanded", expanded);
       const height = editor.getBoundingClientRect().height;
       const root = config.styleRoot || doc.documentElement;
