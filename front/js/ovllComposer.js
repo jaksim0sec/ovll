@@ -37,7 +37,7 @@
     picker.className = "ovll-rich-picker";
     picker.hidden = true;
     picker.setAttribute("role", "listbox");
-    picker.setAttribute("aria-label", "노드 및 명령 검색");
+    picker.setAttribute("aria-label", "스킬 및 명령 검색");
     const mention = doc.createElement("button");
     const canvas = doc.createElement("button");
     const commands = doc.createElement("button");
@@ -48,8 +48,8 @@
       button.setAttribute("aria-label", label);
       button.title = label;
     }
-    tool(mention, "mention", "노드 및 저장 함수 태그");
-    tool(canvas, "canvas", "캔버스 노드 참조");
+    tool(mention, "mention", "스킬 및 저장 함수 태그");
+    tool(canvas, "canvas", "캔버스 스킬 참조");
     tool(commands, "slash", "빠른 명령");
     if (attach) attach.title = "파일 추가";
     // The editor and the toolbar are separate layout regions. This prevents
@@ -98,6 +98,14 @@
       function visit(node) {
         if (node.nodeType === 3) { textPart(result, node.nodeValue); return; }
         if (node.nodeType !== 1) return;
+        if(node.dataset.ovllRefToken&&global.OvllSkillReferences){
+          const reference=global.OvllSkillReferences.parseSkillReference(node.dataset.ovllRefToken);
+          if(reference){
+            result.push({type:"reference",reference,
+              labelSnapshot:node.dataset.ovllRefLabel||""});
+            return;
+          }
+        }
         if (node.dataset.ovllRefKind) {
           result.push({ type: node.dataset.ovllRefKind, id: node.dataset.ovllRefId,
             label: node.dataset.ovllRefLabel });
@@ -118,7 +126,12 @@
     }
     function plainValue() {
       return parts().map(p => {
-        if (p.type === "text") return p.text;
+        if(p.type==="text")return global.OvllSkillReferences
+          ?.escapeSkillReferenceLiteral?.(p.text)??p.text;
+        if(p.type==="reference")return global.OvllSkillReferences
+          ?.serializeSkillReference?.(p.reference)??"";
+        // Legacy drafts retain the historical wire representation until
+        // the exact definition and active graph scope can be verified.
         const prefix = p.type === "node_type" ? "노드 타입" :
           p.type === "node_instance" ? "캔버스 노드" : "저장 함수";
         return "@" + p.label + "〔" + prefix + ":" + p.id + "〕";
@@ -221,19 +234,63 @@
       if (item.type === "node_type" && item.icon) return item.icon;
       return svg(item.type === "node_type" ? "workflow" : "canvas");
     }
+    // Never derive a machine reference from its display name. Match the
+    // registered definition/version, active graph instance or saved function.
+    function referenceFor(item){
+      if(item.reference)return item.reference;
+      const snapshot=config.getSkillSnapshot?.();
+      if(item.type==="node_type"){
+        const defs=snapshot?.definitions||snapshot?.skillDefinitions||[];
+        const known=defs.find(def=>{
+          const type=def.version===1&&
+            /^builtin:(research|organize|judge|write|file|createFile)$/.test(def.definitionId)
+              ?def.definitionId.slice(8)
+              :"pointer:"+def.definitionId+":"+def.version;
+          return type===item.id||def.definitionId===item.id;
+        });
+        return known?{kind:"skill-definition",definitionId:known.definitionId,version:known.version}:null;
+      }
+      if(item.type==="node_instance"){
+        const graph=snapshot?.graph;
+        return graph?.graphId&&graph.nodes?.some(node=>node.nodeId===item.id)
+          ?{kind:"skill-canvas",graphId:graph.graphId,skillId:item.id}:null;
+      }
+      if(item.type==="function"){
+        const record=(config.getFunctions?.()||[]).find(fn=>fn.id===item.id);
+        if(!record)return null;
+        return {kind:"function",functionId:item.id,
+          ...(Number.isSafeInteger(record.version)&&record.version>0?{version:record.version}:{})};
+      }
+      return null;
+    }
     function createTag(item) {
-      const tag = doc.createElement("span");
-      tag.className = "ovll-rich-ref";
+      const reference=referenceFor(item),api=global.OvllSkillReferences;
+      let tag=null;
+      if(reference&&api){
+        const resolve=global.OvllSkillReferenceUI?.resolverFor?.({
+          snapshot:config.getSkillSnapshot?.(),functions:config.getFunctions?.()||[]
+        });
+        const verified=resolve?.(reference);
+        if(verified){
+          tag=api.createSkillReferenceChip(doc,verified,{svgLibrary:global.OvllSvgLibrary});
+          tag.classList.add("ovll-rich-ref");
+          tag.dataset.ovllRefToken=api.serializeSkillReference(reference);
+        }
+      }
+      if(!tag){
+        tag = doc.createElement("span");
+        tag.className = "ovll-rich-ref";
+        tag.innerHTML = refIcon(item);
+        tag.querySelector("svg")?.classList.add("svg-icon");
+        const title = doc.createElement("span");
+        title.textContent = item.label;
+        tag.appendChild(title);
+      }
       tag.contentEditable = "false";
       tag.dataset.ovllRefKind = item.type;
       tag.dataset.ovllRefId = escapeId(item.id);
       tag.dataset.ovllRefLabel = String(item.label || "").slice(0, 120);
       tag.title = String(item.detail || item.id || "");
-      tag.innerHTML = refIcon(item);
-      tag.querySelector("svg")?.classList.add("svg-icon");
-      const title = doc.createElement("span");
-      title.textContent = item.label;
-      tag.appendChild(title);
       tag.addEventListener("click", event => {
         event.stopPropagation();
         selectedTag = tag;
@@ -270,7 +327,7 @@
         const catalog = definition.catalog || {};
         const groupId = String(catalog.group || "builtin");
         const isCustom = catalog.custom === true || groupId === "custom";
-        const groupLabel = String(catalog.groupLabel || (isCustom ? "내 노드" : "기본 노드"));
+        const groupLabel = isCustom?"내 스킬":"기본 스킬";
         refs.push({
           type: "node_type", id, label: String(definition.name || id),
           detail: String(definition.desc || ""),
@@ -286,9 +343,9 @@
         const type = node.type || node.definitionType;
         const def = defs[type] || {};
         refs.push({ type: "node_instance", id,
-          label: node.name || node.label || def.name || "캔버스 노드",
-          detail: "캔버스에 배치된 노드", iconKey: def.iconKey,
-          category: "캔버스 노드", groupId: "instances", priority: 2 });
+          label: node.name || node.label || def.name || "캔버스 스킬",
+          detail: "캔버스에 배치된 스킬", iconKey: def.iconKey,
+          category: "캔버스 스킬", groupId: "instances", priority: 2 });
       }
       for (const fn of config.getFunctions?.() || []) {
         if (!fn?.id) continue;
@@ -321,8 +378,8 @@
     function listFor(type) {
       if (type === "tag") return [{ action: "remove-tag", label: "참조 삭제", detail: "선택한 태그만 제거", icon: "close" }];
       if (type === "commands") return [
-        { action: "nodes", label: "노드 태그", detail: "기존 노드를 지정", icon: "mention" },
-        { action: "canvas", label: "캔버스 참조", detail: "현재 캔버스 노드를 지정", icon: "canvas" },
+        { action: "nodes", label: "스킬 태그", detail: "정의된 스킬을 지정", icon: "mention" },
+        { action: "canvas", label: "캔버스 참조", detail: "현재 캔버스 스킬을 지정", icon: "canvas" },
         ...(attachmentEnabled && attach && !attach.hidden ?
           [{ action: "attach", label: "파일 추가", detail: "기존 첨부 기능 사용", icon: "folder" }] : []),
         { action: "newline", label: "줄바꿈", detail: "커서 위치에 새 줄 삽입", icon: "enter" }
@@ -335,7 +392,7 @@
       if (!entries.length) {
         const empty = doc.createElement("p");
         empty.className = "ovll-rich-empty";
-        empty.textContent = openType === "canvas" ? "캔버스에 참조할 노드가 없어" : "검색 결과가 없어";
+        empty.textContent = openType === "canvas" ? "캔버스에 참조할 스킬이 없어" : "검색 결과가 없어";
         picker.append(empty); return;
       }
       let lastGroup = null;
@@ -446,6 +503,21 @@
       for (const p of items) {
         if (!p || typeof p !== "object") continue;
         if (p.type === "text") editor.append(doc.createTextNode(String(p.text || "")));
+        else if(p.type==="reference"&&p.reference&&global.OvllSkillReferences){
+          const resolve=global.OvllSkillReferenceUI?.resolverFor?.({
+            snapshot:config.getSkillSnapshot?.(),functions:config.getFunctions?.()||[]
+          });
+          const verified=resolve?.(p.reference);
+          if(verified){
+            editor.append(createTag({reference:p.reference,
+              type:p.reference.kind==="skill-canvas"?"node_instance":
+                p.reference.kind==="function"?"function":"node_type",
+              id:p.reference.skillId||p.reference.definitionId||p.reference.functionId,
+              label:verified.label,iconKey:verified.iconKey,color:verified.color}));
+          }else{
+            editor.append(doc.createTextNode(global.OvllSkillReferences.serializeSkillReference(p.reference)));
+          }
+        }
         else if (["node_type", "node_instance", "function"].includes(p.type) &&
           typeof p.id === "string" && typeof p.label === "string") {
           const defs = config.getDefinitions?.() || {};
@@ -528,7 +600,7 @@
       if (!form.contains(event.target)) closeMenu();
     });
     setDraft(input.value);
-    const api = { element: editor, resize, getParts: parts, getValue: plainValue,
+    const api = { element: editor, resize, getParts: parts, getValue: plainValue, getWireText:plainValue,
       hasRefs, setDraft, clear, setBusy, setPlaceholder, setAttachmentEnabled,
       focus: () => editor.focus(), closeMenu };
     form.ovllRichComposer = api;

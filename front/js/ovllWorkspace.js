@@ -174,6 +174,7 @@ function createOvllWorkspace(host,options={}){
     styleRoot:options.composerStyleRoot||shell,
     getDefinitions:()=>canvas?.getNodeDefinitions?.()||global.nodeDefinitions||{},
     getCanvasNodes:()=>canvas?.getWorkflow?.()?.nodes||[],
+    getSkillSnapshot:()=>options.getSkillSnapshot?.()||null,
     getFunctions:()=>global.OvllPointerFunctions?.list?.()||[]
   });
 

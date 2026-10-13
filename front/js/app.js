@@ -139,6 +139,7 @@
     allowNodeType:type=>!pointerScope()||
       PointerGraphPatch.supportedTypes(state.pointerGraphSnapshot).has(type),
     getCanvasNodes:()=>state.canvas?.getWorkflow?.()?.nodes||[],
+    getSkillSnapshot:()=>state.pointerGraphSnapshot,
     getFunctions:()=>global.OvllPointerFunctions?.list?.()||[]
   });
 
