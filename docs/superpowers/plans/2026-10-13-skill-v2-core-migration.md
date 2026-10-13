@@ -46,7 +46,7 @@
 - **Load/deployment:** front/asset-manifest.js, front/index.html, front/sw.js, relevant boot/runtime and tests; legacy URLs continue to be handled at the boundary.
 - **Prompt language:** instructions/prompts/core.md, layers/*.md, micro/ir/*.md, micro/run/*.md, instructions/README.md and backend/ovllPointer/modelContract.js. Full reference protocol is reserved for the second plan.
 
-## Task 1: Pure canonical Skill graph codec and field/version contract
+### Task 1: Pure canonical Skill graph codec and field/version contract
 
 **Files:**
 - Create: front/js/ovllSkillCodec.mjs
@@ -66,7 +66,7 @@
 - [ ] **Step 4: Verify.** node --test test/ovllSkillCodec.test.js. Expected: all PASS; add asserts for unrecognized field and oversized snapshot rejection at the same validator limits as existing code.
 - [ ] **Step 5: Commit.** git add front/js/ovllSkillCodec.mjs test/ovllSkillCodec.test.js && git commit -m "feat(skill): define canonical v2 codec and legacy snapshot conversions"
 
-## Task 2: Persistent migration with original-key preservation
+### Task 2: Persistent migration with original-key preservation
 
 **Files:**
 - Modify: front/js/workspaceStore.js (STORAGE_KEY, normalization, import/export, Pointer definitions and Run getters)
@@ -85,7 +85,7 @@
 - [ ] **Step 4: Verify.** node --test test/ovllSkillStorageMigration.test.js test/ovllPointerMigration.test.js test/ovllPointerLocalStorage.test.js test/offlineAssetCoverage.test.js. Expected: PASS; update isolated VM test harnesses to load codec explicitly.
 - [ ] **Step 5: Commit.** git commit -am "feat(skill): preserve legacy workspace while persisting canonical skill state" (include new test file explicitly).
 
-## Task 3: Graph authority and patch projection conversion
+### Task 3: Graph authority and patch projection conversion
 
 **Files:**
 - Modify: front/js/ovllPointerGraphCore.mjs, front/js/ovllPointerGraphPatch.js, front/js/ovllPointerProjection.js, front/js/ovllPointerPlanCore.mjs
@@ -104,11 +104,12 @@
 - [ ] **Step 4: Verify.** node --test test/ovllSkillGraphKernel.test.js test/ovllPointerGraphPatchBindings.test.js test/ovllPointerProjection.test.js test/ovllPointerDefinitionDeletion.test.js. Expected: PASS.
 - [ ] **Step 5: Commit.** git commit -am "refactor(skill): move graph kernel and patches to Skill v2"
 
-## Task 4: Browser projection, canvas and function bindings
+### Task 4: Browser projection, canvas and function bindings
 
 **Files:**
-- Modify: front/js/ovllPointerLocal.js, ovllPointerLocalActions.js, ovllPointerFunctions.js, app.js, ovllWorkspace.js, ovllPointerActivity.js
+- Modify: front/js/ovllPointerLocal.js, ovllPointerLocalActions.js, ovllPointerFunctions.js, app.js, ovllWorkspace.js, ovllPointerActivity.js, api.js
 - Modify: front/js/canvasNode.js, canvasNodeBuilder.js, customNodes.js, customNodeStore.js, libraryPage.js
+- Migration: customNodeStore must continue reading ovll:custom-nodes:v1 and write new ovll:custom-skills:v2 without overwriting the old key.
 - Test: test/ovllSkillCanvasMigration.test.js (new); test/ovllPointerMigration.test.js; test/ovllPointerSharedDefinitions.test.js; test/customNodes.test.js; test/ovllPointerLocalRun.test.js
 
 **Interfaces:**
@@ -122,7 +123,7 @@
 - [ ] **Step 4: Verify.** node --test test/ovllSkillCanvasMigration.test.js test/ovllPointerMigration.test.js test/ovllPointerSharedDefinitions.test.js test/customNodes.test.js test/ovllPointerLocalRun.test.js. Expected: PASS.
 - [ ] **Step 5: Commit.** git commit -am "refactor(skill): convert canvas and function bindings without altering behavior"
 
-## Task 5: Server action language, model contract and versioned routes
+### Task 5: Server action language, model contract and versioned routes
 
 **Files:**
 - Modify: backend/ovllPointer/actionCompiler.js, modelContract.js, turnNormalizer.js, localHost.js, localHttp.js, promptComposer.js
@@ -142,7 +143,7 @@
 - [ ] **Step 4: Verify.** node --test test/ovllSkillActionContract.test.js test/ovllPointerActionCompiler.test.js test/ovllPointerLocalHost.test.js test/ovllPointerModelContract.test.js test/apiExecution.test.js. Expected: PASS.
 - [ ] **Step 5: Commit.** git add backend/ovllPointer/skillIngress.js test/ovllSkillActionContract.test.js && git commit -am "feat(skill): version action wire contract and preserve legacy ingress"
 
-## Task 6: Run execution, output validation and legacy result evidence
+### Task 6: Run execution, output validation and legacy result evidence
 
 **Files:**
 - Modify: backend/ovllPointer/nodeExecution.js, nodeOutput.js, executionPlan.js, modelExecutor.js, lifecycle.js, actions.js, runtime.js, localHost.js
@@ -161,7 +162,7 @@
 - [ ] **Step 4: Verify.** node --test test/ovllSkillEvidenceCompatibility.test.js test/ovllPointerExecutionIntegrity.test.js test/ovllPointerLocalRun.test.js test/ovllPointerNodeOutput.test.js test/ovllPointerFunctionBuilder.test.js. Expected: PASS.
 - [ ] **Step 5: Commit.** git commit -am "refactor(skill): retain exact legacy evidence verification under Skill execution"
 
-## Task 7: Domain filename moves, loaders, imports and CSS selectors
+### Task 7: Domain filename moves, loaders, imports and CSS selectors
 
 **Files:**
 - Rename: front/js/canvasNode.js -> front/js/canvasSkill.js
@@ -169,11 +170,14 @@
 - Rename: front/js/customNodes.js -> front/js/customSkills.js
 - Rename: front/js/customNodeStore.js -> front/js/customSkillStore.js
 - Rename: front/css/node.css -> front/css/skill.css
+- Rename: test/node-visual-contract.test.js -> test/skill-visual-contract.test.js
+- Rename: test/node-icon-authority.test.js -> test/skill-icon-authority.test.js
+- Rename: test/nodeActionClick.test.js -> test/skillActionClick.test.js
 - Rename: backend/ovllPointer/nodeCatalog.js -> backend/ovllPointer/skillCatalog.js
 - Rename: backend/ovllPointer/nodeExecution.js -> backend/ovllPointer/skillExecution.js
 - Rename: backend/ovllPointer/nodeOutput.js -> backend/ovllPointer/skillOutput.js
 - Modify: front/asset-manifest.js, front/index.html, front/js/boot.js, front/sw.js; server.js; all imports/callers to moved paths (including test fixtures)
-- Test: test/ovllSkillAssetContract.test.js (new); test/offlineAssetCoverage.test.js; test/node-icon-authority.test.js
+- Test: test/ovllSkillAssetContract.test.js (new); test/offlineAssetCoverage.test.js; test/skill-icon-authority.test.js
 
 **Interfaces:**
 - Produces: stable canonical Skill-named asset URLs, class names and import paths; only explicit legacy adapter/test fixtures retain Node names.
@@ -182,15 +186,15 @@
 - [ ] **Step 1: RED tests.** Assert all new paths load and old production asset paths are absent from the canonical manifest; every stylesheet link points to existing CSS; all import specifiers resolve; node-derived DOM selectors become skill names; service worker precache matches.
 - [ ] **Step 2: Run.** node --test test/ovllSkillAssetContract.test.js. Expected: FAIL.
 - [ ] **Step 3: Implement.** git mv files listed above, then update all references and CSS/JS selectors as one atomic task. Inventory other domain-specific filenames with git ls-files | grep -Ei '(node|Node)' and include justified additional moves in this commit. Do not rename DOM/Node.js APIs, immutable backend input port names or historical archive paths.
-- [ ] **Step 4: Verify.** node --test test/ovllSkillAssetContract.test.js test/offlineAssetCoverage.test.js test/node-icon-authority.test.js test/uiArchitecture.test.js. Expected: PASS.
+- [ ] **Step 4: Verify.** node --test test/ovllSkillAssetContract.test.js test/offlineAssetCoverage.test.js test/skill-icon-authority.test.js test/uiArchitecture.test.js. Expected: PASS.
 - [ ] **Step 5: Commit.** git add -A && git commit -m "refactor(skill): rename domain assets and update import and cache references"
 
-## Task 8: UI language, runtime events and prompt vocabulary
+### Task 8: UI language, runtime events and prompt vocabulary
 
 **Files:**
-- Modify: front/js/app.js, canvasSkill.js, canvasSkillBuilder.js, ovllWorkspace.js, ovllPointerActivity.js, mascot.js, shellMenu.js, libraryPage.js
+- Modify: front/js/app.js, canvasSkill.js, canvasSkillBuilder.js, ovllWorkspace.js, ovllPointerActivity.js, mascot.js, shellMenu.js, libraryPage.js, ovllComposer.js (display strings only; ref tokens are Task 4 of plan B)
 - Modify: front/css/skill.css, ui.css, chat.css (only selectors tied to renamed domain)
-- Modify: instructions/prompts/core.md, instructions/prompts/layers/*.md, instructions/prompts/micro/ir/*.md, instructions/prompts/micro/run/*.md, instructions/README.md, backend/ovllPointer/modelContract.js
+- Modify: instructions/prompts/core.md, instructions/prompts/layers/{entry,corridor,chat,ir,run,function,response}.md, instructions/prompts/micro/ir/{inspect,define,patch,connect}.md, instructions/prompts/micro/run/{perform,evaluate,adapt,recover}.md, instructions/prompts/shared/{action-nodes,action-definitions,action-links,action-execution,action-functions}.md, instructions/README.md, backend/ovllPointer/modelContract.js; update instructions/registry.json paths/versions when applicable.
 - Test: test/ovllSkillVocabulary.test.js (new); test/workspaceArchitecture.test.js; test/ovllPointerPromptComposer.test.js
 
 **Interfaces:**
@@ -203,7 +207,7 @@
 - [ ] **Step 4: Verify.** node --test test/ovllSkillVocabulary.test.js test/workspaceArchitecture.test.js test/ovllPointerPromptComposer.test.js. Expected: PASS.
 - [ ] **Step 5: Commit.** git commit -am "style(skill): replace active node vocabulary and preserve prompt responsibilities"
 
-## Task 9: Final contract sweeps, old-data fixtures and integration gate
+### Task 9: Final contract sweeps, old-data fixtures and integration gate
 
 **Files:**
 - Create: test/ovllSkillEndToEnd.test.js
@@ -226,5 +230,5 @@
 - Run tasks 1 -> 9 in order; do not independently cherry-pick tasks 3–8. On any failure stop the affected task; do not mutate legacy storage or merge partially.
 - For test fixture paths referring to renamed modules, update fixtures as part of the corresponding task; never delete runtime coverage because a filename changed.
 - The only allowed fallback under migration failure is **read-only use of intact legacy data**, with a clear error. No automatic destructive recovery.
-- Done for plan A: canonical Skill v2 works independently, all former Node concepts are renamed except audited compatibility/non-domain exceptions, complete npm test suite passes and legacy saved work remains intact.
+- Done for plan A: canonical Skill v2 works independently and active Node domain terms are renamed except audited compatibility/non-domain exceptions and legacy composer reference part types explicitly deferred to plan B; complete npm test suite passes and legacy saved work remains intact.
 - Next: execute the Skill Reference Protocol and UI plan, then run a whole-branch review before any release/merge.
