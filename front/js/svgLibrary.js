@@ -35,9 +35,9 @@ const LOCAL_ICONS=Object.freeze({
     </svg>
   `,
   composerSend:`
-    <svg viewBox="0 0 20 20" fill="none" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-      <path d="M10 16V4"></path>
-      <path d="M5.9 8.4 10 4l4.1 4.4"></path>
+    <svg class="svg-icon" viewBox="0 0 20 20" fill="none" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+      <path d="M10 15.7V4.6"></path>
+      <path d="m5.8 8.8 4.2-4.2 4.2 4.2"></path>
     </svg>
   `
 });

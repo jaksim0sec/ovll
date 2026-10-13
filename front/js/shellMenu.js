@@ -50,9 +50,11 @@ const state = {
   }
 };
 
+// A touch-capable computer may report coarse pointer even with a full
+// desktop viewport. Keep the dock layout for wide screens in that case.
 const desktopSidebarMedia =
   global.matchMedia?.(
-    "(min-width: 43.76rem) and (hover: hover) and (pointer: fine)"
+    "(min-width: 43.76rem) and (hover: hover) and (pointer: fine), (min-width: 60.01rem)"
   ) || null;
 
 function usesDockedSidebar(){

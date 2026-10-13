@@ -49,13 +49,15 @@
   --ui-radius-pill: 999px;
   --ui-radius-panel: 1.375rem;
   --ui-radius-item: 1rem;
-  --ui-glass: var(--panel-soft);
-  --ui-glass-strong: var(--panel-strong);
-  --ui-control-surface: rgba(255, 255, 255, .9);
-  --ui-control-surface-strong: rgba(255, 255, 255, .98);
+  /* Composer-inspired glass used by floating pills and adjacent controls. */
+  --ui-glass: rgba(255, 255, 255, .78);
+  --ui-glass-strong: rgba(255, 255, 255, .88);
+  --ui-control-surface: rgba(255, 255, 255, .82);
+  --ui-control-surface-strong: rgba(255, 255, 255, .91);
   --ui-control-shadow:
-    0 .5rem 1.6rem rgba(31, 39, 52, .045);
-  --ui-backdrop: blur(1.4rem) saturate(.98);
+    0 .48rem 1.5rem rgba(31, 39, 52, .055),
+    inset 0 1px rgba(255, 255, 255, .18);
+  --ui-backdrop: blur(.9rem) saturate(1.12);
 
   --app-resize-duration: .14s;
   --app-resize-ease: cubic-bezier(.2,.82,.2,1);
@@ -100,9 +102,13 @@
   --shadow-soft:
     0 .25rem .875rem rgba(0, 0, 0, 0.2);
 
-  --ui-control-surface: rgba(26, 26, 26, .94);
-  --ui-control-surface-strong: rgba(32, 32, 32, .98);
-  --ui-control-shadow: 0 .34rem 1.1rem rgba(0, 0, 0, .32);
+  --ui-glass: rgba(26, 26, 26, .76);
+  --ui-glass-strong: rgba(30, 30, 30, .87);
+  --ui-control-surface: rgba(26, 26, 26, .79);
+  --ui-control-surface-strong: rgba(32, 32, 32, .9);
+  --ui-control-shadow:
+    0 .38rem 1.2rem rgba(0, 0, 0, .26),
+    inset 0 1px rgba(255, 255, 255, .055);
 }
 
 
