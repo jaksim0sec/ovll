@@ -108,6 +108,18 @@ export function runtimeWorkspace(canonical){
   output.schemaVersion=9; // Internal legacy adapter only, never written to v2.
   return output;
 }
+export function runtimeSkillGraph(value){return legacyGraph(value)}
+export function runtimeSkillRuns(value){
+ if(!Array.isArray(value))fail('INVALID_SKILL_RUNS');
+ return value.map(legacyRun);
+}
+export function canonicalSkillGraph(value){
+ return normalizeSkillSnapshot(value,{source:'legacy'});
+}
+export function canonicalSkillRuns(value){
+ if(!Array.isArray(value))fail('INVALID_LEGACY_RUNS');
+ return value.map(run=>normalizeSkillRun(run,{source:'legacy'}));
+}
 export function canonicalWorkspace(workspace){
   let output;
   try{output=migrateWorkspaceToSkills(workspace)}

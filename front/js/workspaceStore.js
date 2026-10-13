@@ -1507,6 +1507,35 @@ function updateConversationPointerGraph(conversationId,snapshot,{deletedDefiniti
 function getPointerDefinitions(){
   return clone(state.pointerDefinitions||[]);
 }
+function skillBridge(){
+  if(!STORAGE_BRIDGE)throw new Error('SKILL_RUNTIME_UNAVAILABLE');
+  return STORAGE_BRIDGE;
+}
+// V2-facing workspace API. Legacy state remains private to existing execution
+// consumers until the run scheduler has also migrated.
+function getSkillSnapshot(){
+  return skillBridge().canonicalWorkspace(getSnapshot());
+}
+function getSkillConversation(conversationId){
+  return getSkillSnapshot().conversations.find(c=>c.id===conversationId)||null;
+}
+function getActiveSkillConversation(){
+  return getSkillConversation(state.workspace.activeConversationId);
+}
+function getSkillDefinitions(){
+  return clone(state.pointerDefinitions||[]);
+}
+function updateConversationSkillGraph(conversationId,snapshot,options){
+  const bridge=skillBridge();
+  const legacy=bridge.runtimeSkillGraph(snapshot);
+  return bridge.canonicalSkillGraph(
+    updateConversationPointerGraph(conversationId,legacy,options));
+}
+function updateConversationSkillRuns(conversationId,runs){
+  const bridge=skillBridge();
+  return bridge.canonicalSkillRuns(
+    updateConversationPointerRuns(conversationId,bridge.runtimeSkillRuns(runs)));
+}
 
 function updateConversationPointerRuns(conversationId,runs){
   const conversation=getConversation(conversationId);
@@ -1557,6 +1586,13 @@ function getPointerNodeOutput(conversationId,runId,nodeId,port){
   const run=getPointerRun(conversationId,runId),node=run?.nodes.find(n=>n.nodeId===nodeId);
   if(!node)return null;
   return clone(port===undefined?node.outputs||null:node.outputs?.values?.[port]||null);
+}
+function getSkillRun(conversationId,runId){
+  const run=getPointerRun(conversationId,runId);
+  return run?skillBridge().canonicalSkillRuns([run])[0]:null;
+}
+function getSkillOutput(conversationId,runId,skillId,port){
+  return getPointerNodeOutput(conversationId,runId,skillId,port);
 }
 
 function updateConversationDraft(
@@ -1799,6 +1835,9 @@ const api = {
   storageKey:
     STORAGE_KEY,
   getSnapshot,
+  getSkillSnapshot,
+  getSkillConversation,
+  getActiveSkillConversation,
   getSection,
   getConversation,
   getActiveConversation,
@@ -1817,14 +1856,19 @@ const api = {
   assignContextBundle,
   updateConversationState,
   updateConversationPointerGraph,
+  updateConversationSkillGraph,
   getPointerDefinitions,
+  getSkillDefinitions,
   updateConversationPointerRuns,
+  updateConversationSkillRuns,
   updateConversationPointerTask,
   updateConversationPointerContext,
   updateConversationPointerQuestion,
   getStorageStatus,
   getPointerRun,
   getPointerNodeOutput,
+  getSkillRun,
+  getSkillOutput,
   reloadStorage,
   updateConversationDraft,
   deleteConversation,
