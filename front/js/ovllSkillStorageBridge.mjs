@@ -49,8 +49,16 @@ export function stageSkillWorkspaceCopy(storage) {
   if(existing!==null){
     let canonical;
     try{
-      canonical=migrateWorkspaceToSkills(decode(existing,'SKILL_STORAGE_EXISTING_INVALID'));
-      if(canonical.schemaVersion!==10||!Array.isArray(canonical.conversations))
+      const stored=decode(existing,'SKILL_STORAGE_EXISTING_INVALID');
+      // The new key MUST already contain canonical v2, not a v1 payload
+      // which could be made to look valid by running the converter again.
+      if(stored.schemaVersion!==10||'pointerDefinitions' in stored||
+        stored.conversations?.some(item=>item?.state&&
+          ('pointerGraph' in item.state||'pointerRuns' in item.state||
+           'nodes' in (item.state.canvas?.workflow||{}))))
+        fail('SKILL_STORAGE_EXISTING_INVALID');
+      canonical=migrateWorkspaceToSkills(stored);
+      if(!Array.isArray(canonical.conversations))
         fail('SKILL_STORAGE_EXISTING_INVALID');
     }catch(error){fail('SKILL_STORAGE_EXISTING_INVALID',error)}
     if((canonical.storageRevision??-1)<existingLegacy.storageRevision)
