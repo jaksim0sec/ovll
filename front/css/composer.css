@@ -153,14 +153,15 @@
 .ovll-rich-toolbar > .ovll-rich-tool svg,
 .ovll-rich-toolbar > :is(#composer-attach,[data-ovll-composer-attach]) svg {
   display: block;
-  width: 1.36rem;
-  height: 1.36rem;
-  min-width: 1.36rem;
-  min-height: 1.36rem;
+  width: 1.4rem;
+  height: 1.4rem;
+  min-width: 1.4rem;
+  min-height: 1.4rem;
   max-width: none;
   aspect-ratio: 1 / 1;
   flex: none;
-  object-fit: contain;
+  align-self: center;
+  overflow: visible;
   stroke-width: 1.95;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -204,12 +205,13 @@
   color: var(--muted);
 }
 :is(#composer-form,[data-ovll-composer-form]).ovll-composer-rich > :is(#composer-submit,[data-ovll-composer-submit]) svg {
-  width: 1.32rem;
-  height: 1.32rem;
-  min-width: 1.32rem;
-  min-height: 1.32rem;
+  width: 1.38rem;
+  height: 1.38rem;
+  min-width: 1.38rem;
+  min-height: 1.38rem;
   max-width: none;
   aspect-ratio: 1 / 1;
+  overflow: visible;
   stroke-width: 1.95;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -253,6 +255,7 @@
   aspect-ratio: 1 / 1;
   max-width: none;
   flex: 0 0 auto;
+  overflow: visible;
   stroke-width: 1.85;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -317,6 +320,7 @@
   max-width: none;
   aspect-ratio: 1 / 1;
   flex: none;
+  overflow: visible;
   stroke-width: 1.85;
   stroke-linecap: round;
   stroke-linejoin: round;
