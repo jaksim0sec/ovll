@@ -203,10 +203,7 @@
   height: 1.455rem;
   display: block;
   max-width: none;
-  stroke-width: 1.152;
-}
-.vc-node-icon svg [stroke] {
-  stroke-width: 1.152;
+  /* Shared .svg-icon owns stroke; this container only owns sizing. */
 }
 .vc-node:hover .vc-node-icon,
 .vc-node.vc-selected .vc-node-icon,
