@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 
 const css = fs.readFileSync(new URL("../front/css/node.css", import.meta.url), "utf8");
+const sharedCss = fs.readFileSync(new URL("../front/css/style.css", import.meta.url), "utf8");
 const canvasNode = fs.readFileSync(new URL("../front/js/canvasNode.js", import.meta.url), "utf8");
 const catalog = fs.readFileSync(new URL("../backend/ovllPointer/nodeCatalog.js", import.meta.url), "utf8");
 
@@ -76,7 +77,10 @@ test("node icons align to their visible glyph width without hidden x-space", () 
   assert.match(icon, /flex:\s*0 0 1\.75rem/);
   assert.match(icon, /justify-content:\s*flex-start/);
   assert.match(cssBlock(".vc-node-icon svg"), /width:\s*1\.455rem/);
-  assert.match(cssBlock(".vc-node-icon svg [stroke]"), /stroke-width:\s*1\.152/);
+  assert.doesNotMatch(cssBlock(".vc-node-icon svg"), /stroke-width:/);
+  assert.match(sharedCss, /svg\.svg-icon\s*\{[^}]*--svg-icon-stroke-width:\s*1\.9/);
+  assert.match(sharedCss, /svg\.svg-icon\s+\[stroke-width\]/);
+  assert.match(canvasNode, /\.vc-node-icon svg'\)\?\.classList\.add\('svg-icon'\)/);
 });
 
 test("node titles use a lighter identity weight", () => {
