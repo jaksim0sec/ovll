@@ -5,7 +5,7 @@ import { readFile } from 'node:fs/promises';
 import { Pool } from 'pg';
 import { PostgresPointerStore } from '../backend/ovllPointer/durable.js';
 import { createRunWorker } from '../backend/ovllPointer/worker.js';
-import { createNodeExecution,verifyNodeRunEvidence } from '../backend/ovllPointer/nodeExecution.js';
+import { createNodeExecution,verifyNodeRunEvidence } from '../backend/ovllPointer/skillExecution.js';
 if(!process.env.POINTER_TEST_DATABASE_URL)throw Error('Isolated POINTER_TEST_DATABASE_URL required');
 const pool=new Pool({connectionString:process.env.POINTER_TEST_DATABASE_URL,max:10});
 const uid=(prefix='t')=>prefix+'_'+randomUUID().replaceAll('-','').slice(0,19);

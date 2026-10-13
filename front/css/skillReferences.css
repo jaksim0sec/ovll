@@ -1,0 +1,48 @@
+/* Shared SkillReferenceChip. The existing composer layout retains its
+   sizing; the chip has the same proportions in editor and chat bubbles. */
+.ovll-skill-ref {
+  display:inline-flex;
+  align-items:center;
+  vertical-align:middle;
+  max-width:min(100%,17rem);
+  gap:.26rem;
+  margin:0 .08rem;
+  padding:.09rem .38rem .1rem .31rem;
+  border:1px solid color-mix(in srgb,var(--text) 16%,transparent);
+  border-radius:.43rem;
+  background:var(--ui-glass, color-mix(in srgb,var(--panel) 80%,transparent));
+  color:var(--text);
+  box-shadow:0 1px 4px color-mix(in srgb,var(--shadow-color, #000) 7%,transparent);
+  line-height:1.35;
+  user-select:all;
+}
+.ovll-skill-ref[data-ovll-ref-kind="skill-canvas"] {
+  border-color:color-mix(in srgb,#8c84af 36%,var(--line-strong));
+}
+.ovll-skill-ref[data-ovll-ref-kind="function"] {
+  border-color:color-mix(in srgb,#c5a87e 30%,var(--line-strong));
+}
+.ovll-skill-ref-icon {
+  display:grid;
+  place-items:center;
+  width:1.09rem;
+  height:1.09rem;
+  flex:0 0 1.09rem;
+  color:var(--ovll-skill-ref-color,currentColor);
+}
+.ovll-skill-ref-icon svg {
+  display:block;
+  width:1.09rem;
+  height:1.09rem;
+  aspect-ratio:1 / 1;
+  max-width:none;
+  overflow:visible;
+}
+.ovll-skill-ref-label {
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:.79rem;
+  font-weight:650;
+}

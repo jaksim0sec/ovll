@@ -18,7 +18,7 @@ const turn=last=>({actions:[{kind:'ir.applyPatch',localKey:'p',args:{patch:{
 
 test('semantic commands retain all canonical graph operation kinds without teaching internal fields',()=>{
   assert.deepEqual(PATCH_OPERATION_KINDS,['node.add','node.update','node.delete','definition.appearance','definition.delete','link.add','link.remove']);
-  const instruction=localModelContract();
+  const instruction=localModelContract(undefined,{selectedModules:['action.nodes','action.definitions','action.links']});
   for(const op of PATCH_OPERATION_KINDS)assert.ok(instruction.includes(op+':'),op);
   for(const field of ['expectedGraphRevision','localNodeKey','localDefinitionKey','dependsOn'])assert.ok(!instruction.includes(field),field);
 });
@@ -64,7 +64,7 @@ test('invalid operation receives actionable correction and only a valid proposal
 
 test('an empty node picker cannot hide the canvas Node / Reset / Arrange toolbar',()=>{
   const css=readFileSync(new URL('../front/css/ui.css',import.meta.url),'utf8');
-  const js=readFileSync(new URL('../front/js/canvasNodeBuilder.js',import.meta.url),'utf8');
+  const js=readFileSync(new URL('../front/js/canvasSkillBuilder.js',import.meta.url),'utf8');
   assert.doesNotMatch(css,/\[data-canvas-node-builder\]\)\.is-empty\s*\{\s*display:\s*none/);
   assert.match(js,/data-canvas-node-builder-toggle/);
   assert.match(js,/data-canvas-node-builder-reset/);

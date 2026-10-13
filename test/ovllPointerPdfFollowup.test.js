@@ -5,7 +5,7 @@ import {randomUUID} from 'node:crypto';
 import vm from 'node:vm';
 import * as core from '../front/js/ovllPointerGraphCore.mjs';
 import * as plan from '../front/js/ovllPointerPlanCore.mjs';
-import {getPointerCatalog} from '../backend/ovllPointer/nodeCatalog.js';
+import {getPointerCatalog} from '../backend/ovllPointer/skillCatalog.js';
 import {createLocalPointerHost} from '../backend/ovllPointer/localHost.js';
 import {createStoredArtifact,getStoredArtifact} from '../backend/artifacts/artifactStore.js';
 

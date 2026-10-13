@@ -5,7 +5,7 @@ import {randomUUID} from 'node:crypto';
 import vm from 'node:vm';
 import * as core from '../front/js/ovllPointerGraphCore.mjs';
 import * as plan from '../front/js/ovllPointerPlanCore.mjs';
-import {getPointerCatalog} from '../backend/ovllPointer/nodeCatalog.js';
+import {getPointerCatalog} from '../backend/ovllPointer/skillCatalog.js';
 
 test('two source nodes connect to one built-in input, execute independently, and reach the consumer',async()=>{
   const values=new Map(),localStorage={getItem:key=>values.get(key)||null,

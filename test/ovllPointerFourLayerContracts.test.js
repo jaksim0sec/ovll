@@ -50,7 +50,7 @@ test('new node action is produced only after its server-selected workshop contra
   assert.equal(calls.length,2);
   assert.deepEqual(output.actions.map(a=>a.kind),['ir.applyPatch']);
   assert.ok(calls[1].messages.some(m=>m.content.includes('## action.nodes')));
-  assert.ok(calls[1].messages.some(m=>m.content.includes('node.add requires alias')));
+  assert.ok(calls[1].messages.some(m=>m.content.includes('skill.add requires alias')));
   assert.ok(!calls[0].messages.some(m=>m.content.includes('## action.nodes')));
   assert.ok(output._meta.selectedModules.includes('action.nodes'));
  }

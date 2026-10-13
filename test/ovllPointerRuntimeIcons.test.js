@@ -30,9 +30,9 @@ test('action progress uses defined custom icon and system actions have mini icon
   operations:[{op:'node.add',localNodeKey:'new',definitionRef:{localDefinitionKey:'d'}},
    {op:'link.add',localLinkKey:'c',kind:'data'}]}}};
  const list=fn(patch);
- assert.equal(list.find(s=>s.id==='action:p:define').iconKey,'open-book');
- assert.equal(list.find(s=>s.id==='action:p:add').iconKey,'open-book');
- assert.equal(list.find(s=>s.id==='action:p:connect').iconKey,'canvasLayout');
+ // A multi-step patch intentionally renders one progress row, but the
+ // custom Skill's icon and color must not disappear in that summary.
+ assert.deepEqual(list,[{id:'action:p',label:'스킬 구성',iconKey:'open-book',color:'#abcdef'}]);
  assert.equal(fn({localKey:'r',kind:'run.start'})[0].iconKey,'play');
  assert.equal(fn({localKey:'save',kind:'function.save'})[0].iconKey,'folder');
  assert.equal(fn({localKey:'q',kind:'question.ask'})[0].iconKey,'open-book');

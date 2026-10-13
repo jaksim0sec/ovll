@@ -28,7 +28,7 @@ test('composer resolves only required registry modules, with stable Core and sep
 });
 test('plain entry does not force IR or node-output behavior',()=>{
   const a=composer.assemble({context});
-  assert.deepEqual(a.moduleIds,['core','layer.entry']);
+  assert.deepEqual(a.moduleIds,['core','shared.skill-references','layer.entry']);
   assert.ok(!a.messages[1].content.includes('NodeOutput produced/blocked'));
 });
 test('unknown module and forged or oversized context are refused',()=>{

@@ -65,7 +65,7 @@ test('manual runtime supplies reusable purpose rather than an empty model reques
  assert.equal(store.getConversation(id).state.pointerRuns[0].status,'completed');
 });
 test('file input, model and artifact share a bound-value execution path',async()=>{
- const {getPointerCatalog}=await import('../backend/ovllPointer/nodeCatalog.js');
+ const {getPointerCatalog}=await import('../backend/ovllPointer/skillCatalog.js');
  const {store,local}=browser({fileStore:{getBlob:async()=>new Blob(['Actual notes'],{type:'text/plain'})}}),id=store.getActiveConversation().id;
  const defs=getPointerCatalog().definitions;
  const snapshot={definitions:defs,graph:{graphId:'saved',revision:1,nodes:[
@@ -113,7 +113,7 @@ test('exclusive diamond converges through the selected flow path and delivers th
  assert.equal(run.status,'completed');assert.deepEqual(called,['a','b','d']);assert.equal(run.nodes[3].outputs.values.result.inline,'Final d');
 });
 test('cancellation retains an artifact whose effect is confirmed by the adapter',async()=>{
- const {getPointerCatalog}=await import('../backend/ovllPointer/nodeCatalog.js');const {store,local}=browser(),id=store.getActiveConversation().id;
+ const {getPointerCatalog}=await import('../backend/ovllPointer/skillCatalog.js');const {store,local}=browser(),id=store.getActiveConversation().id;
  const snapshot={definitions:getPointerCatalog().definitions,graph:{graphId:'g',revision:1,nodes:[{nodeId:'a',definitionRef:{definitionId:'builtin:createFile',version:1},inputBindings:{in:'Actual body'}}],connections:[]}};
  const controller=new AbortController();
  const run=await local.run({conversationId:id,snapshotOverride:snapshot,targets:['a'],signal:controller.signal,resolveArtifactRequest:()=>({format:'MD',filename:'report'}),createArtifact:async()=>{controller.abort();return{artifact:{name:'report.md',downloadUrl:'/actual.md'}};}});

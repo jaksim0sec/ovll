@@ -4,7 +4,7 @@ import * as contracts from '../backend/ovllPointer/modelContract.js';
 import {createContractValidation,splitModelMetadata} from '../backend/ovllPointer/validation.js';
 import {createLocalPointerHost} from '../backend/ovllPointer/localHost.js';
 import {MemoryGraphRepository} from '../backend/ovllPointer/graph.js';
-import {withPointerCatalog} from '../backend/ovllPointer/nodeCatalog.js';
+import {withPointerCatalog} from '../backend/ovllPointer/skillCatalog.js';
 
 test('complete teaching examples cover explanation, edit without run, new definition without run and composed execution',async()=>{
  const examples=contracts.canonicalTurnExamples?.()||[{id:'compose-run',turn:contracts.canonicalTurnExample()}];

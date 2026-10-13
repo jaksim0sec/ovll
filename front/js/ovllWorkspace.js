@@ -174,6 +174,7 @@ function createOvllWorkspace(host,options={}){
     styleRoot:options.composerStyleRoot||shell,
     getDefinitions:()=>canvas?.getNodeDefinitions?.()||global.nodeDefinitions||{},
     getCanvasNodes:()=>canvas?.getWorkflow?.()?.nodes||[],
+    getSkillSnapshot:()=>options.getSkillSnapshot?.()||null,
     getFunctions:()=>global.OvllPointerFunctions?.list?.()||[]
   });
 
@@ -292,8 +293,17 @@ function createOvllWorkspace(host,options={}){
 
     body.className=
       "astra-message-body";
-    body.textContent=
-      value;
+    const refUI=global.OvllSkillReferenceUI;
+    const skillScope={
+      snapshot:messageOptions.skillSnapshot||null,
+      functions:messageOptions.functions||[]
+    };
+    if(normalizedRole==="user"&&Array.isArray(messageOptions.parts)&&refUI){
+      refUI.renderTrustedParts(body,messageOptions.parts,skillScope);
+    }else{
+      body.textContent=value;
+      if(normalizedRole==="assistant")refUI?.decorateAssistant?.(body,skillScope);
+    }
 
     row.appendChild(
       body

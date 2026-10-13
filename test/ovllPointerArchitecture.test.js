@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync,existsSync} from 'node:fs';
 import vm from 'node:vm';
-import {iconSvg,nodeDefinitionsPublic,GENERATABLE_NODE_TYPES,getNodeDefinition,getPortDefinition} from '../backend/ovllPointer/nodeCatalog.js';
+import {iconSvg,nodeDefinitionsPublic,GENERATABLE_NODE_TYPES,getNodeDefinition,getPortDefinition} from '../backend/ovllPointer/skillCatalog.js';
 import {localModelReady} from '../backend/ovllPointer/localHttp.js';
 const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
 test('canonical Pointer node catalog remains the source of UI definitions',()=>{

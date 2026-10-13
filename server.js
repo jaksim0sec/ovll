@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
-import {iconSvg,nodeDefinitionsPublic} from './backend/ovllPointer/nodeCatalog.js';
+import {iconSvg,nodeDefinitionsPublic} from './backend/ovllPointer/skillCatalog.js';
 import {mountLocalPointerRoutes} from './backend/ovllPointer/localHttp.js';
 import compression from 'compression';
 import {randomUUID} from 'crypto';
@@ -178,7 +178,7 @@ function serverRuntimeHealth() {
  * The frontend compares this server value with its locally stored version
  * before loading application assets.
  */
-const APP_VERSION = '2026.10.13.1';
+const APP_VERSION = '2026.10.14.7';
 
 /* =========================================================
    GENERATED ARTIFACT API

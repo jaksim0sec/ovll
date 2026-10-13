@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
-import * as catalog from '../backend/ovllPointer/nodeCatalog.js';
+import * as catalog from '../backend/ovllPointer/skillCatalog.js';
 import {createLocalPointerHost} from '../backend/ovllPointer/localHost.js';
 import {createPromptComposer} from '../backend/ovllPointer/promptComposer.js';
 const empty={graph:{graphId:'g',revision:0,nodes:[],connections:[]},definitions:[]};

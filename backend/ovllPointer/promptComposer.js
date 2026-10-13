@@ -3,7 +3,7 @@ import {PRODUCT_COMMUNICATION_RULES} from '../ai/productInstructions.js';
 import { readFileSync } from 'node:fs';
 import { KernelError } from './graph.js';
 import { createContractValidation } from './validation.js';
-import { assertJsonValue } from './nodeOutput.js';
+import { assertJsonValue } from './skillOutput.js';
 
 const fail = code => { throw new KernelError(code, code, 422); };
 const registryURL = new URL('../../instructions/registry.json', import.meta.url);
@@ -48,7 +48,7 @@ export function createPromptComposer({validation=createContractValidation()}={})
     if(jsonBytes(messages)>MODEL_CONTEXT_LIMITS.messageBytes)fail('PROMPT_MESSAGES_TOO_LARGE');
     return {assemblyVersion:registry.assemblyVersion,moduleIds:ordered.map(x=>x.id),messages};
   }
-  const index=()=>[...modules.values()].filter(m=>!['core','layer.entry','layer.corridor'].includes(m.id))
+  const index=()=>[...modules.values()].filter(m=>!['core','layer.entry','layer.corridor','shared.skill-references'].includes(m.id))
     .map(m=>({ref:'prompt:'+m.id,kind:'contract',purpose:m.content.split('\n')[0].replace(/^#+\s*/,''),moduleId:m.id}));
   return Object.freeze({assemble,index,assemblyVersion:registry.assemblyVersion,registryStatus:registry.status});
 }

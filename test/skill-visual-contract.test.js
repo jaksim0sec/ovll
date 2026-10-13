@@ -2,10 +2,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 
-const css = fs.readFileSync(new URL("../front/css/node.css", import.meta.url), "utf8");
+const css = fs.readFileSync(new URL("../front/css/skill.css", import.meta.url), "utf8");
 const sharedCss = fs.readFileSync(new URL("../front/css/style.css", import.meta.url), "utf8");
-const canvasNode = fs.readFileSync(new URL("../front/js/canvasNode.js", import.meta.url), "utf8");
-const catalog = fs.readFileSync(new URL("../backend/ovllPointer/nodeCatalog.js", import.meta.url), "utf8");
+const canvasNode = fs.readFileSync(new URL("../front/js/canvasSkill.js", import.meta.url), "utf8");
+const catalog = fs.readFileSync(new URL("../backend/ovllPointer/skillCatalog.js", import.meta.url), "utf8");
 
 function cssBlock(selector) {
   const marker = `${selector} {`;

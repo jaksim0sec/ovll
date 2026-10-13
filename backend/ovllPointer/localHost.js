@@ -4,11 +4,16 @@ import {normalizeModelTurn,diagnoseModelTurn,modelTurnShape,repairTargetHints} f
 import {MemoryGraphRepository,KernelError} from './graph.js';
 import {createContractValidation} from './validation.js';
 import {createPromptComposer} from './promptComposer.js';
-import {validateNodeOutput} from './nodeOutput.js';
+import {formatSkillPrompt} from './skillReferenceContract.js';
+import {normalizeSkillSnapshot} from '../../front/js/ovllSkillCodec.mjs';
+import {toLegacySkillActionPlan,toSkillCompiledTurn,SKILL_ACTION_PLAN_CONTRACT,
+  SKILL_SEMANTIC_ACTION_FIELDS,legacySemanticKind} from './skillActionContract.js';
+import {validateNodeOutput} from './skillOutput.js';
 import {createConfiguredModelProvider,resolveLocalPointerProvider} from './configuredProvider.js';
 import {compileActionPlan,isActionPlan,ACTION_PLAN_CONTRACT,SEMANTIC_ACTION_FIELDS} from './actionCompiler.js';
 
-import {withPointerCatalog,getPointerCatalog} from './nodeCatalog.js';
+import {withPointerCatalog,getPointerCatalog} from './skillCatalog.js';
+import {toLegacySkillSnapshot} from '../../front/js/ovllSkillGraph.mjs';
 const fail=(code,status=422)=>{throw new KernelError(code,code,status);};
 const safe=s=>typeof s==='string'&&/^[a-zA-Z0-9_.:-]{1,160}$/.test(s);
 const clone=x=>JSON.parse(JSON.stringify(x));
@@ -42,7 +47,7 @@ function contextSnapshot(snapshot,nodeIdScope){
   }
   return {view,truncated};
 }
-function prepare({snapshot,requestRef,requestText,history=[],taskContext,additionalContext,capabilities=[],nodeIdScope}){
+function prepare({snapshot,requestRef,requestText,history=[],taskContext,additionalContext,capabilities=[],nodeIdScope,savedFunctions=[]}){
   if(additionalContext!==undefined){
     if(!additionalContext||typeof additionalContext!=='object'||Array.isArray(additionalContext)||
       jsonBytes(additionalContext)>24000||!Array.isArray(additionalContext.recentTurns)||additionalContext.recentTurns.length>2||
@@ -62,6 +67,24 @@ function prepare({snapshot,requestRef,requestText,history=[],taskContext,additio
     snapshot.definitions.length>128||jsonBytes(snapshot)>LIMITS.snapshotBytes)
     fail('INVALID_LOCAL_MODEL_REQUEST');
   snapshot=withPointerCatalog(snapshot);
+  // Resolve identities within the current validated graph before model calls.
+  // Escaped literals stay inert; stale or cross-graph refs cannot grant access.
+  if(requestText.includes('⟦ovll:ref:v1:')){
+    let formatted;
+    try{
+      formatted=formatSkillPrompt(requestText,{
+        snapshot:normalizeSkillSnapshot(snapshot),
+        savedFunctions,
+        activeGraphId:snapshot.graph.graphId
+      });
+    }catch{fail('INVALID_SKILL_REFERENCE',422)}
+    if(formatted.issues.length)fail('INVALID_SKILL_REFERENCE',422);
+    if(formatted.requestText.length>LIMITS.maxTaskTextChars)
+      fail('SKILL_REFERENCE_CONTEXT_TOO_LARGE',422);
+    if(task.objective===requestText)task.objective=formatted.requestText;
+    if(task.requestText===requestText)task.requestText=formatted.requestText;
+    requestText=formatted.requestText;
+  }
   const repo=new MemoryGraphRepository();
   repo.restore('local',snapshot.graph.graphId,snapshot);
   const {view,truncated}=contextSnapshot(snapshot,nodeIdScope);
@@ -76,6 +99,10 @@ function prepare({snapshot,requestRef,requestText,history=[],taskContext,additio
       const raw=JSON.stringify(value);if(Buffer.byteLength(raw,'utf8')>1024){node.settings[key]={valueRef:'setting:'+node.nodeId+':'+key,preview:utf8Preview(raw,768),truncated:true};context.materials[0].truncated=true;}
     }
   }
+  // Model-facing snapshots are always canonical Skill v2. The source graph
+  // stays legacy-shaped only within the scheduler and compiler adapter.
+  if(!nodeIdScope)context.materials[0].content=
+    normalizeSkillSnapshot(view,{source:'legacy'});
   if(jsonBytes(context)>LIMITS.contextBytes)fail('PROMPT_CONTEXT_TOO_LARGE');
   return {snapshot:clone(snapshot),context,...(extendedTask||task.requestText!==requestText||additionalContext?{extendedTask:{...(extendedTask||task.requestText!==requestText?{taskContext:clone(task)}:{}),currentRequestText:requestText,...(additionalContext?{additionalContext:clone(additionalContext)}:{})}}:{})};
 }
@@ -89,10 +116,21 @@ function actionContext(snapshot,context,extraContext,createdNodeIds={}){
     createdNodeIds,continuation:{}};
 }
 export function compileLocalActionPlan({plan,snapshot,requestRef,requestText,taskContext,extraContext,createdNodeIds}={}){
-  const prepared=prepare({snapshot,requestRef,requestText,taskContext,capabilities:getPointerCatalog().capabilities});
+  const skillV2=plan?.contract===SKILL_ACTION_PLAN_CONTRACT;
+  let legacySnapshot=snapshot,legacyPlan=plan;
+  if(skillV2){
+    try{
+      legacySnapshot=toLegacySkillSnapshot(snapshot);
+      legacyPlan=toLegacySkillActionPlan(plan);
+    }catch(error){fail(error.code||'INVALID_SKILL_ACTION_PLAN')}
+  }
+  const prepared=prepare({snapshot:legacySnapshot,requestRef,requestText,taskContext,
+    capabilities:getPointerCatalog().capabilities,
+    savedFunctions:Array.isArray(extraContext?.savedFunctions)?extraContext.savedFunctions:[]});
   const context=actionContext(prepared.snapshot,prepared.context,extraContext,createdNodeIds);
-  const turn=compileActionPlan(plan,{...context,actionKeyPrefix:'c'});
-  return {...turn,_meta:{phase:'compile',providerCalls:0,...(context.continuation.plan?{continuation:context.continuation}:{})}};
+  const turn=compileActionPlan(legacyPlan,{...context,actionKeyPrefix:'c'});
+  return {...(skillV2?toSkillCompiledTurn(turn):turn),
+    _meta:{phase:'compile',providerCalls:0,...(context.continuation.plan?{continuation:context.continuation}:{})}};
 }
 export function createLocalPointerHost({gateway,resolveModel,validation=createContractValidation({targetMaxBytes:{ContextBundle:LIMITS.contextBytes}}),
   composer=createPromptComposer({validation})}={}){
@@ -100,12 +138,13 @@ export function createLocalPointerHost({gateway,resolveModel,validation=createCo
     fail('LOCAL_MODEL_NOT_CONFIGURED',503);
   async function invoke({context,modules,nodeContext,extraContext,signal,phase='turn',compilerContext,budget,selectedKinds=[]}){
     const {messages}=composer.assemble({moduleIds:modules,context,nodeContext,extraContext});
-    const wire=phaseWireContract(phase,nodeContext);
+    const skillV2=['turn','selection'].includes(phase);
+    const wire=phaseWireContract(phase,nodeContext,{skillV2});
     const config=await resolveModel();
     let active={providerId:config.providerId,model:config.model,maxOutputTokens:config.maxOutputTokens??2048};
     const meta={phase,providerId:active.providerId,model:active.model,usage:null,calls:[],providerCalls:0,repairCount:0,fallback:null,normalizations:[],validationAttempts:[]};
     const supportsWire=()=>gateway.capabilities?.(active.providerId)?.structuredOutput===true;
-    messages.splice(1,0,{role:'developer',content:(phase==='response'?wire.guidance:localModelContract(nodeContext,{selectedModules:modules,selection:phase==='selection',workshop:phase==='turn'&&selectedKinds.length>0}))});
+    messages.splice(1,0,{role:'developer',content:(phase==='response'?wire.guidance:localModelContract(nodeContext,{selectedModules:modules,selection:phase==='selection',workshop:phase==='turn'&&selectedKinds.length>0,skillV2}))});
     const complete=async()=>{
       if(jsonBytes(messages)>LIMITS.messageBytes)fail('PROMPT_MESSAGES_TOO_LARGE');
       const call=async()=>{
@@ -113,7 +152,7 @@ export function createLocalPointerHost({gateway,resolveModel,validation=createCo
         // Reserve bounded transport retry/schema fallback before another module call.
         if(budget&&budget.providerCalls+(projected?4:2)>LIMITS.maxProviderCalls)fail('MODEL_CALL_BUDGET_EXHAUSTED');
         const callMessages=projected?[
-          messages[0],{role:'developer',content:['turn','selection'].includes(phase)?localModelContract(undefined,{wire:true,selectedModules:modules,selection:phase==='selection',workshop:phase==='turn'&&selectedKinds.length>0}):wire.guidance},
+          messages[0],{role:'developer',content:['turn','selection'].includes(phase)?localModelContract(undefined,{wire:true,selectedModules:modules,selection:phase==='selection',workshop:phase==='turn'&&selectedKinds.length>0,skillV2}):wire.guidance},
           ...messages.slice(2),...(['turn','selection'].includes(phase)?[{role:'developer',content:wire.guidance}]:[])
         ]:messages;
         if(jsonBytes(callMessages)>LIMITS.messageBytes)fail('PROMPT_MESSAGES_TOO_LARGE');
@@ -155,11 +194,13 @@ export function createLocalPointerHost({gateway,resolveModel,validation=createCo
             if(phase==='turn'&&compilerContext.requireTaskContext&&decoded?.actions?.length&&!selectedTask&&!extraContext?.selectedTaskContext)compilerIssues=[{path:'/taskContext',rule:'taskContextRequiredForActions'}];
             if(rawPlan&&selectedKinds.length){
               unselectedKinds=[...new Set((rawPlan.actions||[]).map(a=>a?.action).filter(k=>
-                Object.hasOwn(SEMANTIC_ACTION_FIELDS,k)&&!selectedKinds.includes(k)))];
+                Object.hasOwn(SEMANTIC_ACTION_FIELDS,legacySemanticKind(k))&&
+                  !selectedKinds.some(selected=>legacySemanticKind(selected)===legacySemanticKind(k))))];
             }
             if(!compilerIssues.length&&!unselectedKinds.length&&rawPlan){
               compilerContext.continuation={};
-              try{turn=compileActionPlan(rawPlan,compilerContext);}
+              try{turn=compileActionPlan(rawPlan.contract===SKILL_ACTION_PLAN_CONTRACT?
+                toLegacySkillActionPlan(rawPlan):rawPlan,compilerContext);}
               catch(error){compilerIssues=error.validationIssues||[{path:'/',rule:'invalidActionPlan'}];}
             }else if(!unselectedKinds.length)turn=normalizeModelTurn(decoded,{normalizations});
           }
@@ -204,11 +245,12 @@ export function createLocalPointerHost({gateway,resolveModel,validation=createCo
     }catch(error){error._meta=meta;throw error;}
   }
   async function turn({snapshot,requestRef,requestText,history,taskContext,additionalContext,extraContext,signal}={}){
-    const {snapshot:prepared,context,extendedTask}=prepare({snapshot,requestRef,requestText,history,taskContext,additionalContext,capabilities:getPointerCatalog().capabilities});
+    const {snapshot:prepared,context,extendedTask}=prepare({snapshot,requestRef,requestText,history,taskContext,additionalContext,capabilities:getPointerCatalog().capabilities,
+      savedFunctions:Array.isArray(extraContext?.savedFunctions)?extraContext.savedFunctions:[]});
     const compilerContext=actionContext(prepared,context,extraContext);
     compilerContext.requireTaskContext=!!additionalContext;
     context.outputContract='ModelTurn';
-    context.capabilities=[...Object.keys(SEMANTIC_ACTION_FIELDS),...context.capabilities.filter(c=>
+    context.capabilities=[...Object.keys(SKILL_SEMANTIC_ACTION_FIELDS),...context.capabilities.filter(c=>
       !['ir.applyPatch','run.start','function.save','function.run','question.ask'].includes(c))];
     const index=composer.index(),modules=new Set(['layer.entry','layer.corridor']);
     const budget={providerCalls:0,repairCount:0};
@@ -216,7 +258,8 @@ export function createLocalPointerHost({gateway,resolveModel,validation=createCo
       {ref:'history',kind:'history',purpose:'Original conversation; use listed history refs or current scope'},
       ...prepared.definitions.map(d=>({ref:d.definitionId,kind:'definition',version:d.version,purpose:d.purpose})),
       ...(extraContext?.savedFunctions||[]).map(f=>({ref:f.id,kind:'contract',purpose:f.purpose})),
-      ...(extraContext?.availableResults?.items||[]).map(r=>({ref:r.runId,kind:'run',nodeId:r.nodeId,status:r.status,outputs:r.outputs.map(o=>({ref:o.ref,port:o.port}))})),...index];
+      ...(extraContext?.availableResults?.items||[]).map(r=>({ref:r.runId,kind:'run',
+        skillId:r.nodeId,status:r.status,outputs:r.outputs.map(o=>({ref:o.ref,port:o.port}))})),...index];
     const supplied={...extraContext,...extendedTask,datasets,executionAuthorization:compilerContext.executionAuthorization};
     let result,aggregate=null;
     const account=meta=>{
@@ -234,7 +277,7 @@ export function createLocalPointerHost({gateway,resolveModel,validation=createCo
     catch(error){if(error._meta){account(error._meta);error._meta=aggregate;}throw error;}
     account(chosen.meta);result=chosen;
     if(chosen.turn?.decision==='work'){
-      context.outputContract=ACTION_PLAN_CONTRACT;
+      context.outputContract=SKILL_ACTION_PLAN_CONTRACT;
       const chosenKinds=[...chosen.turn.actionKinds];
       const task=chosen.meta.taskContext||{objective:requestText,constraints:context.constraints};
       for(let attempt=0;attempt<2;attempt++){
@@ -313,6 +356,16 @@ export function createLocalPointerHost({gateway,resolveModel,validation=createCo
         values:Object.fromEntries(checked.map(x=>[x.port.name,{inline:x.value}]))},
       provenance:Object.fromEntries(Array.isArray(checked)?checked.map(x=>[x.port.name,x.sourceRefs]):[]),validatedPorts:checked.length||0,_meta:result.meta};
   }
+  async function skill({snapshot,skillId,...args}={}){
+    // Canonical v2 ingress is deliberately separate from legacy Node v1.
+    if(!safe(skillId)||!snapshot||'nodeId' in args)fail('INVALID_SKILL_REQUEST');
+    let legacy;
+    try{legacy=toLegacySkillSnapshot(snapshot)}
+    catch{fail('INVALID_SKILL_SNAPSHOT')}
+    const result=await node({...args,snapshot:legacy,nodeId:skillId});
+    const {nodeId,...rest}=result;
+    return {skillId:nodeId,...rest};
+  }
   async function response({snapshot,requestRef,requestText,actionResults=[],history=[],taskContext,additionalContext,signal}={}){
     if(!Array.isArray(actionResults)||actionResults.length>32||
       Buffer.byteLength(JSON.stringify(actionResults),'utf8')>24000)
@@ -333,7 +386,7 @@ export function createLocalPointerHost({gateway,resolveModel,validation=createCo
       throw error;
     }
   };
-  return Object.freeze({turn:accounted(turn,'turn'),node:accounted(node,'node'),response:accounted(response,'response')});
+  return Object.freeze({turn:accounted(turn,'turn'),node:accounted(node,'node'),skill:accounted(skill,'skill'),response:accounted(response,'response')});
 }
 export function createConfiguredLocalPointerHost({env=process.env,fetchImpl=fetch}={}){
   const selected=resolveLocalPointerProvider(env);

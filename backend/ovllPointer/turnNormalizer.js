@@ -1,4 +1,4 @@
-import {iconSvg} from './nodeCatalog.js';
+import {iconSvg} from './skillCatalog.js';
 import {PATCH_OPERATION_CONTRACTS,PATCH_OPERATION_KINDS} from './validation.js';
 // Converts only unambiguous, non-semantic ModelTurn omissions into the wire contract.
 // Draft node keys are local graph-patch handles, not persistent identities.

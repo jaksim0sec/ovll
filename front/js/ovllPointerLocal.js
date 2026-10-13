@@ -211,12 +211,26 @@
       return current;
     }
 
+    // All active model-task calls use the versioned Skill endpoint. Node-style
+    // instances are confined to the existing scheduler's compatibility boundary.
+    async function executeModelSkill({snapshot,nodeId,...args}){
+      const skillAPI=global.OvllPointerApi?.localSkill;
+      const codec=global.OvllSkillReferences;
+      if(typeof skillAPI==='function'&&typeof codec?.normalizeSkillSnapshot==='function'){
+        const canonical=codec.normalizeSkillSnapshot(snapshot,{source:'legacy'});
+        const result=await skillAPI({snapshot:canonical,skillId:nodeId,...args});
+        if(result?.skillId!==nodeId)throw new Error('SKILL_OUTPUT_ID_MISMATCH');
+        const {skillId,...rest}=result;
+        return {...rest,nodeId:skillId};
+      }
+      // Old embedded/native shells and isolated test harnesses retain v1 ingress.
+      return global.OvllPointerApi.localNode({snapshot,nodeId,...args});
+    }
     async function run({conversationId,targets,deliverableTargets,outputMap,requiredOutputs=[],damMode='closed',requestText='',snapshotOverride,taskConstraints=[],taskContext,executorIdentity,
       maxSourceBytes=64000,
       createArtifact=(input,options)=>global.AstraAPI.createArtifact(input,options),
       resolveArtifactRequest=params=>global.OvllArtifactRequest.resolve(params),cache=new Map(),
-      executeNode=({snapshot,nodeId,inputArtifacts,requestText,taskConstraints,taskContext,signal})=>global.OvllPointerApi.localNode({
-        snapshot,nodeId,inputArtifacts,requestText,taskConstraints,taskContext,signal}),onProgress=()=>{},signal}={}){
+      executeNode=executeModelSkill,onProgress=()=>{},signal}={}){
       const copy=value=>JSON.parse(JSON.stringify(value));
       const snapshot=copy(snapshotOverride||(await state(conversationId)).graph);
       const results=await loadResults();

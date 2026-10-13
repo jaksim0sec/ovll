@@ -1,8 +1,9 @@
 (function(global){
 "use strict";
 
-const STORAGE_KEY = "ovll:workspace:v1";
-const SCHEMA_VERSION = 9;
+const STORAGE_BRIDGE = global.OvllSkillStorageRuntime||null;
+const STORAGE_KEY = STORAGE_BRIDGE?.storageKey||"ovll:workspace:v1";
+const SCHEMA_VERSION = STORAGE_BRIDGE?.schemaVersion||9;
 const events = new Map();
 
 function clone(value){
@@ -328,6 +329,10 @@ function normalizeMessage(value){
     kind,
     role,
     text:String(value.text || ""),
+    // A trusted composer part list is separate from raw message text. Keep
+    // the exact typed identity on reload without promoting pasted tokens.
+    ...(role==="user"&&Object.prototype.hasOwnProperty.call(value,"parts")
+      ? {parts:normalizeComposerDraftParts(value.parts)} : {}),
     runtime,
     blocks,
     question:String(value.question || ""),
@@ -492,6 +497,19 @@ function normalizeComposerDraftParts(value){
     if(item.type==="text"){
       if(typeof item.text!=="string"||item.text.length>24000)return null;
       result.push({type:"text",text:item.text});
+    }else if(item.type==="reference"){
+      // Only canonical syntax emitted by the live composer may round-trip.
+      // Invalid data is inert text (the original message remains untouched).
+      const references=global.OvllSkillReferences;
+      if(!references?.serializeSkillReference||!references.parseSkillReference)return null;
+      let reference;
+      try{
+        const token=references.serializeSkillReference(item.reference);
+        reference=references.parseSkillReference(token);
+      }catch{return null}
+      if(!reference)return null;
+      result.push({type:"reference",reference,
+        labelSnapshot:String(item.labelSnapshot||"").slice(0,120)});
     }else if(["node_type","node_instance","function"].includes(item.type)){
       if(typeof item.id!=="string"||!item.id||item.id.length>150||
          typeof item.label!=="string"||item.label.length>120)return null;
@@ -830,24 +848,24 @@ function normalizeState(raw){
 
 function readStorage(){
   try{
-    const raw =
-      localStorage.getItem(
-        STORAGE_KEY
-      );
+    const raw = STORAGE_BRIDGE
+      ? STORAGE_BRIDGE.read(localStorage)
+      : localStorage.getItem(STORAGE_KEY);
 
     if(!raw){
       return createDefaultState();
     }
 
     return normalizeState(
-      JSON.parse(raw)
+      STORAGE_BRIDGE ? raw : JSON.parse(raw)
     );
   }catch(error){
     console.warn(
       "ovll workspace storage load failed:",
       error
     );
-
+    // A malformed v2 snapshot must never turn into a blank workspace.
+    if(STORAGE_BRIDGE)throw error;
     return createDefaultState();
   }
 }
@@ -907,14 +925,17 @@ function persist(reason="update"){
   try{
     // Detect stale sequential writes. localStorage has no atomic cross-tab CAS;
     // simultaneous racing writes remain a browser-storage limitation.
-    const raw=localStorage.getItem(STORAGE_KEY);
-    const remoteRevision=raw?(JSON.parse(raw).storageRevision||0):0;
+    const raw=STORAGE_BRIDGE?null:localStorage.getItem(STORAGE_KEY);
+    const remoteRevision=STORAGE_BRIDGE?persistedRevision:
+      raw?(JSON.parse(raw).storageRevision||0):0;
     if(remoteRevision!==persistedRevision){
       const conflict=new Error('WORKSPACE_REVISION_CONFLICT');conflict.code='WORKSPACE_REVISION_CONFLICT';
       conflict.expectedRevision=persistedRevision;conflict.actualRevision=remoteRevision;throw conflict;
     }
     state.storageRevision=persistedRevision+1;
-    localStorage.setItem(STORAGE_KEY,JSON.stringify(state));
+    if(STORAGE_BRIDGE)STORAGE_BRIDGE.write(localStorage,state,
+      {expectedRevision:persistedRevision});
+    else localStorage.setItem(STORAGE_KEY,JSON.stringify(state));
     persistedRevision=state.storageRevision;committedState=clone(state);
     storageStatus={status:'ready',revision:persistedRevision};
   }catch(error){
@@ -1486,6 +1507,35 @@ function updateConversationPointerGraph(conversationId,snapshot,{deletedDefiniti
 function getPointerDefinitions(){
   return clone(state.pointerDefinitions||[]);
 }
+function skillBridge(){
+  if(!STORAGE_BRIDGE)throw new Error('SKILL_RUNTIME_UNAVAILABLE');
+  return STORAGE_BRIDGE;
+}
+// V2-facing workspace API. Legacy state remains private to existing execution
+// consumers until the run scheduler has also migrated.
+function getSkillSnapshot(){
+  return skillBridge().canonicalWorkspace(getSnapshot());
+}
+function getSkillConversation(conversationId){
+  return getSkillSnapshot().conversations.find(c=>c.id===conversationId)||null;
+}
+function getActiveSkillConversation(){
+  return getSkillConversation(state.workspace.activeConversationId);
+}
+function getSkillDefinitions(){
+  return clone(state.pointerDefinitions||[]);
+}
+function updateConversationSkillGraph(conversationId,snapshot,options){
+  const bridge=skillBridge();
+  const legacy=bridge.runtimeSkillGraph(snapshot);
+  return bridge.canonicalSkillGraph(
+    updateConversationPointerGraph(conversationId,legacy,options));
+}
+function updateConversationSkillRuns(conversationId,runs){
+  const bridge=skillBridge();
+  return bridge.canonicalSkillRuns(
+    updateConversationPointerRuns(conversationId,bridge.runtimeSkillRuns(runs)));
+}
 
 function updateConversationPointerRuns(conversationId,runs){
   const conversation=getConversation(conversationId);
@@ -1536,6 +1586,13 @@ function getPointerNodeOutput(conversationId,runId,nodeId,port){
   const run=getPointerRun(conversationId,runId),node=run?.nodes.find(n=>n.nodeId===nodeId);
   if(!node)return null;
   return clone(port===undefined?node.outputs||null:node.outputs?.values?.[port]||null);
+}
+function getSkillRun(conversationId,runId){
+  const run=getPointerRun(conversationId,runId);
+  return run?skillBridge().canonicalSkillRuns([run])[0]:null;
+}
+function getSkillOutput(conversationId,runId,skillId,port){
+  return getPointerNodeOutput(conversationId,runId,skillId,port);
 }
 
 function updateConversationDraft(
@@ -1734,7 +1791,7 @@ function search(
 
 function exportJSON(){
   return JSON.stringify(
-    getSnapshot(),
+    STORAGE_BRIDGE?STORAGE_BRIDGE.canonicalWorkspace(getSnapshot()):getSnapshot(),
     null,
     2
   );
@@ -1750,7 +1807,8 @@ function importJSON(
 
   state =
     normalizeState(
-      parsed
+      STORAGE_BRIDGE&&parsed?.schemaVersion===10
+        ? STORAGE_BRIDGE.runtimeWorkspace(parsed) : parsed
     );
 
   persist(
@@ -1777,6 +1835,9 @@ const api = {
   storageKey:
     STORAGE_KEY,
   getSnapshot,
+  getSkillSnapshot,
+  getSkillConversation,
+  getActiveSkillConversation,
   getSection,
   getConversation,
   getActiveConversation,
@@ -1795,14 +1856,19 @@ const api = {
   assignContextBundle,
   updateConversationState,
   updateConversationPointerGraph,
+  updateConversationSkillGraph,
   getPointerDefinitions,
+  getSkillDefinitions,
   updateConversationPointerRuns,
+  updateConversationSkillRuns,
   updateConversationPointerTask,
   updateConversationPointerContext,
   updateConversationPointerQuestion,
   getStorageStatus,
   getPointerRun,
   getPointerNodeOutput,
+  getSkillRun,
+  getSkillOutput,
   reloadStorage,
   updateConversationDraft,
   deleteConversation,

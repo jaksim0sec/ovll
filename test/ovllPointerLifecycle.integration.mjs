@@ -5,7 +5,7 @@ import {readFile} from 'node:fs/promises';
 import {Pool} from 'pg';
 import {PostgresPointerStore} from '../backend/ovllPointer/durable.js';
 import {createContractValidation} from '../backend/ovllPointer/validation.js';
-import {createNodeExecution,verifyNodeRunEvidence} from '../backend/ovllPointer/nodeExecution.js';
+import {createNodeExecution,verifyNodeRunEvidence} from '../backend/ovllPointer/skillExecution.js';
 import {createRunWorker} from '../backend/ovllPointer/worker.js';
 import {createDurablePointerApp} from '../backend/ovllPointer/durableHttp.js';
 if(!process.env.POINTER_TEST_DATABASE_URL)throw Error('Isolated POINTER_TEST_DATABASE_URL required');

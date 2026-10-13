@@ -273,10 +273,10 @@ test("composer autofocus is desktop-only and never summons a mobile keyboard", (
   const submit = js.slice(start, end);
 
   assert.match(submit, /composerInput\.blur\(\)/);
-  assert.match(submit, /await runPrompt\(text\)/);
+  assert.match(submit, /await runPrompt\(text,\{parts\}\)/);
   assert.ok(
     submit.indexOf("composerInput.blur()") <
-      submit.indexOf("await runPrompt(text)")
+      submit.indexOf("await runPrompt(text,{parts})")
   );
 
   assert.match(
@@ -285,7 +285,7 @@ test("composer autofocus is desktop-only and never summons a mobile keyboard", (
   );
   assert.match(
     js,
-    /function\s+focusComposerForDesktop\s*\([\s\S]*?UI\.getMode\?\.\(\)[\s\S]*?"chat"[\s\S]*?composerInput\.focus/
+    /function\s+focusComposerForDesktop\s*\([\s\S]*?UI\.getMode\?\.\(\)[\s\S]*?"chat"[\s\S]*?\(composerEditor\?\.element\|\|composerInput\)\.focus/
   );
   assert.match(
     js,
@@ -319,14 +319,14 @@ test("library page owns Escape and focus lifecycle", () => {
 
 test("microcopy uses a shared readable token", () => {
   const globalCss = read("front/css/style.css");
-  const nodeCss = compact(read("front/css/node.css"));
+  const nodeCss = compact(read("front/css/skill.css"));
   const libraryCss = compact(read("front/css/library.css"));
 
   assert.match(globalCss, /--font-micro:\s*\.625rem/);
   assert.match(nodeCss, /\.vc-start-badge\s*\{[^}]*font-size:\s*var\(--font-micro\)/);
   assert.match(libraryCss, /\.ovll-library-artifact-card \.astra-artifact-meta\s*\{[^}]*font-size:\s*var\(--font-micro\)/);
 });test("coarse pointers get usable action targets", () => {
-  const nodeCss = compact(read("front/css/node.css"));
+  const nodeCss = compact(read("front/css/skill.css"));
   const libraryCss = compact(read("front/css/library.css"));
   const chatCss = compact(read("front/css/chat.css"));
   const uiCss = compact(read("front/css/ui.css"));
@@ -389,8 +389,8 @@ test("workspace hierarchy favors content over decorative surfaces", () => {
   assert.match(shell, /\.ovll-sidebar-primary-action\s*\{[^}]*border:\s*0[^}]*background:\s*transparent/);
   assert.match(shell, /@media\s*\(max-width:\s*43\.75rem\)[^{]*\{[\s\S]*?--sidebar-width:[^;]*82vw/);
   assert.match(chat, /#chat-messages\s*\{[^}]*width:\s*min\(42\.5rem,\s*100%\)/);
-  assert.match(chat, /\.astra-message-user\s*\.astra-message-body\s*\{[^}]*border:\s*0[^}]*font-size:\s*\.98rem/);
-  assert.match(chat, /\.astra-message-assistant\s*\.astra-message-body\s*\{[^}]*max-width:\s*42\.5rem[^}]*font-size:\s*1\.06rem/);
+  assert.match(chat, /\.astra-message-user\s*\.astra-message-body\s*\{[^}]*border:\s*0[^}]*font-size:\s*1rem/);
+  assert.match(chat, /\.astra-message-assistant\s*\.astra-message-body\s*\{[^}]*max-width:\s*42\.5rem[^}]*font-size:\s*1\.04rem/);
   assert.match(ui, /#composer-form\s*\{[^}]*width:\s*min\(39rem,\s*calc\(100% - 1\.5rem\)\)[^}]*min-height:\s*3\.25rem/);
   assert.match(ui, /#composer-input\s*\{[^}]*font-size:\s*\.93rem/);
   assert.match(html, /name="theme-color"[^>]*content="#060606"/s);
@@ -1342,7 +1342,7 @@ test("motion system uses shared timing tokens and avoids page blur", () => {
 
 test("runtime UI never renders raw successful model reports", () => {
   const app = read("front/js/app.js");
-  const canvas = read("front/js/canvasNode.js");
+  const canvas = read("front/js/canvasSkill.js");
 
   assert.doesNotMatch(
     app,
@@ -1410,7 +1410,8 @@ test("ordinary conversation uses Pointer messaging and preserves conversation me
   assert.match(app,/addAssistantMessage\(reply,\{artifacts:delivery\.artifacts\}\)/);
   assert.match(api,/local\/turn/);
   assert.match(store,/workflowUserRequest:/);
-  assert.match(store,/SCHEMA_VERSION\s*=\s*9/);
+  assert.match(store,/SCHEMA_VERSION\s*=\s*STORAGE_BRIDGE\?\.schemaVersion\|\|9/);
+  assert.match(store,/STORAGE_BRIDGE\.write\(localStorage,state,/);
 });
 
 test("chat controls share one rounded SVG language", () => {
@@ -1435,7 +1436,7 @@ test("chat controls share one rounded SVG language", () => {
   );
   assert.match(
     svg,
-    /composerSend:[\s\S]*?M10 15V5\.35[\s\S]*?m6\.35 9 3\.65-3\.65L13\.65 9/
+    /composerSend:[\s\S]*?M10 15\.7V4\.6[\s\S]*?m5\.8 8\.8 4\.2-4\.2 4\.2 4\.2/
   );
   assert.match(
     css,
@@ -1503,10 +1504,10 @@ test("Pointer action execution does not create a second user message",()=>{
   const end=app.indexOf("async function runPointerPrompt(",start);
   const body=app.slice(start,end);
   assert.match(body,/options\.addUserMessage!==false/);
-  assert.match(body,/addUserMessage\(value\)/);
+  assert.match(body,/addUserMessage\(value,\{parts:options\.parts\}\)/);
   assert.match(body,/handlers:\s*\{/);
   assert.match(body,/['"]run\.start['"]:async/);
-  assert.equal((body.match(/addUserMessage\(value\)/g)||[]).length,1);
+  assert.equal((body.match(/addUserMessage\(value,\{parts:options\.parts\}\)/g)||[]).length,1);
 });
 
 test("moderate workflow execution is confirmable directly from chat", () => {
@@ -1555,10 +1556,10 @@ test("Pointer node tasks receive the actual request and constraints",()=>{
   assert.match(host,/modules:\['run\.perform'\]/);
 });
 test("custom nodes use the canvas plugin pipeline and node picker catalog", () => {
-  const canvas = read("front/js/canvasNode.js");
-  const custom = read("front/js/customNodes.js");
+  const canvas = read("front/js/canvasSkill.js");
+  const custom = read("front/js/customSkills.js");
   const app = read("front/js/app.js");
-  const builder = read("front/js/canvasNodeBuilder.js");
+  const builder = read("front/js/canvasSkillBuilder.js");
   const css = compact(read("front/css/ui.css"));
 
   assert.match(
@@ -1625,7 +1626,7 @@ test("runtime activity uses ovll naming and keeps a definite chat width", () => 
 test("node ports are softly interactive and visually tucked behind the node shell", () => {
   const css =
     compact(
-      read("front/css/node.css")
+      read("front/css/skill.css")
     );
 
   assert.match(
@@ -1665,7 +1666,7 @@ test("node ports are softly interactive and visually tucked behind the node shel
 test("node connection handles stay hollow while title controls gain hierarchy", () => {
   const css =
     compact(
-      read("front/css/node.css")
+      read("front/css/skill.css")
     );
 
   assert.match(
@@ -1714,7 +1715,7 @@ test("node connection handles stay hollow while title controls gain hierarchy", 
 
 test("expanded node body remeasures natural height after parameter edits", () => {
   const canvas =
-    read("front/js/canvasNode.js");
+    read("front/js/canvasSkill.js");
 
   const start =
     canvas.indexOf(

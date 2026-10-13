@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
-import {getPointerCatalog,nodeDefinitionsPublic} from '../backend/ovllPointer/nodeCatalog.js';
+import {getPointerCatalog,nodeDefinitionsPublic} from '../backend/ovllPointer/skillCatalog.js';
 import {MemoryGraphRepository} from '../front/js/ovllPointerGraphCore.mjs';
 const source=readFileSync(new URL('../front/js/ovllPointerProjection.js',import.meta.url),'utf8');
 const window={};vm.runInNewContext(source,{window});
@@ -81,7 +81,7 @@ test('existing data ports remain unchanged and sequencing uses reversible contro
   assert.deepEqual(projected.definitions.organize.inputs.map(port=>port.id),['in']);
   assert.deepEqual(projected.definitions.organize.outputs.map(port=>port.id),['result']);
   assert.equal(projected.workflow.nodes[0].params.request,'');
-  const canvasSource=readFileSync(new URL('../front/js/canvasNode.js',import.meta.url),'utf8');
+  const canvasSource=readFileSync(new URL('../front/js/canvasSkill.js',import.meta.url),'utf8');
   const compatible=vm.runInNewContext('('+canvasSource.slice(canvasSource.indexOf('function compatible('),canvasSource.indexOf('function wouldCycle(')).trim()+')');
   assert.equal(compatible(projected.definitions.write.outputs[0],projected.definitions.organize.inputs[0]),true);
   const w={};vm.runInNewContext(readFileSync(new URL('../front/js/ovllPointerGraphPatch.js',import.meta.url),'utf8'),{window:w});

@@ -5,7 +5,7 @@ import vm from 'node:vm';
 import * as core from '../front/js/ovllPointerGraphCore.mjs';
 import * as plan from '../front/js/ovllPointerPlanCore.mjs';
 import * as results from '../front/js/ovllPointerResults.mjs';
-import {getPointerCatalog} from '../backend/ovllPointer/nodeCatalog.js';
+import {getPointerCatalog} from '../backend/ovllPointer/skillCatalog.js';
 
 function browser({fileStore}={}){
   const saved=new Map(),storage={getItem:key=>saved.get(key)||null,setItem:(key,value)=>saved.set(key,value)};

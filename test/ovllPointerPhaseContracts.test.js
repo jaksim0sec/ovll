@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createLocalPointerHost,createConfiguredLocalPointerHost} from '../backend/ovllPointer/localHost.js';
-import {getPointerCatalog} from '../backend/ovllPointer/nodeCatalog.js';
+import {getPointerCatalog} from '../backend/ovllPointer/skillCatalog.js';
 import {createConfiguredModelProvider} from '../backend/ovllPointer/configuredProvider.js';
 const snapshot=()=>({graph:{graphId:'g',revision:0,nodes:[],connections:[]},definitions:[]});
 function host(responses,calls=[]){return createLocalPointerHost({resolveModel:async()=>({providerId:'fixture',model:'actual'}),gateway:{complete:async x=>{calls.push(structuredClone(x));return {text:JSON.stringify(responses.shift()),usage:{total_tokens:5},providerId:'fixture',model:'actual'};}}});}
@@ -20,7 +20,7 @@ test('original task purpose, explicit constraints and digest survive a revision 
 test('catalog definitions are compact but available operations remain discoverable',async()=>{
  const calls=[];await host([{message:'ok'}],calls).turn({snapshot:snapshot(),requestRef:'r',requestText:'What can you do?'});
  const data=JSON.parse(calls[0].messages.at(-1).content).context.materials[0].content;
- assert.equal(data.definitions.length,0);assert.ok(data.availableDefinitions.some(d=>d.definitionId==='builtin:write'));
+ assert.equal(data.skillDefinitions.length,0);assert.ok(data.availableDefinitions.some(d=>d.definitionId==='builtin:write'));
  assert.ok(data.availableDefinitions.every(d=>!('instruction' in d)));
 });
 test('response repair is phase-specific and trusted usage metadata accounts for both calls',async()=>{

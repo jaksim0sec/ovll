@@ -5,7 +5,7 @@ import fs from "node:fs";
 const source =
   fs.readFileSync(
     new URL(
-      "../front/js/canvasNode.js",
+      "../front/js/canvasSkill.js",
       import.meta.url
     ),
     "utf8"

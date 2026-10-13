@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {MemoryGraphRepository} from '../front/js/ovllPointerGraphCore.mjs';
 import {createContractValidation} from '../backend/ovllPointer/validation.js';
 import {normalizeModelTurn} from '../backend/ovllPointer/turnNormalizer.js';
-import {getPointerCatalog} from '../backend/ovllPointer/nodeCatalog.js';
+import {getPointerCatalog} from '../backend/ovllPointer/skillCatalog.js';
 import {createLocalPointerHost} from '../backend/ovllPointer/localHost.js';
 import {nodeSemanticFingerprint} from '../front/js/ovllPointerResults.mjs';
 import {semanticFingerprint as backendFingerprint} from '../backend/ovllPointer/executionPlan.js';

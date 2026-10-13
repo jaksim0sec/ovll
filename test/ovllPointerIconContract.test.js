@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
-import {iconSvg} from '../backend/ovllPointer/nodeCatalog.js';
+import {iconSvg} from '../backend/ovllPointer/skillCatalog.js';
 import {createContractValidation} from '../backend/ovllPointer/validation.js';
 import {normalizeModelTurn} from '../backend/ovllPointer/turnNormalizer.js';
 import {localModelContract} from '../backend/ovllPointer/modelContract.js';
@@ -70,7 +70,7 @@ test('unknown icons in brand-new definitions are normalized without affecting no
 });
 
 test('turn guidance lists SVG identifiers from the live server catalog',()=>{
-  const instructions=localModelContract();
+  const instructions=localModelContract(undefined,{selectedModules:['action.definitions']});
   for(const key of Object.keys(iconSvg))
     assert.ok(instructions.includes(key),'missing catalog icon '+key);
   assert.ok(instructions.includes('Unknown icons use custom'));

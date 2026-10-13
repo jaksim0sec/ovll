@@ -70,7 +70,7 @@ function loadCustomNodes(records){
   const source=
     fs.readFileSync(
       new URL(
-        "../front/js/customNodes.js",
+        "../front/js/customSkills.js",
         import.meta.url
       ),
       "utf8"
@@ -92,7 +92,7 @@ function loadCustomNodes(records){
       Math
     },
     {
-      filename:"customNodes.js"
+      filename:"customSkills.js"
     }
   );
 
@@ -550,7 +550,7 @@ test(
     const source=
       fs.readFileSync(
         new URL(
-          "../front/js/customNodes.js",
+          "../front/js/customSkills.js",
           import.meta.url
         ),
         "utf8"
@@ -572,7 +572,7 @@ test(
         Math
       },
       {
-        filename:"customNodes.js"
+        filename:"customSkills.js"
       }
     );
 

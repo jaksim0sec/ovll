@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { validateNodeOutput } from '../backend/ovllPointer/nodeOutput.js';
+import { validateNodeOutput } from '../backend/ovllPointer/skillOutput.js';
 const definition={outputs:[{name:'result',role:'result',representation:'text',required:true}]};
 const produced=value=>({status:'produced',values:{result:{inline:value}}});
 test('frozen NodeOutput inline values validate against declared required ports',async()=>{

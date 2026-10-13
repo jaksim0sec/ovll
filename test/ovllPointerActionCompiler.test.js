@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as compiler from '../backend/ovllPointer/actionCompiler.js';
-import {withPointerCatalog} from '../backend/ovllPointer/nodeCatalog.js';
+import {withPointerCatalog} from '../backend/ovllPointer/skillCatalog.js';
 import {MemoryGraphRepository,computeScope} from '../backend/ovllPointer/graph.js';
 const initial=()=>withPointerCatalog({graph:{graphId:'g',revision:4,nodes:[],connections:[]},definitions:[]});
 const created=alias=>({kind:'created',alias});
