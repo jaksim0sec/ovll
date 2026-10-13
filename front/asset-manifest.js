@@ -26,9 +26,7 @@ const scripts=Object.freeze([
   "./js/customNodes.js",
   "./js/canvasNodeBuilder.js",
   "./js/ovllWorkspace.js",
-  "./js/functionWorkspace.js",
   "./js/libraryPage.js",
-  "./js/customNodePage.js",
   "./js/shellMenu.js",
   "./js/workspacePresence.js",
   "./js/ovllPresence.js",
@@ -41,7 +39,6 @@ const styles=Object.freeze([
   "./css/node.css",
   "./css/chat.css",
   "./css/library.css",
-  "./css/customNode.css",
   "./css/shellMenu.css",
   "./css/composer.css"
 ]);
