@@ -1571,6 +1571,9 @@
           ${renderPorts(node, definition.inputs, 'input')}
           ${renderPorts(node, definition.outputs, 'output')}
         `;
+        // Apply the same icon stroke contract as composer mentions and
+        // the add-node palette without rewriting server-provided SVG markup.
+        element.querySelector('.vc-node-icon svg')?.classList.add('svg-icon');
         nodesLayer.appendChild(element);
         observeNode(element);
         setNodeExpanded(node, node.expanded, true);
