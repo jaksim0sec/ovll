@@ -116,6 +116,8 @@ function skillModelContract(nodeContext,{wire=false,selectedModules=[],selection
   out.push('# SELECTED SKILL ACTION CONTRACTS');
   for(const [moduleId,kinds] of Object.entries(ACTION_DETAIL_MODULES)){
    if(!has(moduleId))continue;
+   // Keep the module boundary visible: contract injection is auditable.
+   out.push('## '+moduleId);
    for(const legacy of kinds){
     const name=skillSemanticKind(legacy),fields=SKILL_SEMANTIC_ACTION_FIELDS[name];
     if(fields)out.push(name+': '+fields.join(', ')+'.');

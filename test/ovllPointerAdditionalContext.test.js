@@ -52,7 +52,7 @@ test('unselected action families stay out of initial canonical and wire prompts'
   assert.doesNotMatch(initial,/## action\.definitions/);
   assert.doesNotMatch(initial,/# SELECTED EXAMPLES/);
   assert.match(detailed,/## action\.definitions/);
-  assert.match(detailed,/node\.define requires alias/);
+  assert.match(detailed,/skill\.define requires alias/);
   assert.doesNotMatch(detailed,/## action\.nodes/);
   assert.doesNotMatch(detailed,/## action\.functions/);
   assert.ok(detailed.length>initial.length);

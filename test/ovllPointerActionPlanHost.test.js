@@ -17,10 +17,10 @@ test('semantic provider projection decodes the same plan without mechanical mode
  const calls=[],result=await host([wire],calls,true).turn({snapshot,requestRef:'wire',requestText:'Create the writer and run it'});
  assert.deepEqual(result.actions.map(a=>a.kind),['ir.applyPatch','run.start']);
  assert.equal(calls.length,1);assert.equal(calls[0].wireSchema.name,'ovll_selection');
- const schema=calls[0].wireSchema.schema;assert.equal(schema.properties.actions,undefined);assert.ok(schema.properties.actionKinds.items.enum.includes('node.add'));
+ const schema=calls[0].wireSchema.schema;assert.equal(schema.properties.actions,undefined);assert.ok(schema.properties.actionKinds.items.enum.includes('skill.add'));
  assert.ok(!JSON.stringify(schema).includes('run.revise'));assert.ok(!JSON.stringify(schema).includes('task.complete'));
  const text=calls[0].messages.map(m=>m.content).join('\n');
- assert.ok(text.includes('node.define'));assert.ok(!text.includes('expectedGraphRevision'));
+ assert.ok(text.includes('skill.define'));assert.ok(!text.includes('expectedGraphRevision'));
  const context=JSON.parse(calls[0].messages.find(m=>m.role==='user').content).context;
  assert.equal(context.outputContract,'ModelTurn');assert.ok(context.capabilities.includes('execute'));
  assert.ok(!context.capabilities.includes('run.start'));assert.ok(!context.capabilities.includes('ir.applyPatch'));
