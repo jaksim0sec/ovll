@@ -98,6 +98,10 @@ function prepare({snapshot,requestRef,requestText,history=[],taskContext,additio
       const raw=JSON.stringify(value);if(Buffer.byteLength(raw,'utf8')>1024){node.settings[key]={valueRef:'setting:'+node.nodeId+':'+key,preview:utf8Preview(raw,768),truncated:true};context.materials[0].truncated=true;}
     }
   }
+  // Model-facing snapshots are always canonical Skill v2. The source graph
+  // stays legacy-shaped only within the scheduler and compiler adapter.
+  if(!nodeIdScope)context.materials[0].content=
+    normalizeSkillSnapshot(view,{source:'legacy'});
   if(jsonBytes(context)>LIMITS.contextBytes)fail('PROMPT_CONTEXT_TOO_LARGE');
   return {snapshot:clone(snapshot),context,...(extendedTask||task.requestText!==requestText||additionalContext?{extendedTask:{...(extendedTask||task.requestText!==requestText?{taskContext:clone(task)}:{}),currentRequestText:requestText,...(additionalContext?{additionalContext:clone(additionalContext)}:{})}}:{})};
 }
@@ -251,7 +255,8 @@ export function createLocalPointerHost({gateway,resolveModel,validation=createCo
       {ref:'history',kind:'history',purpose:'Original conversation; use listed history refs or current scope'},
       ...prepared.definitions.map(d=>({ref:d.definitionId,kind:'definition',version:d.version,purpose:d.purpose})),
       ...(extraContext?.savedFunctions||[]).map(f=>({ref:f.id,kind:'contract',purpose:f.purpose})),
-      ...(extraContext?.availableResults?.items||[]).map(r=>({ref:r.runId,kind:'run',nodeId:r.nodeId,status:r.status,outputs:r.outputs.map(o=>({ref:o.ref,port:o.port}))})),...index];
+      ...(extraContext?.availableResults?.items||[]).map(r=>({ref:r.runId,kind:'run',
+        skillId:r.nodeId,status:r.status,outputs:r.outputs.map(o=>({ref:o.ref,port:o.port}))})),...index];
     const supplied={...extraContext,...extendedTask,datasets,executionAuthorization:compilerContext.executionAuthorization};
     let result,aggregate=null;
     const account=meta=>{
