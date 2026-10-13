@@ -7,7 +7,7 @@ on:
       - 'backend/ovllPointer/**'
       - 'test/ovllPointer*.js'
       - 'test/ovllPointer*.mjs'
-      - '.github/workflows/pointer-postgres-integration.yml'
+      - '.github/workflows/ovll-pointer-postgres-integration.yml'
   workflow_dispatch:
 
 permissions:
@@ -46,11 +46,11 @@ jobs:
         run: |
           for f in backend/ovllPointer/*.js test/ovllPointer*.mjs test/ovllPointer*.test.js; do node --check "$f"; done
       - name: Existing OvllPointer foundation
-        run: node --test test/ovllPointerFoundation.test.js test/ovllPointerExecutionPlan.test.js test/ovllPointerNodeOutput.test.js test/ovllPointerValidation.test.js test/ovllPointerRuntime.test.js test/ovllPointerPromptComposer.test.js test/ovllPointerController.test.js test/ovllPointerFrontend.test.js test/ovllPointerGraphPatch.test.js test/ovllPointerConfiguredProvider.test.js
+        run: node --test test/ovllPointerFoundation.test.js test/ovllPointerExecutionPlan.test.js test/ovllPointerSkillOutput.test.js test/ovllPointerValidation.test.js test/ovllPointerRuntime.test.js test/ovllPointerPromptComposer.test.js test/ovllPointerController.test.js test/ovllPointerFrontend.test.js test/ovllPointerGraphPatch.test.js test/ovllPointerConfiguredProvider.test.js
       - name: Real PostgreSQL persistence and recovery integration
         run: node --test test/ovllPointerPostgres.integration.mjs
-      - name: Real PostgreSQL node attempts and evidence integration
-        run: node --test test/ovllPointerNodeExecution.integration.mjs
+      - name: Real PostgreSQL Skill attempts and evidence integration
+        run: node --test test/ovllPointerSkillExecution.integration.mjs
       - name: Real PostgreSQL Task Question retry cancel integration
         run: node --test test/ovllPointerLifecycle.integration.mjs
       - name: Real PostgreSQL model controller and event HTTP integration
