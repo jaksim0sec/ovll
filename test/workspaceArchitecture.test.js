@@ -89,29 +89,10 @@ test("workspace orchestrator and reusable node builder are available", () => {
   assert.match(assets,/\.\/js\/ovllWorkspace\.js/);
 });
 
-test("function builder uses shared workspace with isolated Pointer graph and function storage",()=>{
-  const feature=read("front/js/functionWorkspace.js");
-  const local=read("front/js/ovllPointerLocal.js");
-  const page=read("front/js/customNodePage.js"),html=read("front/index.html");
-  assert.match(feature,/createWorkspace\(/);
-  assert.match(feature,/pluginContext:\s*"custom-builder"/);
-  assert.match(feature,/mountNodeBuilder/);
-  assert.match(feature,/workspace\.presence/);
-  assert.match(feature,/surface:'function-builder'/);
-  assert.match(feature,/OvllPointerApi\.localTurn/);
-  assert.match(feature,/OvllPointerFunctions\.save/);
-  assert.match(local,/projectCanvasDraft/);
-  assert.match(page,/createOvllFunctionWorkspace/);
-  assert.doesNotMatch(html,/ovll-custom-sidebar/);
-  assert.match(html,/data-function-workspace-host/);
-});
 
 test("reusable workspace controls do not expose dead or ambiguous controls", () => {
   const builder =
     read("front/js/canvasNodeBuilder.js");
-  const feature =
-    read("front/js/functionWorkspace.js");
-
   assert.match(
     builder,
     /__ovllCanvasNodeBuilderSeq/
@@ -122,10 +103,20 @@ test("reusable workspace controls do not expose dead or ambiguous controls", () 
     /aria-controls="\$\{panelId\}"/
   );
 
-  assert.match(
-    feature,
-    /composerAttach[\s\S]*?\.hidden=true/
-  );
+});
+
+test("retired standalone builder is unmounted while the live node runtime remains", () => {
+  const assets=read("front/asset-manifest.js");
+  const html=read("front/index.html");
+  const menu=read("front/js/shellMenu.js");
+  const canvas=read("front/js/canvasNode.js");
+  const custom=read("front/js/customNodes.js");
+  assert.doesNotMatch(assets,/\.\/js\/(?:functionWorkspace|customNodePage)\.js/);
+  assert.doesNotMatch(assets,/\.\/css\/customNode\.css/);
+  assert.doesNotMatch(html,/id="custom-node-page"|data-function-workspace-host/);
+  assert.doesNotMatch(menu,/data-sidebar-action="custom-nodes"|OvllCustomNodePage/);
+  assert.match(canvas,/setNodeDefinitions/);
+  assert.match(custom,/pluginDefinitions/);
 });
 
 test("main workspace owns the interactive mascot lifecycle", () => {
@@ -218,37 +209,7 @@ test("interactive mascot observes nodes from above and widens long travel arcs",
   );
 });
 
-test("function builder keeps contextual identity out of the global topbar lane", () => {
-  const feature =
-    read("front/js/functionWorkspace.js");
-  const css =
-    read("front/css/customNode.css");
 
-  assert.doesNotMatch(
-    feature,
-    /headerStart\?\.appendChild\(\s*context\s*\)/
-  );
-  assert.match(
-    feature,
-    /overlay\?\.appendChild\(\s*context\s*\)/
-  );
-  assert.match(
-    css,
-    /\.ovll-function-context\s*\{[^}]*position:\s*absolute[^}]*top:\s*calc\(/s
-  );
-  assert.match(
-    css,
-    /--global-nav-leading-end/
-  );
-});
-
-test("function builder saves unnamed Pointer draft and reports failures",()=>{
-  const feature=read("front/js/functionWorkspace.js");
-  assert.doesNotMatch(feature,/if\(!name\)\{[\s\S]*?return false/);
-  assert.match(feature,/\|\|'새 함수'/);
-  assert.match(feature,/try\{[\s\S]*?OvllPointerFunctions\.save\([\s\S]*?catch\(error\)/);
-  assert.match(feature,/setStatus\(error\?\.message\|\|'함수 저장 실패','error'\)/);
-});
 
 test("standalone pages preserve a real back stack on docked desktop navigation", () => {
   const menu =
