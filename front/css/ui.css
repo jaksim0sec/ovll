@@ -1292,10 +1292,10 @@
 :is(#canvas-node-builder-panel,[data-canvas-node-builder-panel]) {
   border: var(--ui-line-width) solid var(--ui-line);
   border-radius: 1rem;
-  background: var(--panel-strong);
+  background: var(--ui-glass-strong);
   backdrop-filter: var(--ui-backdrop);
   -webkit-backdrop-filter: var(--ui-backdrop);
-  box-shadow: var(--shadow-soft);
+  box-shadow: var(--ui-control-shadow);
 }
 
 /* =========================================================

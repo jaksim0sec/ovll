@@ -273,10 +273,10 @@ test("composer autofocus is desktop-only and never summons a mobile keyboard", (
   const submit = js.slice(start, end);
 
   assert.match(submit, /composerInput\.blur\(\)/);
-  assert.match(submit, /await runPrompt\(text\)/);
+  assert.match(submit, /await runPrompt\(text,\{parts\}\)/);
   assert.ok(
     submit.indexOf("composerInput.blur()") <
-      submit.indexOf("await runPrompt(text)")
+      submit.indexOf("await runPrompt(text,{parts})")
   );
 
   assert.match(

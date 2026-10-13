@@ -808,7 +808,12 @@ tr:last-child td {
   gap: .18rem;
   margin-top: .28rem;
   padding: .08rem;
+  border: 1px solid var(--ui-line);
   border-radius: .7rem;
+  background: var(--ui-glass);
+  backdrop-filter: var(--ui-backdrop);
+  -webkit-backdrop-filter: var(--ui-backdrop);
+  box-shadow: var(--ui-control-shadow);
   opacity: .68;
   transform: translateY(-.08rem);
   transition:

@@ -52,7 +52,7 @@ function harness(){
     ensureArtifactFileNode:(nodeId,file)=>fileNodes.push({nodeId,file}),
     flushPointerCanvasEdit:async nodeId=>nodeId,
     showErrorNotice:error=>errors.push(error),setBusy:value=>{state.busy=value;},
-    composerInput:{value:''},Presence:{thinking:noop,settle:noop},runPresence:{reset:noop},
+    composerEditor:null,composerInput:{value:''},Presence:{thinking:noop,settle:noop},runPresence:{reset:noop},
     recentAiConversation:()=>[],userFacingError:error=>error.message};
   for(const name of ['addUserMessage','resizeComposer','scheduleComposerDraftSave','beginRuntimeActivity',
     'upsertRuntimeStep','pointerActionStarted','pointerActionResult','showLocalRun','pointerNodeProgress',

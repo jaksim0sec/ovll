@@ -1120,7 +1120,7 @@
   outline-offset: .08rem;
 }
 
-@media (min-width: 43.76rem) and (hover: hover) and (pointer: fine) {
+@media (min-width: 43.76rem) and (hover: hover) and (pointer: fine), (min-width: 60.01rem) {
   #ovll-shell-menu-backdrop {
     display: none;
   }
@@ -1150,6 +1150,13 @@
   :root.shell-menu-open
   #library-page {
     left: var(--sidebar-width);
+  }
+
+  /* Explicitly reserve the remaining width instead of covering the
+     workspace with the sidebar. Keep the library's page behavior. */
+  :root.shell-menu-open #workspace-shell {
+    right: 0;
+    width: auto;
   }
 }
 
@@ -1186,6 +1193,10 @@
 
 @media (prefers-reduced-motion: reduce) {
   #ovll-shell-menu-panel,
+  #ovll-shell-menu-trigger,
+  #ovll-shell-menu-backdrop {
+    transition: none;
+  }
 }
 
 

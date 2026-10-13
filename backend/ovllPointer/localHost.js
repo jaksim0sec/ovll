@@ -4,6 +4,8 @@ import {normalizeModelTurn,diagnoseModelTurn,modelTurnShape,repairTargetHints} f
 import {MemoryGraphRepository,KernelError} from './graph.js';
 import {createContractValidation} from './validation.js';
 import {createPromptComposer} from './promptComposer.js';
+import {formatSkillPrompt} from './skillReferenceContract.js';
+import {normalizeSkillSnapshot} from '../../front/js/ovllSkillCodec.mjs';
 import {validateNodeOutput} from './nodeOutput.js';
 import {createConfiguredModelProvider,resolveLocalPointerProvider} from './configuredProvider.js';
 import {compileActionPlan,isActionPlan,ACTION_PLAN_CONTRACT,SEMANTIC_ACTION_FIELDS} from './actionCompiler.js';
@@ -63,6 +65,23 @@ function prepare({snapshot,requestRef,requestText,history=[],taskContext,additio
     snapshot.definitions.length>128||jsonBytes(snapshot)>LIMITS.snapshotBytes)
     fail('INVALID_LOCAL_MODEL_REQUEST');
   snapshot=withPointerCatalog(snapshot);
+  // Resolve identities within the current validated graph before model calls.
+  // Escaped literals stay inert; stale or cross-graph refs cannot grant access.
+  if(requestText.includes('⟦ovll:ref:v1:')){
+    let formatted;
+    try{
+      formatted=formatSkillPrompt(requestText,{
+        snapshot:normalizeSkillSnapshot(snapshot),
+        activeGraphId:snapshot.graph.graphId
+      });
+    }catch{fail('INVALID_SKILL_REFERENCE',422)}
+    if(formatted.issues.length)fail('INVALID_SKILL_REFERENCE',422);
+    if(formatted.requestText.length>LIMITS.maxTaskTextChars)
+      fail('SKILL_REFERENCE_CONTEXT_TOO_LARGE',422);
+    if(task.objective===requestText)task.objective=formatted.requestText;
+    if(task.requestText===requestText)task.requestText=formatted.requestText;
+    requestText=formatted.requestText;
+  }
   const repo=new MemoryGraphRepository();
   repo.restore('local',snapshot.graph.graphId,snapshot);
   const {view,truncated}=contextSnapshot(snapshot,nodeIdScope);
