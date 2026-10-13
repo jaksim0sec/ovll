@@ -2,6 +2,9 @@
    Explicit form qualifiers override legacy #composer-* grid positions in ui.css. */
 :is(#composer-form,[data-ovll-composer-form]).ovll-composer-rich {
   --ovll-composer-ink: color-mix(in srgb, var(--text) 92%, var(--sub));
+  /* Compact measurements stay constant when the expanded class toggles. */
+  --ovll-rich-compact-padding-rem: .44;
+  --ovll-rich-compact-gap-rem: .25;
   position: relative;
   display: grid;
   grid-template-columns: auto minmax(0,1fr) auto;
@@ -352,6 +355,8 @@
 }
 @media (max-width: 43.75rem) {
   :is(#composer-form,[data-ovll-composer-form]).ovll-composer-rich {
+    --ovll-rich-compact-padding-rem: .4;
+    --ovll-rich-compact-gap-rem: .15;
     padding: .32rem .4rem;
     column-gap: .15rem;
   }
