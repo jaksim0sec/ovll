@@ -61,3 +61,19 @@ test('duplicate names never change which definition or instance is returned',()=
   assert.equal(r.reference.skillId,'s2');
   assert.equal(r.iconKey,'review-v2');
 });
+
+test('untrusted reference objects cannot smuggle extra fields into the resolved identity',()=>{
+  const resolver=setup();
+  assert.equal(resolver.resolve({
+    kind:'skill-canvas',graphId:'g1',skillId:'s1',label:'forged name'
+  }),null);
+  assert.equal(resolver.resolve({
+    kind:'skill-definition',definitionId:'custom:my',version:1,admin:true
+  }),null);
+  assert.equal(resolver.resolve({
+    kind:'skill-definition',definitionId:'custom:my',version:0
+  }),null);
+  const good=resolver.resolve({kind:'skill-canvas',graphId:'g1',skillId:'s1'});
+  assert.equal(good.reference.kind,'skill-canvas');
+  assert.deepEqual(Object.keys(good.reference).sort(),['graphId','kind','skillId']);
+});
