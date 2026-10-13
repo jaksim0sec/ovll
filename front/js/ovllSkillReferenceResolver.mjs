@@ -1,3 +1,4 @@
+import {serializeSkillReference,parseSkillReference} from './ovllSkillReferences.mjs';
 // Pure, in-memory reference lookup. Parsing a token never confers access.
 // The caller must provide ONLY definitions/functions visible in its scope.
 // Backend prompting must reconstruct permissions from server-side state.
@@ -29,8 +30,14 @@ export function createSkillReferenceResolver({
       !Array.isArray(graph.skills))return null;
     return graph;
   }
-  function resolve(reference) {
-    if(!record(reference))return null;
+  function resolve(value) {
+    if(!record(value))return null;
+    // Only known, canonical reference fields can cross the rendering boundary.
+    // Do not retain caller-provided names, icons, admin flags or metadata.
+    let reference;
+    try{reference=parseSkillReference(serializeSkillReference(value))}
+    catch{return null}
+    if(!reference)return null;
     let definition=null,recordItem=null,kind=reference.kind,scope=null;
     if(kind==='skill-definition'){
       if(!validId(reference.definitionId))return null;
@@ -47,10 +54,11 @@ export function createSkillReferenceResolver({
       if(items.length!==1)return null;
       recordItem=items[0];scope=graph.graphId;
       const dr=recordItem.skillDefinitionRef;
-      if(validId(dr?.definitionId)&&validVersion(dr?.version)){
-        definition=definitions().find(item=>item.definitionId===dr.definitionId&&
-          sameVersion(item.version,dr.version))||null;
-      }
+      if(!validId(dr?.definitionId)||!validVersion(dr?.version))return null;
+      const defMatches=definitions().filter(item=>item.definitionId===dr.definitionId&&
+        sameVersion(item.version,dr.version));
+      if(defMatches.length!==1)return null;
+      definition=defMatches[0];
     }else if(kind==='function'){
       if(!validId(reference.functionId))return null;
       const candidates=functions().filter(item=>functionId(item)===reference.functionId&&
@@ -62,7 +70,7 @@ export function createSkillReferenceResolver({
     const name=label(recordItem)||label(definition);
     if(!name&&!recordItem)return null;
     return Object.freeze({
-      kind,reference:Object.freeze({...reference}),
+      kind,reference,
       label:name||'캔버스 스킬 #'+reference.skillId,
       iconKey:recordItem?.iconKey||definition?.iconKey||null,
       color:recordItem?.color||definition?.color||null,

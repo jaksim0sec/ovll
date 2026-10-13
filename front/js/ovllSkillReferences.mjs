@@ -5,6 +5,12 @@ const CLOSE='⟧';
 const MAX_TOKEN_LENGTH=512;
 const MAX_ID_CHARS=160;
 const own=(x,key)=>Object.prototype.hasOwnProperty.call(x,key);
+const exactKeys=(ref,fields)=>{
+  const names=Object.keys(ref);
+  if(names.some(name=>!fields.includes(name))||
+    fields.slice(0,2).some(name=>!own(ref,name))||
+    !own(ref,'kind'))fail('INVALID_SKILL_REFERENCE_FIELDS');
+};
 
 export class SkillReferenceSyntaxError extends Error {
   constructor(code){
@@ -47,12 +53,16 @@ export function serializeSkillReference(reference){
   let value='';
   switch(reference.kind){
     case 'skill-definition':
+      exactKeys(reference,['kind','definitionId','version']);
       value=OPEN+'skill-def:'+encodeId(reference.definitionId)+versionText(reference)+CLOSE;
       break;
     case 'skill-canvas':
+      exactKeys(reference,['kind','graphId','skillId']);
+      if(!own(reference,'skillId'))fail('INVALID_SKILL_REFERENCE_FIELDS');
       value=OPEN+'skill-canvas:'+encodeId(reference.graphId)+':'+encodeId(reference.skillId)+CLOSE;
       break;
     case 'function':
+      exactKeys(reference,['kind','functionId','version']);
       value=OPEN+'function:'+encodeId(reference.functionId)+versionText(reference)+CLOSE;
       break;
     default:fail('INVALID_SKILL_REFERENCE_KIND');

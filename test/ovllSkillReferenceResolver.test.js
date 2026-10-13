@@ -77,3 +77,13 @@ test('untrusted reference objects cannot smuggle extra fields into the resolved 
   assert.equal(good.reference.kind,'skill-canvas');
   assert.deepEqual(Object.keys(good.reference).sort(),['graphId','kind','skillId']);
 });
+
+test('canvas references require a currently registered definition version',()=>{
+ const r=createSkillReferenceResolver({
+  getSkillDefinitions:()=>[],
+  getCanvasGraph:()=>({graphId:'g',skills:[{skillId:'x',name:'Looks real',skillDefinitionRef:{definitionId:'missing',version:1}}]}),
+  getCurrentScope:()=>({graphId:'g'})
+ });
+ assert.equal(r.resolve({kind:'skill-canvas',graphId:'g',skillId:'x'}),null);
+ assert.equal(r.allowedReferences().some(x=>x.kind==='skill-canvas'),false);
+});

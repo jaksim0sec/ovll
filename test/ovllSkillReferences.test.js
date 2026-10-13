@@ -89,3 +89,10 @@ test('token scanning does not change arbitrary source text',()=>{
  assert.equal(result.map(x=>x.text??x.token).join(''),sample);
  assert.ok(result.every(x=>x.type==='text'));
 });
+
+test('serializer rejects injected presentation and execution metadata on references',()=>{
+ assert.throws(()=>serializeSkillReference({kind:'skill-canvas',graphId:'g',skillId:'s',label:'spoof'}),e('INVALID_SKILL_REFERENCE_FIELDS'));
+ assert.throws(()=>serializeSkillReference({kind:'skill-definition',definitionId:'custom:a',version:1,admin:true}),e('INVALID_SKILL_REFERENCE_FIELDS'));
+ assert.throws(()=>serializeSkillReference({kind:'function',functionId:'f',iconKey:'unknown'}),e('INVALID_SKILL_REFERENCE_FIELDS'));
+ assert.equal(serializeSkillReference({kind:'skill-canvas',graphId:'g',skillId:'s'}),'⟦ovll:ref:v1:skill-canvas:g:s⟧');
+});
