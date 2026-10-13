@@ -19,6 +19,13 @@ test('v2 semantic plan generates only canonical Skill patch fields',()=>{
  assert.equal(value.actions[0].args.patch.graphId,'g');
  assert.ok(Array.isArray(value.actions[0].args.patch.skillDefinitions));
 });
+test('direct v2 answers preserve text without inventing graph edits',()=>{
+ const output=compileLocalActionPlan({snapshot:snapshot(),requestRef:'answer',
+  requestText:'Hello',plan:{contract:'action-plan.v2',message:'Hi'}});
+ assert.equal(output.message,'Hi');
+ assert.equal(output.actions,undefined);
+ assert.equal(output._meta.providerCalls,0);
+});
 test('new v2 link endpoints are scoped skill selectors, not legacy nodes',()=>{
  const translated=toLegacySkillActionPlan({contract:'action-plan.v2',actions:[{
   action:'link.add',kind:'data',

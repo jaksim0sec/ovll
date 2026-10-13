@@ -49,10 +49,11 @@ function functionDraft(value){
  return fn;
 }
 export function toLegacySkillActionPlan(plan){
- if(!object(plan)||plan.contract!==SKILL_ACTION_PLAN_CONTRACT||!Array.isArray(plan.actions))
+ if(!object(plan)||plan.contract!==SKILL_ACTION_PLAN_CONTRACT||
+   plan.actions!==undefined&&!Array.isArray(plan.actions))
    fail('INVALID_SKILL_ACTION_PLAN');
  const result={...structuredClone(plan),contract:'action-plan.v1'};
- result.actions=result.actions.map(action=>{
+ result.actions=(result.actions||[]).map(action=>{
   if(!object(action)||typeof action.action!=='string'||!own(actions,action.action))
     fail('INVALID_SKILL_ACTION');
   if(Object.keys(action).some(k=>['nodeId','localNodeKey','nodeRef','definitionRef'].includes(k)))
