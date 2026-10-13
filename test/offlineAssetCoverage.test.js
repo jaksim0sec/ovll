@@ -68,7 +68,7 @@ test('boot consumes ordered manifest scripts with Activity before application an
 });
 test('cached new assets remain network-first and work when requests are offline',async()=>{
  const sw=worker();await sw.install();
- for(const path of ['/css/customNode.css','/js/workspaceUi.js','/js/ovllPointerActivity.js','/js/ovllPointerResults.mjs','/asset-manifest.js']){
+ for(const path of ['/css/composer.css','/js/workspaceUi.js','/js/ovllPointerActivity.js','/js/ovllPointerResults.mjs','/asset-manifest.js']){
   assert.equal((await sw.get(path))?.cached,path,path);
   assert.equal(sw.requests.at(-1).options?.cache,'no-cache',path);
  }
