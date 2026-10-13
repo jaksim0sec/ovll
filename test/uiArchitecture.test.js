@@ -285,7 +285,7 @@ test("composer autofocus is desktop-only and never summons a mobile keyboard", (
   );
   assert.match(
     js,
-    /function\s+focusComposerForDesktop\s*\([\s\S]*?UI\.getMode\?\.\(\)[\s\S]*?"chat"[\s\S]*?composerInput\.focus/
+    /function\s+focusComposerForDesktop\s*\([\s\S]*?UI\.getMode\?\.\(\)[\s\S]*?"chat"[\s\S]*?\(composerEditor\?\.element\|\|composerInput\)\.focus/
   );
   assert.match(
     js,
@@ -389,7 +389,7 @@ test("workspace hierarchy favors content over decorative surfaces", () => {
   assert.match(shell, /\.ovll-sidebar-primary-action\s*\{[^}]*border:\s*0[^}]*background:\s*transparent/);
   assert.match(shell, /@media\s*\(max-width:\s*43\.75rem\)[^{]*\{[\s\S]*?--sidebar-width:[^;]*82vw/);
   assert.match(chat, /#chat-messages\s*\{[^}]*width:\s*min\(42\.5rem,\s*100%\)/);
-  assert.match(chat, /\.astra-message-user\s*\.astra-message-body\s*\{[^}]*border:\s*0[^}]*font-size:\s*\.98rem/);
+  assert.match(chat, /\.astra-message-user\s*\.astra-message-body\s*\{[^}]*border:\s*0[^}]*font-size:\s*1rem/);
   assert.match(chat, /\.astra-message-assistant\s*\.astra-message-body\s*\{[^}]*max-width:\s*42\.5rem[^}]*font-size:\s*1\.06rem/);
   assert.match(ui, /#composer-form\s*\{[^}]*width:\s*min\(39rem,\s*calc\(100% - 1\.5rem\)\)[^}]*min-height:\s*3\.25rem/);
   assert.match(ui, /#composer-input\s*\{[^}]*font-size:\s*\.93rem/);
@@ -1435,7 +1435,7 @@ test("chat controls share one rounded SVG language", () => {
   );
   assert.match(
     svg,
-    /composerSend:[\s\S]*?M10 15V5\.35[\s\S]*?m6\.35 9 3\.65-3\.65L13\.65 9/
+    /composerSend:[\s\S]*?M10 15\.7V4\.6[\s\S]*?m5\.8 8\.8 4\.2-4\.2 4\.2 4\.2/
   );
   assert.match(
     css,

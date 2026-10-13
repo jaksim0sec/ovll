@@ -56,7 +56,7 @@ function harness(){
     recentAiConversation:()=>[],userFacingError:error=>error.message};
   for(const name of ['addUserMessage','resizeComposer','scheduleComposerDraftSave','beginRuntimeActivity',
     'upsertRuntimeStep','pointerActionStarted','pointerActionResult','showLocalRun','pointerNodeProgress',
-    'finishRuntimeActivity','focusComposerForDesktop','scheduleWorkspaceSave'])sandbox[name]=noop;
+    'finishRuntimeActivity','focusComposerForDesktop','completeRuntimePhase','scheduleWorkspaceSave'])sandbox[name]=noop;
   vm.runInNewContext(appFunctions+'\nthis.prompt=runLocalPrompt;this.canvas=runPointerCanvasNode;',sandbox);
   return {sandbox,messages,errors,executions,bindings,fileNodes};
 }
