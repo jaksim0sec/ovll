@@ -8082,8 +8082,6 @@ listen(composerEditor?.element||composerInput, "keydown", handleComposerKeydown)
         ?.destroy?.();
       global.OvllLibraryPage
         ?.destroy?.();
-      global.OvllCustomNodePage
-        ?.destroy?.();
 
       dismissErrorNotice();
       Presence.destroy?.();
