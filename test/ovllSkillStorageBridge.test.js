@@ -66,6 +66,14 @@ test('invalid or incomplete existing v2 copy never gets overwritten silently',()
   assert.equal(s.entries.get(LEGACY_WORKSPACE_KEY),legacy);
 });
 
+test('v2 key containing legacy-shaped JSON is rejected rather than silently upgraded',()=>{
+  const legacy=JSON.stringify(fixture()),fakeCopy=JSON.stringify(fixture());
+  const s=storage({[LEGACY_WORKSPACE_KEY]:legacy,[SKILL_WORKSPACE_KEY]:fakeCopy});
+  assert.throws(()=>stageSkillWorkspaceCopy(s.api),errs('SKILL_STORAGE_EXISTING_INVALID'));
+  assert.equal(s.entries.get(LEGACY_WORKSPACE_KEY),legacy);
+  assert.equal(s.entries.get(SKILL_WORKSPACE_KEY),fakeCopy);
+});
+
 test('missing legacy source is a no-op; malformed legacy source never mutates storage',()=>{
   const blank=storage();assert.equal(stageSkillWorkspaceCopy(blank.api).status,'no-source');
   const malformed=storage({[LEGACY_WORKSPACE_KEY]:'{not json'});
