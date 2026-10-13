@@ -10,7 +10,7 @@ test('wide desktop always docks sidebar beside content including touch-enabled l
   const wideQuery = '(min-width: 60rem)';
   assert.ok(script.includes(wideQuery),
     'desktop JS must dock wide layouts even if primary pointer is coarse');
-  assert.match(stylesheet, /@media\s*\(min-width:\s*60rem\)/,
+  assert.match(stylesheet, /,\s*\(min-width:\s*60rem\)\s*\{/,
     'matching wide-layout CSS must provide the dock layout');
   assert.match(stylesheet,
     /:root\.shell-menu-open\s*#workspace-shell,\s*:root\.shell-menu-open\s*#library-page\s*\{\s*left:\s*var\(--sidebar-width\)/,
