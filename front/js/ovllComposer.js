@@ -142,13 +142,21 @@
       const collapsedWidth = form.clientWidth - 2 * compactPadding -
         collapsedToolbarWidth - sendWidth - 2 * gap;
       measure.style.width = Math.max(1, collapsedWidth) + "px";
-      measure.replaceChildren(...Array.from(editor.childNodes, child => child.cloneNode(true)));
+      const contentParts = parts();
+      const hasReference = contentParts.some(part => part.type !== "text");
+      const hasNewline = contentParts.some(part => part.type === "text" && part.text.includes("\n"));
+      // Tagged drafts already need the second row; avoid cloning SVG IDs
+      // into the document just to measure a width we won't use.
+      if (hasReference || hasNewline) {
+        measure.replaceChildren();
+      } else {
+        measure.replaceChildren(...Array.from(editor.childNodes, child => child.cloneNode(true)));
+      }
       const probeStyle = global.getComputedStyle(measure);
       const lineHeight = parseFloat(probeStyle.lineHeight) || 24;
       const verticalPadding = (parseFloat(probeStyle.paddingTop) || 0) +
         (parseFloat(probeStyle.paddingBottom) || 0);
-      const hasNewline = parts().some(part => part.type === "text" && part.text.includes("\n"));
-      const expanded = hasRefs() || hasNewline ||
+      const expanded = hasReference || hasNewline ||
         measure.scrollHeight > lineHeight + verticalPadding + 2;
       form.classList.toggle("is-expanded", expanded);
       const height = editor.getBoundingClientRect().height;
