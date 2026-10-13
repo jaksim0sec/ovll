@@ -6,7 +6,8 @@ import {createContractValidation} from './validation.js';
 import {createPromptComposer} from './promptComposer.js';
 import {formatSkillPrompt} from './skillReferenceContract.js';
 import {normalizeSkillSnapshot} from '../../front/js/ovllSkillCodec.mjs';
-import {toLegacySkillActionPlan,toSkillCompiledTurn,SKILL_ACTION_PLAN_CONTRACT} from './skillActionContract.js';
+import {toLegacySkillActionPlan,toSkillCompiledTurn,SKILL_ACTION_PLAN_CONTRACT,
+  SKILL_SEMANTIC_ACTION_FIELDS,legacySemanticKind} from './skillActionContract.js';
 import {validateNodeOutput} from './skillOutput.js';
 import {createConfiguredModelProvider,resolveLocalPointerProvider} from './configuredProvider.js';
 import {compileActionPlan,isActionPlan,ACTION_PLAN_CONTRACT,SEMANTIC_ACTION_FIELDS} from './actionCompiler.js';
@@ -131,12 +132,13 @@ export function createLocalPointerHost({gateway,resolveModel,validation=createCo
     fail('LOCAL_MODEL_NOT_CONFIGURED',503);
   async function invoke({context,modules,nodeContext,extraContext,signal,phase='turn',compilerContext,budget,selectedKinds=[]}){
     const {messages}=composer.assemble({moduleIds:modules,context,nodeContext,extraContext});
-    const wire=phaseWireContract(phase,nodeContext);
+    const skillV2=['turn','selection'].includes(phase);
+    const wire=phaseWireContract(phase,nodeContext,{skillV2});
     const config=await resolveModel();
     let active={providerId:config.providerId,model:config.model,maxOutputTokens:config.maxOutputTokens??2048};
     const meta={phase,providerId:active.providerId,model:active.model,usage:null,calls:[],providerCalls:0,repairCount:0,fallback:null,normalizations:[],validationAttempts:[]};
     const supportsWire=()=>gateway.capabilities?.(active.providerId)?.structuredOutput===true;
-    messages.splice(1,0,{role:'developer',content:(phase==='response'?wire.guidance:localModelContract(nodeContext,{selectedModules:modules,selection:phase==='selection',workshop:phase==='turn'&&selectedKinds.length>0}))});
+    messages.splice(1,0,{role:'developer',content:(phase==='response'?wire.guidance:localModelContract(nodeContext,{selectedModules:modules,selection:phase==='selection',workshop:phase==='turn'&&selectedKinds.length>0,skillV2}))});
     const complete=async()=>{
       if(jsonBytes(messages)>LIMITS.messageBytes)fail('PROMPT_MESSAGES_TOO_LARGE');
       const call=async()=>{
@@ -144,7 +146,7 @@ export function createLocalPointerHost({gateway,resolveModel,validation=createCo
         // Reserve bounded transport retry/schema fallback before another module call.
         if(budget&&budget.providerCalls+(projected?4:2)>LIMITS.maxProviderCalls)fail('MODEL_CALL_BUDGET_EXHAUSTED');
         const callMessages=projected?[
-          messages[0],{role:'developer',content:['turn','selection'].includes(phase)?localModelContract(undefined,{wire:true,selectedModules:modules,selection:phase==='selection',workshop:phase==='turn'&&selectedKinds.length>0}):wire.guidance},
+          messages[0],{role:'developer',content:['turn','selection'].includes(phase)?localModelContract(undefined,{wire:true,selectedModules:modules,selection:phase==='selection',workshop:phase==='turn'&&selectedKinds.length>0,skillV2}):wire.guidance},
           ...messages.slice(2),...(['turn','selection'].includes(phase)?[{role:'developer',content:wire.guidance}]:[])
         ]:messages;
         if(jsonBytes(callMessages)>LIMITS.messageBytes)fail('PROMPT_MESSAGES_TOO_LARGE');
@@ -186,11 +188,13 @@ export function createLocalPointerHost({gateway,resolveModel,validation=createCo
             if(phase==='turn'&&compilerContext.requireTaskContext&&decoded?.actions?.length&&!selectedTask&&!extraContext?.selectedTaskContext)compilerIssues=[{path:'/taskContext',rule:'taskContextRequiredForActions'}];
             if(rawPlan&&selectedKinds.length){
               unselectedKinds=[...new Set((rawPlan.actions||[]).map(a=>a?.action).filter(k=>
-                Object.hasOwn(SEMANTIC_ACTION_FIELDS,k)&&!selectedKinds.includes(k)))];
+                Object.hasOwn(SEMANTIC_ACTION_FIELDS,legacySemanticKind(k))&&
+                  !selectedKinds.some(selected=>legacySemanticKind(selected)===legacySemanticKind(k))))];
             }
             if(!compilerIssues.length&&!unselectedKinds.length&&rawPlan){
               compilerContext.continuation={};
-              try{turn=compileActionPlan(rawPlan,compilerContext);}
+              try{turn=compileActionPlan(rawPlan.contract===SKILL_ACTION_PLAN_CONTRACT?
+                toLegacySkillActionPlan(rawPlan):rawPlan,compilerContext);}
               catch(error){compilerIssues=error.validationIssues||[{path:'/',rule:'invalidActionPlan'}];}
             }else if(!unselectedKinds.length)turn=normalizeModelTurn(decoded,{normalizations});
           }
@@ -239,7 +243,7 @@ export function createLocalPointerHost({gateway,resolveModel,validation=createCo
     const compilerContext=actionContext(prepared,context,extraContext);
     compilerContext.requireTaskContext=!!additionalContext;
     context.outputContract='ModelTurn';
-    context.capabilities=[...Object.keys(SEMANTIC_ACTION_FIELDS),...context.capabilities.filter(c=>
+    context.capabilities=[...Object.keys(SKILL_SEMANTIC_ACTION_FIELDS),...context.capabilities.filter(c=>
       !['ir.applyPatch','run.start','function.save','function.run','question.ask'].includes(c))];
     const index=composer.index(),modules=new Set(['layer.entry','layer.corridor']);
     const budget={providerCalls:0,repairCount:0};
@@ -265,7 +269,7 @@ export function createLocalPointerHost({gateway,resolveModel,validation=createCo
     catch(error){if(error._meta){account(error._meta);error._meta=aggregate;}throw error;}
     account(chosen.meta);result=chosen;
     if(chosen.turn?.decision==='work'){
-      context.outputContract=ACTION_PLAN_CONTRACT;
+      context.outputContract=SKILL_ACTION_PLAN_CONTRACT;
       const chosenKinds=[...chosen.turn.actionKinds];
       const task=chosen.meta.taskContext||{objective:requestText,constraints:context.constraints};
       for(let attempt=0;attempt<2;attempt++){

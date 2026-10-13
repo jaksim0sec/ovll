@@ -1,5 +1,7 @@
 import {iconSvg} from './skillCatalog.js';
 import {ACTION_PLAN_CONTRACT,SEMANTIC_ACTION_FIELDS} from './actionCompiler.js';
+import {SKILL_ACTION_PLAN_CONTRACT,SKILL_SEMANTIC_ACTION_FIELDS,legacySemanticKind,skillSemanticKind}
+  from './skillActionContract.js';
 export function canonicalTurnExample(){
   return {executionIntent:'requested',actions:[
     {localKey:'p',kind:'ir.applyPatch',args:{patch:{graphId:'g_actual',
@@ -59,8 +61,10 @@ const ACTION_DETAIL_MODULES=Object.freeze({
 export function actionModulesForKinds(kinds=[]){
  const selected=new Set();
  for(const kind of kinds){
-  if(!Object.hasOwn(SEMANTIC_ACTION_FIELDS,kind))throw Error('UNKNOWN_SEMANTIC_ACTION');
-  for(const [id,members] of Object.entries(ACTION_DETAIL_MODULES))if(members.includes(kind))selected.add(id);
+  const translated=legacySemanticKind(kind);
+  if(!Object.hasOwn(SEMANTIC_ACTION_FIELDS,translated))throw Error('UNKNOWN_SEMANTIC_ACTION');
+  for(const [id,members] of Object.entries(ACTION_DETAIL_MODULES))
+    if(members.includes(translated))selected.add(id);
  }
  return [...selected];
 }
@@ -72,7 +76,8 @@ export function selectionOutputIssues(value){
  if(!['answer','read','work'].includes(value.decision))return error('/decision','invalidSelectionDecision');
  if(!Array.isArray(value.actionKinds)||value.actionKinds.length>16||
     new Set(value.actionKinds).size!==value.actionKinds.length||
-    value.actionKinds.some(k=>typeof k!=='string'||!Object.hasOwn(SEMANTIC_ACTION_FIELDS,k)))
+    value.actionKinds.some(k=>typeof k!=='string'||
+      !Object.hasOwn(SEMANTIC_ACTION_FIELDS,legacySemanticKind(k))))
   return error('/actionKinds','invalidSelectedActions');
  if(value.needs!==undefined&&(!Array.isArray(value.needs)||value.needs.length>32))
   return error('/needs','invalidSelectionNeeds');
@@ -85,7 +90,65 @@ export function selectionOutputIssues(value){
   return error('/message','answerRequiresMessage');
  return [];
 }
-export function localModelContract(nodeContext,{wire=false,selectedModules=[],selection=false,workshop=false}={}){
+function skillModelContract(nodeContext,{wire=false,selectedModules=[],selection=false,workshop=false}={}){
+ if(nodeContext)return localModelContract(nodeContext,{wire,selectedModules,selection,workshop});
+ if(selection)return [
+  '# CORRIDOR SELECTION — choose Skill actions, never write action payloads',
+  'Return JSON decision:"answer"|"read"|"work", actionKinds:[], message:null, needs:[], taskContext:null unless work.',
+  'Work selects only these semantic kinds: '+Object.keys(SKILL_SEMANTIC_ACTION_FIELDS).join(', ')+'.',
+  'answer returns a complete message, read requests needed evidence, work returns chosen actionKinds and taskContext:{objective,constraints}.',
+  'The host injects exact Skill action contracts before WORKSHOP. No invented execution results or keyword-only intent classifier.'
+ ].join('\n');
+ const selected=new Set(selectedModules),has=id=>selected.has(id);
+ const out=[
+  '# WORKSHOP — Skill v2 semantic action plan',
+  '# OUTPUT — '+SKILL_ACTION_PLAN_CONTRACT,
+  wire?'Return {contract:"action-plan.v2",executionIntent:"requested"|null,message:string|null,actions:[],needs:[]}. Each action is {action,payloadJson:JSON.stringify(semanticFields)}. Keep required null and empty wire fields.':
+       'Return contract:"action-plan.v2" with actions:[{action,...semanticFields}], or needs, or a direct message.',
+  'For a direct answer include the required EXIT context records. With actions/needs EXIT fields are null.',
+  'For actions include taskContext:{objective,constraints:[string]}; for needs/direct answer use taskContext:null.',
+  'Each need uses a grounded {kind,selector,purpose}; wire mode uses selectorJson.',
+  'Only provided semantic contracts exist. Never supply internal GraphPatch fields, make up IDs or claim effects.'
+ ];
+ if(workshop)out.push('Use selected actions only; request additional action kinds through the host if required.');
+ else out.push('Ask for the selected action contract before preparing an unfamiliar action.');
+ if(selected.size){
+  out.push('# SELECTED SKILL ACTION CONTRACTS');
+  for(const [moduleId,kinds] of Object.entries(ACTION_DETAIL_MODULES)){
+   if(!has(moduleId))continue;
+   for(const legacy of kinds){
+    const name=skillSemanticKind(legacy),fields=SKILL_SEMANTIC_ACTION_FIELDS[name];
+    if(fields)out.push(name+': '+fields.join(', ')+'.');
+   }
+  }
+  out.push('Skill selector: {kind:"existing",skillId:actual_id} or {kind:"created",alias:declared_alias}. Definition selector: {kind:"builtin",type:"write"}, {kind:"existing",definitionId,version?} or {kind:"created",alias}.');
+ }
+ if(has('action.nodes'))out.push(
+  'skill.add requires alias, definition and optional request/settings/inputs. skill.update merges requested settings and optional inputs. skill.delete requires a target; removeIncidentLinks:true authorizes exact incident link removal only.'
+ );
+ if(has('action.definitions'))out.push(
+  'skill.define requires alias, purpose and instruction; optional createInstance:true. skill.revise selects exact supersedes version. skill.appearance edits only custom presentation. skill.definition.delete removes only exact unused custom versions.',
+  'presentation supports name, color and iconKey. Allowed icon keys: '+Object.keys(iconSvg).join(', ')+'. Unknown icons use custom.'
+ );
+ if(has('action.links'))out.push(
+  'link.add uses from/to:{skill:SkillSelector,port:declared_port}; kind:data transfers values, kind:flow orders execution. link.remove uses existing linkId. Never invent ports.'
+ );
+ if(has('action.execution'))out.push(
+  'execute requires one target or targets:[SkillSelector], never both. damMode closed ends at targets; open follows downstream flow. Function targets use {kind:"function",ref:id}. executionIntent:"requested" requires current authorization.'
+ );
+ if(has('action.functions'))out.push(
+  'function.save retains separate Function assets. Graph inputMap/outputMap entries are {skill:SkillSelector,port} or {skillId,port}. Preserve invariants, exact inputs and outputs.'
+ );
+ if(has('action.nodes')&&has('action.execution'))
+  out.push('Example: '+JSON.stringify({contract:SKILL_ACTION_PLAN_CONTRACT,
+    executionIntent:'requested',actions:[
+     {action:'skill.add',alias:'writer',definition:{kind:'builtin',type:'write'},request:'Write a report'},
+     {action:'execute',target:{kind:'created',alias:'writer'},damMode:'closed'}
+    ]}));
+ return out.join('\n');
+}
+export function localModelContract(nodeContext,{wire=false,selectedModules=[],selection=false,workshop=false,skillV2=false}={}){
+ if(skillV2)return skillModelContract(nodeContext,{wire,selectedModules,selection,workshop});
  if(selection)return [
   '# CORRIDOR SELECTION — decide the action kinds; do not write action payloads',
   'Return JSON with decision:"answer"|"read"|"work", actionKinds:[], message:null, needs:[], taskContext:null unless work.',
@@ -178,11 +241,13 @@ export function splitContextOutput(value){
   Buffer.byteLength(JSON.stringify({requestDigest,responseDigest,sessionContext,constraints,supersededConstraints}),'utf8')<=24000;
  return {domain,contextRecord:valid?{requestDigest,responseDigest,sessionContext,constraints,...(retired.length?{supersededConstraints:retired}:{})}:null,taskContext:taskValid?taskContext:null,taskIssues:taskValid?[]:[{path:'/taskContext',rule:'invalidTaskContext'}]};
 }
-export function phaseWireContract(phase,nodeContext){
+export function phaseWireContract(phase,nodeContext,{skillV2=false}={}){
+ const kinds=skillV2?Object.keys(SKILL_SEMANTIC_ACTION_FIELDS):Object.keys(SEMANTIC_ACTION_FIELDS);
+ const planContract=skillV2?SKILL_ACTION_PLAN_CONTRACT:ACTION_PLAN_CONTRACT;
  let schema,guidance;
  if(phase==='selection'){
   schema=object({decision:{type:'string',enum:['answer','read','work']},
-   actionKinds:{type:'array',items:{type:'string',enum:Object.keys(SEMANTIC_ACTION_FIELDS)}},
+   actionKinds:{type:'array',items:{type:'string',enum:kinds}},
    message:nullable(string),needs:{type:'array',items:object({kind:string,selectorJson:string,purpose:string})},
    taskContext:nullable(object({objective:string,constraints:{type:'array',items:string}})),...contextFields});
   guidance='Corridor selection: decision answer/read/work, actionKinds only for work; no action payloads. Needs use selectorJson. Answer returns EXIT records; work returns taskContext. The server supplies work contracts.';
@@ -193,10 +258,10 @@ export function phaseWireContract(phase,nodeContext){
   schema=object({status:{type:'string',enum:['produced','blocked']},values:{type:'array',items:object({port:{type:'string',enum:ports},valueJson:nullable(string),ref:nullable(string)})},reason:nullable(string)});
   guidance='Node wire phase: return {status:"produced"|"blocked",values:[{port:exact_declared_port,valueJson:JSON.stringify(actual_value),ref:null}],reason:null}. For a supplied valueRef use ref and valueJson:null. Blocked uses values:[] and a specific reason. Do not duplicate ports. No actions or message.';
  }else{
-  schema=object({contract:{type:'string',enum:[ACTION_PLAN_CONTRACT]},executionIntent:nullable({type:'string',enum:['requested']}),message:nullable(string),actions:{type:'array',items:object({action:{type:'string',enum:Object.keys(SEMANTIC_ACTION_FIELDS)},payloadJson:string})},needs:{type:'array',items:object({kind:string,selectorJson:string,purpose:string})},taskContext:nullable(object({objective:string,constraints:{type:'array',items:string}})),...contextFields});
+  schema=object({contract:{type:'string',enum:[planContract]},executionIntent:nullable({type:'string',enum:['requested']}),message:nullable(string),actions:{type:'array',items:object({action:{type:'string',enum:kinds},payloadJson:string})},needs:{type:'array',items:object({kind:string,selectorJson:string,purpose:string})},taskContext:nullable(object({objective:string,constraints:{type:'array',items:string}})),...contextFields});
   guidance='Turn wire phase: use the provider wire envelope described in OUTPUT. For a final direct answer include requestDigest, responseDigest, updated sessionContext, valid explicit constraints and supersededConstraints (exact prior strings only when explicitly overridden; otherwise []). With needs/actions use null context fields. Required null/empty fields are stripped by the decoder; semantic payloads and need selectors remain JSON strings; never return internal action args.';
  }
- return {name:phase==='turn'?'ovll_turn_action_plan_v1':'ovll_'+phase,schema,guidance};
+ return {name:phase==='turn'?(skillV2?'ovll_turn_action_plan_v2':'ovll_turn_action_plan_v1'):'ovll_'+phase,schema,guidance};
 }
 export function decodePhaseOutput(value,phase){
  if(!value||typeof value!=='object'||Array.isArray(value))return value;
@@ -221,7 +286,8 @@ export function decodePhaseOutput(value,phase){
  }
  if(phase==='turn'){
   if(Object.hasOwn(domain,'contract')){
-   if(domain.contract!==ACTION_PLAN_CONTRACT)throw Error('UNKNOWN_ACTION_PLAN_CONTRACT');
+   if(![ACTION_PLAN_CONTRACT,SKILL_ACTION_PLAN_CONTRACT].includes(domain.contract))
+    throw Error('UNKNOWN_ACTION_PLAN_CONTRACT');
    if(Array.isArray(domain.actions))domain.actions=domain.actions.map(item=>{
     if(!Object.hasOwn(item,'payloadJson'))return item;
     if(Object.keys(item).some(k=>!['action','payloadJson'].includes(k))||typeof item.payloadJson!=='string')throw Error('INVALID_SEMANTIC_WIRE_FIELDS');

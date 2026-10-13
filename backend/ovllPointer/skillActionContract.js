@@ -1,6 +1,7 @@
 // Explicit v2 action ingress and egress. Only domain contract fields are
 // translated; opaque user data, function inputs and port values are preserved.
 import {normalizeSkillPatch} from '../../front/js/ovllSkillCodec.mjs';
+import {SEMANTIC_ACTION_FIELDS} from './actionCompiler.js';
 export const SKILL_ACTION_PLAN_CONTRACT='action-plan.v2';
 const own=(o,k)=>Object.prototype.hasOwnProperty.call(o,k);
 const object=x=>x!==null&&typeof x==='object'&&!Array.isArray(x);
@@ -34,6 +35,18 @@ const actions=Object.freeze({
  'link.add':'link.add','link.remove':'link.remove',
  execute:'execute','function.save':'function.save','question.ask':'question.ask'
 });
+export const SKILL_SEMANTIC_ACTION_FIELDS=Object.freeze(Object.fromEntries(
+  Object.entries(actions).map(([canonical,legacy])=>[
+    canonical,SEMANTIC_ACTION_FIELDS[legacy]
+  ])
+));
+export function legacySemanticKind(kind){
+  return own(actions,kind)?actions[kind]:kind;
+}
+export function skillSemanticKind(kind){
+  const match=Object.entries(actions).find(([,legacy])=>legacy===kind);
+  return match?.[0]||kind;
+}
 function functionDraft(value){
  if(!object(value))return value;
  const fn=structuredClone(value);
