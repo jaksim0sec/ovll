@@ -239,9 +239,13 @@
     }
     function prepareManualPicker() {
       remember();
-      // Opening a picker is not an intent to type. Dismiss an existing IME,
-      // but retain the saved range so choosing a node never reopens it.
-      if (mobile() && doc.activeElement === editor) editor.blur();
+      // Mobile pickers must not wake the IME; desktop pickers remain searchable
+      // from the keyboard without an extra click.
+      if (mobile()) {
+        if (doc.activeElement === editor) editor.blur();
+      } else {
+        editor.focus();
+      }
     }
     function closeMenu() {
       picker.hidden = true;
