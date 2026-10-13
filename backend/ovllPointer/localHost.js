@@ -6,6 +6,7 @@ import {createContractValidation} from './validation.js';
 import {createPromptComposer} from './promptComposer.js';
 import {formatSkillPrompt} from './skillReferenceContract.js';
 import {normalizeSkillSnapshot} from '../../front/js/ovllSkillCodec.mjs';
+import {toLegacySkillActionPlan,toSkillCompiledTurn,SKILL_ACTION_PLAN_CONTRACT} from './skillActionContract.js';
 import {validateNodeOutput} from './skillOutput.js';
 import {createConfiguredModelProvider,resolveLocalPointerProvider} from './configuredProvider.js';
 import {compileActionPlan,isActionPlan,ACTION_PLAN_CONTRACT,SEMANTIC_ACTION_FIELDS} from './actionCompiler.js';
@@ -109,10 +110,20 @@ function actionContext(snapshot,context,extraContext,createdNodeIds={}){
     createdNodeIds,continuation:{}};
 }
 export function compileLocalActionPlan({plan,snapshot,requestRef,requestText,taskContext,extraContext,createdNodeIds}={}){
-  const prepared=prepare({snapshot,requestRef,requestText,taskContext,capabilities:getPointerCatalog().capabilities});
+  const skillV2=plan?.contract===SKILL_ACTION_PLAN_CONTRACT;
+  let legacySnapshot=snapshot,legacyPlan=plan;
+  if(skillV2){
+    try{
+      legacySnapshot=toLegacySkillSnapshot(snapshot);
+      legacyPlan=toLegacySkillActionPlan(plan);
+    }catch(error){fail(error.code||'INVALID_SKILL_ACTION_PLAN')}
+  }
+  const prepared=prepare({snapshot:legacySnapshot,requestRef,requestText,taskContext,
+    capabilities:getPointerCatalog().capabilities});
   const context=actionContext(prepared.snapshot,prepared.context,extraContext,createdNodeIds);
-  const turn=compileActionPlan(plan,{...context,actionKeyPrefix:'c'});
-  return {...turn,_meta:{phase:'compile',providerCalls:0,...(context.continuation.plan?{continuation:context.continuation}:{})}};
+  const turn=compileActionPlan(legacyPlan,{...context,actionKeyPrefix:'c'});
+  return {...(skillV2?toSkillCompiledTurn(turn):turn),
+    _meta:{phase:'compile',providerCalls:0,...(context.continuation.plan?{continuation:context.continuation}:{})}};
 }
 export function createLocalPointerHost({gateway,resolveModel,validation=createContractValidation({targetMaxBytes:{ContextBundle:LIMITS.contextBytes}}),
   composer=createPromptComposer({validation})}={}){
