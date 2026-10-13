@@ -86,6 +86,8 @@
     let busy = false;
     let attachmentEnabled = true;
     let openingToolbarMenu = false;
+    let sizeAnimation = null;
+    let controlAnimations = [];
 
     function textPart(target, value) {
       if (!value) return;
@@ -168,12 +170,54 @@
       const expanded = doc.activeElement === editor || !picker.hidden || hasDraft ||
         hasReference || hasNewline ||
         measure.scrollHeight > lineHeight + verticalPadding + 2;
+      const wasExpanded = form.classList.contains("is-expanded");
+      const changedLayout = wasExpanded !== expanded;
+      const beforeHeight = changedLayout ? form.getBoundingClientRect().height : 0;
+      const beforeToolbar = changedLayout ? toolbar.getBoundingClientRect() : null;
+      const beforeSubmit = changedLayout ? submit.getBoundingClientRect() : null;
+      if (changedLayout) {
+        sizeAnimation?.cancel();
+        for (const animation of controlAnimations) animation.cancel();
+        controlAnimations = [];
+      }
+      // Read the destination at its final padding, not a midpoint of an
+      // in-flight CSS padding transition. This keeps the measured target stable.
+      const previousTransition = changedLayout ? form.style.transitionProperty : "";
+      if (changedLayout) form.style.transitionProperty = "none";
       form.classList.toggle("is-expanded", expanded);
       const height = editor.getBoundingClientRect().height;
       const root = config.styleRoot || doc.documentElement;
       const targetStyle = root.style;
       targetStyle.setProperty("--composer-input-height", height + "px");
       const formHeight = form.getBoundingClientRect().height;
+      if (changedLayout) {
+        form.style.transitionProperty = previousTransition;
+        const reduceMotion = global.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+        if (!reduceMotion && typeof form.animate === "function" &&
+          Number.isFinite(beforeHeight) && Number.isFinite(formHeight)) {
+          const motion = { duration: 240, easing: "cubic-bezier(.22,.72,.18,1)" };
+          if (Math.abs(formHeight - beforeHeight) > 1) {
+            sizeAnimation = form.animate(
+              [{ height: beforeHeight + "px" }, { height: formHeight + "px" }],
+              motion
+            );
+          }
+          // The toolbar and send control change grid rows at the same time.
+          // Move their rendered positions rather than scaling SVG glyphs.
+          for (const [button, previous] of [[toolbar, beforeToolbar], [submit, beforeSubmit]]) {
+            if (typeof button.animate !== "function" || !previous) continue;
+            const next = button.getBoundingClientRect();
+            const dx = previous.left - next.left;
+            const dy = previous.top - next.top;
+            if (Math.abs(dx) + Math.abs(dy) < 1) continue;
+            controlAnimations.push(button.animate(
+              [{ transform: "translate3d(" + dx + "px," + dy + "px,0)" },
+                { transform: "translate3d(0,0,0)" }],
+              motion
+            ));
+          }
+        }
+      }
       const configured = rootStyle.getPropertyValue("--composer-height").trim();
       const base = parseFloat(configured);
       const baseHeight = Number.isFinite(base) ?
