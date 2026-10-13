@@ -26,7 +26,8 @@ test('composer expansion animates measured heights only when state flips and res
   const css=compact(read('front/css/composer.css'));
   assert.match(js,/let sizeAnimation = null/);
   assert.match(js,/const wasExpanded = form\.classList\.contains\("is-expanded"\)/);
-  assert.match(js,/if \(wasExpanded !== expanded/);
+  assert.match(js,/const changedLayout = wasExpanded !== expanded/);
+  assert.match(js,/if \(changedLayout\)/);
   assert.match(js,/sizeAnimation\?\.cancel\(\)/);
   assert.match(js,/form\.animate\(/);
   assert.match(js,/prefers-reduced-motion: reduce/);
@@ -41,6 +42,7 @@ test('composer and nearby glass pills share readable translucency without global
   const theme=read('front/css/style.css');
   const composer=compact(read('front/css/composer.css'));
   const ui=compact(read('front/css/ui.css'));
+  const chat=compact(read('front/css/chat.css'));
   assert.match(theme,/--ui-glass:\s*rgba\(255,\s*255,\s*255,\s*\.78\)/);
   assert.match(theme,/--ui-backdrop:\s*blur\(\.9rem\)\s*saturate\(1\.12\)/);
   assert.match(theme,/:root\.dark\s*\{[^}]*--ui-glass:\s*rgba\(26,\s*26,\s*26,\s*\.76\)/);
@@ -49,5 +51,6 @@ test('composer and nearby glass pills share readable translucency without global
   assert.match(composer,/\.ovll-composer-rich \.ovll-rich-picker\s*\{[^}]*background:\s*var\(--ui-glass-strong\)/);
   assert.match(ui,/mode-switch[\s\S]*?canvas-node-builder-layout[\s\S]*?background:\s*var\(--ui-glass\)/);
   assert.match(ui,/canvas-node-builder-panel[\s\S]*?background:\s*var\(--ui-glass-strong\)/);
+  assert.match(chat,/\.astra-message-actions\s*\{[^}]*background:\s*var\(--ui-glass\);[^}]*backdrop-filter:\s*var\(--ui-backdrop\)/);
   assert.doesNotMatch(theme,/button\s*\{\s*backdrop-filter:/);
 });
