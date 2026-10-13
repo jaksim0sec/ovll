@@ -21,6 +21,7 @@ const scripts=Object.freeze([
   "./js/workspaceStore.js",
   "./js/ovllPointerActivity.js",
   "./js/ovllPointerLocal.js",
+  "./js/skillRuntime.js",
   "./js/ovllPointerFunctions.js",
   "./js/ovllPointerLocalActions.js",
   "./js/customSkillStore.js",
@@ -54,6 +55,7 @@ const modules=Object.freeze([
   "./js/ovllSkillWorkspaceMigration.mjs",
   "./js/ovllSkillStorageBridge.mjs",
   "./js/ovllSkillStorageRuntime.mjs",
+  "./js/ovllSkillLocal.mjs",
   "./js/ovllSkillReferences.mjs",
   "./js/ovllSkillReferenceResolver.mjs",
   "./js/ovllSkillReferenceView.mjs"

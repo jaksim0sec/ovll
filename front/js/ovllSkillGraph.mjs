@@ -135,4 +135,4 @@ export class SkillGraphRepository {
 }
 
 // Read-only legacy evidence validation must use the same field adapter as graph execution.
-export {legacySnapshot as toLegacySkillSnapshot};
+export {legacySnapshot as toLegacySkillSnapshot,toLegacyPatch as toLegacySkillPatch};
