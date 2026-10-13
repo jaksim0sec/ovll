@@ -179,7 +179,7 @@
 - [ ] **Step 1: RED integration test.** Real legacy fixtures -> Skill v2 store -> composer mention on custom Skill and canvas instance -> submit -> injected local model echoes allowed reference -> assistant message renders correct chip -> restore/reopen after Skill rename and deletion. Assert graph scope, identity, unchanged Run results, stable UI icon and text and zero unsafe HTML injection.
 - [ ] **Step 2: Run.** node --test test/ovllSkillReferenceIntegration.test.js. Expected: FAIL before missing path corrections.
 - [ ] **Step 3: Implement.** Fix only demonstrated integration breaks and document grammar/legacy exceptions. If any active Node term remains in UI or new persisted wire, trace owner and correct it without broad replacements.
-- [ ] **Step 4: Verify.** npm test; run the focused integration test separately. Expected: all PASS. In an available browser test environment verify Android keyboard, collapsed + control, IME, canvas mode, both chat roles and dark mode. Without device/real provider state explicitly unverified.
+- [ ] **Step 4: Verify.** npm test; run the focused integration test separately. Expected: PASS for all tests. In an available browser test environment verify Android keyboard, collapsed + control, IME, canvas mode, both chat roles and dark mode. Without device/real provider state explicitly unverified.
 - [ ] **Step 5: Commit.** git add -A && git commit -m "test(skill): verify reference protocol and unified message rendering"
 
 ## Release and final audit
