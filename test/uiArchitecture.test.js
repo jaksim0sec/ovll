@@ -1682,12 +1682,14 @@ test("node connection handles stay hollow while title controls gain hierarchy", 
   );
   assert.match(
     css,
-    /\.vc-node-icon svg\s*\{[^}]*width:\s*1\.455rem[^}]*height:\s*1\.455rem[^}]*stroke-width:\s*1\.152/
+    /\.vc-node-icon svg\s*\{[^}]*width:\s*1\.455rem[^}]*height:\s*1\.455rem/
   );
-  assert.match(
+  assert.doesNotMatch(
     css,
-    /\.vc-node-icon svg \[stroke\]\s*\{[^}]*stroke-width:\s*1\.152/
+    /\.vc-node-icon svg\s*\{[^}]*stroke-width:/
   );
+  const icons = compact(read("front/css/style.css"));
+  assert.match(icons, /svg\.svg-icon\s*\{[^}]*--svg-icon-stroke-width:\s*1\.9/);
   assert.match(
     css,
     /\.vc-node-title\s*\{[^}]*font-weight:\s*630/
