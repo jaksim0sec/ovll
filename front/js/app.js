@@ -3558,6 +3558,13 @@
     );
   }
 
+  function currentSkillMessageScope(){
+    return {
+      snapshot:state.pointerGraphSnapshot,
+      functions:global.OvllPointerFunctions?.list?.()||[]
+    };
+  }
+
   function createMessage(
     role,
     text,
@@ -3606,8 +3613,18 @@
         artifactList,
         options.blocks
       );
+      global.OvllSkillReferenceUI?.decorateAssistant?.(
+        body,currentSkillMessageScope()
+      );
+    } else if(role==="user"&&Array.isArray(options.parts)&&
+      options.parts.some(part=>part?.type==="reference")){
+      global.OvllSkillReferenceUI?.renderTrustedParts?.(
+        body,options.parts,currentSkillMessageScope()
+      );
+      if(!body.childNodes.length)body.textContent=value;
     } else {
-      // Keep stable reference IDs in the request/history, not in the visible bubble.
+      // Legacy messages keep their previous appearance; new typed refs are
+      // displayed only after ID + graph-scope verification.
       body.textContent =
         role==="user"
           ? value.replace(/〔(?:노드 타입|캔버스 노드|저장 함수):[^〕]{1,160}〕/g,"")
@@ -3817,6 +3834,8 @@
         id,
         role,
         text: value,
+        parts:role==="user"&&Array.isArray(options.parts)
+          ?storageSafe(options.parts)||null:null,
         blocks:
           role === "assistant"
             ? (
@@ -3929,7 +3948,7 @@
     return message;
   }
 
-  function addUserMessage(text) {
+  function addUserMessage(text,options={}) {
     const value =
       String(text ?? "").trim();
 
@@ -3940,7 +3959,8 @@
     const message =
       createMessage(
         "user",
-        value
+        value,
+        options
       );
 
     return message;
@@ -6295,7 +6315,7 @@
     if(state.pointerMigrationError){showErrorNotice(state.pointerMigrationError,{scope:'작업 이관 오류',fallback:'이전 작업을 안전하게 전환할 수 없어 실행을 중단했어.'});return;}
     if(!value||!scope)return;
     if(options.addUserMessage!==false){
-      addUserMessage(value);composerEditor?.clear();composerInput.value='';resizeComposer();scheduleComposerDraftSave(0);
+      addUserMessage(value,{parts:options.parts});composerEditor?.clear();composerInput.value='';resizeComposer();scheduleComposerDraftSave(0);
     }
     const previousRequest=state.lastUserRequest;
     const operation=localOperations.begin({conversationId:scope.conversationId,kind:'chat'});
@@ -6482,7 +6502,7 @@
     if(!value)return;
     state.lastUserRequest=value;
     if(options.addUserMessage!==false){
-      addUserMessage(value);
+      addUserMessage(value,{parts:options.parts});
       composerEditor?.clear();
       composerInput.value='';
       resizeComposer();
@@ -6618,7 +6638,8 @@
       composerEditor.element.blur();
     }
 
-    await runPrompt(text);
+    const parts=composerEditor?.getParts?.();
+    await runPrompt(text,{parts});
   }
 
   function handleComposerInput() {
@@ -7527,6 +7548,8 @@
                     item.artifacts,
                   blocks:
                     item.blocks,
+                  parts:
+                    item.parts,
                   createdAt:
                     item.createdAt,
                   persist:

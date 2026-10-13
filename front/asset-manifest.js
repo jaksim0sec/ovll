@@ -7,6 +7,7 @@ const scripts=Object.freeze([
   "./js/artifactVisuals.js",
   "./js/artifactRequest.js",
   "./js/svgLibrary.js",
+  "./js/skillReferenceUI.js",
   "./js/ovllComposer.js",
   "./js/previewSandbox.js",
   "./js/api.js",
@@ -40,13 +41,21 @@ const styles=Object.freeze([
   "./css/chat.css",
   "./css/library.css",
   "./css/shellMenu.css",
-  "./css/composer.css"
+  "./css/composer.css",
+  "./css/skillReferences.css"
 ]);
 const modules=Object.freeze([
   "./js/ovllPointerGraphCore.mjs",
   "./js/ovllPointerPortTypes.mjs",
   "./js/ovllPointerPlanCore.mjs",
-  "./js/ovllPointerResults.mjs"
+  "./js/ovllPointerResults.mjs",
+  "./js/ovllSkillCodec.mjs",
+  "./js/ovllSkillGraph.mjs",
+  "./js/ovllSkillWorkspaceMigration.mjs",
+  "./js/ovllSkillStorageBridge.mjs",
+  "./js/ovllSkillReferences.mjs",
+  "./js/ovllSkillReferenceResolver.mjs",
+  "./js/ovllSkillReferenceView.mjs"
 ]);
 const shell=Object.freeze([
   '/home', '/manifest.webmanifest', '/pwa-icon.svg', '/pwa-192.png', '/pwa-512.png',

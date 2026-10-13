@@ -190,6 +190,18 @@ function loadScript(src){
 }
 
 async function loadApp(){
+  // The same verified reference contract is shared by composer, message
+  // bubbles and assistant responses. Load once before classic UI scripts.
+  const root=document.baseURI;
+  const [references,resolver,view,codec]=await Promise.all([
+    "./js/ovllSkillReferences.mjs",
+    "./js/ovllSkillReferenceResolver.mjs",
+    "./js/ovllSkillReferenceView.mjs",
+    "./js/ovllSkillCodec.mjs"
+  ].map(path=>import(new URL(path,root).href)));
+  global.OvllSkillReferences=Object.freeze({
+    ...references,...resolver,...view,...codec
+  });
   if(!Array.isArray(APP_SCRIPTS)||!APP_SCRIPTS.length)throw new Error('App asset manifest is unavailable.');
   await Promise.all(
     APP_SCRIPTS.map(

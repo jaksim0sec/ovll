@@ -5,7 +5,7 @@ import {serializeSkillReference,parseSkillReference} from './ovllSkillReferences
 const record=x=>x!==null&&typeof x==='object'&&!Array.isArray(x);
 const validId=x=>typeof x==='string'&&x.length>0&&x.length<=160;
 const validVersion=x=>Number.isSafeInteger(x)&&x>0;
-const label=x=>String(x?.name||x?.title||x?.purpose||'').trim();
+const label=x=>String(x?.presentation?.name||x?.name||x?.title||x?.purpose||'').trim();
 
 function defsFrom(input) {
   if(Array.isArray(input))return input.filter(record);
@@ -72,8 +72,10 @@ export function createSkillReferenceResolver({
     return Object.freeze({
       kind,reference,
       label:name||'캔버스 스킬 #'+reference.skillId,
-      iconKey:recordItem?.iconKey||definition?.iconKey||null,
-      color:recordItem?.color||definition?.color||null,
+      iconKey:recordItem?.presentation?.iconKey||recordItem?.iconKey||
+        definition?.presentation?.iconKey||definition?.iconKey||null,
+      color:recordItem?.presentation?.color||recordItem?.color||
+        definition?.presentation?.color||definition?.color||null,
       scope,disabled:false
     });
   }
