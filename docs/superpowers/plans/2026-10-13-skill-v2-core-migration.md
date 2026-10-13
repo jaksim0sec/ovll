@@ -63,7 +63,7 @@
 - [ ] **Step 1: RED test.** In test/ovllSkillCodec.test.js import the three conversion functions. Assert old IDs, graph revision, connections/ports, nested inputBindings, definition versions and source object are preserved; assert canonical input is idempotent. Assert mixed snapshots and inconsistent aliases throw SkillSchemaError with a path.
 - [ ] **Step 2: Run.** node --test test/ovllSkillCodec.test.js. Expected: FAIL from missing module/exports, not accidental baseline errors.
 - [ ] **Step 3: Implement.** Make the exact functions above pure and fail closed. Do not alter runtime Graph semantics. Rule: canonical new objects pass through deep clone; legacy conversion renames only schema keys, recursively at documented graph/Patch/Run fields (never arbitrary user settings or artifact content).
-- [ ] **Step 4: Verify.** node --test test/ovllSkillCodec.test.js. Expected: all PASS; add asserts for unrecognized field and oversized snapshot rejection at the same validator limits as existing code.
+- [ ] **Step 4: Verify.** node --test test/ovllSkillCodec.test.js. Expected: PASS for all cases; add asserts for unrecognized field and oversized snapshot rejection at the same validator limits as existing code.
 - [ ] **Step 5: Commit.** git add front/js/ovllSkillCodec.mjs test/ovllSkillCodec.test.js && git commit -m "feat(skill): define canonical v2 codec and legacy snapshot conversions"
 
 ### Task 2: Persistent migration with original-key preservation
@@ -159,7 +159,7 @@
 - [ ] **Step 1: RED tests.** Fixture precomputed legacy Node semantic digests (record literal values before implementation). Verify intact original context accepted only by legacy verifier; changed bindings/graph/definition/version rejected; new Skill digest accepted only for Skill records. Assert no duplicate execution of a previously valid result.
 - [ ] **Step 2: Run.** node --test test/ovllSkillEvidenceCompatibility.test.js. Expected: FAIL.
 - [ ] **Step 3: Implement.** Preserve a narrow read-only legacy evidence verifier, isolate its original field names and stable serialization; rewrite active execution/output/Run field names. Never modify outputPort schema, evidence trust, DAM policy or workflow scheduler.
-- [ ] **Step 4: Verify.** node --test test/ovllSkillEvidenceCompatibility.test.js test/ovllPointerExecutionIntegrity.test.js test/ovllPointerLocalRun.test.js test/ovllPointerNodeOutput.test.js test/ovllPointerFunctionBuilder.test.js. Expected: PASS.
+- [ ] **Step 4: Verify.** node --test test/ovllSkillEvidenceCompatibility.test.js test/ovllPointerExecutionIntegrity.test.js test/ovllPointerLocalRun.test.js test/ovllPointerNodeOutput.test.js test/ovllPointerFunctionBuilder.test.js (before Task 7; renamed output test path after Task 7). Expected: PASS.
 - [ ] **Step 5: Commit.** git commit -am "refactor(skill): retain exact legacy evidence verification under Skill execution"
 
 ### Task 7: Domain filename moves, loaders, imports and CSS selectors
@@ -176,6 +176,9 @@
 - Rename: backend/ovllPointer/nodeCatalog.js -> backend/ovllPointer/skillCatalog.js
 - Rename: backend/ovllPointer/nodeExecution.js -> backend/ovllPointer/skillExecution.js
 - Rename: backend/ovllPointer/nodeOutput.js -> backend/ovllPointer/skillOutput.js
+- Rename: instructions/prompts/shared/action-nodes.md -> instructions/prompts/shared/action-skills.md, updating registry.json and prompt import references
+- Rename: test/ovllPointerNodeOutput.test.js -> test/ovllPointerSkillOutput.test.js
+- Rename: test/ovllPointerNodeExecution.integration.mjs -> test/ovllPointerSkillExecution.integration.mjs
 - Modify: front/asset-manifest.js, front/index.html, front/js/boot.js, front/sw.js; server.js; all imports/callers to moved paths (including test fixtures)
 - Test: test/ovllSkillAssetContract.test.js (new); test/offlineAssetCoverage.test.js; test/skill-icon-authority.test.js
 
@@ -186,7 +189,7 @@
 - [ ] **Step 1: RED tests.** Assert all new paths load and old production asset paths are absent from the canonical manifest; every stylesheet link points to existing CSS; all import specifiers resolve; node-derived DOM selectors become skill names; service worker precache matches.
 - [ ] **Step 2: Run.** node --test test/ovllSkillAssetContract.test.js. Expected: FAIL.
 - [ ] **Step 3: Implement.** git mv files listed above, then update all references and CSS/JS selectors as one atomic task. Inventory other domain-specific filenames with git ls-files | grep -Ei '(node|Node)' and include justified additional moves in this commit. Do not rename DOM/Node.js APIs, immutable backend input port names or historical archive paths.
-- [ ] **Step 4: Verify.** node --test test/ovllSkillAssetContract.test.js test/offlineAssetCoverage.test.js test/skill-icon-authority.test.js test/uiArchitecture.test.js. Expected: PASS.
+- [ ] **Step 4: Verify.** node --test test/ovllSkillAssetContract.test.js test/offlineAssetCoverage.test.js test/skill-icon-authority.test.js test/skill-visual-contract.test.js test/skillActionClick.test.js test/uiArchitecture.test.js. Expected: PASS.
 - [ ] **Step 5: Commit.** git add -A && git commit -m "refactor(skill): rename domain assets and update import and cache references"
 
 ### Task 8: UI language, runtime events and prompt vocabulary
@@ -221,7 +224,7 @@
 - [ ] **Step 1: RED integration test.** Start from real legacy WorkspaceStore fixture, migrate to Skill v2, edit canvas and run one deterministic injected model/executor, validate outputs, close/reopen/export/import, and confirm IDs, graph revision, action counts, results and files match.
 - [ ] **Step 2: Run.** node --test test/ovllSkillEndToEnd.test.js. Expected: FAIL until remaining integration edges are corrected.
 - [ ] **Step 3: Implement.** Fix only contract-mismatch failures and document remaining allowed Node terms, including Node.js, DOM, historical documents, old ingress adapters and old fingerprints. No broad string replacements.
-- [ ] **Step 4: Verify.** npm test and node --test test/ovllSkillEndToEnd.test.js. Expected: all PASS. If baseline previously failed for unrelated reasons, report and stop; do not edit unrelated code to green the suite. Separately verify Render /api/version and front deployment only if staging credentials exist.
+- [ ] **Step 4: Verify.** npm test and node --test test/ovllSkillEndToEnd.test.js. Expected: PASS for all tests. If baseline previously failed for unrelated reasons, report and stop; do not edit unrelated code to green the suite. Separately verify Render /api/version and front deployment only if staging credentials exist.
 - [ ] **Step 5: Commit.** git add -A && git commit -m "test(skill): verify end-to-end migration and document compatibility exceptions"
 
 ## Pre-flight order, rollback and done definition
