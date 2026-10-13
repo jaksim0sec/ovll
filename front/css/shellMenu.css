@@ -1120,7 +1120,9 @@
   outline-offset: .08rem;
 }
 
-@media (min-width: 43.76rem) and (hover: hover) and (pointer: fine) {
+/* Dock both mouse desktops and wide touchscreen / hybrid laptops. */
+@media (min-width: 43.76rem) and (hover: hover) and (pointer: fine),
+       (min-width: 60rem) {
   #ovll-shell-menu-backdrop {
     display: none;
   }
