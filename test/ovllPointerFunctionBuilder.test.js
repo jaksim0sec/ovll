@@ -5,15 +5,7 @@ import vm from 'node:vm';
 import * as core from '../front/js/ovllPointerGraphCore.mjs';
 import {getPointerCatalog} from '../backend/ovllPointer/nodeCatalog.js';
 const read=name=>readFileSync(new URL('../'+name,import.meta.url),'utf8');
-test('function builder uses Pointer action proposals instead of the retired workflow planner',()=>{
-  const builder=read('front/js/functionWorkspace.js');
-  assert.doesNotMatch(builder,/\.planWorkflow\(/);
-  assert.match(builder,/OvllPointerApi\.localTurn/);
-  assert.match(builder,/actions\.execute\(proposal\.actions/);
-  assert.match(builder,/OvllPointerFunctions\.save/);
-  assert.match(builder,/OvllPointerProjection\.applyGraph/);
-});
-test('saved functions from the builder are canonical Pointer assets and remain executable',async()=>{
+test('saved functions remain canonical Pointer assets and executable without the builder page',async()=>{
   const values=new Map();
   const window={localStorage:{getItem:k=>values.get(k)||null,
     setItem:(k,v)=>values.set(k,String(v))},
