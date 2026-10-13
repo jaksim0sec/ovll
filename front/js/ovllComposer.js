@@ -14,7 +14,7 @@
     arrow: '<path d="m7.2 4.7 5.2 5.3-5.2 5.3"/>',
     enter: '<path d="M15.8 5.2v4.4a3.5 3.5 0 0 1-3.5 3.5H4.8m3-3-3 3 3 3"/>'
   });
-  const svg = (name) => '<svg viewBox="0 0 20 20" width="20" height="20" preserveAspectRatio="xMidYMid meet" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (glyphs[name] || glyphs.workflow) + '</svg>';
+  const svg = (name) => '<svg class="svg-icon" viewBox="0 0 20 20" width="20" height="20" preserveAspectRatio="xMidYMid meet" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (glyphs[name] || glyphs.workflow) + '</svg>';
   const escapeId = value => String(value || "").slice(0, 150);
   const mobile = () => global.matchMedia?.("(hover: none) and (pointer: coarse)")?.matches ||
     /Android|iPhone|iPad|iPod/i.test(global.navigator?.userAgent || "");
@@ -135,9 +135,10 @@
       const gap = (parseFloat(formStyle.getPropertyValue("--ovll-rich-compact-gap-rem")) || .25) * rootRem;
       const compactPadding = (parseFloat(formStyle.getPropertyValue("--ovll-rich-compact-padding-rem")) || .44) * rootRem;
       const toolbarGap = parseFloat(global.getComputedStyle(toolbar).columnGap) || 0;
-      const collapsedButtons = attach && !attach.hidden ? 2 : 1;
+      // Compact toolbar shows only the attachment (+) control.
+      const collapsedButtons = attach && !attach.hidden ? 1 : 0;
       const collapsedToolbarWidth = collapsedButtons * 2.25 * rootRem +
-        (collapsedButtons - 1) * toolbarGap;
+        Math.max(0, collapsedButtons - 1) * toolbarGap;
       const sendWidth = submit.getBoundingClientRect().width || 2.5 * rootRem;
       const collapsedWidth = form.clientWidth - 2 * compactPadding -
         collapsedToolbarWidth - sendWidth - 2 * gap;
@@ -156,7 +157,11 @@
       const lineHeight = parseFloat(probeStyle.lineHeight) || 24;
       const verticalPadding = (parseFloat(probeStyle.paddingTop) || 0) +
         (parseFloat(probeStyle.paddingBottom) || 0);
-      const expanded = hasReference || hasNewline ||
+      // Focusing opens the toolbar; empty drafts collapse again on blur.
+      // Non-empty drafts keep their expanded state when focus leaves.
+      const hasDraft = contentParts.some(part => part.type !== "text" || part.text.trim());
+      const expanded = doc.activeElement === editor || hasDraft ||
+        hasReference || hasNewline ||
         measure.scrollHeight > lineHeight + verticalPadding + 2;
       form.classList.toggle("is-expanded", expanded);
       const height = editor.getBoundingClientRect().height;
@@ -220,6 +225,7 @@
       tag.dataset.ovllRefLabel = String(item.label || "").slice(0, 120);
       tag.title = String(item.detail || item.id || "");
       tag.innerHTML = refIcon(item);
+      tag.querySelector("svg")?.classList.add("svg-icon");
       const title = doc.createElement("span");
       title.textContent = item.label;
       tag.appendChild(title);
@@ -345,6 +351,7 @@
         const icon = doc.createElement("span");
         icon.className = "ovll-rich-option-icon";
         icon.innerHTML = item.action ? svg(item.icon) : refIcon(item);
+        icon.querySelector("svg")?.classList.add("svg-icon");
         const info = doc.createElement("span");
         info.className = "ovll-rich-option-label";
         const name = doc.createElement("strong");
@@ -478,7 +485,8 @@
     });
     editor.addEventListener("keyup", remember);
     editor.addEventListener("mouseup", remember);
-    editor.addEventListener("blur", () => { if (openType === "tag") return; });
+    editor.addEventListener("focus", resize);
+    editor.addEventListener("blur", resize);
     [mention, canvas, commands].forEach(btn => btn.setAttribute("aria-expanded", "false"));
     [mention, canvas, commands].forEach(btn => {
       btn.addEventListener("pointerdown", remember);
