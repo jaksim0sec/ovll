@@ -1503,10 +1503,10 @@ test("Pointer action execution does not create a second user message",()=>{
   const end=app.indexOf("async function runPointerPrompt(",start);
   const body=app.slice(start,end);
   assert.match(body,/options\.addUserMessage!==false/);
-  assert.match(body,/addUserMessage\(value\)/);
+  assert.match(body,/addUserMessage\(value,\{parts:options\.parts\}\)/);
   assert.match(body,/handlers:\s*\{/);
   assert.match(body,/['"]run\.start['"]:async/);
-  assert.equal((body.match(/addUserMessage\(value\)/g)||[]).length,1);
+  assert.equal((body.match(/addUserMessage\(value,\{parts:options\.parts\}\)/g)||[]).length,1);
 });
 
 test("moderate workflow execution is confirmable directly from chat", () => {
