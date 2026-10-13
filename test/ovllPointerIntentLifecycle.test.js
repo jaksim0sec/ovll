@@ -68,9 +68,9 @@ test('Pointer user-facing steps track action boundaries, real nodes, and lifecyc
   assert.match(app,/onActionStart:action=>\{if\(owns\(\)\)pointerActionStarted\(action\)/);
   assert.match(app,/onActionResult:\(action,fact\)=>\{if\(owns\(\)\)pointerActionResult\(action,fact\)/);
   assert.match(app,/pointerNodeProgress\(run\)/);
-  assert.match(app,/function completeRuntimePhase\\(status="done"\\)/);
-  assert.match(app,/function startRuntimePhase\\(text,doneText="확인 완료"\\)/);
-  assert.match(app,/if\\(step\\?\\.dataset\\.status==="running"\\)upsertRuntimeStep\\(id,/);
+  assert.match(app,/function completeRuntimePhase\(status="done"\)/);
+  assert.match(app,/function startRuntimePhase\(text,doneText="확인 완료"\)/);
+  assert.match(app,/if\(step\?\.dataset\.status==="running"\)upsertRuntimeStep\(id,/);
   assert.match(app,/finishRuntimeActivity\(\{removeImmediately:!state\.runtimeActivity\?\.order\?\.length\}\)/);
   assert.match(app,/POINTER_WORKSPACE_UNAVAILABLE/);
   assert.match(app,/POINTER_WORKSPACE_UNAVAILABLE/);
