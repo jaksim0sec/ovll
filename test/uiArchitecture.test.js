@@ -390,7 +390,7 @@ test("workspace hierarchy favors content over decorative surfaces", () => {
   assert.match(shell, /@media\s*\(max-width:\s*43\.75rem\)[^{]*\{[\s\S]*?--sidebar-width:[^;]*82vw/);
   assert.match(chat, /#chat-messages\s*\{[^}]*width:\s*min\(42\.5rem,\s*100%\)/);
   assert.match(chat, /\.astra-message-user\s*\.astra-message-body\s*\{[^}]*border:\s*0[^}]*font-size:\s*1rem/);
-  assert.match(chat, /\.astra-message-assistant\s*\.astra-message-body\s*\{[^}]*max-width:\s*42\.5rem[^}]*font-size:\s*1\.06rem/);
+  assert.match(chat, /\.astra-message-assistant\s*\.astra-message-body\s*\{[^}]*max-width:\s*42\.5rem[^}]*font-size:\s*1\.04rem/);
   assert.match(ui, /#composer-form\s*\{[^}]*width:\s*min\(39rem,\s*calc\(100% - 1\.5rem\)\)[^}]*min-height:\s*3\.25rem/);
   assert.match(ui, /#composer-input\s*\{[^}]*font-size:\s*\.93rem/);
   assert.match(html, /name="theme-color"[^>]*content="#060606"/s);
