@@ -134,7 +134,10 @@
 
   const composerEditor=global.OvllComposer?.mount({
     form:composerForm,input:composerInput,attach:composerAttach,submit:composerSubmit,
-    getDefinitions:()=>state.nodeDefinitions||{},
+    // Use the live canvas plugin registry, exactly as the canvas node builder does.
+    getDefinitions:()=>state.canvas?.getNodeDefinitions?.()||state.nodeDefinitions||{},
+    allowNodeType:type=>!pointerScope()||
+      PointerGraphPatch.supportedTypes(state.pointerGraphSnapshot).has(type),
     getCanvasNodes:()=>state.canvas?.getWorkflow?.()?.nodes||[],
     getFunctions:()=>global.OvllPointerFunctions?.list?.()||[]
   });
