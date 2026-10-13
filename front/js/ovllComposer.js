@@ -150,12 +150,23 @@
       return editor.contains(range.commonAncestorContainer) ? range.cloneRange() : null;
     }
     function remember() { const range = caretRange(); if (range) selectedRange = range; }
+    function setCaret(range) {
+      // Restoring a selection in a blurred mobile contenteditable can wake
+      // the IME on some WebViews. Keep the range without forcing focus.
+      if (!mobile() || doc.activeElement === editor) {
+        const selection = global.getSelection?.();
+        if (selection) {
+          selection.removeAllRanges();
+          selection.addRange(range);
+        }
+      }
+      selectedRange = range.cloneRange();
+    }
     function focusEnd() {
-      editor.focus();
+      if (!mobile()) editor.focus();
       const range = doc.createRange();
       range.selectNodeContents(editor); range.collapse(false);
-      const selection = global.getSelection();
-      selection.removeAllRanges(); selection.addRange(range);
+      setCaret(range);
     }
     function refIcon(item) {
       if (item.iconKey) {
@@ -196,9 +207,7 @@
       range.insertNode(space);
       range.insertNode(tag);
       range.setStartAfter(space); range.collapse(true);
-      const sel = global.getSelection();
-      sel.removeAllRanges(); sel.addRange(range);
-      selectedRange = range.cloneRange();
+      setCaret(range);
       selectedTag = null; mentionRange = null;
       closeMenu();
       update();
@@ -304,7 +313,6 @@
       commands.setAttribute("aria-expanded", String(type === "commands"));
     }
     function insertText(text) {
-      const sel = global.getSelection();
       const range = selectedRange || caretRange();
       if (!mobile()) editor.focus();
       if (!range || !editor.contains(range.commonAncestorContainer)) { focusEnd(); return insertText(text); }
@@ -312,8 +320,7 @@
       const node = doc.createTextNode(text);
       range.insertNode(node);
       range.setStartAfter(node); range.collapse(true);
-      sel.removeAllRanges(); sel.addRange(range);
-      selectedRange = range.cloneRange();
+      setCaret(range);
       editor.dispatchEvent(new Event("input", { bubbles: true }));
     }
     function choose(item) {
