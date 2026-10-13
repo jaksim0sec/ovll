@@ -6,7 +6,7 @@ import {
 } from '../front/js/ovllSkillReferences.mjs';
 
 const e=code=>err=>err instanceof SkillReferenceSyntaxError&&err.code===code;
-const def=(definitionId,version)=>({kind:'skill-definition',definitionId,...version?{version}:{}});
+const def=(definitionId,version)=>({kind:'skill-definition',definitionId,...(version===undefined?{}:{version})});
 const canvas=(graphId,skillId)=>({kind:'skill-canvas',graphId,skillId});
 
 test('canonical ref tokens have distinct definition and graph-scoped instance identities',()=>{
