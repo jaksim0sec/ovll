@@ -53,6 +53,7 @@ const modules=Object.freeze([
   "./js/ovllSkillGraph.mjs",
   "./js/ovllSkillWorkspaceMigration.mjs",
   "./js/ovllSkillStorageBridge.mjs",
+  "./js/ovllSkillStorageRuntime.mjs",
   "./js/ovllSkillReferences.mjs",
   "./js/ovllSkillReferenceResolver.mjs",
   "./js/ovllSkillReferenceView.mjs"

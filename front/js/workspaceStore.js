@@ -1,8 +1,9 @@
 (function(global){
 "use strict";
 
-const STORAGE_KEY = "ovll:workspace:v1";
-const SCHEMA_VERSION = 9;
+const STORAGE_BRIDGE = global.OvllSkillStorageRuntime||null;
+const STORAGE_KEY = STORAGE_BRIDGE?.storageKey||"ovll:workspace:v1";
+const SCHEMA_VERSION = STORAGE_BRIDGE?.schemaVersion||9;
 const events = new Map();
 
 function clone(value){
@@ -847,24 +848,24 @@ function normalizeState(raw){
 
 function readStorage(){
   try{
-    const raw =
-      localStorage.getItem(
-        STORAGE_KEY
-      );
+    const raw = STORAGE_BRIDGE
+      ? STORAGE_BRIDGE.read(localStorage)
+      : localStorage.getItem(STORAGE_KEY);
 
     if(!raw){
       return createDefaultState();
     }
 
     return normalizeState(
-      JSON.parse(raw)
+      STORAGE_BRIDGE ? raw : JSON.parse(raw)
     );
   }catch(error){
     console.warn(
       "ovll workspace storage load failed:",
       error
     );
-
+    // A malformed v2 snapshot must never turn into a blank workspace.
+    if(STORAGE_BRIDGE)throw error;
     return createDefaultState();
   }
 }
@@ -924,14 +925,17 @@ function persist(reason="update"){
   try{
     // Detect stale sequential writes. localStorage has no atomic cross-tab CAS;
     // simultaneous racing writes remain a browser-storage limitation.
-    const raw=localStorage.getItem(STORAGE_KEY);
-    const remoteRevision=raw?(JSON.parse(raw).storageRevision||0):0;
+    const raw=STORAGE_BRIDGE?null:localStorage.getItem(STORAGE_KEY);
+    const remoteRevision=STORAGE_BRIDGE?persistedRevision:
+      raw?(JSON.parse(raw).storageRevision||0):0;
     if(remoteRevision!==persistedRevision){
       const conflict=new Error('WORKSPACE_REVISION_CONFLICT');conflict.code='WORKSPACE_REVISION_CONFLICT';
       conflict.expectedRevision=persistedRevision;conflict.actualRevision=remoteRevision;throw conflict;
     }
     state.storageRevision=persistedRevision+1;
-    localStorage.setItem(STORAGE_KEY,JSON.stringify(state));
+    if(STORAGE_BRIDGE)STORAGE_BRIDGE.write(localStorage,state,
+      {expectedRevision:persistedRevision});
+    else localStorage.setItem(STORAGE_KEY,JSON.stringify(state));
     persistedRevision=state.storageRevision;committedState=clone(state);
     storageStatus={status:'ready',revision:persistedRevision};
   }catch(error){
@@ -1751,7 +1755,7 @@ function search(
 
 function exportJSON(){
   return JSON.stringify(
-    getSnapshot(),
+    STORAGE_BRIDGE?STORAGE_BRIDGE.canonicalWorkspace(getSnapshot()):getSnapshot(),
     null,
     2
   );
@@ -1767,7 +1771,8 @@ function importJSON(
 
   state =
     normalizeState(
-      parsed
+      STORAGE_BRIDGE&&parsed?.schemaVersion===10
+        ? STORAGE_BRIDGE.runtimeWorkspace(parsed) : parsed
     );
 
   persist(
