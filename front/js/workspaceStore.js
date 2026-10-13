@@ -328,6 +328,10 @@ function normalizeMessage(value){
     kind,
     role,
     text:String(value.text || ""),
+    // A trusted composer part list is separate from raw message text. Keep
+    // the exact typed identity on reload without promoting pasted tokens.
+    ...(role==="user"&&value.parts!=null
+      ? {parts:normalizeComposerDraftParts(value.parts)} : {}),
     runtime,
     blocks,
     question:String(value.question || ""),
@@ -492,6 +496,19 @@ function normalizeComposerDraftParts(value){
     if(item.type==="text"){
       if(typeof item.text!=="string"||item.text.length>24000)return null;
       result.push({type:"text",text:item.text});
+    }else if(item.type==="reference"){
+      // Only canonical syntax emitted by the live composer may round-trip.
+      // Invalid data is inert text (the original message remains untouched).
+      const references=global.OvllSkillReferences;
+      if(!references?.serializeSkillReference||!references.parseSkillReference)return null;
+      let reference;
+      try{
+        const token=references.serializeSkillReference(item.reference);
+        reference=references.parseSkillReference(token);
+      }catch{return null}
+      if(!reference)return null;
+      result.push({type:"reference",reference,
+        labelSnapshot:String(item.labelSnapshot||"").slice(0,120)});
     }else if(["node_type","node_instance","function"].includes(item.type)){
       if(typeof item.id!=="string"||!item.id||item.id.length>150||
          typeof item.label!=="string"||item.label.length>120)return null;

@@ -10,21 +10,26 @@ async function bootScripts(){
  const scripts=[],events=new Map();let done;
  const complete=new Promise(resolve=>done=resolve);
  const window={OVLL_RUNTIME:{},addEventListener:(event,fn)=>events.set(event,fn),setTimeout,clearTimeout,location:{reload(){throw new Error('unexpected reload');}}};
+ // Node's VM dynamic-import callback requires --experimental-vm-modules.
+ // Redirect just that expression to an outside-VM native import of the REAL
+ // local module files; keep production boot code and module order unchanged.
+ window.__testImportModule=async specifier=>{
+   const pathname=new URL(specifier).pathname;
+   if(!/^\/js\/[a-zA-Z0-9._/-]+\.mjs$/.test(pathname))
+     throw new Error('INVALID_BOOT_MODULE');
+   return import(new URL('../front'+pathname,import.meta.url));
+ };
  const document={baseURI:origin+'/home',documentElement:{classList:{remove(){}},dataset:{}},querySelector:()=>null,
   createElement:()=>({addEventListener(type,fn){this[type]=fn;}}),body:{appendChild(script){scripts.push({src:script.src,async:script.async});script.load();}}};
  const context=vm.createContext({window,document,URL,AbortController,console,fetch:async()=>({ok:true,json:async()=>({version:'test'})}),
   navigator:{serviceWorker:{register:async()=>{done();return {};}}},localStorage:{getItem:()=> 'test'},sessionStorage:{getItem:()=>null}});
  if(existsSync(new URL('../front/asset-manifest.js',import.meta.url)))vm.runInContext(read('asset-manifest.js'),context);
- vm.runInContext(read('js/boot.js'),context,{
-   // Browser boot imports the shared Skill reference ESM modules before
-   // classic scripts. Resolve real local files; never fake the loader.
-   importModuleDynamically:async specifier=>{
-     const pathname=new URL(specifier).pathname;
-     if(!/^\/js\/[a-zA-Z0-9._/-]+\.mjs$/.test(pathname))
-       throw new Error('INVALID_BOOT_MODULE');
-     return import(new URL('../front'+pathname,import.meta.url));
-   }
- });
+ const originalBoot=read('js/boot.js');
+ const dynamicImport='import(new URL(path,root).href)';
+ assert.ok(originalBoot.includes(dynamicImport),'boot module preload contract changed');
+ // The actual imports still execute; only the VM callback boundary differs.
+ vm.runInContext(originalBoot.replace(dynamicImport,
+   'global.__testImportModule(new URL(path,root).href)'),context);
  await complete;return scripts;
 }
 function worker(){
