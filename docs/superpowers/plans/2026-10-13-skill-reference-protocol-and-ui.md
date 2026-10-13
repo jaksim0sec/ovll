@@ -45,7 +45,7 @@
 - Add instructions/prompts/shared/skill-references.md to instructions/registry.json; update instructions/prompts/layers/response.md, instructions/prompts/layers/entry.md, instructions/prompts/layers/chat.md and backend/ovllPointer/modelContract.js, localHost.js, promptComposer.js.
 - Legacy display part types node_type / node_instance and strings @label〔노드 타입:ID〕 are accepted only in old-draft compatibility parsing, never emitted by new writer.
 
-## Task 1: Versioned SkillReference grammar and lossless segmentation
+### Task 1: Versioned SkillReference grammar and lossless segmentation
 
 **Files:**
 - Create: front/js/ovllSkillReferences.mjs
@@ -64,7 +64,7 @@
 - [ ] **Step 4: Verify.** node --test test/ovllSkillReferences.test.js. Expected: PASS, including fuzzed random text that must reconstruct byte-for-byte after segmenting.
 - [ ] **Step 5: Commit.** git add front/js/ovllSkillReferences.mjs test/ovllSkillReferences.test.js && git commit -m "feat(skill): define typed canonical references and parser"
 
-## Task 2: Scope-aware reference registry and no guessing
+### Task 2: Scope-aware reference registry and no guessing
 
 **Files:**
 - Create: front/js/skillReferenceResolver.js
@@ -84,7 +84,7 @@
 - [ ] **Step 4: Verify.** node --test test/ovllSkillReferenceResolver.test.js test/offlineAssetCoverage.test.js. Expected: PASS. New asset included in manifest and precache, boot sequence intact.
 - [ ] **Step 5: Commit.** git add -A && git commit -m "feat(skill): add scoped reference resolver and boot wiring"
 
-## Task 3: One safe Skill chip renderer
+### Task 3: One safe Skill chip renderer
 
 **Files:**
 - Create: front/js/skillReferenceView.js
@@ -101,10 +101,10 @@
 - [ ] **Step 1: RED tests.** Render text+Skill+text with missing resolver, hostile label containing angle brackets/quotes/script text, altered svg/icon key and a very long name. Assert text nodes are inert, chip accessibility label includes kind+name, icon is proportionate, no raw innerHTML interpolation of untrusted text, and final DOM text order matches original content.
 - [ ] **Step 2: Run.** node --test test/ovllSkillReferenceView.test.js. Expected: FAIL.
 - [ ] **Step 3: Implement.** Renderer builds nodes explicitly and reuses only trusted current server SVG/icon library under existing sanitizer authority. Shared CSS copies visual proportions from current composer tags without affecting .ovll-composer-rich form height or selection logic.
-- [ ] **Step 4: Verify.** node --test test/ovllSkillReferenceView.test.js test/node-visual-contract.test.js test/uiArchitecture.test.js. Expected: PASS; compare reference chip styling in light/dark.
+- [ ] **Step 4: Verify.** node --test test/ovllSkillReferenceView.test.js test/skill-visual-contract.test.js test/uiArchitecture.test.js. Expected: PASS; compare reference chip styling in light/dark.
 - [ ] **Step 5: Commit.** git add front/js/skillReferenceView.js front/css/skillReferences.css front/css/composer.css front/index.html front/asset-manifest.js test/ovllSkillReferenceView.test.js && git commit -m "feat(skill): render trusted references as unified DOM chips"
 
-## Task 4: Composer typed parts, old draft compatibility and submit
+### Task 4: Composer typed parts, old draft compatibility and submit
 
 **Files:**
 - Modify: front/js/ovllComposer.js, front/js/workspaceStore.js, front/js/app.js, front/js/ovllWorkspace.js
@@ -123,7 +123,7 @@
 - [ ] **Step 4: Verify.** node --test test/ovllSkillComposerRoundtrip.test.js test/ovllSkillStorageMigration.test.js test/workspaceArchitecture.test.js. Expected: PASS; inspect collapsed plus-only state and no keyboard reopening on manual picker.
 - [ ] **Step 5: Commit.** git commit -am "feat(skill): round-trip trusted reference parts through composer"
 
-## Task 5: User and AI messages share display, storage and history truth
+### Task 5: User and AI messages share display, storage and history truth
 
 **Files:**
 - Modify: front/js/app.js (createMessage, addUserMessage, addAssistantMessage, existing message restore/historical search)
@@ -145,7 +145,7 @@
 - [ ] **Step 4: Verify.** node --test test/ovllSkillMessageRendering.test.js test/workspaceArchitecture.test.js test/ovllSkillComposerRoundtrip.test.js. Expected: PASS.
 - [ ] **Step 5: Commit.** git commit -am "feat(skill): render verified references consistently in both chat roles"
 
-## Task 6: Language-model reference instructions and verified prompt expansion
+### Task 6: Language-model reference instructions and verified prompt expansion
 
 **Files:**
 - Create: instructions/prompts/shared/skill-references.md
@@ -156,17 +156,17 @@
 
 **Interfaces:**
 - Consumes: canonical SkillReference grammar and current allowedReferences() resolver output; no new model calls.
-- Produces: formatSkillPrompt(text,{allowedReferences}) -> {requestText,issues}; requires exact available definitions/graph scope. Runtime/host must reject mismatched references rather than invent names.
+- Produces: formatSkillPrompt(text,{allowedReferences}) -> {requestText,issues}; server derives allowedReferences from its validated Skill snapshot, graphId and server-authorized saved functions, never a client-supplied allowlist. Runtime/host rejects mismatched references rather than inventing names.
 - New registry module: shared.skill-references, order 90, requires core. layer.entry, layer.chat, layer.response require shared.skill-references. The module is included once by existing dependency resolution, not duplicated in modelContract text.
 - Prompt text: human label plus exact machine token for Skill definition; canvas display "#skillId" plus graphId/token; AI output can include exact confirmed tokens only; unknown ref returns ordinary prose.
 
-- [ ] **Step 1: RED tests.** A complete user ref expands to scoped human explanation plus token once, a missing/forged reference cannot be expanded as a real Skill, normal chat unaffected; EXIT module included in assembly exactly once; direct answer and action-result response both use identical grammar; no changed provider call count.
+- [ ] **Step 1: RED tests.** A complete user ref expands to scoped human explanation plus token once; missing/forged refs and forged client-supplied allowlists cannot produce a Skill identity; normal chat unaffected; EXIT module included in assembly exactly once; direct answer and action-result response both use identical grammar; no changed provider call count.
 - [ ] **Step 2: Run.** node --test test/ovllSkillLanguageContract.test.js. Expected: FAIL.
-- [ ] **Step 3: Implement.** Register single instruction module and wire into existing entry/chat/response assemblies. Provide formatSkillPrompt as a small pure helper in backend/ovllPointer/skillReferenceContract.js (create), consuming parser and validated allowed refs; adapt original request only at permitted context-boundary, not in the graph scheduler. Local host inherits existing budget/usage/error contracts. Update prompt version numbers for changed modules.
+- [ ] **Step 3: Implement.** Register one instruction module into existing entry/chat/response assemblies. Provide formatSkillPrompt as a pure helper in backend/ovllPointer/skillReferenceContract.js (create), consuming the parser and allowed references derived from the server-validated graph snapshot and saved function scope; never trust arbitrary caller labels or allowlist. Adapt request only at context boundary, not graph scheduler. Preserve model budgets and update prompt versions.
 - [ ] **Step 4: Verify.** node --test test/ovllSkillLanguageContract.test.js test/ovllPointerPromptComposer.test.js test/ovllPointerPhaseContracts.test.js test/ovllPointerQualityFlow.test.js. Expected: PASS with no new LLM call.
 - [ ] **Step 5: Commit.** git add instructions/prompts/shared/skill-references.md backend/ovllPointer/skillReferenceContract.js test/ovllSkillLanguageContract.test.js && git commit -am "feat(skill): share reference rules across prompts and language output"
 
-## Task 7: End-to-end integration, security and rendering checks
+### Task 7: End-to-end integration, security and rendering checks
 
 **Files:**
 - Create: test/ovllSkillReferenceIntegration.test.js
