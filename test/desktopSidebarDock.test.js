@@ -30,5 +30,5 @@ test('small-screen overlay and closing gesture remain available',()=>{
   assert.match(css,/#ovll-shell-menu\.is-open\s*#ovll-shell-menu-backdrop\s*\{/);
   assert.match(js,/if\(!usesDockedSidebar\(\)\)\{\s*close\(\);/);
   assert.match(js,/function closeOnSmallScreen\(\)\{\s*if\(usesDockedSidebar\(\)\)\{/);
-  assert.match(css,/@media \(prefers-reduced-motion: reduce\)\s*\{\s*#ovll-shell-menu-panel\s*\{/);
+  assert.match(css,/@media \(prefers-reduced-motion: reduce\)\s*\{\s*#ovll-shell-menu-panel,\s*#ovll-shell-menu-trigger,\s*#ovll-shell-menu-backdrop\s*\{\s*transition:\s*none/);
 });
