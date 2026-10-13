@@ -1,6 +1,6 @@
 {
   "status": "active_local_runtime",
-  "assemblyVersion": "0.8.0",
+  "assemblyVersion": "0.9.0",
   "source": "prompts/",
   "modules": [
     {
@@ -11,13 +11,22 @@
       "version": 9
     },
     {
-      "id": "layer.entry",
-      "path": "prompts/layers/entry.md",
+      "id": "shared.skill-references",
+      "path": "prompts/shared/skill-references.md",
       "requires": [
         "core"
       ],
+      "order": 90,
+      "version": 1
+    },
+    {
+      "id": "layer.entry",
+      "path": "prompts/layers/entry.md",
+      "requires": [
+        "shared.skill-references"
+      ],
       "order": 100,
-      "version": 11
+      "version": 12
     },
     {
       "id": "layer.corridor",
@@ -32,10 +41,10 @@
       "id": "layer.chat",
       "path": "prompts/layers/chat.md",
       "requires": [
-        "core"
+        "shared.skill-references"
       ],
       "order": 110,
-      "version": 4
+      "version": 5
     },
     {
       "id": "layer.ir",
@@ -68,10 +77,10 @@
       "id": "layer.response",
       "path": "prompts/layers/response.md",
       "requires": [
-        "core"
+        "shared.skill-references"
       ],
       "order": 150,
-      "version": 5
+      "version": 6
     },
     {
       "id": "shared.context-read",
@@ -81,6 +90,51 @@
       ],
       "order": 195,
       "version": 3
+    },
+    {
+      "id": "action.nodes",
+      "path": "prompts/shared/action-nodes.md",
+      "requires": [
+        "layer.ir"
+      ],
+      "order": 215,
+      "version": 2
+    },
+    {
+      "id": "action.definitions",
+      "path": "prompts/shared/action-definitions.md",
+      "requires": [
+        "layer.ir"
+      ],
+      "order": 216,
+      "version": 2
+    },
+    {
+      "id": "action.links",
+      "path": "prompts/shared/action-links.md",
+      "requires": [
+        "layer.ir"
+      ],
+      "order": 217,
+      "version": 2
+    },
+    {
+      "id": "action.execution",
+      "path": "prompts/shared/action-execution.md",
+      "requires": [
+        "layer.run"
+      ],
+      "order": 218,
+      "version": 2
+    },
+    {
+      "id": "action.functions",
+      "path": "prompts/shared/action-functions.md",
+      "requires": [
+        "layer.function"
+      ],
+      "order": 219,
+      "version": 2
     },
     {
       "id": "chat.explain",
@@ -235,51 +289,6 @@
       ],
       "order": 710,
       "version": 3
-    },
-    {
-      "id": "action.nodes",
-      "path": "prompts/shared/action-nodes.md",
-      "requires": [
-        "layer.ir"
-      ],
-      "order": 215,
-      "version": 2
-    },
-    {
-      "id": "action.definitions",
-      "path": "prompts/shared/action-definitions.md",
-      "requires": [
-        "layer.ir"
-      ],
-      "order": 216,
-      "version": 2
-    },
-    {
-      "id": "action.links",
-      "path": "prompts/shared/action-links.md",
-      "requires": [
-        "layer.ir"
-      ],
-      "order": 217,
-      "version": 2
-    },
-    {
-      "id": "action.execution",
-      "path": "prompts/shared/action-execution.md",
-      "requires": [
-        "layer.run"
-      ],
-      "order": 218,
-      "version": 2
-    },
-    {
-      "id": "action.functions",
-      "path": "prompts/shared/action-functions.md",
-      "requires": [
-        "layer.function"
-      ],
-      "order": 219,
-      "version": 2
     }
   ]
 }

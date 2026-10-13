@@ -330,7 +330,7 @@ function normalizeMessage(value){
     text:String(value.text || ""),
     // A trusted composer part list is separate from raw message text. Keep
     // the exact typed identity on reload without promoting pasted tokens.
-    ...(role==="user"&&value.parts!=null
+    ...(role==="user"&&Object.prototype.hasOwnProperty.call(value,"parts")
       ? {parts:normalizeComposerDraftParts(value.parts)} : {}),
     runtime,
     blocks,
