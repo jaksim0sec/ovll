@@ -162,12 +162,13 @@
   flex: none;
   align-self: center;
   overflow: visible;
-  stroke-width: 1.95;
-  stroke-linecap: round;
-  stroke-linejoin: round;
 }
 .ovll-rich-toolbar > .ovll-rich-canvas,
 .ovll-rich-toolbar > .ovll-rich-slash {
+  display: none;
+}
+/* Collapsed mode has one auxiliary action: attachment (+). */
+:is(#composer-form,[data-ovll-composer-form]).ovll-composer-rich:not(.is-expanded) .ovll-rich-toolbar > .ovll-rich-mention {
   display: none;
 }
 :is(#composer-form,[data-ovll-composer-form]).ovll-composer-rich.is-expanded .ovll-rich-toolbar > .ovll-rich-canvas,
@@ -212,9 +213,6 @@
   max-width: none;
   aspect-ratio: 1 / 1;
   overflow: visible;
-  stroke-width: 1.95;
-  stroke-linecap: round;
-  stroke-linejoin: round;
 }
 .ovll-composer-rich .ovll-rich-ref {
   display: inline-flex;
@@ -256,9 +254,6 @@
   max-width: none;
   flex: 0 0 auto;
   overflow: visible;
-  stroke-width: 1.85;
-  stroke-linecap: round;
-  stroke-linejoin: round;
 }
 .ovll-composer-rich .ovll-rich-picker {
   position: absolute;
@@ -321,9 +316,6 @@
   aspect-ratio: 1 / 1;
   flex: none;
   overflow: visible;
-  stroke-width: 1.85;
-  stroke-linecap: round;
-  stroke-linejoin: round;
 }
 .ovll-composer-rich .ovll-rich-option-label {
   min-width: 0;
