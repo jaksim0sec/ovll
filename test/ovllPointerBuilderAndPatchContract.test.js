@@ -18,7 +18,7 @@ const turn=last=>({actions:[{kind:'ir.applyPatch',localKey:'p',args:{patch:{
 
 test('semantic commands retain all canonical graph operation kinds without teaching internal fields',()=>{
   assert.deepEqual(PATCH_OPERATION_KINDS,['node.add','node.update','node.delete','definition.appearance','definition.delete','link.add','link.remove']);
-  const instruction=localModelContract();
+  const instruction=localModelContract(undefined,{selectedModules:['action.nodes','action.definitions','action.links']});
   for(const op of PATCH_OPERATION_KINDS)assert.ok(instruction.includes(op+':'),op);
   for(const field of ['expectedGraphRevision','localNodeKey','localDefinitionKey','dependsOn'])assert.ok(!instruction.includes(field),field);
 });

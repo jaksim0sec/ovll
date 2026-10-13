@@ -6181,7 +6181,10 @@
       }[action.kind]||['요청 처리','sparkle'];
       stages.push({id:key,label:behavior[0],iconKey:behavior[1]});
     }
-    return stages.length>1?[{id:key,label:'노드 구성'}]:stages;
+    // An ordered patch has one visible progress row; preserve the underlying
+    // Skill icon instead of rendering an iconless group.
+    return stages.length>1?[{id:key,label:'스킬 구성',
+      iconKey:stages[0].iconKey||'canvasLayout',color:stages[0].color||''}]:stages;
   }
   function pointerActionStarted(action){
     if(['run.start','function.run'].includes(action.kind))Presence.thinking();
