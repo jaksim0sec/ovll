@@ -132,15 +132,14 @@
       const formStyle = global.getComputedStyle(form);
       const rootStyle = global.getComputedStyle(doc.documentElement);
       const rootRem = parseFloat(rootStyle.fontSize) || 16;
-      const gap = parseFloat(formStyle.columnGap) || 0;
+      const gap = (parseFloat(formStyle.getPropertyValue("--ovll-rich-compact-gap-rem")) || .25) * rootRem;
+      const compactPadding = (parseFloat(formStyle.getPropertyValue("--ovll-rich-compact-padding-rem")) || .44) * rootRem;
       const toolbarGap = parseFloat(global.getComputedStyle(toolbar).columnGap) || 0;
       const collapsedButtons = attach && !attach.hidden ? 2 : 1;
       const collapsedToolbarWidth = collapsedButtons * 2.25 * rootRem +
         (collapsedButtons - 1) * toolbarGap;
       const sendWidth = submit.getBoundingClientRect().width || 2.5 * rootRem;
-      const collapsedWidth = form.clientWidth -
-        (parseFloat(formStyle.paddingLeft) || 0) -
-        (parseFloat(formStyle.paddingRight) || 0) -
+      const collapsedWidth = form.clientWidth - 2 * compactPadding -
         collapsedToolbarWidth - sendWidth - 2 * gap;
       measure.style.width = Math.max(1, collapsedWidth) + "px";
       measure.replaceChildren(...Array.from(editor.childNodes, child => child.cloneNode(true)));
