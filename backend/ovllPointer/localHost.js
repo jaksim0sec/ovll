@@ -9,6 +9,7 @@ import {createConfiguredModelProvider,resolveLocalPointerProvider} from './confi
 import {compileActionPlan,isActionPlan,ACTION_PLAN_CONTRACT,SEMANTIC_ACTION_FIELDS} from './actionCompiler.js';
 
 import {withPointerCatalog,getPointerCatalog} from './nodeCatalog.js';
+import {toLegacySkillSnapshot} from '../../front/js/ovllSkillGraph.mjs';
 const fail=(code,status=422)=>{throw new KernelError(code,code,status);};
 const safe=s=>typeof s==='string'&&/^[a-zA-Z0-9_.:-]{1,160}$/.test(s);
 const clone=x=>JSON.parse(JSON.stringify(x));
@@ -313,6 +314,16 @@ export function createLocalPointerHost({gateway,resolveModel,validation=createCo
         values:Object.fromEntries(checked.map(x=>[x.port.name,{inline:x.value}]))},
       provenance:Object.fromEntries(Array.isArray(checked)?checked.map(x=>[x.port.name,x.sourceRefs]):[]),validatedPorts:checked.length||0,_meta:result.meta};
   }
+  async function skill({snapshot,skillId,...args}={}){
+    // Canonical v2 ingress is deliberately separate from legacy Node v1.
+    if(!safe(skillId)||!snapshot||'nodeId' in args)fail('INVALID_SKILL_REQUEST');
+    let legacy;
+    try{legacy=toLegacySkillSnapshot(snapshot)}
+    catch{fail('INVALID_SKILL_SNAPSHOT')}
+    const result=await node({...args,snapshot:legacy,nodeId:skillId});
+    const {nodeId,...rest}=result;
+    return {skillId:nodeId,...rest};
+  }
   async function response({snapshot,requestRef,requestText,actionResults=[],history=[],taskContext,additionalContext,signal}={}){
     if(!Array.isArray(actionResults)||actionResults.length>32||
       Buffer.byteLength(JSON.stringify(actionResults),'utf8')>24000)
@@ -333,7 +344,7 @@ export function createLocalPointerHost({gateway,resolveModel,validation=createCo
       throw error;
     }
   };
-  return Object.freeze({turn:accounted(turn,'turn'),node:accounted(node,'node'),response:accounted(response,'response')});
+  return Object.freeze({turn:accounted(turn,'turn'),node:accounted(node,'node'),skill:accounted(skill,'skill'),response:accounted(response,'response')});
 }
 export function createConfiguredLocalPointerHost({env=process.env,fetchImpl=fetch}={}){
   const selected=resolveLocalPointerProvider(env);
