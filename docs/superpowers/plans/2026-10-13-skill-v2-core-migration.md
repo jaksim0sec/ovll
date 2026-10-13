@@ -159,7 +159,7 @@
 - [ ] **Step 1: RED tests.** Fixture precomputed legacy Node semantic digests (record literal values before implementation). Verify intact original context accepted only by legacy verifier; changed bindings/graph/definition/version rejected; new Skill digest accepted only for Skill records. Assert no duplicate execution of a previously valid result.
 - [ ] **Step 2: Run.** node --test test/ovllSkillEvidenceCompatibility.test.js. Expected: FAIL.
 - [ ] **Step 3: Implement.** Preserve a narrow read-only legacy evidence verifier, isolate its original field names and stable serialization; rewrite active execution/output/Run field names. Never modify outputPort schema, evidence trust, DAM policy or workflow scheduler.
-- [ ] **Step 4: Verify.** node --test test/ovllSkillEvidenceCompatibility.test.js test/ovllPointerExecutionIntegrity.test.js test/ovllPointerLocalRun.test.js test/ovllPointerNodeOutput.test.js test/ovllPointerFunctionBuilder.test.js (before Task 7; renamed output test path after Task 7). Expected: PASS.
+- [ ] **Step 4: Verify.** node --test test/ovllSkillEvidenceCompatibility.test.js test/ovllPointerExecutionIntegrity.test.js test/ovllPointerLocalRun.test.js test/ovllPointerNodeOutput.test.js test/ovllPointerFunctionBuilder.test.js. Expected: PASS; Task 7 later renames the NodeOutput test path.. Expected: PASS.
 - [ ] **Step 5: Commit.** git commit -am "refactor(skill): retain exact legacy evidence verification under Skill execution"
 
 ### Task 7: Domain filename moves, loaders, imports and CSS selectors
