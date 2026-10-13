@@ -69,8 +69,12 @@
     form.insertBefore(measure, submit);
     form.appendChild(picker);
     form.classList.add("ovll-composer-rich");
-    if (attach) attach.classList.add("ovll-rich-attach");
+    if (attach) {
+      attach.classList.add("ovll-rich-attach");
+      attach.querySelector("svg")?.classList.add("svg-icon");
+    }
     submit.classList.add("ovll-rich-send");
+    submit.querySelector("svg")?.classList.add("svg-icon");
 
     let composing = false;
     let openType = "";
@@ -160,7 +164,7 @@
       // Focusing opens the toolbar; empty drafts collapse again on blur.
       // Non-empty drafts keep their expanded state when focus leaves.
       const hasDraft = contentParts.some(part => part.type !== "text" || part.text.trim());
-      const expanded = doc.activeElement === editor || hasDraft ||
+      const expanded = doc.activeElement === editor || !picker.hidden || hasDraft ||
         hasReference || hasNewline ||
         measure.scrollHeight > lineHeight + verticalPadding + 2;
       form.classList.toggle("is-expanded", expanded);
@@ -304,12 +308,14 @@
       }
     }
     function closeMenu() {
+      const wasOpen = !picker.hidden;
       picker.hidden = true;
       picker.replaceChildren();
       openType = ""; entries = []; mentionRange = null; selectedTag = null;
       mention.setAttribute("aria-expanded", "false");
       canvas.setAttribute("aria-expanded", "false");
       commands.setAttribute("aria-expanded", "false");
+      if (wasOpen) resize();
     }
     function listFor(type) {
       if (type === "tag") return [{ action: "remove-tag", label: "참조 삭제", detail: "선택한 태그만 제거", icon: "close" }];
@@ -383,6 +389,7 @@
       mention.setAttribute("aria-expanded", String(type === "nodes"));
       canvas.setAttribute("aria-expanded", String(type === "canvas"));
       commands.setAttribute("aria-expanded", String(type === "commands"));
+      resize();
     }
     function insertText(text) {
       const range = selectedRange || caretRange();
