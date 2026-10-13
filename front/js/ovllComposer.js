@@ -85,6 +85,7 @@
     let selectedTag = null;
     let busy = false;
     let attachmentEnabled = true;
+    let openingToolbarMenu = false;
 
     function textPart(target, value) {
       if (!value) return;
@@ -493,14 +494,35 @@
     editor.addEventListener("keyup", remember);
     editor.addEventListener("mouseup", remember);
     editor.addEventListener("focus", resize);
-    editor.addEventListener("blur", resize);
+    editor.addEventListener("blur", event => {
+      // Keep the expanded toolbar in place until the button click opens its
+      // picker. Otherwise focusout can hide the clicked button on touch.
+      if (openingToolbarMenu || [mention, canvas, commands].includes(event.relatedTarget)) return;
+      resize();
+    });
     [mention, canvas, commands].forEach(btn => btn.setAttribute("aria-expanded", "false"));
     [mention, canvas, commands].forEach(btn => {
-      btn.addEventListener("pointerdown", remember);
+      btn.addEventListener("pointerdown", () => {
+        openingToolbarMenu = true;
+        remember();
+      });
+      btn.addEventListener("pointercancel", () => {
+        openingToolbarMenu = false;
+        resize();
+      });
     });
-    mention.addEventListener("click", () => { prepareManualPicker(); openMenu("nodes"); });
-    canvas.addEventListener("click", () => { prepareManualPicker(); openMenu("canvas"); });
-    commands.addEventListener("click", () => { prepareManualPicker(); openMenu("commands"); });
+    mention.addEventListener("click", () => {
+      openingToolbarMenu = false;
+      prepareManualPicker(); openMenu("nodes");
+    });
+    canvas.addEventListener("click", () => {
+      openingToolbarMenu = false;
+      prepareManualPicker(); openMenu("canvas");
+    });
+    commands.addEventListener("click", () => {
+      openingToolbarMenu = false;
+      prepareManualPicker(); openMenu("commands");
+    });
     form.addEventListener("submit", syncValue, { capture: true });
     doc.addEventListener("pointerdown", event => {
       if (!form.contains(event.target)) closeMenu();
