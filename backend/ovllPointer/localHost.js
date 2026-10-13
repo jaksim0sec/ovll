@@ -47,7 +47,7 @@ function contextSnapshot(snapshot,nodeIdScope){
   }
   return {view,truncated};
 }
-function prepare({snapshot,requestRef,requestText,history=[],taskContext,additionalContext,capabilities=[],nodeIdScope}){
+function prepare({snapshot,requestRef,requestText,history=[],taskContext,additionalContext,capabilities=[],nodeIdScope,savedFunctions=[]}){
   if(additionalContext!==undefined){
     if(!additionalContext||typeof additionalContext!=='object'||Array.isArray(additionalContext)||
       jsonBytes(additionalContext)>24000||!Array.isArray(additionalContext.recentTurns)||additionalContext.recentTurns.length>2||
@@ -74,6 +74,7 @@ function prepare({snapshot,requestRef,requestText,history=[],taskContext,additio
     try{
       formatted=formatSkillPrompt(requestText,{
         snapshot:normalizeSkillSnapshot(snapshot),
+        savedFunctions,
         activeGraphId:snapshot.graph.graphId
       });
     }catch{fail('INVALID_SKILL_REFERENCE',422)}
@@ -124,7 +125,8 @@ export function compileLocalActionPlan({plan,snapshot,requestRef,requestText,tas
     }catch(error){fail(error.code||'INVALID_SKILL_ACTION_PLAN')}
   }
   const prepared=prepare({snapshot:legacySnapshot,requestRef,requestText,taskContext,
-    capabilities:getPointerCatalog().capabilities});
+    capabilities:getPointerCatalog().capabilities,
+    savedFunctions:Array.isArray(extraContext?.savedFunctions)?extraContext.savedFunctions:[]});
   const context=actionContext(prepared.snapshot,prepared.context,extraContext,createdNodeIds);
   const turn=compileActionPlan(legacyPlan,{...context,actionKeyPrefix:'c'});
   return {...(skillV2?toSkillCompiledTurn(turn):turn),
@@ -243,7 +245,8 @@ export function createLocalPointerHost({gateway,resolveModel,validation=createCo
     }catch(error){error._meta=meta;throw error;}
   }
   async function turn({snapshot,requestRef,requestText,history,taskContext,additionalContext,extraContext,signal}={}){
-    const {snapshot:prepared,context,extendedTask}=prepare({snapshot,requestRef,requestText,history,taskContext,additionalContext,capabilities:getPointerCatalog().capabilities});
+    const {snapshot:prepared,context,extendedTask}=prepare({snapshot,requestRef,requestText,history,taskContext,additionalContext,capabilities:getPointerCatalog().capabilities,
+      savedFunctions:Array.isArray(extraContext?.savedFunctions)?extraContext.savedFunctions:[]});
     const compilerContext=actionContext(prepared,context,extraContext);
     compilerContext.requireTaskContext=!!additionalContext;
     context.outputContract='ModelTurn';
