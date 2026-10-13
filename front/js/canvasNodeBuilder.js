@@ -78,6 +78,7 @@ function createCanvasNodeBuilder(options={}){
   for(const icon of root.querySelectorAll("[data-builder-icon]")){
     icon.innerHTML=
       SvgLibrary?.get?.(icon.dataset.builderIcon)||"";
+    icon.querySelector("svg")?.classList.add("svg-icon");
   }
 
   host.appendChild(root);
