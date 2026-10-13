@@ -4,17 +4,17 @@
 
   const glyphs = Object.freeze({
     mention: '<circle cx="9.35" cy="9.8" r="2.35"/><path d="M11.7 9.8v2.1c0 1.36 1.26 1.86 2.2 1.02a6.9 6.9 0 1 0-2.08 3.53"/>',
-    canvas: '<rect x="3.25" y="3.25" width="5.3" height="5.3" rx="1.45"/><rect x="11.45" y="11.45" width="5.3" height="5.3" rx="1.45"/><path d="M8.55 5.9h2.1a2 2 0 0 1 2 2v3.55"/>',
+    canvas: '<rect x="3.25" y="3.25" width="5.6" height="5.6" rx="2"/><rect x="11.15" y="11.15" width="5.6" height="5.6" rx="2"/><path d="M8.85 6.05h1.7a3.4 3.4 0 0 1 3.4 3.4v1.7"/>',
     slash: '<rect x="3" y="4" width="14" height="12" rx="2.5"/><path d="m6.4 8 2.3 2-2.3 2M10.7 12.2h3.1"/>',
     plus: '<path d="M10 3.8v12.4M3.8 10h12.4"/>',
     up: '<path d="M10 15V4.8m-4.2 4.3L10 4.8l4.2 4.3"/>',
     folder: '<path d="M3.2 6.3c0-1.1.9-2 2-2h2.3l1.5 1.5h5.8c1.1 0 2 .9 2 2v6.1c0 1.1-.9 2-2 2H5.2c-1.1 0-2-.9-2-2z"/>',
-    workflow: '<rect x="3.2" y="3.4" width="5" height="5" rx="1.5"/><rect x="11.8" y="11.6" width="5" height="5" rx="1.5"/><path d="M8.2 5.9h2.1a2 2 0 0 1 2 2v3.7"/>',
+    workflow: '<rect x="3.2" y="3.35" width="5.4" height="5.4" rx="1.9"/><rect x="11.4" y="11.35" width="5.4" height="5.4" rx="1.9"/><path d="M8.6 6.05h1.6a3.65 3.65 0 0 1 3.65 3.65v1.65"/>',
     close: '<path d="m5.6 5.6 8.8 8.8m0-8.8-8.8 8.8"/>',
     arrow: '<path d="m7.2 4.7 5.2 5.3-5.2 5.3"/>',
     enter: '<path d="M15.8 5.2v4.4a3.5 3.5 0 0 1-3.5 3.5H4.8m3-3-3 3 3 3"/>'
   });
-  const svg = (name) => '<svg viewBox="0 0 20 20" width="20" height="20" preserveAspectRatio="xMidYMid meet" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (glyphs[name] || glyphs.workflow) + '</svg>';
+  const svg = (name) => '<svg viewBox="0 0 20 20" width="20" height="20" preserveAspectRatio="xMidYMid meet" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (glyphs[name] || glyphs.workflow) + '</svg>';
   const escapeId = value => String(value || "").slice(0, 150);
   const mobile = () => global.matchMedia?.("(hover: none) and (pointer: coarse)")?.matches ||
     /Android|iPhone|iPad|iPod/i.test(global.navigator?.userAgent || "");
@@ -41,20 +41,16 @@
     const mention = doc.createElement("button");
     const canvas = doc.createElement("button");
     const commands = doc.createElement("button");
-    function tool(button, name, label, shortLabel) {
+    function tool(button, name, label) {
       button.type = "button";
       button.className = "ovll-rich-tool ovll-rich-" + name;
       button.innerHTML = svg(name);
-      const caption = doc.createElement("span");
-      caption.className = "ovll-rich-tool-label";
-      caption.textContent = shortLabel;
-      button.appendChild(caption);
       button.setAttribute("aria-label", label);
       button.title = label;
     }
-    tool(mention, "mention", "노드 및 저장 함수 태그", "참조");
-    tool(canvas, "canvas", "캔버스 노드 참조", "캔버스");
-    tool(commands, "slash", "빠른 명령", "명령");
+    tool(mention, "mention", "노드 및 저장 함수 태그");
+    tool(canvas, "canvas", "캔버스 노드 참조");
+    tool(commands, "slash", "빠른 명령");
     if (attach) attach.title = "파일 추가";
     // The editor and the toolbar are separate layout regions. This prevents
     // legacy ID-based grid placement rules from moving controls into text.
@@ -64,6 +60,13 @@
     toolbar.append(mention, canvas, commands);
     form.insertBefore(editor, submit);
     form.insertBefore(toolbar, submit);
+    // An invisible one-line-width probe keeps expand/collapse independent
+    // of the active grid state and never moves the live caret.
+    const measure = doc.createElement("div");
+    measure.className = "ovll-rich-editor ovll-rich-measure";
+    measure.contentEditable = "false";
+    measure.setAttribute("aria-hidden", "true");
+    form.insertBefore(measure, submit);
     form.appendChild(picker);
     form.classList.add("ovll-composer-rich");
     if (attach) attach.classList.add("ovll-rich-attach");
@@ -124,26 +127,42 @@
       submit.disabled = busy || !input.value.trim();
     }
     function resize() {
-      // Let the rich text and inline chips determine the row height.
-      // Measuring an already expanded grid would keep single-line drafts expanded.
-      editor.style.height = "";
-      const refs = hasRefs();
-      const hasNewline = input.value.includes("\n");
-      if (!refs && !hasNewline) form.classList.remove("is-expanded");
-      const expanded = refs || hasNewline || editor.scrollHeight > 42;
+      // Measure in the COLLAPSED editor width, even when expanded. Reading
+      // the live editor height made line wrapping depend on its own state.
+      const formStyle = global.getComputedStyle(form);
+      const rootStyle = global.getComputedStyle(doc.documentElement);
+      const rootRem = parseFloat(rootStyle.fontSize) || 16;
+      const gap = parseFloat(formStyle.columnGap) || 0;
+      const toolbarGap = parseFloat(global.getComputedStyle(toolbar).columnGap) || 0;
+      const collapsedButtons = attach && !attach.hidden ? 2 : 1;
+      const collapsedToolbarWidth = collapsedButtons * 2.25 * rootRem +
+        (collapsedButtons - 1) * toolbarGap;
+      const sendWidth = submit.getBoundingClientRect().width || 2.5 * rootRem;
+      const collapsedWidth = form.clientWidth -
+        (parseFloat(formStyle.paddingLeft) || 0) -
+        (parseFloat(formStyle.paddingRight) || 0) -
+        collapsedToolbarWidth - sendWidth - 2 * gap;
+      measure.style.width = Math.max(1, collapsedWidth) + "px";
+      measure.replaceChildren(...Array.from(editor.childNodes, child => child.cloneNode(true)));
+      const probeStyle = global.getComputedStyle(measure);
+      const lineHeight = parseFloat(probeStyle.lineHeight) || 24;
+      const verticalPadding = (parseFloat(probeStyle.paddingTop) || 0) +
+        (parseFloat(probeStyle.paddingBottom) || 0);
+      const hasNewline = parts().some(part => part.type === "text" && part.text.includes("\n"));
+      const expanded = hasRefs() || hasNewline ||
+        measure.scrollHeight > lineHeight + verticalPadding + 2;
       form.classList.toggle("is-expanded", expanded);
       const height = editor.getBoundingClientRect().height;
       const root = config.styleRoot || doc.documentElement;
-      const rootStyle = root.style;
-      rootStyle.setProperty("--composer-input-height", height + "px");
+      const targetStyle = root.style;
+      targetStyle.setProperty("--composer-input-height", height + "px");
       const formHeight = form.getBoundingClientRect().height;
-      const rootComputed = global.getComputedStyle(doc.documentElement);
-      const configured = rootComputed.getPropertyValue("--composer-height").trim();
+      const configured = rootStyle.getPropertyValue("--composer-height").trim();
       const base = parseFloat(configured);
       const baseHeight = Number.isFinite(base) ?
-        (configured.endsWith("rem") ? base * (parseFloat(rootComputed.fontSize) || 16) : base) : 88;
-      rootStyle.setProperty("--composer-form-height", formHeight + "px");
-      rootStyle.setProperty("--composer-live-height", Math.max(formHeight, baseHeight) + "px");
+        (configured.endsWith("rem") ? base * rootRem : base) : 88;
+      targetStyle.setProperty("--composer-form-height", formHeight + "px");
+      targetStyle.setProperty("--composer-live-height", Math.max(formHeight, baseHeight) + "px");
       return formHeight;
     }
     function changed() {
