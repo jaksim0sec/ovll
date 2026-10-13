@@ -52,7 +52,9 @@ const state = {
 
 const desktopSidebarMedia =
   global.matchMedia?.(
-    "(min-width: 43.76rem) and (hover: hover) and (pointer: fine)"
+    // Preserve mouse desktop behavior and dock wide touch-capable laptops.
+    // Keep this media query identical to the dock layout CSS below.
+    "(min-width: 43.76rem) and (hover: hover) and (pointer: fine), (min-width: 60rem)"
   ) || null;
 
 function usesDockedSidebar(){
