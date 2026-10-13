@@ -200,6 +200,8 @@
         const trusted = global.OvllSvgLibrary?.get?.(item.iconKey);
         if (trusted) return trusted;
       }
+      // Match the canvas node-builder fallback for live/plugin definitions.
+      if (item.type === "node_type" && item.icon) return item.icon;
       return svg(item.type === "node_type" ? "workflow" : "canvas");
     }
     function createTag(item) {
@@ -241,28 +243,42 @@
       editor.dispatchEvent(new Event("input", { bubbles: true }));
     }
     function knownReferences() {
+      // Read the current canvas registry on every open, not a snapshot of
+      // server defaults: it also contains the user's registered plugin nodes.
       const defs = config.getDefinitions?.() || {};
       const refs = [];
       for (const [id, definition] of Object.entries(defs)) {
-        if (!definition || !definition.name) continue;
-        refs.push({ type: "node_type", id, label: String(definition.name),
-          detail: String(definition.desc || "기존 노드 정의"),
-          iconKey: definition.iconKey, category: "노드" });
+        if (id === "start" || !definition || config.allowNodeType?.(id,definition) === false) continue;
+        const catalog = definition.catalog || {};
+        const groupId = String(catalog.group || "builtin");
+        const isCustom = catalog.custom === true || groupId === "custom";
+        const groupLabel = String(catalog.groupLabel || (isCustom ? "내 노드" : "기본 노드"));
+        refs.push({
+          type: "node_type", id, label: String(definition.name || id),
+          detail: String(definition.desc || ""),
+          iconKey: definition.iconKey, icon: definition.icon,
+          color: definition.color,
+          category: groupLabel, groupId: "definition:" + groupId,
+          priority: isCustom ? 0 : 1
+        });
       }
       for (const node of config.getCanvasNodes?.() || []) {
         const id = node?.id || node?.nodeId;
         if (!id) continue;
         const type = node.type || node.definitionType;
         const def = defs[type] || {};
-        refs.push({ type: "node_instance", id, label: node.name || node.label || def.name || "캔버스 노드",
-          detail: "캔버스에 배치된 노드", iconKey: def.iconKey, category: "캔버스" });
+        refs.push({ type: "node_instance", id,
+          label: node.name || node.label || def.name || "캔버스 노드",
+          detail: "캔버스에 배치된 노드", iconKey: def.iconKey,
+          category: "캔버스 노드", groupId: "instances", priority: 2 });
       }
       for (const fn of config.getFunctions?.() || []) {
         if (!fn?.id) continue;
         refs.push({ type: "function", id: fn.id, label: fn.name || fn.title || fn.purpose || "저장 함수",
-          detail: fn.purpose || "저장된 함수", iconKey: fn.iconKey || "custom", category: "함수" });
+          detail: fn.purpose || "저장된 함수", iconKey: fn.iconKey || "custom",
+          category: "저장 함수", groupId: "functions", priority: 3 });
       }
-      return refs;
+      return refs.sort((a,b) => a.priority - b.priority);
     }
     function prepareManualPicker() {
       remember();
@@ -302,12 +318,23 @@
         empty.textContent = openType === "canvas" ? "캔버스에 참조할 노드가 없어" : "검색 결과가 없어";
         picker.append(empty); return;
       }
-      entries.slice(0, 40).forEach((item, i) => {
+      let lastGroup = null;
+      entries.forEach((item, i) => {
+        // Only the reference picker uses real catalog group headings.
+        if (openType === "nodes" && item.groupId !== lastGroup) {
+          lastGroup = item.groupId;
+          const heading = doc.createElement("div");
+          heading.className = "ovll-rich-group-title";
+          heading.setAttribute("role", "presentation");
+          heading.textContent = item.category || "";
+          picker.append(heading);
+        }
         const btn = doc.createElement("button");
         btn.type = "button";
         btn.className = "ovll-rich-option" + (selectedIndex === i ? " is-selected" : "");
         btn.setAttribute("role", "option");
         btn.setAttribute("aria-selected", String(selectedIndex === i));
+        if (item.color) btn.style.setProperty("--ovll-rich-ref-color", item.color);
         const icon = doc.createElement("span");
         icon.className = "ovll-rich-option-icon";
         icon.innerHTML = item.action ? svg(item.icon) : refIcon(item);
@@ -318,7 +345,7 @@
         const detail = doc.createElement("small");
         detail.textContent = item.detail || "";
         info.append(name, detail); btn.append(icon, info);
-        if (item.category) {
+        if (item.category && openType !== "nodes") {
           const cat = doc.createElement("small");
           cat.className = "ovll-rich-option-kind";
           cat.textContent = item.category;
