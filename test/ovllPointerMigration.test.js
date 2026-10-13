@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 import * as core from '../front/js/ovllPointerGraphCore.mjs';
-import {getPointerCatalog} from '../backend/ovllPointer/nodeCatalog.js';
+import {getPointerCatalog} from '../backend/ovllPointer/skillCatalog.js';
 
 const read=path=>readFileSync(new URL('../'+path,import.meta.url),'utf8');
 function setup(){

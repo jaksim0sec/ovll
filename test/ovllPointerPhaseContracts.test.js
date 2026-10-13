@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createLocalPointerHost,createConfiguredLocalPointerHost} from '../backend/ovllPointer/localHost.js';
-import {getPointerCatalog} from '../backend/ovllPointer/nodeCatalog.js';
+import {getPointerCatalog} from '../backend/ovllPointer/skillCatalog.js';
 import {createConfiguredModelProvider} from '../backend/ovllPointer/configuredProvider.js';
 const snapshot=()=>({graph:{graphId:'g',revision:0,nodes:[],connections:[]},definitions:[]});
 function host(responses,calls=[]){return createLocalPointerHost({resolveModel:async()=>({providerId:'fixture',model:'actual'}),gateway:{complete:async x=>{calls.push(structuredClone(x));return {text:JSON.stringify(responses.shift()),usage:{total_tokens:5},providerId:'fixture',model:'actual'};}}});}

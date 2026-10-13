@@ -5,7 +5,7 @@ import {createLocalPointerHost} from '../backend/ovllPointer/localHost.js';
 import {toWireTurnExample} from '../backend/ovllPointer/modelContract.js';
 import {createContractValidation,splitModelMetadata} from '../backend/ovllPointer/validation.js';
 import {MemoryGraphRepository} from '../backend/ovllPointer/graph.js';
-import {withPointerCatalog} from '../backend/ovllPointer/nodeCatalog.js';
+import {withPointerCatalog} from '../backend/ovllPointer/skillCatalog.js';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 

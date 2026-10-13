@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
-import {iconSvg} from '../backend/ovllPointer/nodeCatalog.js';
+import {iconSvg} from '../backend/ovllPointer/skillCatalog.js';
 
 test('server catalog extends rounded work icons while retaining original SVG bytes',()=>{
  for(const key of ['document','spreadsheet','chart-line','checklist','calendar','clock','search','link','code','database','users','shield','mail','translate']){

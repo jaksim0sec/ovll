@@ -5,7 +5,7 @@ import vm from 'node:vm';
 import {createLocalPointerHost} from '../backend/ovllPointer/localHost.js';
 import {createContractValidation} from '../backend/ovllPointer/validation.js';
 import {phaseOutputIssues} from '../backend/ovllPointer/modelContract.js';
-import {getPointerCatalog} from '../backend/ovllPointer/nodeCatalog.js';
+import {getPointerCatalog} from '../backend/ovllPointer/skillCatalog.js';
 
 const graph=()=>({graph:{graphId:'g',revision:1,nodes:[{
   nodeId:'n_vocabulary',definitionRef:{definitionId:'d_vocab',version:1},

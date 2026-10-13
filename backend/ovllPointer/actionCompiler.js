@@ -1,6 +1,6 @@
 import {MemoryGraphRepository,KernelError} from './graph.js';
 import {createContractValidation} from './validation.js';
-import {withPointerCatalog} from './nodeCatalog.js';
+import {withPointerCatalog} from './skillCatalog.js';
 export const ACTION_PLAN_CONTRACT='action-plan.v1';
 export const SEMANTIC_ACTION_FIELDS=Object.freeze({
  'node.define':['alias','purpose','instruction','executorKind','inputs','outputs','requiredCapabilities','procedureRef','presentation','name','createInstance','request','settings','instanceInputs'],

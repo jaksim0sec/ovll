@@ -64,7 +64,7 @@ test('invalid operation receives actionable correction and only a valid proposal
 
 test('an empty node picker cannot hide the canvas Node / Reset / Arrange toolbar',()=>{
   const css=readFileSync(new URL('../front/css/ui.css',import.meta.url),'utf8');
-  const js=readFileSync(new URL('../front/js/canvasNodeBuilder.js',import.meta.url),'utf8');
+  const js=readFileSync(new URL('../front/js/canvasSkillBuilder.js',import.meta.url),'utf8');
   assert.doesNotMatch(css,/\[data-canvas-node-builder\]\)\.is-empty\s*\{\s*display:\s*none/);
   assert.match(js,/data-canvas-node-builder-toggle/);
   assert.match(js,/data-canvas-node-builder-reset/);

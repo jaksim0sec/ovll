@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
-import {iconSvg} from '../backend/ovllPointer/nodeCatalog.js';
+import {iconSvg} from '../backend/ovllPointer/skillCatalog.js';
 import {createContractValidation} from '../backend/ovllPointer/validation.js';
 import {normalizeModelTurn} from '../backend/ovllPointer/turnNormalizer.js';
 import {localModelContract} from '../backend/ovllPointer/modelContract.js';

@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
-import {iconSvg,nodeDefinitionsPublic} from './backend/ovllPointer/nodeCatalog.js';
+import {iconSvg,nodeDefinitionsPublic} from './backend/ovllPointer/skillCatalog.js';
 import {mountLocalPointerRoutes} from './backend/ovllPointer/localHttp.js';
 import compression from 'compression';
 import {randomUUID} from 'crypto';

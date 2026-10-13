@@ -1,6 +1,6 @@
 import {createConfiguredLocalPointerHost,compileLocalActionPlan} from './localHost.js';
 import {resolveLocalPointerProvider} from './configuredProvider.js';
-import {getPointerCatalog} from './nodeCatalog.js';
+import {getPointerCatalog} from './skillCatalog.js';
 import {MODEL_CONTEXT_LIMITS} from './contextLimits.js';
 import {assertCanonicalSkillSnapshot} from '../../front/js/ovllSkillCodec.mjs';
 const allowed=new Set(['turn','node','skill','response']);

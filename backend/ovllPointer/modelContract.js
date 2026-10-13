@@ -1,4 +1,4 @@
-import {iconSvg} from './nodeCatalog.js';
+import {iconSvg} from './skillCatalog.js';
 import {ACTION_PLAN_CONTRACT,SEMANTIC_ACTION_FIELDS} from './actionCompiler.js';
 export function canonicalTurnExample(){
   return {executionIntent:'requested',actions:[

@@ -319,14 +319,14 @@ test("library page owns Escape and focus lifecycle", () => {
 
 test("microcopy uses a shared readable token", () => {
   const globalCss = read("front/css/style.css");
-  const nodeCss = compact(read("front/css/node.css"));
+  const nodeCss = compact(read("front/css/skill.css"));
   const libraryCss = compact(read("front/css/library.css"));
 
   assert.match(globalCss, /--font-micro:\s*\.625rem/);
   assert.match(nodeCss, /\.vc-start-badge\s*\{[^}]*font-size:\s*var\(--font-micro\)/);
   assert.match(libraryCss, /\.ovll-library-artifact-card \.astra-artifact-meta\s*\{[^}]*font-size:\s*var\(--font-micro\)/);
 });test("coarse pointers get usable action targets", () => {
-  const nodeCss = compact(read("front/css/node.css"));
+  const nodeCss = compact(read("front/css/skill.css"));
   const libraryCss = compact(read("front/css/library.css"));
   const chatCss = compact(read("front/css/chat.css"));
   const uiCss = compact(read("front/css/ui.css"));
@@ -1342,7 +1342,7 @@ test("motion system uses shared timing tokens and avoids page blur", () => {
 
 test("runtime UI never renders raw successful model reports", () => {
   const app = read("front/js/app.js");
-  const canvas = read("front/js/canvasNode.js");
+  const canvas = read("front/js/canvasSkill.js");
 
   assert.doesNotMatch(
     app,
@@ -1555,10 +1555,10 @@ test("Pointer node tasks receive the actual request and constraints",()=>{
   assert.match(host,/modules:\['run\.perform'\]/);
 });
 test("custom nodes use the canvas plugin pipeline and node picker catalog", () => {
-  const canvas = read("front/js/canvasNode.js");
-  const custom = read("front/js/customNodes.js");
+  const canvas = read("front/js/canvasSkill.js");
+  const custom = read("front/js/customSkills.js");
   const app = read("front/js/app.js");
-  const builder = read("front/js/canvasNodeBuilder.js");
+  const builder = read("front/js/canvasSkillBuilder.js");
   const css = compact(read("front/css/ui.css"));
 
   assert.match(
@@ -1625,7 +1625,7 @@ test("runtime activity uses ovll naming and keeps a definite chat width", () => 
 test("node ports are softly interactive and visually tucked behind the node shell", () => {
   const css =
     compact(
-      read("front/css/node.css")
+      read("front/css/skill.css")
     );
 
   assert.match(
@@ -1665,7 +1665,7 @@ test("node ports are softly interactive and visually tucked behind the node shel
 test("node connection handles stay hollow while title controls gain hierarchy", () => {
   const css =
     compact(
-      read("front/css/node.css")
+      read("front/css/skill.css")
     );
 
   assert.match(
@@ -1714,7 +1714,7 @@ test("node connection handles stay hollow while title controls gain hierarchy", 
 
 test("expanded node body remeasures natural height after parameter edits", () => {
   const canvas =
-    read("front/js/canvasNode.js");
+    read("front/js/canvasSkill.js");
 
   const start =
     canvas.indexOf(

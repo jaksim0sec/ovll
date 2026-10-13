@@ -3,7 +3,7 @@ import {PRODUCT_COMMUNICATION_RULES} from '../ai/productInstructions.js';
 import { readFileSync } from 'node:fs';
 import { KernelError } from './graph.js';
 import { createContractValidation } from './validation.js';
-import { assertJsonValue } from './nodeOutput.js';
+import { assertJsonValue } from './skillOutput.js';
 
 const fail = code => { throw new KernelError(code, code, 422); };
 const registryURL = new URL('../../instructions/registry.json', import.meta.url);

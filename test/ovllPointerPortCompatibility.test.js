@@ -6,7 +6,7 @@ import {MemoryGraphRepository} from '../front/js/ovllPointerGraphCore.mjs';
 import {buildExecutionPlan} from '../front/js/ovllPointerPlanCore.mjs';
 import {compatibleDataRepresentation,matchesInputRepresentation} from '../front/js/ovllPointerPortTypes.mjs';
 import * as results from '../front/js/ovllPointerResults.mjs';
-import {getPointerCatalog} from '../backend/ovllPointer/nodeCatalog.js';
+import {getPointerCatalog} from '../backend/ovllPointer/skillCatalog.js';
 const source=readFileSync(new URL('../front/js/ovllPointerLocal.js',import.meta.url),'utf8');
 const workspaceSource=readFileSync(new URL('../front/js/workspaceStore.js',import.meta.url),'utf8');
 const def=(localKey,input,output)=>({localKey,purpose:localKey,executorKind:'model_task',

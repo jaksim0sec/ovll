@@ -1,6 +1,6 @@
 import Ajv2020 from 'ajv/dist/2020.js';
 import { readFileSync } from 'node:fs';
-import { assertJsonValue } from './nodeOutput.js';
+import { assertJsonValue } from './skillOutput.js';
 const schema=JSON.parse(readFileSync(new URL('../../docs/architecture/DATA_CONTRACT_PROPOSAL_V1.schema.json',import.meta.url),'utf8'));
 // Patch operation names and required fields come from the same contract used by Ajv.
 export const PATCH_OPERATION_CONTRACTS=Object.freeze(Object.fromEntries(

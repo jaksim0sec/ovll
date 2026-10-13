@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import * as core from '../front/js/ovllPointerGraphCore.mjs';
-import {getPointerCatalog} from '../backend/ovllPointer/nodeCatalog.js';
+import {getPointerCatalog} from '../backend/ovllPointer/skillCatalog.js';
 const read=name=>readFileSync(new URL('../'+name,import.meta.url),'utf8');
 test('saved functions remain canonical Pointer assets and executable without the builder page',async()=>{
   const values=new Map();

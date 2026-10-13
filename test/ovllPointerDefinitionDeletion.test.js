@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 import {MemoryGraphRepository} from '../front/js/ovllPointerGraphCore.mjs';
-import {getPointerCatalog} from '../backend/ovllPointer/nodeCatalog.js';
+import {getPointerCatalog} from '../backend/ovllPointer/skillCatalog.js';
 import {createContractValidation} from '../backend/ovllPointer/validation.js';
 const load=path=>readFileSync(new URL('../front/js/'+path+'.js',import.meta.url),'utf8');
 const def=(key)=>({localKey:key,purpose:'Generate Japanese vocabulary',instruction:'Generate wordlist '+key,

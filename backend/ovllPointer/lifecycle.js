@@ -1,6 +1,6 @@
 import {randomUUID} from 'node:crypto';
 import {KernelError} from './graph.js';
-import {assertJsonValue} from './nodeOutput.js';
+import {assertJsonValue} from './skillOutput.js';
 import {buildExecutionPlan} from './executionPlan.js';
 const deny=(code,status=422)=>{throw new KernelError(code,code,status);};
 const json=v=>JSON.stringify(v);

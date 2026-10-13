@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { KernelError } from './graph.js';
-import { validateNodeOutput as validateOutputContract,validateValue } from './nodeOutput.js';
+import { validateNodeOutput as validateOutputContract,validateValue } from './skillOutput.js';
 import { buildExecutionPlan, semanticFingerprint } from './executionPlan.js';
 
 const fail = (code,status=422) => { throw new KernelError(code,code,status); };

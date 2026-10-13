@@ -2,7 +2,7 @@ import { createContractValidation } from './validation.js';
 import { PostgresPointerStore } from './durable.js';
 import { createDurablePointerApp } from './durableHttp.js';
 import { createRunWorker } from './worker.js';
-import { createNodeExecution,verifyNodeRunEvidence } from './nodeExecution.js';
+import { createNodeExecution,verifyNodeRunEvidence } from './skillExecution.js';
 import { createPromptComposer } from './promptComposer.js';
 import { createModelNodeExecutor } from './modelExecutor.js';
 import { createTurnController } from './turnController.js';

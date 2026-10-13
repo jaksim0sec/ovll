@@ -74,7 +74,7 @@ test("workspace orchestrator and reusable node builder are available", () => {
   const workspace =
     read("front/js/ovllWorkspace.js");
   const builder =
-    read("front/js/canvasNodeBuilder.js");
+    read("front/js/canvasSkillBuilder.js");
   const assets =
     read("front/asset-manifest.js");
 
@@ -92,7 +92,7 @@ test("workspace orchestrator and reusable node builder are available", () => {
 
 test("reusable workspace controls do not expose dead or ambiguous controls", () => {
   const builder =
-    read("front/js/canvasNodeBuilder.js");
+    read("front/js/canvasSkillBuilder.js");
   assert.match(
     builder,
     /__ovllCanvasNodeBuilderSeq/
@@ -106,7 +106,7 @@ test("reusable workspace controls do not expose dead or ambiguous controls", () 
 });
 
 test("canvas add-node palette matches composer reference rows without hardcoded nodes", () => {
-  const builder=read("front/js/canvasNodeBuilder.js");
+  const builder=read("front/js/canvasSkillBuilder.js");
   const css=read("front/css/ui.css");
   const composer=read("front/css/composer.css");
   assert.match(builder,/Object\.entries\(definitions\(\)\)/);
@@ -123,8 +123,8 @@ test("retired standalone builder is unmounted while the live node runtime remain
   const assets=read("front/asset-manifest.js");
   const html=read("front/index.html");
   const menu=read("front/js/shellMenu.js");
-  const canvas=read("front/js/canvasNode.js");
-  const custom=read("front/js/customNodes.js");
+  const canvas=read("front/js/canvasSkill.js");
+  const custom=read("front/js/customSkills.js");
   assert.doesNotMatch(assets,/\.\/js\/(?:functionWorkspace|customNodePage)\.js/);
   assert.doesNotMatch(assets,/\.\/css\/customNode\.css/);
   assert.doesNotMatch(html,/id="custom-node-page"|data-function-workspace-host/);

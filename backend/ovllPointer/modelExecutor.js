@@ -1,6 +1,6 @@
 import { KernelError } from './graph.js';
 import { createContractValidation } from './validation.js';
-import { validateNodeOutput } from './nodeOutput.js';
+import { validateNodeOutput } from './skillOutput.js';
 
 const fail=code=>{throw new KernelError(code,code,422);};
 

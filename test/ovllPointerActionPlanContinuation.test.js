@@ -5,7 +5,7 @@ import vm from 'node:vm';
 import {createLocalPointerHost,compileLocalActionPlan} from '../backend/ovllPointer/localHost.js';
 import {compileActionPlan} from '../backend/ovllPointer/actionCompiler.js';
 import {MemoryGraphRepository} from '../backend/ovllPointer/graph.js';
-import {withPointerCatalog} from '../backend/ovllPointer/nodeCatalog.js';
+import {withPointerCatalog} from '../backend/ovllPointer/skillCatalog.js';
 const created=alias=>({kind:'created',alias});
 const fn={purpose:'Compare two outputs',inputs:[],outputs:[{name:'first',role:'First',representation:'json'},{name:'second',role:'Second',representation:'json'}],invariants:['Keep both'],procedure:{kind:'graph'},outputMap:{first:{node:created('one'),port:'result'},second:{node:created('two'),port:'result'}}};
 const plan={contract:'action-plan.v1',actions:['one','two'].map(alias=>({action:'node.add',alias,definition:{kind:'builtin',type:'write'}})).concat({action:'function.save',function:fn})};

@@ -6,11 +6,11 @@ import {createContractValidation} from './validation.js';
 import {createPromptComposer} from './promptComposer.js';
 import {formatSkillPrompt} from './skillReferenceContract.js';
 import {normalizeSkillSnapshot} from '../../front/js/ovllSkillCodec.mjs';
-import {validateNodeOutput} from './nodeOutput.js';
+import {validateNodeOutput} from './skillOutput.js';
 import {createConfiguredModelProvider,resolveLocalPointerProvider} from './configuredProvider.js';
 import {compileActionPlan,isActionPlan,ACTION_PLAN_CONTRACT,SEMANTIC_ACTION_FIELDS} from './actionCompiler.js';
 
-import {withPointerCatalog,getPointerCatalog} from './nodeCatalog.js';
+import {withPointerCatalog,getPointerCatalog} from './skillCatalog.js';
 import {toLegacySkillSnapshot} from '../../front/js/ovllSkillGraph.mjs';
 const fail=(code,status=422)=>{throw new KernelError(code,code,status);};
 const safe=s=>typeof s==='string'&&/^[a-zA-Z0-9_.:-]{1,160}$/.test(s);
