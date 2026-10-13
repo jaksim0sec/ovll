@@ -105,6 +105,20 @@ test("reusable workspace controls do not expose dead or ambiguous controls", () 
 
 });
 
+test("canvas add-node palette matches composer reference rows without hardcoded nodes", () => {
+  const builder=read("front/js/canvasNodeBuilder.js");
+  const css=read("front/css/ui.css");
+  const composer=read("front/css/composer.css");
+  assert.match(builder,/Object\.entries\(definitions\(\)\)/);
+  assert.match(builder,/Number\(b\.custom\)-Number\(a\.custom\)/);
+  assert.match(builder,/const description=String\(definition\.desc\|\|""\)\.trim\(\)/);
+  assert.match(builder,/canvas\.addNode\(type\)/);
+  assert.match(css,/\.canvas-node-builder-options\s*\{[^}]*grid-template-columns:\s*minmax\(0,1fr\)/);
+  assert.match(css,/\.canvas-node-builder-option\s*\{[^}]*border:\s*0/);
+  assert.match(css,/\.canvas-node-builder-icon\s*\{[^}]*width:\s*1\.95rem/);
+  assert.match(composer,/\.ovll-composer-rich \.ovll-rich-option-icon\s*\{[^}]*width:\s*1\.95rem/);
+});
+
 test("retired standalone builder is unmounted while the live node runtime remains", () => {
   const assets=read("front/asset-manifest.js");
   const html=read("front/index.html");
