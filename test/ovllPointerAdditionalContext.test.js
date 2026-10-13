@@ -221,7 +221,7 @@ test('dataset selection exposes file names and references without preloading con
  const state={...snapshot,graph:{...snapshot.graph,nodes:[{nodeId:'file',definitionRef:{definitionId:'builtin:file',version:1},settings:{file:{name:'sources.txt',mime:'text/plain',textPreview:'EXACT PRIVATE SOURCE'}}}]}};
  const {host,calls}=fixture([{message:'Select source',...record}]);
  await host.turn({snapshot:state,requestRef:'r',requestText:'Use sources.txt'});
- const data=JSON.parse(calls[0].messages.at(-1).content),node=data.context.materials[0].content.graph.nodes[0];
+ const data=JSON.parse(calls[0].messages.at(-1).content),node=data.context.materials[0].content.graph.skills[0];
  assert.equal(node.file.name,'sources.txt');assert.equal(node.file.ref,'file:file');
  assert.doesNotMatch(calls[0].messages.at(-1).content,/EXACT PRIVATE SOURCE/);
 });
