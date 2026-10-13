@@ -1410,7 +1410,8 @@ test("ordinary conversation uses Pointer messaging and preserves conversation me
   assert.match(app,/addAssistantMessage\(reply,\{artifacts:delivery\.artifacts\}\)/);
   assert.match(api,/local\/turn/);
   assert.match(store,/workflowUserRequest:/);
-  assert.match(store,/SCHEMA_VERSION\s*=\s*9/);
+  assert.match(store,/SCHEMA_VERSION\s*=\s*STORAGE_BRIDGE\?\.schemaVersion\|\|9/);
+  assert.match(store,/STORAGE_BRIDGE\.write\(localStorage,state,/);
 });
 
 test("chat controls share one rounded SVG language", () => {
