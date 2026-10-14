@@ -1440,7 +1440,7 @@ test("chat controls share one rounded SVG language", () => {
   );
   assert.match(
     css,
-    /\.astra-message-action\s*\{[^}]*border-radius:\s*\.52rem/
+    /\.astra-message-action\s*\{[^}]*border-radius:\s*var\(--ui-radius-pill\)/
   );
   assert.match(
     css,
