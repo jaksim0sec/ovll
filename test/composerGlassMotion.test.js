@@ -34,8 +34,11 @@ test('composer expansion animates measured heights only when state flips and res
   assert.match(css,/\.ovll-composer-rich\.is-expanded/);
   assert.match(css,/transition:[^}]*background-color/);
   assert.doesNotMatch(css,/transition:[^}]*padding/);
-  assert.match(js,/const motion = \{ duration: 170/);
-  assert.match(js,/submit\.disabled = busy \|\| !input\.value\.trim\(\);\s*resize\(\)/);
+  assert.match(js,/const motion = \{ duration: 145/);
+  assert.match(js,/submit\.disabled = busy \|\| !input\.value\.trim\(\);\s*scheduleResize\(\)/);
+  assert.match(js,/let resizeScheduled = false/);
+  assert.match(js,/if \(resizeScheduled\) return/);
+  assert.match(js,/function setBusy\(value\) \{[\s\S]*?submit\.disabled = busy \|\| !input\.value\.trim\(\)/);
   // Keep existing keyboard and picker focus behavior; motion must not force focus.
   assert.match(js,/editor\.addEventListener\("blur", event =>/);
   assert.doesNotMatch(js,/sizeAnimation[\s\S]{0,300}editor\.focus\(/);
