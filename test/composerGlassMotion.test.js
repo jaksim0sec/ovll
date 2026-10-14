@@ -54,7 +54,7 @@ test('composer and nearby glass pills share readable translucency without global
   assert.match(theme,/:root\.dark\s*\{[^}]*--ui-glass:\s*rgba\(28,\s*29,\s*32,\s*\.70\)/);
   assert.match(composer,/\.ovll-composer-rich\s*\{[^}]*background:\s*var\(--ui-glass\);[^}]*backdrop-filter:\s*var\(--ui-backdrop\)/);
   assert.match(composer,/\.ovll-composer-rich:focus-within\s*\{[^}]*background:\s*var\(--ui-glass-strong\)/);
-  assert.match(composer,/\.ovll-composer-rich \.ovll-rich-picker\s*\{[^}]*background:\s*var\(--ui-glass-strong\)/);
+  assert.match(composer,/\.ovll-composer-rich \.ovll-rich-picker\s*\{[^}]*background:\s*color-mix\(in srgb, var\(--panel\) 64%, transparent\)/);
   assert.match(ui,/mode-switch[\s\S]*?canvas-node-builder-layout[\s\S]*?background:\s*var\(--ui-glass\)/);
   assert.match(ui,/canvas-node-builder-panel[\s\S]*?background:\s*var\(--ui-glass-strong\)/);
   assert.match(chat,/\.astra-message-actions\s*\{[^}]*background:\s*var\(--ui-glass\);[^}]*backdrop-filter:\s*var\(--ui-backdrop\)/);
