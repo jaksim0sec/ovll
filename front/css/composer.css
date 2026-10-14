@@ -15,8 +15,8 @@
   min-width: 0;
   min-height: 3.25rem;
   padding: .35rem .44rem;
-  border: 1px solid color-mix(in srgb, var(--line-strong) 74%, transparent);
-  border-radius: 1.2rem;
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-radius-pill);
   box-sizing: border-box;
   background: var(--ui-glass);
   backdrop-filter: var(--ui-backdrop);
@@ -30,7 +30,7 @@
     padding .24s cubic-bezier(.22,.72,.18,1);
 }
 :is(#composer-form,[data-ovll-composer-form]).ovll-composer-rich:focus-within {
-  border-color: color-mix(in srgb, var(--text) 16%, var(--line-strong));
+  border-color: var(--ui-line-strong);
   background: var(--ui-glass-strong);
   box-shadow: var(--ui-control-shadow);
 }
@@ -40,7 +40,7 @@
   column-gap: .25rem;
   row-gap: .26rem;
   padding: .55rem .55rem .4rem;
-  border-radius: 1.25rem;
+  border-radius: 1.4rem;
 }
 :is(#composer-form,[data-ovll-composer-form]).ovll-composer-rich :is(#composer-input,[data-ovll-composer-input]) {
   display: none !important;
@@ -134,7 +134,7 @@
   margin: 0;
   padding: 0;
   border: 0;
-  border-radius: .7rem;
+  border-radius: var(--ui-radius-pill);
   background: transparent;
   color: var(--sub);
   font: inherit;
@@ -161,10 +161,10 @@
 .ovll-rich-toolbar > .ovll-rich-tool svg,
 .ovll-rich-toolbar > :is(#composer-attach,[data-ovll-composer-attach]) svg {
   display: block;
-  width: 1.4rem;
-  height: 1.4rem;
-  min-width: 1.4rem;
-  min-height: 1.4rem;
+  width: 1.58rem;
+  height: 1.58rem;
+  min-width: 1.58rem;
+  min-height: 1.58rem;
   max-width: none;
   aspect-ratio: 1 / 1;
   flex: none;
@@ -220,10 +220,10 @@
   color: var(--muted);
 }
 :is(#composer-form,[data-ovll-composer-form]).ovll-composer-rich > :is(#composer-submit,[data-ovll-composer-submit]) svg {
-  width: 1.38rem;
-  height: 1.38rem;
-  min-width: 1.38rem;
-  min-height: 1.38rem;
+  width: 1.55rem;
+  height: 1.55rem;
+  min-width: 1.55rem;
+  min-height: 1.55rem;
   max-width: none;
   aspect-ratio: 1 / 1;
   overflow: visible;

@@ -809,12 +809,12 @@ tr:last-child td {
   margin-top: .28rem;
   padding: .08rem;
   border: 1px solid var(--ui-line);
-  border-radius: .7rem;
+  border-radius: var(--ui-radius-pill);
   background: var(--ui-glass);
   backdrop-filter: var(--ui-backdrop);
   -webkit-backdrop-filter: var(--ui-backdrop);
   box-shadow: var(--ui-control-shadow);
-  opacity: .68;
+  opacity: 1;
   transform: translateY(-.08rem);
   transition:
     opacity var(--motion-fast) ease,
@@ -845,20 +845,15 @@ tr:last-child td {
 }
 
 .astra-message-action {
-  width: 1.72rem;
-  height: 1.72rem;
+  width: 2rem;
+  height: 2rem;
   padding: 0;
   display: grid;
   place-items: center;
   border: 0;
-  border-radius: .52rem;
+  border-radius: var(--ui-radius-pill);
   background: transparent;
-  color:
-    color-mix(
-      in srgb,
-      var(--text) 56%,
-      transparent
-    );
+  color: color-mix(in srgb, var(--text) 79%, var(--sub));
   font-size: 0;
   line-height: 1;
   cursor: pointer;
@@ -883,11 +878,11 @@ tr:last-child td {
 }
 
 .astra-message-action svg {
-  width: 1rem;
-  height: 1rem;
+  width: 1.3rem;
+  height: 1.3rem;
   fill: none;
   stroke: currentColor;
-  stroke-width: 1.55;
+  stroke-width: 1.85;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
@@ -1742,9 +1737,9 @@ tr:last-child td {
   }
 
   .astra-message-action svg {
-    width: 1rem;
-    height: 1rem;
-    stroke-width: 1.7;
+    width: 1.3rem;
+    height: 1.3rem;
+    stroke-width: 1.9;
   }
 }
 
@@ -1789,7 +1784,7 @@ tr:last-child td {
 .astra-message-actions,
 .astra-message-assistant:focus-within
 .astra-message-actions {
-  opacity: .9;
+  opacity: 1;
   transform: translateY(0);
 }
 

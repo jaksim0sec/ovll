@@ -44,20 +44,18 @@
   --radius-round: 999px;
 
   --ui-line-width: 1px;
-  --ui-line: color-mix(in srgb, var(--line) 55%, transparent);
-  --ui-line-strong: color-mix(in srgb, var(--line-strong) 70%, transparent);
+  --ui-line: color-mix(in srgb, var(--line) 42%, transparent);
+  --ui-line-strong: color-mix(in srgb, var(--line-strong) 53%, transparent);
   --ui-radius-pill: 999px;
   --ui-radius-panel: 1.375rem;
   --ui-radius-item: 1rem;
   /* Composer-inspired glass used by floating pills and adjacent controls. */
-  --ui-glass: rgba(255, 255, 255, .78);
-  --ui-glass-strong: rgba(255, 255, 255, .88);
+  --ui-glass: rgba(255, 255, 255, .72);
+  --ui-glass-strong: rgba(255, 255, 255, .82);
   --ui-control-surface: rgba(255, 255, 255, .82);
   --ui-control-surface-strong: rgba(255, 255, 255, .91);
-  --ui-control-shadow:
-    0 .48rem 1.5rem rgba(31, 39, 52, .055),
-    inset 0 1px rgba(255, 255, 255, .18);
-  --ui-backdrop: blur(.9rem) saturate(1.12);
+  --ui-control-shadow: 0 .4rem 1.3rem rgba(31, 39, 52, .07);
+  --ui-backdrop: blur(.85rem) saturate(1.07);
 
   --app-resize-duration: .14s;
   --app-resize-ease: cubic-bezier(.2,.82,.2,1);
@@ -102,13 +100,11 @@
   --shadow-soft:
     0 .25rem .875rem rgba(0, 0, 0, 0.2);
 
-  --ui-glass: rgba(26, 26, 26, .76);
-  --ui-glass-strong: rgba(30, 30, 30, .87);
+  --ui-glass: rgba(28, 29, 32, .70);
+  --ui-glass-strong: rgba(31, 32, 35, .84);
   --ui-control-surface: rgba(26, 26, 26, .79);
   --ui-control-surface-strong: rgba(32, 32, 32, .9);
-  --ui-control-shadow:
-    0 .38rem 1.2rem rgba(0, 0, 0, .26),
-    inset 0 1px rgba(255, 255, 255, .055);
+  --ui-control-shadow: 0 .38rem 1.15rem rgba(0, 0, 0, .24);
 }
 
 
