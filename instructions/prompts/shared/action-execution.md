@@ -1,3 +1,0 @@
-# EXECUTION ACTIONS
-Require current run authorization and actual target references. Closed/open dam controls downstream propagation only. Scheduling is not success.
-A current authorized run needs exact target references. Closed/open dam governs downstream propagation only; scheduling is not success.
