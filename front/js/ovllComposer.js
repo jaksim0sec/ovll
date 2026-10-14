@@ -88,6 +88,16 @@
     let openingToolbarMenu = false;
     let sizeAnimation = null;
     let controlAnimations = [];
+    let resizeScheduled = false;
+    function scheduleResize() {
+      if (resizeScheduled) return;
+      resizeScheduled = true;
+      const frame = global.requestAnimationFrame || (callback => callback());
+      frame(() => {
+        resizeScheduled = false;
+        resize();
+      });
+    }
 
     function textPart(target, value) {
       if (!value) return;
@@ -143,9 +153,9 @@
     function hasRefs() { return parts().some(p => p.type !== "text"); }
     function update() {
       syncValue();
-      // Reflect availability before synchronous layout measurement/FLIP work.
+      // Update send availability immediately; measure layout once per frame.
       submit.disabled = busy || !input.value.trim();
-      resize();
+      scheduleResize();
     }
     function resize() {
       // Measure in the COLLAPSED editor width, even when expanded. Reading
@@ -573,7 +583,10 @@
       closeMenu(); update();
     }
     function clear() { setDraft(""); }
-    function setBusy(value) { busy = !!value; update(); }
+    function setBusy(value) {
+      busy = !!value;
+      submit.disabled = busy || !input.value.trim();
+    }
     function setAttachmentEnabled(value) {
       attachmentEnabled = !!value;
       if (attach) attach.hidden = !attachmentEnabled;
