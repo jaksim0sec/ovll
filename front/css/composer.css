@@ -286,13 +286,18 @@
   z-index: 15;
   max-height: min(19.5rem,40dvh);
   overflow-y: auto;
-  padding: .34rem;
-  border: 1px solid color-mix(in srgb, var(--line-strong) 92%, transparent);
-  border-radius: 1rem;
-  background: var(--ui-glass-strong);
-  box-shadow: 0 .78rem 2rem rgba(0,0,0,.19);
+  padding: .4rem;
+  /* Same glass blur as the canvas Skill picker, with a translucent surface
+     so the blur remains visible behind the composer popup. */
+  border: var(--ui-line-width) solid var(--ui-line);
+  border-radius: 1.3rem;
+  background: color-mix(in srgb, var(--panel) 64%, transparent);
+  box-shadow: var(--ui-control-shadow), 0 .65rem 1.75rem rgba(0,0,0,.14);
   backdrop-filter: var(--ui-backdrop);
   -webkit-backdrop-filter: var(--ui-backdrop);
+}
+:root:not(.dark) .ovll-composer-rich .ovll-rich-picker {
+  background: color-mix(in srgb, var(--panel) 73%, transparent);
 }
 .ovll-composer-rich .ovll-rich-picker[hidden] { display: none !important; }
 .ovll-composer-rich .ovll-rich-group-title {
