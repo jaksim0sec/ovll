@@ -143,8 +143,9 @@
     function hasRefs() { return parts().some(p => p.type !== "text"); }
     function update() {
       syncValue();
-      resize();
+      // Reflect availability before synchronous layout measurement/FLIP work.
       submit.disabled = busy || !input.value.trim();
+      resize();
     }
     function resize() {
       // Measure in the COLLAPSED editor width, even when expanded. Reading
@@ -208,7 +209,7 @@
         const reduceMotion = global.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
         if (!reduceMotion && typeof form.animate === "function" &&
           Number.isFinite(beforeHeight) && Number.isFinite(formHeight)) {
-          const motion = { duration: 240, easing: "cubic-bezier(.22,.72,.18,1)" };
+          const motion = { duration: 170, easing: "cubic-bezier(.2,.82,.2,1)" };
           if (Math.abs(formHeight - beforeHeight) > 1) {
             sizeAnimation = form.animate(
               [{ height: beforeHeight + "px" }, { height: formHeight + "px" }],

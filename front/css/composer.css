@@ -23,11 +23,10 @@
   -webkit-backdrop-filter: var(--ui-backdrop);
   box-shadow: var(--ui-control-shadow);
   transition:
-    border-color .22s ease,
-    background-color .22s ease,
-    box-shadow .22s ease,
-    border-radius .24s cubic-bezier(.22,.72,.18,1),
-    padding .24s cubic-bezier(.22,.72,.18,1);
+    border-color .14s ease,
+    background-color .14s ease,
+    box-shadow .14s ease,
+    border-radius .17s cubic-bezier(.2,.82,.2,1);
 }
 :is(#composer-form,[data-ovll-composer-form]).ovll-composer-rich:focus-within {
   border-color: var(--ui-line-strong);
@@ -211,6 +210,7 @@
   width: 2.25rem;
   height: 2.25rem;
   background: var(--text);
+  transition: background-color .1s ease, box-shadow .1s ease;
 }
 :is(#composer-form,[data-ovll-composer-form]).ovll-composer-rich > :is(#composer-submit,[data-ovll-composer-submit]):disabled::before {
   background: color-mix(in srgb, var(--text) 17%, var(--panel));

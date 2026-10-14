@@ -678,9 +678,9 @@
   line-height: 1;
   cursor: pointer;
   transition:
-    transform .16s var(--ease),
-    opacity .2s ease,
-    background-color .18s ease;
+    transform .13s var(--ease),
+    opacity .1s ease,
+    background-color .1s ease;
 }
 
 :is(#composer-submit,[data-ovll-composer-submit])::before {
