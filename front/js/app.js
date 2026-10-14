@@ -449,7 +449,7 @@
             ).slice(0,24000),
           composerDraftParts:
             composerEditor?.hasRefs()
-              ? composerEditor.getParts()
+              ? composerEditor.getDraftParts()
               : null,
           lastUserRequest:
             state.lastUserRequest,
@@ -531,7 +531,7 @@
               conversationId,
               draft,
               composerEditor?.hasRefs()
-                ? composerEditor.getParts()
+                ? composerEditor.getDraftParts()
                 : null
             );
         },
@@ -6003,6 +6003,7 @@
         state.pointerLocalView=null;
         state.pointerGraphRevision=snapshot.graph.graph.revision;
         state.pointerGraphSnapshot=snapshot.graph;
+        composerEditor?.reconcileDraft?.();
         state.workflow=getCurrentWorkflow();
         renderNodeBuilderOptions();
       }finally{state.pointerHydrating=false;}

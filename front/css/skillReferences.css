@@ -7,13 +7,15 @@
   max-width:min(100%,17rem);
   gap:.26rem;
   margin:0 .08rem;
-  padding:.09rem .38rem .1rem .31rem;
-  border:1px solid color-mix(in srgb,var(--text) 16%,transparent);
-  border-radius:.43rem;
+  padding:.13rem .48rem .14rem .4rem;
+  border:1px solid color-mix(in srgb,var(--text) 12%,transparent);
+  border-radius:999px;
   background:var(--ui-glass, color-mix(in srgb,var(--panel) 80%,transparent));
   color:var(--text);
   box-shadow:0 1px 4px color-mix(in srgb,var(--shadow-color, #000) 7%,transparent);
-  line-height:1.35;
+  line-height:1.48;
+  min-height:1.7em;
+  box-sizing:border-box;
   user-select:all;
 }
 .ovll-skill-ref[data-ovll-ref-kind="skill-canvas"] {

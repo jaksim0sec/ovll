@@ -88,6 +88,9 @@
     let openingToolbarMenu = false;
     let sizeAnimation = null;
     let controlAnimations = [];
+    // Preserve scoped references until the graph and saved-function catalog load.
+    let pendingDraftParts = null;
+    let pendingDraftText = null;
     let resizeScheduled = false;
     function scheduleResize() {
       if (resizeScheduled) return;
@@ -137,7 +140,9 @@
       return result.filter(p => p.type !== "text" || p.text);
     }
     function plainValue() {
-      return parts().map(p => {
+      const source = pendingDraftParts && editor.textContent === pendingDraftText
+        ? pendingDraftParts : parts();
+      return source.map(p => {
         if(p.type==="text")return global.OvllSkillReferences
           ?.escapeSkillReferenceLiteral?.(p.text)??p.text;
         if(p.type==="reference")return global.OvllSkillReferences
@@ -150,7 +155,28 @@
       }).join("");
     }
     function syncValue() { input.value = plainValue(); }
-    function hasRefs() { return parts().some(p => p.type !== "text"); }
+    function hasRefs() { return !!pendingDraftParts || parts().some(p => p.type !== "text"); }
+    function draftParts() {
+      return pendingDraftParts && editor.textContent === pendingDraftText
+        ? pendingDraftParts.map(p => ({...p})) : parts();
+    }
+    function reconcileDraft() {
+      if (!pendingDraftParts) return false;
+      if (editor.textContent !== pendingDraftText) {
+        pendingDraftParts = null;
+        pendingDraftText = null;
+        return false;
+      }
+      const resolver = global.OvllSkillReferenceUI?.resolverFor?.({
+        snapshot: config.getSkillSnapshot?.(), functions: config.getFunctions?.() || []
+      });
+      if (!resolver || !pendingDraftParts.every(p => p.type !== "reference" || resolver(p.reference))) return false;
+      const saved = pendingDraftParts;
+      pendingDraftParts = null;
+      pendingDraftText = null;
+      setDraft(saved);
+      return true;
+    }
     function update() {
       syncValue();
       // Update send availability immediately; measure layout once per frame.
@@ -252,6 +278,8 @@
     }
     function changed() {
       if (composing) return;
+      pendingDraftParts = null;
+      pendingDraftText = null;
       update();
       detectTrigger();
     }
@@ -553,8 +581,11 @@
       openMenu(match[1] === "@" ? "nodes" : "commands", match[2], queryRange);
     }
     function setDraft(value) {
+      pendingDraftParts = null;
+      pendingDraftText = null;
       editor.replaceChildren();
       const items = Array.isArray(value) ? value : [{ type: "text", text: String(value || "") }];
+      let unresolvedReference = false;
       for (const p of items) {
         if (!p || typeof p !== "object") continue;
         if (p.type === "text") editor.append(doc.createTextNode(String(p.text || "")));
@@ -570,6 +601,7 @@
               id:p.reference.skillId||p.reference.definitionId||p.reference.functionId,
               label:verified.label,iconKey:verified.iconKey,color:verified.color}));
           }else{
+            unresolvedReference = true;
             editor.append(doc.createTextNode(global.OvllSkillReferences.serializeSkillReference(p.reference)));
           }
         }
@@ -579,6 +611,10 @@
           const iconKey = p.type === "node_type" ? defs[p.id]?.iconKey : "";
           editor.append(createTag({ ...p, iconKey }));
         }
+      }
+      if (unresolvedReference && Array.isArray(value)) {
+        pendingDraftParts = items.map(p => ({...p}));
+        pendingDraftText = editor.textContent;
       }
       closeMenu(); update();
     }
@@ -658,7 +694,8 @@
       if (!form.contains(event.target)) closeMenu();
     });
     setDraft(input.value);
-    const api = { element: editor, resize, getParts: parts, getValue: plainValue, getWireText:plainValue,
+    const api = { element: editor, resize, getParts: parts, getDraftParts: draftParts,
+      reconcileDraft, getValue: plainValue, getWireText:plainValue,
       hasRefs, setDraft, clear, setBusy, setPlaceholder, setAttachmentEnabled,
       focus: () => editor.focus(), closeMenu };
     form.ovllRichComposer = api;

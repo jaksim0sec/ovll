@@ -31,3 +31,19 @@ test('composer and chat use same scope snapshot and shared chip class',()=>{
  assert.match(read('front/js/ovllComposer.js'),/createSkillReferenceChip/);
  assert.match(read('front/js/ovllComposer.js'),/classList\.add\("ovll-rich-ref"\)/);
 });
+
+test('trusted drafts rehydrate after scoped graph is ready with pill metrics',()=>{
+ const src=read('front/js/ovllComposer.js'),app=read('front/js/app.js');
+ assert.match(src,/let pendingDraftParts = null/);
+ assert.match(src,/function reconcileDraft\(\)/);
+ assert.match(src,/editor\.textContent !== pendingDraftText/);
+ assert.match(src,/pendingDraftParts\.every\(p => p\.type !== "reference" \|\| resolver\(p\.reference\)\)/);
+ assert.match(src,/getDraftParts: draftParts/);
+ assert.match(app,/composerEditor\?\.reconcileDraft\?\.\(\)/);
+ assert.match(app,/composerEditor\.getDraftParts\(\)/);
+ for(const path of ['front/css/skillReferences.css','front/css/composer.css']){
+  const css=read(path);
+  assert.match(css,/border-radius:\s*999px/);
+  assert.match(css,/min-height:\s*1\.7em/);
+ }
+});
