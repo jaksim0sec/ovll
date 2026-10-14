@@ -6647,7 +6647,9 @@
   }
 
   function handleComposerInput() {
-    resizeComposer();
+    // The rich editor already measures and animates itself on input.
+    // Avoid a second synchronous layout pass for each keystroke.
+    if (!composerEditor) resizeComposer();
     scheduleComposerDraftSave();
   }
 

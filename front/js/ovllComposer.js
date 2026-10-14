@@ -209,7 +209,7 @@
         const reduceMotion = global.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
         if (!reduceMotion && typeof form.animate === "function" &&
           Number.isFinite(beforeHeight) && Number.isFinite(formHeight)) {
-          const motion = { duration: 170, easing: "cubic-bezier(.2,.82,.2,1)" };
+          const motion = { duration: 145, easing: "cubic-bezier(.22,1,.36,1)" };
           if (Math.abs(formHeight - beforeHeight) > 1) {
             sizeAnimation = form.animate(
               [{ height: beforeHeight + "px" }, { height: formHeight + "px" }],
