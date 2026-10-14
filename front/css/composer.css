@@ -278,8 +278,15 @@
   flex: 0 0 auto;
   overflow: visible;
 }
+.ovll-rich-picker-host {
+  position: absolute;
+  z-index: 3;
+  height: 0;
+  pointer-events: none;
+}
 .ovll-composer-rich .ovll-rich-picker {
   position: absolute;
+  pointer-events: auto;
   left: .08rem;
   right: .08rem;
   bottom: calc(100% + .55rem);

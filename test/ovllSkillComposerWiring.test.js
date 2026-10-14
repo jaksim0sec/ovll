@@ -47,3 +47,16 @@ test('trusted drafts rehydrate after scoped graph is ready with pill metrics',()
   assert.match(css,/min-height:\s*1\.7em/);
  }
 });
+
+test('Skill and command popup escapes composer backdrop root while preserving actions',()=>{
+ const src=read('front/js/ovllComposer.js'),css=read('front/css/composer.css');
+ assert.match(src,/pickerHost\.appendChild\(picker\)/);
+ assert.match(src,/composerShell\.appendChild\(pickerHost\)/);
+ assert.doesNotMatch(src,/form\.appendChild\(picker\)/);
+ assert.match(src,/function positionPicker\(\)/);
+ assert.match(src,/positionPicker\(\);\s*return formHeight/);
+ assert.match(src,/!form\.contains\(event\.target\) && !pickerHost\.contains\(event\.target\)/);
+ assert.match(src,/visualViewport\?\.addEventListener\?\.\("resize"/);
+ assert.match(css,/\.ovll-rich-picker-host\s*\{[^}]*pointer-events:\s*none/);
+ assert.match(css,/\.ovll-composer-rich \.ovll-rich-picker\s*\{[^}]*pointer-events:\s*auto/);
+});

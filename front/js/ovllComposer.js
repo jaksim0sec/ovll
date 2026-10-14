@@ -67,7 +67,14 @@
     measure.contentEditable = "false";
     measure.setAttribute("aria-hidden", "true");
     form.insertBefore(measure, submit);
-    form.appendChild(picker);
+    // Keep the popup outside the form's backdrop-filter stacking context.
+    // It remains scoped to this composer without being clipped or blurring
+    // only the form surface (not the conversation behind it).
+    const pickerHost = doc.createElement("div");
+    pickerHost.className = "ovll-composer-rich ovll-rich-picker-host";
+    pickerHost.appendChild(picker);
+    const composerShell = form.parentElement;
+    composerShell.appendChild(pickerHost);
     form.classList.add("ovll-composer-rich");
     if (attach) {
       attach.classList.add("ovll-rich-attach");
@@ -100,6 +107,14 @@
         resizeScheduled = false;
         resize();
       });
+    }
+    function positionPicker() {
+      if (picker.hidden) return;
+      const anchor = form.getBoundingClientRect();
+      const shell = composerShell.getBoundingClientRect();
+      pickerHost.style.left = (anchor.left - shell.left) + "px";
+      pickerHost.style.width = anchor.width + "px";
+      pickerHost.style.bottom = (shell.bottom - anchor.top) + "px";
     }
 
     function textPart(target, value) {
@@ -274,6 +289,7 @@
         (configured.endsWith("rem") ? base * rootRem : base) : 88;
       targetStyle.setProperty("--composer-form-height", formHeight + "px");
       targetStyle.setProperty("--composer-live-height", Math.max(formHeight, baseHeight) + "px");
+      positionPicker();
       return formHeight;
     }
     function changed() {
@@ -691,8 +707,12 @@
     });
     form.addEventListener("submit", syncValue, { capture: true });
     doc.addEventListener("pointerdown", event => {
-      if (!form.contains(event.target)) closeMenu();
+      if (!form.contains(event.target) && !pickerHost.contains(event.target)) closeMenu();
     });
+    // Re-anchor after viewport/keyboard shifts on mobile without polling.
+    global.addEventListener?.("resize", scheduleResize, {passive: true});
+    global.visualViewport?.addEventListener?.("resize", scheduleResize, {passive: true});
+    global.visualViewport?.addEventListener?.("scroll", scheduleResize, {passive: true});
     setDraft(input.value);
     const api = { element: editor, resize, getParts: parts, getDraftParts: draftParts,
       reconcileDraft, getValue: plainValue, getWireText:plainValue,
