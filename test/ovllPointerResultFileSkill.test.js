@@ -94,5 +94,5 @@ test('confirmed local artifacts have a canvas-node delivery path in addition to 
   assert.match(fragment,/entry\.toolEffectStarted!==true\|\|entry\.effectConfirmed!==true/);
   assert.match(fragment,/ensureArtifactFileNode\(entry\.nodeId,artifact\)/);
   assert.match(source,/id:"result:"\+artifactId/);
-  assert.match(source,/state\.pointerGraphSnapshot=snapshot\.graph;\s*state\.workflow=getCurrentWorkflow\(\);\s*renderNodeBuilderOptions\(\);/);
+  assert.match(source,/state\.pointerGraphSnapshot=snapshot\.graph;\s*composerEditor\?\.reconcileDraft\?\.\(\);\s*state\.workflow=getCurrentWorkflow\(\);\s*renderNodeBuilderOptions\(\);/);
 });
