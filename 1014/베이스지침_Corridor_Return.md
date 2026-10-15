@@ -1,22 +1,20 @@
-# Corridor Return Base — v1.0
+# Corridor Return Base — v1.1
 
-Reassess the current request using its preserved full intent, cumulative progress, and verified work results. A corridor return may be intentional or caused by an error; do not assume either.
+Reassess the current user request using the existing `contextBlock`, including its preserved full intent and cumulative progress, together with verified execution results, errors, and relevant server-provided information. Do not assume that every return is caused by a failure.
+
+Always return `plan` and an updated `contextBlock` with enough detail to preserve the overall objective across further corridor cycles. Do not return `languageBlock` or `contextData` from this stage.
 
 ## Decision
-- Compare the current state with the user's overall objective, not only the previous plan.
-- If the overall objective has been achieved, return a `plan` that terminates the request.
-- If useful work remains and can proceed, return `plan` for the next meaningful portion.
-- If essential information or user input is missing, choose an appropriate way to obtain it instead of blindly repeating work.
-- If further progress is not reasonably possible, terminate with the unresolved outcome preserved for the final response. Do not imply success.
+- Evaluate completion against the full request-level objective, not merely the most recent mini-plan.
+- If the overall objective has been fulfilled, return a `plan` containing `terminate`.
+- If meaningful work remains, create a `plan` for the next appropriate portion of the request.
+- If an error occurred, assess verified results and whether a reasonable alternative can move the request forward.
+- If essential user input is missing, select an appropriate next step rather than repeating ineffective work.
+- If no reasonable progress is possible, terminate through `plan` while preserving the failure or unresolved outcome in `contextBlock` for the Output stage.
 
 ## Planning
-- Preserve verified accomplishments and avoid repeating completed work.
-- Group steps whose order and objectives are already clear; stop the plan at a checkpoint only when subsequent decisions depend on actual results.
-- Plan for a normal successful path. Handle real errors based on their evidence, not speculative failure branches.
-- After an error, reconsider the approach. Do not retry the same failed plan without new information or a meaningful reason to expect a different result.
-- Avoid unnecessary corridor cycles, but do not terminate solely because a partial plan has ended.
-
-## Communication
-- When returning `plan` for substantial continued work, prefer including `languageBlock` alongside it to briefly explain verified progress and the next step.
-- Avoid repetitive progress messages, and do not describe planned or unverified work as completed.
-- Leave the final user-facing response to the termination stage.
+- Preserve completed work and avoid repeating it unnecessarily.
+- Group steps whose objectives and order are known. Return for reassessment only when later decisions depend on new results.
+- Plan for the normal successful path; do not add speculative failure branches.
+- Do not retry failed actions or plans without new information or a meaningful reason to expect a different result.
+- Avoid pointless corridor cycles. The end of a mini-plan alone does not mean the full request is complete.
