@@ -44,7 +44,7 @@ test('real server commits semantic canvas edits with a pinned revision, immutabl
   const canvas={skillNodes,connections:links};
   assert.equal(editor.build(graph,{skillNodes:skillNodes.map(x=>({...x,x:99})),connections:links}),null);
   canvas.skillNodes.push({id:'temporary',type:skillNodes[0].type,x:50,y:20,data:{}});
-  canvas.connections.push({from:{skillNode:nodes[1].id,port:'out'},
+  canvas.connections.push({from:{skillNode:skillNodes[1].id,port:'out'},
     to:{skillNode:'temporary',port:'in'},data:{kind:'flow'}});
   const diff=editor.build(graph,canvas);
   assert.equal(diff.patch.expectedGraphRevision,1);
