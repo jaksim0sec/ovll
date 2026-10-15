@@ -1,7 +1,7 @@
+import {applyPointerMigrations} from './helpers/pointerMigrations.mjs';
 import test,{before,after} from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
-import {readFile} from 'node:fs/promises';
 import {Pool} from 'pg';
 import {ModelGateway} from '../backend/ovllPointer/providers.js';
 import {createPointerRuntime} from '../backend/ovllPointer/runtime.js';
@@ -9,8 +9,7 @@ import {createPointerRuntime} from '../backend/ovllPointer/runtime.js';
 if(!process.env.POINTER_TEST_DATABASE_URL)throw new Error('Isolated PostgreSQL integration database required');
 const pool=new Pool({connectionString:process.env.POINTER_TEST_DATABASE_URL,max:8});
 const id=s=>s+'_'+randomUUID().replaceAll('-','').slice(0,18);
-before(async()=>{for(const name of ['001_initial.sql','002_node_evidence.sql','003_lifecycle.sql','004_skill_terminology.sql'])
-  await pool.query(await readFile(new URL('../backend/ovllPointer/sql/'+name,import.meta.url),'utf8'));});
+before(()=>applyPointerMigrations(pool));
 after(async()=>pool.end());
 test('HTTP natural request -> vendor-neutral gateway -> durable Patch/Run -> replayable event',async()=>{
   const actorRef=id('actor'),workspaceRef=id('ws'),graphId=id('graph'),taskRef=id('task');

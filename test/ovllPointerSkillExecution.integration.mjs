@@ -1,3 +1,4 @@
+import {applyPointerMigrations} from './helpers/pointerMigrations.mjs';
 import test,{before,after} from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -33,14 +34,12 @@ async function fixture({conditional=false,toolRoot=false}={}){
   assert.deepEqual(result.results.map(x=>x.status),conditional?['rejected','rejected']:['applied','scheduled']);
   return {...scope,scope,graphId,taskId,result,createdRefs:result.results[0].createdRefs,runRef:result.results[1].runRef,store:s};
 }
-before(async()=>{for(const file of ['001_initial.sql','002_node_evidence.sql','003_lifecycle.sql','004_skill_terminology.sql']){
-  await pool.query(await readFile(new URL('../backend/ovllPointer/sql/'+file,import.meta.url),'utf8'));
-}});
+before(()=>applyPointerMigrations(pool));
 after(async()=>{await pool.end();});
 test('Run executes pinned graph topologically and stores Attempt, ValueArtifact and provenance atomically',async()=>{
   const f=await fixture(),calls=[];
   const executeRun=createSkillNodeExecution({pool,executeSkillNode:async({skillNode,inputArtifacts})=>{
-    calls.push({skillNodeId:skillNodeId,inputCount:inputArtifacts.length});
+    calls.push({skillNodeId:skillNode.skillNodeId,inputCount:inputArtifacts.length});
     return produced(inputArtifacts.length?inputArtifacts[0].value+' processed':'seed');
   }});
   const worker=createRunWorker({store:f.store,executeRun,workerRef:uid('worker')});

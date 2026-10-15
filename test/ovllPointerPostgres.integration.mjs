@@ -1,3 +1,4 @@
+import {applyPointerMigrations} from './helpers/pointerMigrations.mjs';
 import test, { before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -24,8 +25,15 @@ async function setup() {
   await store.createTask(scope,{taskId,requestRef:ident('req'),objective:'Summarize documents'});
   return {store,scope,graphId,taskId,callScope:(requestRef=ident('request'))=>({...scope,graphId,taskRef:taskId,requestRef})};
 }
-before(async()=>{for(const name of ['001_initial.sql','002_node_evidence.sql','003_lifecycle.sql','004_skill_terminology.sql'])await pool.query(await readFile(new URL('../backend/ovllPointer/sql/'+name,import.meta.url),'utf8'));});
+before(()=>applyPointerMigrations(pool));
 after(async()=>{await pool.end();});
+
+test('shared database bootstrap never replays historical columns after the terminology migration',async()=>{
+  await applyPointerMigrations(pool);
+  const columns=(await pool.query("SELECT column_name FROM information_schema.columns WHERE table_schema=current_schema() AND table_name='ov_attempts'")).rows.map(row=>row.column_name);
+  assert.ok(columns.includes('skill_node_id'));
+  assert.ok(!columns.includes('node_id'));
+});
 
 test('durable graph and immutable revision survive store recreation',async()=>{
   const {store,scope,graphId,callScope}=await setup();

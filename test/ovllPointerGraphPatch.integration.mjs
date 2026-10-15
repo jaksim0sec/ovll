@@ -1,3 +1,4 @@
+import {applyPointerMigrations} from './helpers/pointerMigrations.mjs';
 import test,{before,after} from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
@@ -12,12 +13,7 @@ const id=type=>type+'_'+randomUUID().replaceAll('-','').slice(0,18);
 const w={};
 vm.runInNewContext(readFileSync(new URL('../front/js/ovllPointerGraphPatch.js',import.meta.url),'utf8'),{window:w});
 const editor=w.OvllPointerGraphPatch;
-before(async()=>{
-  for(const filename of ['001_initial.sql','002_node_evidence.sql','003_lifecycle.sql','004_skill_terminology.sql']){
-    const fs=await import('node:fs/promises');
-    await pool.query(await fs.readFile(new URL('../backend/ovllPointer/sql/'+filename,import.meta.url),'utf8'));
-  }
-});
+before(()=>applyPointerMigrations(pool));
 after(async()=>pool.end());
 test('real server commits semantic canvas edits with a pinned revision, immutable history and conflict rejection',async()=>{
   const graphId=id('g'),workspaceRef=id('w'),actorRef=id('u'),scope={workspaceRef,actorRef};

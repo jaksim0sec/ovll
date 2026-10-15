@@ -1,7 +1,7 @@
+import {applyPointerMigrations} from './helpers/pointerMigrations.mjs';
 import test,{before,after} from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
-import {readFile} from 'node:fs/promises';
 import {Pool} from 'pg';
 import {PostgresPointerStore} from '../backend/ovllPointer/durable.js';
 import {createContractValidation} from '../backend/ovllPointer/validation.js';
@@ -20,7 +20,7 @@ async function fixture(opts={}){
 }
 const proposal=(key,kind,args,dependsOn=[])=>({localKey:key,kind,args,...(dependsOn.length?{dependsOn}:{})});
 const submit=(f,actions,requestRef=uid('req'))=>f.store.submit({actions},{...f.scope,requestRef});
-before(async()=>{for(const name of ['001_initial.sql','002_node_evidence.sql','003_lifecycle.sql','004_skill_terminology.sql'])await pool.query(await readFile(new URL('../backend/ovllPointer/sql/'+name,import.meta.url),'utf8'));});
+before(()=>applyPointerMigrations(pool));
 after(async()=>{await pool.end();});
 test('question proposal atomically waits Task and duplicate request does not create another question',async()=>{
  const f=await fixture(),requestRef=uid('req'),actions=[proposal('ask','question.ask',{question:'Which source?'})];
