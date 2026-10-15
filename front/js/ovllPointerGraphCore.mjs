@@ -7,43 +7,46 @@ export class KernelError extends Error {
 const reject = (code, msg, status) => { throw new KernelError(code, msg, status); };
 const own = (x, k) => Object.prototype.hasOwnProperty.call(x, k);
 const clone = x => JSON.parse(JSON.stringify(x));
+const historicalKeys=['nodeId','skillId','nodeRef','skillRef','localNodeKey','localSkillKey','definitionRef'];
+const rejectHistorical=(value,keys=historicalKeys)=>{if(value&&keys.some(key=>own(value,key)))reject('UNEXPECTED_LEGACY_SCHEMA');};
 const validId = x => typeof x === 'string' && /^[a-zA-Z0-9_:.\-]{1,160}$/.test(x);
 const requireId = (x, name) => { if (!validId(x)) reject('BAD_ID', name); };
 const isArray = x => { if (!Array.isArray(x)) reject('BAD_ARRAY'); return x; };
 const graphKey = (w, g) => JSON.stringify([w, g]);
-const endpoint = (node, pending) => node?.nodeId || (node?.localNodeKey && pending.get(node.localNodeKey)) || reject('UNKNOWN_ENDPOINT');
-function validate(graph, definitions) {
+const endpoint = (skillNode, pending) => skillNode?.skillNodeId || (skillNode?.localSkillNodeKey && pending.get(skillNode.localSkillNodeKey)) || reject('UNKNOWN_ENDPOINT');
+function validate(graph, skillDefinitions) {
   const map = new Map();
-  for (const node of graph.nodes) {
-    if (map.has(node.nodeId)) reject('DUPLICATE_NODE');
-    const def = definitions.find(d => d.definitionId === node.definitionRef?.definitionId && d.version === node.definitionRef?.version);
+  for (const skillNode of graph.skillNodes) {
+    rejectHistorical(skillNode);
+    if (map.has(skillNode.skillNodeId)) reject('DUPLICATE_SKILL_NODE');
+    const def = skillDefinitions.find(d => d.definitionId === skillNode.skillDefinitionRef?.definitionId && d.version === skillNode.skillDefinitionRef?.version);
     if (!def) reject('UNKNOWN_DEFINITION');
-    map.set(node.nodeId, def);
+    map.set(skillNode.skillNodeId, def);
   }
   const producers = new Set(),sources = new Set();
-  const nodeMap = new Map(graph.nodes.map(n=>[n.nodeId,n]));
+  const skillNodeMap = new Map(graph.skillNodes.map(n=>[n.skillNodeId,n]));
   const seen = new Set(), edges = new Map([...map.keys()].map(n => [n, []]));
   for (const link of graph.connections) {
     if (seen.has(link.id)) reject('DUPLICATE_LINK');
     seen.add(link.id);
-    const a = map.get(link.from?.nodeId), b = map.get(link.to?.nodeId);
+    const a = map.get(link.from?.skillNodeId), b = map.get(link.to?.skillNodeId);
     if (!a || !b) reject('UNKNOWN_ENDPOINT');
     if (link.kind !== 'flow' && link.kind !== 'data') reject('BAD_LINK_KIND');
     if (link.kind === 'data') {
       const out = a.outputs.find(x => x.name === link.from.port);
       const input = b.inputs.find(x => x.name === link.to.port);
       if (!out || !input || !compatibleDataRepresentation(out.representation,input.representation)) reject('PORT_MISMATCH');
-      const inputKey=JSON.stringify([link.to.nodeId,link.to.port]);
-      const sourceKey=JSON.stringify([link.from.nodeId,link.from.port,link.to.nodeId,link.to.port]);
+      const inputKey=JSON.stringify([link.to.skillNodeId,link.to.port]);
+      const sourceKey=JSON.stringify([link.from.skillNodeId,link.from.port,link.to.skillNodeId,link.to.port]);
       if(sources.has(sourceKey))reject('DUPLICATE_INPUT_SOURCE');
       sources.add(sourceKey);
-      if(own(nodeMap.get(link.to.nodeId).inputBindings||{},link.to.port)||
+      if(own(skillNodeMap.get(link.to.skillNodeId).inputBindings||{},link.to.port)||
         producers.has(inputKey)&&input.multiple===false)reject('AMBIGUOUS_INPUT_PRODUCERS');
       producers.add(inputKey);
     } else if(!isFlowPort(a,link.from.port,'outputs')||!isFlowPort(b,link.to.port,'inputs')) {
       reject('PORT_MISMATCH');
     }
-    edges.get(link.from.nodeId).push(link.to.nodeId);
+    edges.get(link.from.skillNodeId).push(link.to.skillNodeId);
   }
   const active = new Set(), done = new Set();
   function visit(n) {
@@ -53,20 +56,20 @@ function validate(graph, definitions) {
     for (const m of edges.get(n)) visit(m);
     active.delete(n); done.add(n);
   }
-  for (const node of map.keys()) visit(node);
+  for (const skillNode of map.keys()) visit(skillNode);
 }
 export function computeScope(graph, targets, mode = 'closed') {
   if (!['closed', 'open'].includes(mode)) reject('BAD_DAM_MODE');
-  const nodes = new Set(graph.nodes.map(n => n.nodeId));
-  for (const n of targets) if (!nodes.has(n)) reject('UNKNOWN_TARGET', n);
+  const skillNodes = new Set(graph.skillNodes.map(n => n.skillNodeId));
+  for (const n of targets) if (!skillNodes.has(n)) reject('UNKNOWN_TARGET', n);
   const selected = new Set(targets);
   if (mode === 'open') {
     const queue = [...targets];
     while (queue.length) {
       const x = queue.shift();
       for (const l of graph.connections) {
-        if (l.kind === 'flow' && l.from.nodeId === x && !selected.has(l.to.nodeId)) {
-          selected.add(l.to.nodeId); queue.push(l.to.nodeId);
+        if (l.kind === 'flow' && l.from.skillNodeId === x && !selected.has(l.to.skillNodeId)) {
+          selected.add(l.to.skillNodeId); queue.push(l.to.skillNodeId);
         }
       }
     }
@@ -75,8 +78,8 @@ export function computeScope(graph, targets, mode = 'closed') {
   while (queue.length) {
     const x = queue.shift();
     for (const l of graph.connections) {
-      if (l.to.nodeId === x && !selected.has(l.from.nodeId)) {
-        selected.add(l.from.nodeId); queue.push(l.from.nodeId);
+      if (l.to.skillNodeId === x && !selected.has(l.from.skillNodeId)) {
+        selected.add(l.from.skillNodeId); queue.push(l.from.skillNodeId);
       }
     }
   }
@@ -89,7 +92,7 @@ export class MemoryGraphRepository {
     requireId(workspaceId, 'workspaceId'); requireId(graphId, 'graphId');
     const key = graphKey(workspaceId, graphId);
     if (this.#items.has(key)) reject('GRAPH_EXISTS', graphId, 409);
-    const item = { graph: { graphId, revision: 0, nodes: [], connections: [] }, definitions: [] };
+    const item = { graph: { graphId, revision: 0, skillNodes: [], connections: [] }, skillDefinitions: [] };
     this.#items.set(key, item);
     this.#revisions.set(key, new Map([[0, clone(item)]]));
     return this.get(workspaceId, graphId);
@@ -103,9 +106,11 @@ export class MemoryGraphRepository {
   restore(workspaceId, graphId, snapshot) {
     requireId(workspaceId, 'workspaceId'); requireId(graphId, 'graphId');
     if (snapshot?.graph?.graphId !== graphId || !Number.isInteger(snapshot.graph.revision) ||
-        !Array.isArray(snapshot.graph.nodes) || !Array.isArray(snapshot.graph.connections) ||
-        !Array.isArray(snapshot.definitions)) reject('INVALID_PERSISTED_GRAPH');
-    validate(snapshot.graph, snapshot.definitions);
+        !Array.isArray(snapshot.graph.skillNodes) || !Array.isArray(snapshot.graph.connections) ||
+        !Array.isArray(snapshot.skillDefinitions)) reject('INVALID_PERSISTED_GRAPH');
+    rejectHistorical(snapshot,['definitions']);rejectHistorical(snapshot.graph,['nodes','skills']);
+    for(const link of snapshot.graph.connections){rejectHistorical(link.from);rejectHistorical(link.to);}
+    validate(snapshot.graph, snapshot.skillDefinitions);
     const k = graphKey(workspaceId, graphId), item = clone(snapshot);
     this.#items.set(k, item);
     this.#revisions.set(k, new Map([[item.graph.revision, clone(item)]]));
@@ -121,8 +126,13 @@ export class MemoryGraphRepository {
     const key = graphKey(workspaceId, patch.graphId), item = this.#items.get(key);
     if (!item) reject('GRAPH_NOT_FOUND', patch.graphId, 404);
     if (item.graph.revision !== patch.expectedGraphRevision) reject('STALE_REVISION', patch.graphId, 409);
-    const next = clone(item), tempNodes = new Map(), tempDefs = new Map(), createdRefs = {};
-    const defs = isArray(patch.definitions), ops = isArray(patch.operations);
+    rejectHistorical(patch,['definitions']);
+    for(const op of patch.operations||[]){
+      rejectHistorical(op);
+      for(const end of [op.from,op.to]){rejectHistorical(end,['node','skill']);rejectHistorical(end?.skillNode);}
+    }
+    const next = clone(item), tempSkillNodes = new Map(), tempDefs = new Map(), createdRefs = {};
+    const defs = isArray(patch.skillDefinitions), ops = isArray(patch.operations);
     const explicitLinkRemovals = new Set(ops.filter(op => op?.op === 'link.remove').map(op => op.linkId));
     if (!defs.length && !ops.length) reject('EMPTY_PATCH');
     if (defs.length > 64 || ops.length > 256) reject('PATCH_TOO_LARGE');
@@ -151,54 +161,54 @@ export class MemoryGraphRepository {
           names.add(p.name);
         }
       }
-      const base = d.supersedes && next.definitions.find(x => x.definitionId === d.supersedes.definitionId && x.version === d.supersedes.version);
+      const base = d.supersedes && next.skillDefinitions.find(x => x.definitionId === d.supersedes.definitionId && x.version === d.supersedes.version);
       if (d.supersedes && !base) reject('UNKNOWN_BASE_DEFINITION');
       const value = { ...(base?.presentation?{presentation:base.presentation}:{}), ...d,
         executorKind,inputs,outputs,definitionId:base?base.definitionId:'d_'+ids(),
         version:base?base.version+1:1 };
-      if (next.definitions.some(x => x.definitionId === value.definitionId && x.version === value.version)) reject('DEFINITION_VERSION_CONFLICT');
+      if (next.skillDefinitions.some(x => x.definitionId === value.definitionId && x.version === value.version)) reject('DEFINITION_VERSION_CONFLICT');
       delete value.supersedes;
       delete value.localKey;
-      next.definitions.push(value);
+      next.skillDefinitions.push(value);
       tempDefs.set(d.localKey, value);
       createdRefs['definition:' + d.localKey] = value.definitionId;
     }
     for (const op of ops) {
-      if (op.op === 'node.add') {
-        requireId(op.localNodeKey, 'localNodeKey');
-        if (tempNodes.has(op.localNodeKey)) reject('DUPLICATE_LOCAL_NODE');
-        const ref = op.definitionRef || {};
-        const d = ref.localDefinitionKey ? tempDefs.get(ref.localDefinitionKey) : next.definitions.find(x => x.definitionId === ref.definitionId && x.version === ref.version);
+      if (op.op === 'skillNode.add') {
+        requireId(op.localSkillNodeKey, 'localSkillNodeKey');
+        if (tempSkillNodes.has(op.localSkillNodeKey)) reject('DUPLICATE_LOCAL_SKILL_NODE');
+        const ref = op.skillDefinitionRef || {};
+        const d = ref.localDefinitionKey ? tempDefs.get(ref.localDefinitionKey) : next.skillDefinitions.find(x => x.definitionId === ref.definitionId && x.version === ref.version);
         if (!d) reject('UNKNOWN_DEFINITION');
-        const nodeId = 'n_' + ids();
-        next.graph.nodes.push({ nodeId, definitionRef: { definitionId: d.definitionId, version: d.version }, inputBindings: op.inputBindings || {}, settings: op.settings || {} });
-        tempNodes.set(op.localNodeKey, nodeId);
-        createdRefs['node:' + op.localNodeKey] = nodeId;
-      } else if (op.op === 'node.update') {
-        const node = next.graph.nodes.find(n => n.nodeId === op.nodeId);
-        if (!node) reject('UNKNOWN_NODE');
-        if (op.definitionRef) {
-          const ref = op.definitionRef;
-          const d = ref.localDefinitionKey ? tempDefs.get(ref.localDefinitionKey) : next.definitions.find(x => x.definitionId === ref.definitionId && x.version === ref.version);
+        const skillNodeId = 'n_' + ids();
+        next.graph.skillNodes.push({ skillNodeId, skillDefinitionRef: { definitionId: d.definitionId, version: d.version }, inputBindings: op.inputBindings || {}, settings: op.settings || {} });
+        tempSkillNodes.set(op.localSkillNodeKey, skillNodeId);
+        createdRefs['skillNode:' + op.localSkillNodeKey] = skillNodeId;
+      } else if (op.op === 'skillNode.update') {
+        const skillNode = next.graph.skillNodes.find(n => n.skillNodeId === op.skillNodeId);
+        if (!skillNode) reject('UNKNOWN_SKILL_NODE');
+        if (op.skillDefinitionRef) {
+          const ref = op.skillDefinitionRef;
+          const d = ref.localDefinitionKey ? tempDefs.get(ref.localDefinitionKey) : next.skillDefinitions.find(x => x.definitionId === ref.definitionId && x.version === ref.version);
           if (!d) reject('UNKNOWN_DEFINITION');
-          node.definitionRef = { definitionId: d.definitionId, version: d.version };
+          skillNode.skillDefinitionRef = { definitionId: d.definitionId, version: d.version };
         }
-        if (own(op, 'settings')) node.settings = clone(op.settings);
-        if (own(op, 'inputBindings')) node.inputBindings = clone(op.inputBindings);
-      } else if (op.op === 'node.delete') {
-        const n = next.graph.nodes.findIndex(x => x.nodeId === op.nodeId);
-        if (n < 0) reject('UNKNOWN_NODE');
-        if (next.graph.connections.some(x => (x.from.nodeId === op.nodeId || x.to.nodeId === op.nodeId) &&
-            !explicitLinkRemovals.has(x.id))) reject('NODE_HAS_LINKS');
-        next.graph.nodes.splice(n, 1);
-      } else if (op.op === 'definition.appearance') {
-        const ref=op.definitionRef;
+        if (own(op, 'settings')) skillNode.settings = clone(op.settings);
+        if (own(op, 'inputBindings')) skillNode.inputBindings = clone(op.inputBindings);
+      } else if (op.op === 'skillNode.delete') {
+        const n = next.graph.skillNodes.findIndex(x => x.skillNodeId === op.skillNodeId);
+        if (n < 0) reject('UNKNOWN_SKILL_NODE');
+        if (next.graph.connections.some(x => (x.from.skillNodeId === op.skillNodeId || x.to.skillNodeId === op.skillNodeId) &&
+            !explicitLinkRemovals.has(x.id))) reject('SKILL_NODE_HAS_LINKS');
+        next.graph.skillNodes.splice(n, 1);
+      } else if (op.op === 'skill.appearance') {
+        const ref=op.skillDefinitionRef;
         if (!validId(ref?.definitionId) || !Number.isInteger(ref.version) || ref.version<1)
           reject('BAD_DEFINITION_REF');
         if (ref.definitionId.startsWith('builtin:')) reject('BUILTIN_DEFINITION_IMMUTABLE');
-        const base=next.definitions.find(d=>d.definitionId===ref.definitionId&&d.version===ref.version);
+        const base=next.skillDefinitions.find(d=>d.definitionId===ref.definitionId&&d.version===ref.version);
         if (!base) reject('UNKNOWN_DEFINITION');
-        if (next.definitions.some(d=>d.definitionId===ref.definitionId&&d.version>ref.version))
+        if (next.skillDefinitions.some(d=>d.definitionId===ref.definitionId&&d.version>ref.version))
           reject('STALE_DEFINITION_VERSION');
         const visual=op.presentation;
         if (!visual || typeof visual!=='object' || Array.isArray(visual) ||
@@ -209,25 +219,25 @@ export class MemoryGraphRepository {
           reject('BAD_PRESENTATION');
         // Appearance is editable metadata, not a new executable definition version.
         // Graph revisions remain immutable; instance refs and fingerprints stay unchanged.
-        next.definitions[next.definitions.indexOf(base)]={
+        next.skillDefinitions[next.skillDefinitions.indexOf(base)]={
           ...base,presentation:{...(base.presentation||{}),...visual}
         };
-      } else if (op.op === 'definition.delete') {
-        const ref = op.definitionRef;
+      } else if (op.op === 'skill.delete') {
+        const ref = op.skillDefinitionRef;
         if (!ref || !validId(ref.definitionId) || !Number.isInteger(ref.version) || ref.version < 1)
           reject('BAD_DEFINITION_REF');
         if (ref.definitionId.startsWith('builtin:')) reject('BUILTIN_DEFINITION_IMMUTABLE');
-        const index = next.definitions.findIndex(d =>
+        const index = next.skillDefinitions.findIndex(d =>
           d.definitionId === ref.definitionId && d.version === ref.version);
         if (index < 0) reject('UNKNOWN_DEFINITION');
-        if (next.graph.nodes.some(node => node.definitionRef.definitionId === ref.definitionId &&
-          node.definitionRef.version === ref.version)) reject('DEFINITION_IN_USE');
-        next.definitions.splice(index, 1);
+        if (next.graph.skillNodes.some(skillNode => skillNode.skillDefinitionRef.definitionId === ref.definitionId &&
+          skillNode.skillDefinitionRef.version === ref.version)) reject('DEFINITION_IN_USE');
+        next.skillDefinitions.splice(index, 1);
       } else if (op.op === 'link.add') {
         requireId(op.localLinkKey, 'localLinkKey');
         if (own(createdRefs, 'link:' + op.localLinkKey)) reject('DUPLICATE_LOCAL_LINK');
         const linkId = 'l_' + ids();
-        next.graph.connections.push({ id: linkId, kind: op.kind, from: { nodeId: endpoint(op.from?.node, tempNodes), port: op.from?.port }, to: { nodeId: endpoint(op.to?.node, tempNodes), port: op.to?.port } });
+        next.graph.connections.push({ id: linkId, kind: op.kind, from: { skillNodeId: endpoint(op.from?.skillNode, tempSkillNodes), port: op.from?.port }, to: { skillNodeId: endpoint(op.to?.skillNode, tempSkillNodes), port: op.to?.port } });
         createdRefs['link:' + op.localLinkKey] = linkId;
       } else if (op.op === 'link.remove') {
         const n = next.graph.connections.findIndex(x => x.id === op.linkId);
@@ -235,7 +245,7 @@ export class MemoryGraphRepository {
         next.graph.connections.splice(n, 1);
       } else reject('UNKNOWN_PATCH_OPERATION');
     }
-    validate(next.graph, next.definitions);
+    validate(next.graph, next.skillDefinitions);
     next.graph.parentRevision = next.graph.revision; next.graph.revision += 1;
     this.#items.set(key, next);
     this.#revisions.get(key).set(next.graph.revision, clone(next));

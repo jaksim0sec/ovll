@@ -26,12 +26,12 @@ export function createPromptComposer({validation=createContractValidation()}={})
   for(const item of modules.values())
     for(const id of item.requires)
       if(!modules.has(id)||modules.get(id).order>=item.order)fail('INVALID_PROMPT_DEPENDENCY');
-  function assemble({moduleIds=['layer.entry'],context,nodeContext,extraContext}={}) {
+  function assemble({moduleIds=['layer.entry'],context,skillNodeContext,extraContext}={}) {
     if(!validation.validate('ContextBundle',context))fail('INVALID_CONTEXT_BUNDLE');
     if(!Array.isArray(moduleIds)||moduleIds.some(id=>typeof id!=='string'||!modules.has(id)))fail('UNKNOWN_PROMPT_MODULE');
-    if(nodeContext!==undefined) {
-      assertJsonValue(nodeContext);
-      if(!nodeContext||Array.isArray(nodeContext)||typeof nodeContext!=='object')fail('INVALID_NODE_CONTEXT');
+    if(skillNodeContext!==undefined) {
+      assertJsonValue(skillNodeContext);
+      if(!skillNodeContext||Array.isArray(skillNodeContext)||typeof skillNodeContext!=='object')fail('INVALID_SKILL_NODE_CONTEXT');
     }
     if(extraContext!==undefined)assertJsonValue(extraContext);
     const selected=new Set(['core']);
@@ -39,11 +39,11 @@ export function createPromptComposer({validation=createContractValidation()}={})
     for(const id of moduleIds)include(id);
     const ordered=[...selected].map(id=>modules.get(id)).sort((a,b)=>a.order-b.order||a.id.localeCompare(b.id));
     const details=ordered.filter(x=>x.id!=='core').map(x=>x.content).join('\n\n');
-    const data=JSON.stringify({context,...(nodeContext===undefined?{}:{nodeContext}),...(extraContext===undefined?{}:{extraContext})});
+    const data=JSON.stringify({context,...(skillNodeContext===undefined?{}:{skillNodeContext}),...(extraContext===undefined?{}:{extraContext})});
     if(Buffer.byteLength(data,'utf8')>MODEL_CONTEXT_LIMITS.promptDataBytes)fail('PROMPT_CONTEXT_TOO_LARGE');
     const messages=[{role:'system',content:modules.get('core').content+'\n\n'+PRODUCT_COMMUNICATION_RULES}];
-    if(details||nodeContext!==undefined)messages.push({role:'developer',content:details+
-      (nodeContext===undefined?'':'\n\nFor this node execution return one JSON ModelTurn containing only "outputs". Use NodeOutput produced/blocked and the exact declared output ports. Do not propose other actions or invent tool executions.')});
+    if(details||skillNodeContext!==undefined)messages.push({role:'developer',content:details+
+      (skillNodeContext===undefined?'':'\n\nFor this skillNode execution return one JSON ModelTurn containing only "outputs". Use SkillNodeOutput produced/blocked and the exact declared output ports. Do not propose other actions or invent tool executions.')});
     messages.push({role:'user',content:data});
     if(jsonBytes(messages)>MODEL_CONTEXT_LIMITS.messageBytes)fail('PROMPT_MESSAGES_TOO_LARGE');
     return {assemblyVersion:registry.assemblyVersion,moduleIds:ordered.map(x=>x.id),messages};

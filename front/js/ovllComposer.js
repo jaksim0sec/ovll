@@ -49,7 +49,7 @@
       button.title = label;
     }
     tool(mention, "mention", "스킬 및 저장 함수 태그");
-    tool(canvas, "canvas", "캔버스 스킬 참조");
+    tool(canvas, "canvas", "스킬노드 참조");
     tool(commands, "slash", "빠른 명령");
     if (attach) attach.title = "파일 추가";
     // The editor and the toolbar are separate layout regions. This prevents
@@ -125,31 +125,31 @@
     }
     function parts() {
       const result = [];
-      function visit(node) {
-        if (node.nodeType === 3) { textPart(result, node.nodeValue); return; }
-        if (node.nodeType !== 1) return;
-        if(node.dataset.ovllRefToken&&global.OvllSkillReferences){
-          const reference=global.OvllSkillReferences.parseSkillReference(node.dataset.ovllRefToken);
+      function visit(skillNode) {
+        if (skillNode.nodeType === 3) { textPart(result, skillNode.nodeValue); return; }
+        if (skillNode.nodeType !== 1) return;
+        if(skillNode.dataset.ovllRefToken&&global.OvllSkillReferences){
+          const reference=global.OvllSkillReferences.parseSkillReference(skillNode.dataset.ovllRefToken);
           if(reference){
             result.push({type:"reference",reference,
-              labelSnapshot:node.dataset.ovllRefLabel||""});
+              labelSnapshot:skillNode.dataset.ovllRefLabel||""});
             return;
           }
         }
-        if (node.dataset.ovllRefKind) {
-          result.push({ type: node.dataset.ovllRefKind, id: node.dataset.ovllRefId,
-            label: node.dataset.ovllRefLabel });
+        if (skillNode.dataset.ovllRefKind) {
+          result.push({ type: skillNode.dataset.ovllRefKind, id: skillNode.dataset.ovllRefId,
+            label: skillNode.dataset.ovllRefLabel });
           return;
         }
-        if (node.tagName === "BR") {
+        if (skillNode.tagName === "BR") {
           // Browsers add a terminal BR as a caret placeholder after a line break.
-          if (node.nextSibling === null && node.previousSibling?.nodeName === "BR") return;
+          if (skillNode.nextSibling === null && skillNode.previousSibling?.skillNodeName === "BR") return;
           textPart(result, "\n"); return;
         }
-        const block = node !== editor && /^(DIV|P)$/i.test(node.tagName);
+        const block = skillNode !== editor && /^(DIV|P)$/i.test(skillNode.tagName);
         if (block && result.length) textPart(result, "\n");
-        if (block && node.childNodes.length === 1 && node.firstChild?.nodeName === "BR") return;
-        for (const child of node.childNodes) visit(child);
+        if (block && skillNode.childNodes.length === 1 && skillNode.firstChild?.skillNodeName === "BR") return;
+        for (const child of skillNode.childNodes) visit(child);
       }
       for (const child of editor.childNodes) visit(child);
       return result.filter(p => p.type !== "text" || p.text);
@@ -183,7 +183,7 @@
         return false;
       }
       const resolver = global.OvllSkillReferenceUI?.resolverFor?.({
-        snapshot: config.getSkillSnapshot?.(), functions: config.getFunctions?.() || []
+        snapshot: config.getSnapshot?.(), functions: config.getFunctions?.() || []
       });
       if (!resolver || !pendingDraftParts.every(p => p.type !== "reference" || resolver(p.reference))) return false;
       const saved = pendingDraftParts;
@@ -329,7 +329,7 @@
         const trusted = global.OvllSvgLibrary?.get?.(item.iconKey);
         if (trusted) return trusted;
       }
-      // Match the canvas node-builder fallback for live/plugin definitions.
+      // Match the canvas skillNode-builder fallback for live/plugin skillDefinitions.
       if (item.type === "node_type" && item.icon) return item.icon;
       return svg(item.type === "node_type" ? "workflow" : "canvas");
     }
@@ -337,9 +337,9 @@
     // registered definition/version, active graph instance or saved function.
     function referenceFor(item){
       if(item.reference)return item.reference;
-      const snapshot=config.getSkillSnapshot?.();
+      const snapshot=config.getSnapshot?.();
       if(item.type==="node_type"){
-        const defs=snapshot?.definitions||snapshot?.skillDefinitions||[];
+        const defs=snapshot?.skillDefinitions||snapshot?.skillDefinitions||[];
         const known=defs.find(def=>{
           const type=def.version===1&&
             /^builtin:(research|organize|judge|write|file|createFile)$/.test(def.definitionId)
@@ -351,8 +351,8 @@
       }
       if(item.type==="node_instance"){
         const graph=snapshot?.graph;
-        return graph?.graphId&&graph.nodes?.some(node=>node.nodeId===item.id)
-          ?{kind:"skill-canvas",graphId:graph.graphId,skillId:item.id}:null;
+        return graph?.graphId&&graph.skillNodes?.some(skillNode=>skillNode.skillNodeId===item.id)
+          ?{kind:"skill-canvas",graphId:graph.graphId,skillNodeId:item.id}:null;
       }
       if(item.type==="function"){
         const record=(config.getFunctions?.()||[]).find(fn=>fn.id===item.id);
@@ -367,7 +367,7 @@
       let tag=null;
       if(reference&&api){
         const resolve=global.OvllSkillReferenceUI?.resolverFor?.({
-          snapshot:config.getSkillSnapshot?.(),functions:config.getFunctions?.()||[]
+          snapshot:config.getSnapshot?.(),functions:config.getFunctions?.()||[]
         });
         const verified=resolve?.(reference);
         if(verified){
@@ -407,8 +407,8 @@
       range.deleteContents();
       const tag = createTag(item);
       const space = doc.createTextNode(" ");
-      range.insertNode(space);
-      range.insertNode(tag);
+      range.insertSkillNode(space);
+      range.insertSkillNode(tag);
       range.setStartAfter(space); range.collapse(true);
       setCaret(range);
       selectedTag = null; mentionRange = null;
@@ -418,11 +418,11 @@
     }
     function knownReferences() {
       // Read the current canvas registry on every open, not a snapshot of
-      // server defaults: it also contains the user's registered plugin nodes.
+      // server defaults: it also contains the user's registered plugin skillNodes.
       const defs = config.getDefinitions?.() || {};
       const refs = [];
       for (const [id, definition] of Object.entries(defs)) {
-        if (id === "start" || !definition || config.allowNodeType?.(id,definition) === false) continue;
+        if (id === "start" || !definition || config.allowSkillNodeType?.(id,definition) === false) continue;
         const catalog = definition.catalog || {};
         const groupId = String(catalog.group || "builtin");
         const isCustom = catalog.custom === true || groupId === "custom";
@@ -436,15 +436,15 @@
           priority: isCustom ? 0 : 1
         });
       }
-      for (const node of config.getCanvasNodes?.() || []) {
-        const id = node?.id || node?.nodeId;
+      for (const skillNode of config.getCanvasSkillNodes?.() || []) {
+        const id = skillNode?.id || skillNode?.skillNodeId;
         if (!id) continue;
-        const type = node.type || node.definitionType;
+        const type = skillNode.type || skillNode.definitionType;
         const def = defs[type] || {};
         refs.push({ type: "node_instance", id,
-          label: node.name || node.label || def.name || "캔버스 스킬",
+          label: skillNode.name || skillNode.label || def.name || "스킬노드",
           detail: "캔버스에 배치된 스킬", iconKey: def.iconKey,
-          category: "캔버스 스킬", groupId: "instances", priority: 2 });
+          category: "스킬노드", groupId: "instances", priority: 2 });
       }
       for (const fn of config.getFunctions?.() || []) {
         if (!fn?.id) continue;
@@ -477,8 +477,8 @@
     function listFor(type) {
       if (type === "tag") return [{ action: "remove-tag", label: "참조 삭제", detail: "선택한 태그만 제거", icon: "close" }];
       if (type === "commands") return [
-        { action: "nodes", label: "스킬 태그", detail: "정의된 스킬을 지정", icon: "mention" },
-        { action: "canvas", label: "캔버스 참조", detail: "현재 캔버스 스킬을 지정", icon: "canvas" },
+        { action: "skillNodes", label: "스킬 태그", detail: "정의된 스킬을 지정", icon: "mention" },
+        { action: "canvas", label: "캔버스 참조", detail: "현재 스킬노드을 지정", icon: "canvas" },
         ...(attachmentEnabled && attach && !attach.hidden ?
           [{ action: "attach", label: "파일 추가", detail: "기존 첨부 기능 사용", icon: "folder" }] : []),
         { action: "newline", label: "줄바꿈", detail: "커서 위치에 새 줄 삽입", icon: "enter" }
@@ -497,7 +497,7 @@
       let lastGroup = null;
       entries.forEach((item, i) => {
         // Only the reference picker uses real catalog group headings.
-        if (openType === "nodes" && item.groupId !== lastGroup) {
+        if (openType === "skillNodes" && item.groupId !== lastGroup) {
           lastGroup = item.groupId;
           const heading = doc.createElement("div");
           heading.className = "ovll-rich-group-title";
@@ -522,7 +522,7 @@
         const detail = doc.createElement("small");
         detail.textContent = item.detail || "";
         info.append(name, detail); btn.append(icon, info);
-        if (item.category && openType !== "nodes") {
+        if (item.category && openType !== "skillNodes") {
           const cat = doc.createElement("small");
           cat.className = "ovll-rich-option-kind";
           cat.textContent = item.category;
@@ -543,7 +543,7 @@
       selectedIndex = 0;
       picker.hidden = false;
       renderMenu();
-      mention.setAttribute("aria-expanded", String(type === "nodes"));
+      mention.setAttribute("aria-expanded", String(type === "skillNodes"));
       canvas.setAttribute("aria-expanded", String(type === "canvas"));
       commands.setAttribute("aria-expanded", String(type === "commands"));
       resize();
@@ -553,9 +553,9 @@
       if (!mobile()) editor.focus();
       if (!range || !editor.contains(range.commonAncestorContainer)) { focusEnd(); return insertText(text); }
       range.deleteContents();
-      const node = doc.createTextNode(text);
-      range.insertNode(node);
-      range.setStartAfter(node); range.collapse(true);
+      const skillNode = doc.createTextNode(text);
+      range.insertSkillNode(skillNode);
+      range.setStartAfter(skillNode); range.collapse(true);
       setCaret(range);
       editor.dispatchEvent(new Event("input", { bubbles: true }));
     }
@@ -574,7 +574,7 @@
         closeMenu(); attach?.click();
       } else if (item.action === "newline") {
         closeMenu(); insertText("\n");
-      } else if (item.action === "nodes" || item.action === "canvas") {
+      } else if (item.action === "skillNodes" || item.action === "canvas") {
         closeMenu(); openMenu(item.action);
       }
     }
@@ -582,19 +582,19 @@
       if (composing) return;
       const range = caretRange();
       if (!range?.collapsed || range.startContainer.nodeType !== 3) {
-        if (openType === "nodes" || openType === "commands") closeMenu();
+        if (openType === "skillNodes" || openType === "commands") closeMenu();
         return;
       }
       const before = range.startContainer.data.slice(0, range.startOffset);
       const match = before.match(/(?:^|\s)([@/])([^\s@/]*)$/u);
       if (!match) {
-        if (openType === "nodes" || openType === "commands") closeMenu();
+        if (openType === "skillNodes" || openType === "commands") closeMenu();
         return;
       }
       const queryRange = doc.createRange();
       queryRange.setStart(range.startContainer, range.startOffset - match[2].length - 1);
       queryRange.setEnd(range.startContainer, range.startOffset);
-      openMenu(match[1] === "@" ? "nodes" : "commands", match[2], queryRange);
+      openMenu(match[1] === "@" ? "skillNodes" : "commands", match[2], queryRange);
     }
     function setDraft(value) {
       pendingDraftParts = null;
@@ -607,14 +607,14 @@
         if (p.type === "text") editor.append(doc.createTextNode(String(p.text || "")));
         else if(p.type==="reference"&&p.reference&&global.OvllSkillReferences){
           const resolve=global.OvllSkillReferenceUI?.resolverFor?.({
-            snapshot:config.getSkillSnapshot?.(),functions:config.getFunctions?.()||[]
+            snapshot:config.getSnapshot?.(),functions:config.getFunctions?.()||[]
           });
           const verified=resolve?.(p.reference);
           if(verified){
             editor.append(createTag({reference:p.reference,
               type:p.reference.kind==="skill-canvas"?"node_instance":
                 p.reference.kind==="function"?"function":"node_type",
-              id:p.reference.skillId||p.reference.definitionId||p.reference.functionId,
+              id:p.reference.skillNodeId||p.reference.definitionId||p.reference.functionId,
               label:verified.label,iconKey:verified.iconKey,color:verified.color}));
           }else{
             unresolvedReference = true;
@@ -695,7 +695,7 @@
     });
     mention.addEventListener("click", () => {
       openingToolbarMenu = false;
-      prepareManualPicker(); openMenu("nodes");
+      prepareManualPicker(); openMenu("skillNodes");
     });
     canvas.addEventListener("click", () => {
       openingToolbarMenu = false;

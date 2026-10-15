@@ -20,29 +20,29 @@ function setup(){
 test('uploaded source → reused and custom work → actual artifact → immutable new-input replay',async()=>{
  const {window:w,store,local,id,graphId}=setup();
  const initial=(await local.state(id)).graph;
- const edit=w.OvllPointerGraphPatch.build(initial,{nodes:[{id:'upload',type:'file',data:{localFileId:'uploaded-source',name:'source.txt',mime:'text/plain',textPreview:'Original evidence',textTruncated:false}}],connections:[]});
+ const edit=w.OvllPointerGraphPatch.build(initial,{skillNodes:[{id:'upload',type:'file',data:{localFileId:'uploaded-source',name:'source.txt',mime:'text/plain',textPreview:'Original evidence',textTruncated:false}}],connections:[]});
  await local.turn({conversationId:id,graphId,actions:[{localKey:'upload',kind:'ir.applyPatch',args:{patch:edit.patch}}]});
- const fileId=(await local.state(id)).graph.graph.nodes[0].nodeId;
- let turns=0,nodes=0;
+ const fileId=(await local.state(id)).graph.graph.skillNodes[0].skillNodeId;
+ let turns=0,skillNodes=0;
  const host=createLocalPointerHost({resolveModel:async()=>({providerId:'fixture',model:'fixture'}),gateway:{complete:async({messages})=>{
   const data=JSON.parse(messages.at(-1).content);
-  if(data.nodeContext){nodes++;
-   const ctx=data.nodeContext;
+  if(data.skillNodeContext){skillNodes++;
+   const ctx=data.skillNodeContext;
    if(ctx.purpose==='Retain evidence')return{text:JSON.stringify({outputs:{status:'produced',values:{result:{ref:ctx.upstreamArtifacts[0].valueRef}}}})};
    const source=ctx.upstreamArtifacts[0]?.value||ctx.inputBindings.in;
    if(source==='New evidence')assert.deepEqual(data.context.constraints,['Keep actual names']);
    return{text:JSON.stringify({outputs:{status:'produced',values:{result:{inline:'# Report\n\n'+(typeof source==='string'?source:source.text)+'\n\n'+'Complete useful text. '.repeat(220)}}}})};
   }
   turns++;assert.ok(data.context.materials[0].content.availableDefinitions.some(d=>d.definitionId==='builtin:write'));
-  const ref=nodeId=>({nodeId}),temp=localNodeKey=>({localNodeKey});
-  const link=(key,from,fromPort,to)=>({op:'link.add',localLinkKey:key,kind:'data',from:{node:from,port:fromPort},to:{node:to,port:'in'}});
+  const ref=skillNodeId=>({skillNodeId}),temp=localSkillNodeKey=>({localSkillNodeKey});
+  const link=(key,from,fromPort,to)=>({op:'link.add',localLinkKey:key,kind:'data',from:{skillNode:from,port:fromPort},to:{skillNode:to,port:'in'}});
   return{text:JSON.stringify({message:'Unverified proposal completion must not be a delivered result.',executionIntent:'requested',actions:[
-   {localKey:'p',kind:'ir.applyPatch',args:{patch:{graphId,expectedGraphRevision:1,definitions:[{localKey:'d',purpose:'Retain evidence',executorKind:'model_task',instruction:'Pass the actual evidence without changing it',inputs:[{name:'in',role:'evidence',representation:'json'}],outputs:[{name:'result',role:'evidence',representation:'json'}],presentation:{name:'근거 보존',iconKey:'custom',color:'#7C6CF2'}}],operations:[
-    {op:'node.add',localNodeKey:'a',definitionRef:{localDefinitionKey:'d'}},
-    {op:'node.add',localNodeKey:'b',definitionRef:{definitionId:'builtin:write',version:1},settings:{request:'Write a complete report'}},
-    {op:'node.add',localNodeKey:'c',definitionRef:{definitionId:'builtin:createFile',version:1},settings:{request:'report.md'}},
+   {localKey:'p',kind:'ir.applyPatch',args:{patch:{graphId,expectedGraphRevision:1,skillDefinitions:[{localKey:'d',purpose:'Retain evidence',executorKind:'model_task',instruction:'Pass the actual evidence without changing it',inputs:[{name:'in',role:'evidence',representation:'json'}],outputs:[{name:'result',role:'evidence',representation:'json'}],presentation:{name:'근거 보존',iconKey:'custom',color:'#7C6CF2'}}],operations:[
+    {op:'skillNode.add',localSkillNodeKey:'a',skillDefinitionRef:{localDefinitionKey:'d'}},
+    {op:'skillNode.add',localSkillNodeKey:'b',skillDefinitionRef:{definitionId:'builtin:write',version:1},settings:{request:'Write a complete report'}},
+    {op:'skillNode.add',localSkillNodeKey:'c',skillDefinitionRef:{definitionId:'builtin:createFile',version:1},settings:{request:'report.md'}},
     link('fa',ref(fileId),'file',temp('a')),link('ab',temp('a'),'result',temp('b')),link('bc',temp('b'),'result',temp('c'))]}}},
-   {localKey:'r',kind:'run.start',dependsOn:['p'],args:{targets:[{fromAction:'p',localNodeKey:'c'}]}}
+   {localKey:'r',kind:'run.start',dependsOn:['p'],args:{targets:[{fromAction:'p',localSkillNodeKey:'c'}]}}
   ]})};
  }}});
  let target,write;
@@ -50,27 +50,27 @@ test('uploaded source → reused and custom work → actual artifact → immutab
   request:args=>host.turn({...JSON.parse(JSON.stringify(args)),requestRef:'request',requestText:'자료로 보고서를 만들고 파일로 저장해'}),handlers:{
    'ir.applyPatch':async action=>(await local.turn({conversationId:id,graphId,actions:[action]})).results[0],
    'run.start':async(action,applied)=>{
-    const refs=applied.get('p').createdRefs;target=refs['node:c'];write=refs['node:b'];
-    const run=await local.run({conversationId:id,targets:[target],executeNode:args=>host.node({...JSON.parse(JSON.stringify(args)),requestRef:'node'}),
+    const refs=applied.get('p').createdRefs;target=refs['skillNode:c'];write=refs['skillNode:b'];
+    const run=await local.run({conversationId:id,targets:[target],executeSkillNode:args=>host.skillNode({...JSON.parse(JSON.stringify(args)),requestRef:'skillNode'}),
      resolveArtifactRequest:()=>({format:'MD',filename:'report'}),createArtifact:async args=>({artifact:await createStoredArtifact(args)})});
     return{status:run.status,run};}
   }});
- assert.equal(result.facts.at(-1).status,'completed');assert.equal(turns,1);assert.equal(nodes,2);
+ assert.equal(result.facts.at(-1).status,'completed');assert.equal(turns,1);assert.equal(skillNodes,2);
  assert.equal(result.messages.length,0);
- const run=result.runs[0],artifact=run.nodes.find(n=>n.nodeId===target).outputs.values.artifact.inline;
+ const run=result.runs[0],artifact=run.skillNodes.find(n=>n.skillNodeId===target).outputs.values.artifact.inline;
  assert.match(getStoredArtifact(artifact.id).buffer.toString('utf8'),/Original evidence/);
  assert.ok(getStoredArtifact(artifact.id).buffer.length>3500);
  assert.match(w.OvllPointerLocalActions.deliver(run),/report.md/);
- assert.ok(run.nodes.find(n=>n.provenance?.result?.length));
+ assert.ok(run.skillNodes.find(n=>n.provenance?.result?.length));
  const graph=(await local.state(id)).graph;
  const projection=w.OvllPointerProjection.projectGraph(graph);
- assert.ok(Object.values(projection.definitions).some(d=>d.iconKey==='custom'));
+ assert.ok(Object.values(projection.skillDefinitions).some(d=>d.iconKey==='custom'));
  const fn=w.OvllPointerFunctions.save({purpose:'Write evidence report',snapshot:graph,targets:[write],invariants:['Keep actual names']});
  // File reading has no exposed model input; save a simple processing task for fresh named input replay.
  const simple=w.OvllPointerFunctions.saveDraft({purpose:fn.purpose,inputs:[{name:'in',role:'material',representation:'json'}],outputs:[{name:'result',role:'report',representation:'json'}],invariants:fn.invariants,procedure:{kind:'model_task',instruction:'Write from supplied material'}});
  const rebound=w.OvllPointerFunctions.bind(simple,{in:'New evidence'});
- const replay=await local.run({conversationId:id,snapshotOverride:rebound.snapshot,targets:rebound.targets,requestText:rebound.requestText,taskConstraints:rebound.invariants,executeNode:args=>host.node({...JSON.parse(JSON.stringify(args)),requestRef:'replay'})});
+ const replay=await local.run({conversationId:id,snapshotOverride:rebound.snapshot,targets:rebound.targets,requestText:rebound.requestText,taskConstraints:rebound.invariants,executeSkillNode:args=>host.skillNode({...JSON.parse(JSON.stringify(args)),requestRef:'replay'})});
  assert.match(w.OvllPointerLocalActions.deliver(replay),/New evidence/);
- assert.equal(w.OvllPointerFunctions.get(simple.id).snapshot.graph.nodes[0].inputBindings.in,undefined);
- store.importJSON(store.exportJSON());assert.equal(store.getConversation(id).state.pointerRuns.at(-1).status,'completed');
+ assert.equal(w.OvllPointerFunctions.get(simple.id).snapshot.graph.skillNodes[0].inputBindings.in,undefined);
+ store.importJSON(store.exportJSON());assert.equal(store.getConversation(id).state.skillRuns.at(-1).status,'completed');
 });

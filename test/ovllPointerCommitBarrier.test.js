@@ -10,30 +10,30 @@ const factory=new Function('state','pointerScope','PointerGraphPatch','global',
   'PointerAPI','refreshPointerCanvas','showErrorNotice','setTimeout','clearTimeout',
   app.slice(start,end)+';return {queuePointerEdit,flushPointerCanvasEdit,startPointerEditCommit};');
 function fixture({fail=false,wait}={}){
- const state={pointerGraphSnapshot:{graph:{graphId:'g',revision:0,nodes:[],connections:[]},
-   definitions:[]},pointerHydrating:false,restoringConversation:false,destroyed:false,
+ const state={pointerGraphSnapshot:{graph:{graphId:'g',revision:0,skillNodes:[],connections:[]},
+   skillDefinitions:[]},pointerHydrating:false,restoringConversation:false,destroyed:false,
    pointerEditInFlight:false,pointerEditTimer:null,canvas:{
-     getWorkflow:()=>({nodes:[{id:'draft',type:'pointer:d:1'}],connections:[]}),
+     getWorkflow:()=>({skillNodes:[{id:'draft',type:'pointer:d:1'}],connections:[]}),
      isInteractionEnabled:()=>true,setInteractionEnabled:()=>{}
    }};
  const alerts=[];
- const pointer={build:()=>({patch:{graphId:'g',expectedGraphRevision:0,definitions:[],
-     operations:[]},newNodeKeys:{draft:'new0'}}),
-   resolvedView:()=>({nodes:[{id:'saved'}]})};
+ const pointer={build:()=>({patch:{graphId:'g',expectedGraphRevision:0,skillDefinitions:[],
+     operations:[]},newSkillNodeKeys:{draft:'new0'}}),
+   resolvedView:()=>({skillNodes:[{id:'saved'}]})};
  const global={OvllPointerLocal:{turn:async()=>{
    if(wait)await wait;
    return {results:[fail?{status:'rejected',error:{code:'INVALID_GRAPH_EDIT'}}:
-     {status:'applied',createdRefs:{'node:new0':'saved'}}]};
+     {status:'applied',createdRefs:{'skillNode:new0':'saved'}}]};
  }}};
  const actions=factory(state,()=>({storageMode:'local',conversationId:'c',graphId:'g'}),
    pointer,global,{},async()=>{
-     state.pointerGraphSnapshot={graph:{graphId:'g',revision:1,nodes:
-       fail?[]:[{nodeId:'saved'}],connections:[]},definitions:[]};
+     state.pointerGraphSnapshot={graph:{graphId:'g',revision:1,skillNodes:
+       fail?[]:[{skillNodeId:'saved'}],connections:[]},skillDefinitions:[]};
    },error=>alerts.push(error),setTimeout,clearTimeout);
  return {state,alerts,actions};
 }
 
-test('a just-added node is saved and its temporary canvas id is resolved before running',async()=>{
+test('a just-added skillNode is saved and its temporary canvas id is resolved before running',async()=>{
  const x=fixture();
  x.actions.queuePointerEdit();
  assert.ok(x.state.pointerEditTimer);
@@ -59,8 +59,8 @@ test('failed graph saves stop execution rather than firing UNKNOWN_TARGET',async
    error=>error.code==='INVALID_GRAPH_EDIT');
  assert.equal(x.alerts.length,1);
 });
-test('unsupported legacy node types are filtered in Pointer mode, without hiding valid custom definitions',()=>{
+test('unsupported legacy skillNode types are filtered in Pointer mode, without hiding valid custom skillDefinitions',()=>{
  assert.match(app,/filter:type=>!pointerScope\(\)\|\|[\s\S]*?PointerGraphPatch\.supportedTypes\(state\.pointerGraphSnapshot\)\.has\(type\)/);
- assert.match(app,/const persistedNodeId=await flushPointerCanvasEdit\(nodeId\)/);
- assert.match(app,/runLocalNodes\(\{targets:\[persistedNodeId\]/);
+ assert.match(app,/const persistedSkillNodeId=await flushPointerCanvasEdit\(skillNodeId\)/);
+ assert.match(app,/runLocalSkillNodes\(\{targets:\[persistedSkillNodeId\]/);
 });

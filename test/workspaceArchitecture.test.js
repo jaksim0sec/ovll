@@ -70,7 +70,7 @@ test("workspace presence is factory-backed and root scoped", () => {
   );
 });
 
-test("workspace orchestrator and reusable node builder are available", () => {
+test("workspace orchestrator and reusable skillNode builder are available", () => {
   const workspace =
     read("front/js/ovllWorkspace.js");
   const builder =
@@ -80,11 +80,11 @@ test("workspace orchestrator and reusable node builder are available", () => {
 
   assert.match(workspace,/createOvllWorkspace/);
   assert.match(workspace,/data-ovll-workspace/);
-  assert.match(workspace,/mountNodeBuilder/);
+  assert.match(workspace,/mountSkillNodeBuilder/);
   assert.match(workspace,/pluginContext/);
-  assert.match(builder,/createCanvasNodeBuilder/);
+  assert.match(builder,/createCanvasSkillNodeBuilder/);
   assert.match(builder,/options\.beforeReset/);
-  assert.match(builder,/data-canvas-node-builder-list/);
+  assert.match(builder,/data-canvas-skillNode-builder-list/);
   assert.match(assets,/\.\/js\/canvasSkillBuilder\.js/);
   assert.match(assets,/\.\/js\/ovllWorkspace\.js/);
 });
@@ -95,7 +95,7 @@ test("reusable workspace controls do not expose dead or ambiguous controls", () 
     read("front/js/canvasSkillBuilder.js");
   assert.match(
     builder,
-    /__ovllCanvasNodeBuilderSeq/
+    /__ovllCanvasSkillNodeBuilderSeq/
   );
 
   assert.match(
@@ -105,31 +105,31 @@ test("reusable workspace controls do not expose dead or ambiguous controls", () 
 
 });
 
-test("canvas add-node palette matches composer reference rows without hardcoded nodes", () => {
+test("canvas add-skillNode palette matches composer reference rows without hardcoded skillNodes", () => {
   const builder=read("front/js/canvasSkillBuilder.js");
   const css=read("front/css/ui.css");
   const composer=read("front/css/composer.css");
-  assert.match(builder,/Object\.entries\(definitions\(\)\)/);
+  assert.match(builder,/Object\.entries\(skillDefinitions\(\)\)/);
   assert.match(builder,/Number\(b\.custom\)-Number\(a\.custom\)/);
   assert.match(builder,/const description=String\(definition\.desc\|\|""\)\.trim\(\)/);
-  assert.match(builder,/canvas\.addNode\(type\)/);
-  assert.match(css,/\.canvas-node-builder-options\s*\{[^}]*grid-template-columns:\s*minmax\(0,1fr\)/);
-  assert.match(css,/\.canvas-node-builder-option\s*\{[^}]*border:\s*0/);
-  assert.match(css,/\.canvas-node-builder-icon\s*\{[^}]*width:\s*1\.95rem/);
+  assert.match(builder,/canvas\.addSkillNode\(type\)/);
+  assert.match(css,/\.canvas-skillNode-builder-options\s*\{[^}]*grid-template-columns:\s*minmax\(0,1fr\)/);
+  assert.match(css,/\.canvas-skillNode-builder-option\s*\{[^}]*border:\s*0/);
+  assert.match(css,/\.canvas-skillNode-builder-icon\s*\{[^}]*width:\s*1\.95rem/);
   assert.match(composer,/\.ovll-composer-rich \.ovll-rich-option-icon\s*\{[^}]*width:\s*1\.95rem/);
 });
 
-test("retired standalone builder is unmounted while the live node runtime remains", () => {
+test("retired standalone builder is unmounted while the live skillNode runtime remains", () => {
   const assets=read("front/asset-manifest.js");
   const html=read("front/index.html");
   const menu=read("front/js/shellMenu.js");
   const canvas=read("front/js/canvasSkill.js");
   const custom=read("front/js/customSkills.js");
-  assert.doesNotMatch(assets,/\.\/js\/(?:functionWorkspace|customNodePage)\.js/);
-  assert.doesNotMatch(assets,/\.\/css\/customNode\.css/);
-  assert.doesNotMatch(html,/id="custom-node-page"|data-function-workspace-host/);
-  assert.doesNotMatch(menu,/data-sidebar-action="custom-nodes"|OvllCustomNodePage/);
-  assert.match(canvas,/setNodeDefinitions/);
+  assert.doesNotMatch(assets,/\.\/js\/(?:functionWorkspace|customSkillNodePage)\.js/);
+  assert.doesNotMatch(assets,/\.\/css\/customSkillNode\.css/);
+  assert.doesNotMatch(html,/id="custom-skillNode-page"|data-function-workspace-host/);
+  assert.doesNotMatch(menu,/data-sidebar-action="custom-skills"|OvllCustomSkillNodePage/);
+  assert.match(canvas,/setSkillDefinitions/);
   assert.match(custom,/pluginDefinitions/);
 });
 
@@ -172,17 +172,17 @@ test("main workspace owns the interactive mascot lifecycle", () => {
 });
 
 
-test("interactive mascot observes nodes from above and widens long travel arcs", () => {
+test("interactive mascot observes skillNodes from above and widens long travel arcs", () => {
   const mascot =
     read("front/js/mascot.js");
 
   const targetStart =
     mascot.indexOf(
-      "function nodeTarget"
+      "function skillNodeTarget"
     );
   const targetEnd =
     mascot.indexOf(
-      "function reactMoveToNode",
+      "function reactMoveToSkillNode",
       targetStart
     );
   const target =
@@ -207,7 +207,7 @@ test("interactive mascot observes nodes from above and widens long travel arcs",
   );
   assert.match(
     target,
-    /nodeCenter\.y-\s*observationLift/
+    /skillNodeCenter\.y-\s*observationLift/
   );
   assert.match(
     swoosh,

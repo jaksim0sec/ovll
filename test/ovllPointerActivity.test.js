@@ -36,23 +36,23 @@ test('operation cancellation reaches queued requests and keeps cleanup owned',()
 });
 test('live run transitions restore mascot work without restarting on repeated progress',()=>{
   const calls=[];
-  const presence={workAtNode:(id,active)=>calls.push(['work',id,active]),
-    mascotState:(name,detail)=>calls.push([name,detail.nodeId])};
+  const presence={workAtSkillNode:(id,active)=>calls.push(['work',id,active]),
+    mascotState:(name,detail)=>calls.push([name,detail.skillNodeId])};
   const bridge=activity().createRunPresence({presence});
-  const run={runId:'r',status:'running',nodes:[{nodeId:'a',status:'running'},{nodeId:'b',status:'pending'}]};
+  const run={runId:'r',status:'running',skillNodes:[{skillNodeId:'a',status:'running'},{skillNodeId:'b',status:'pending'}]};
   bridge.update(run);bridge.update(run);
   assert.equal(calls.filter(c=>c[0]==='work'&&c[2]).length,1);
-  run.nodes[0].status='success';run.nodes[1].status='running';
+  run.skillNodes[0].status='success';run.skillNodes[1].status='running';
   bridge.update(run);bridge.update(run);
-  assert.equal(calls.filter(c=>c[0]==='nodeSuccess').length,1);
+  assert.equal(calls.filter(c=>c[0]==='skillNodeSuccess').length,1);
   assert.deepEqual(calls.at(-1),['work','b',true]);
-  run.nodes[1].status='failed';run.status='failed';bridge.update(run);
-  assert.deepEqual(calls.at(-1),['nodeError','b']);
+  run.skillNodes[1].status='failed';run.status='failed';bridge.update(run);
+  assert.deepEqual(calls.at(-1),['skillNodeError','b']);
 });
 test('inactive run callbacks do not trigger mascot reactions',()=>{
   const calls=[];
-  const bridge=activity().createRunPresence({presence:{workAtNode:()=>calls.push('work'),mascotState:()=>calls.push('state')},isActive:()=>false});
-  bridge.update({runId:'old',status:'running',nodes:[{nodeId:'a',status:'running'}]});
+  const bridge=activity().createRunPresence({presence:{workAtSkillNode:()=>calls.push('work'),mascotState:()=>calls.push('state')},isActive:()=>false});
+  bridge.update({runId:'old',status:'running',skillNodes:[{skillNodeId:'a',status:'running'}]});
   assert.equal(calls.length,0);
 });
 test('local API retains original task context on all model phases',async()=>{
@@ -62,7 +62,7 @@ test('local API retains original task context on all model phases',async()=>{
   }};
   vm.runInNewContext(readFileSync(new URL('../front/js/ovllPointerApi.js',import.meta.url),'utf8'),{window,console});
   const taskContext={objective:'Only use the original attachment',constraints:['Hide names'],requestText:'Make a table'};
-  for(const phase of ['localTurn','localNode','localResponse'])await window.OvllPointerApi[phase]({snapshot:{},requestText:'Make a table',taskContext});
+  for(const phase of ['localTurn','localSkillNode','localResponse'])await window.OvllPointerApi[phase]({snapshot:{},requestText:'Make a table',taskContext});
   assert.equal(bodies.length,3);
   for(const body of bodies)assert.deepEqual(body.taskContext,taskContext);
 });
@@ -86,10 +86,10 @@ test('function command keeps multiline input and accepts named JSON bindings',()
   assert.equal(parsed.id,'12');assert.equal(parsed.input,'First line\nSecond line');
   assert.deepEqual(JSON.parse(JSON.stringify(api.parseFunctionRequest('f {"left":"A","right":"B"}').bindings)),{left:'A',right:'B'});
 });
-test('presence reset uses full node id even when run id contains a colon',()=>{
-  const calls=[];const bridge=activity().createRunPresence({presence:{workAtNode:(...args)=>calls.push(args)}});
-  bridge.update({runId:'local:run',nodes:[{nodeId:'node:a',status:'running'}]});bridge.reset();
-  assert.deepEqual(calls.at(-1),['node:a',false]);
+test('presence reset uses full skillNode id even when run id contains a colon',()=>{
+  const calls=[];const bridge=activity().createRunPresence({presence:{workAtSkillNode:(...args)=>calls.push(args)}});
+  bridge.update({runId:'local:run',skillNodes:[{skillNodeId:'skillNode:a',status:'running'}]});bridge.reset();
+  assert.deepEqual(calls.at(-1),['skillNode:a',false]);
 });
 test('app local run owns signal and ignores progress after invalidation',async()=>{
   const source=readFileSync(new URL('../front/js/app.js',import.meta.url),'utf8');
@@ -98,25 +98,25 @@ test('app local run owns signal and ignores progress after invalidation',async()
   let options,resolve;const calls=[];
   const sandbox={AbortController,console,localOperations:ops,
     pointerScope:()=>({storageMode:'local',conversationId:'a'}),currentConversationId:()=> 'a',
-    state:{destroyed:false},showLocalRun:()=>calls.push('canvas'),pointerNodeProgress:()=>calls.push('presence'),
+    state:{destroyed:false},showLocalRun:()=>calls.push('canvas'),pointerSkillNodeProgress:()=>calls.push('presence'),
     getPointerTask:()=>null,global:{OvllPointerLocal:{run:args=>{options=args;return new Promise(r=>resolve=r);}}}};
-  vm.runInNewContext(fragment+'\nthis.runLocalNodes=runLocalNodes;',sandbox);
-  const promise=sandbox.runLocalNodes({targets:['n'],operation:op,taskContext:{objective:'original'}});
+  vm.runInNewContext(fragment+'\nthis.runLocalSkillNodes=runLocalSkillNodes;',sandbox);
+  const promise=sandbox.runLocalSkillNodes({targets:['n'],operation:op,taskContext:{objective:'original'}});
   assert.equal(options.taskContext.objective,'original');
-  options.onProgress({nodes:[{nodeId:'n',status:'running'}]});assert.equal(calls.length,2);
+  options.onProgress({skillNodes:[{skillNodeId:'n',status:'running'}]});assert.equal(calls.length,2);
   ops.invalidate();assert.equal(options.signal.aborted,true);
-  options.onProgress({nodes:[{nodeId:'n',status:'success'}]});assert.equal(calls.length,2);
-  resolve({status:'cancelled',nodes:[]});await promise;
+  options.onProgress({skillNodes:[{skillNodeId:'n',status:'success'}]});assert.equal(calls.length,2);
+  resolve({status:'cancelled',skillNodes:[]});await promise;
 });
-test('node result inspection opens full output and marks historical content',async()=>{
+test('skillNode result inspection opens full output and marks historical content',async()=>{
   const source=readFileSync(new URL('../front/js/app.js',import.meta.url),'utf8');
-  const start=source.indexOf('  async function handleCanvasNodeResult(');
+  const start=source.indexOf('  async function handleCanvasSkillNodeResult(');
   assert.ok(start>=0,'runtime result inspector must exist');
   const fragment=source.slice(start,source.indexOf('  function openConversation(',start));
   const previews=[];const sandbox={currentConversationId:()=> 'a',state:{destroyed:false},
-    WorkspaceStore:{getPointerNodeOutput:()=>({status:'produced',values:{result:{inline:'ACTUAL STORED FULL RESULT'}}})},openArtifactPreview:async artifact=>{previews.push(artifact);return true;},
+    WorkspaceStore:{getSkillNodeOutput:()=>({status:'produced',values:{result:{inline:'ACTUAL STORED FULL RESULT'}}})},openArtifactPreview:async artifact=>{previews.push(artifact);return true;},
     showErrorNotice:()=>{},console};
-  vm.runInNewContext(fragment+'\nthis.inspect=handleCanvasNodeResult;',sandbox);
+  vm.runInNewContext(fragment+'\nthis.inspect=handleCanvasSkillNodeResult;',sandbox);
   const full='First line\n'+'x'.repeat(6000)+'\nLast line';
   await sandbox.inspect({id:'n',runtime:{status:'STALE',result:{values:{result:{inline:full}},resultCurrent:false}}});
   assert.equal(previews.length,1);
@@ -139,23 +139,23 @@ test('all execution entry paths preserve partial coverage and storage warnings',
  const start=source.indexOf('  function localRunSummary('),end=source.indexOf('  function getPointerTask(',start);
  const window={};vm.runInNewContext(readFileSync(new URL('../front/js/ovllPointerLocalActions.js',import.meta.url),'utf8'),{window});
  const sandbox={global:window};vm.runInNewContext(source.slice(start,end)+'\nthis.summary=localRunSummary;',sandbox);
- const text=sandbox.summary({status:'completed',targets:['n'],coverage:{sourceTruncated:true},storage:{status:'failed',error:'QUOTA'},nodes:[{nodeId:'n',status:'success',outputs:{values:{result:{inline:'Part'}}}}]});
+ const text=sandbox.summary({status:'completed',targets:['n'],coverage:{sourceTruncated:true},storage:{status:'failed',error:'QUOTA'},skillNodes:[{skillNodeId:'n',status:'success',outputs:{values:{result:{inline:'Part'}}}}]});
  assert.ok(text.includes('원문 일부'));assert.ok(text.includes('저장하지 못했어'));assert.ok(text.includes('Part'));
 });
 
-test('a running node animates and speaks once per transition',()=>{
+test('a running skillNode animates and speaks once per transition',()=>{
   const calls=[];
   const presence={
-    workAtNode:(id,active)=>calls.push(['work',id,active]),
-    mascotState:(name,detail)=>calls.push([name,detail.nodeId]),
+    workAtSkillNode:(id,active)=>calls.push(['work',id,active]),
+    mascotState:(name,detail)=>calls.push([name,detail.skillNodeId]),
     canvasStatus:(message,options)=>calls.push(['speech',message,options.hold])
   };
-  const bridge=activity().createRunPresence({presence,getNodeLabel:id=>id==='a'?'조사하기':'작성하기'});
-  bridge.update({runId:'r',nodes:[{nodeId:'a',status:'running'}]});
-  bridge.update({runId:'r',nodes:[{nodeId:'a',status:'running'}]});
+  const bridge=activity().createRunPresence({presence,getSkillNodeLabel:id=>id==='a'?'조사하기':'작성하기'});
+  bridge.update({runId:'r',skillNodes:[{skillNodeId:'a',status:'running'}]});
+  bridge.update({runId:'r',skillNodes:[{skillNodeId:'a',status:'running'}]});
   assert.equal(calls.filter(c=>c[0]==='speech').length,1);
   assert.deepEqual(calls.find(c=>c[0]==='speech'),['speech','조사하기 실행 중',0]);
-  bridge.update({runId:'r',nodes:[{nodeId:'a',status:'success'},{nodeId:'b',status:'running'}]});
+  bridge.update({runId:'r',skillNodes:[{skillNodeId:'a',status:'success'},{skillNodeId:'b',status:'running'}]});
   assert.deepEqual(calls.at(-2),['work','b',true]);
   assert.deepEqual(calls.at(-1),['speech','작성하기 실행 중',0]);
   bridge.reset();

@@ -50,7 +50,7 @@ test('unresolved needs do not submit actions',async()=>{
   assert.equal(f.submits.length,0);
 });
 test('IR proposals receive precise dynamic-definition modules before server submission',async()=>{
-  const patch={graphId:'g1',expectedGraphRevision:0,definitions:[],operations:[]};
+  const patch={graphId:'g1',expectedGraphRevision:0,skillDefinitions:[],operations:[]};
   const draft={actions:[{localKey:'patch',kind:'ir.applyPatch',args:{patch}}]};
   const f=setup([draft,draft]);
   const result=await f.controller.run({scope,requestRef:'r1',requestText:'hello',graphId:'g1'});
@@ -61,7 +61,7 @@ test('IR proposals receive precise dynamic-definition modules before server subm
   assert.match(f.calls[1].messages[1].content,/atomic/i);
 });
 test('refined needs remains unresolved and never submits earlier speculative patch',async()=>{
-  const patch={graphId:'g1',expectedGraphRevision:0,definitions:[],operations:[]};
+  const patch={graphId:'g1',expectedGraphRevision:0,skillDefinitions:[],operations:[]};
   const f=setup([{actions:[{localKey:'p',kind:'ir.applyPatch',args:{patch}}]},
     {needs:[{kind:'graph',selector:{scope:'ref',ref:'g1',depth:'semantic'},purpose:'Validate references'}]}]);
   const result=await f.controller.run({scope,requestRef:'r1',requestText:'hello'});

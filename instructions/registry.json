@@ -92,8 +92,8 @@
       "version": 3
     },
     {
-      "id": "action.nodes",
-      "path": "prompts/shared/action-nodes.md",
+      "id": "action.skill-nodes",
+      "path": "prompts/shared/action-skill-nodes.md",
       "requires": [
         "layer.ir"
       ],
@@ -101,8 +101,8 @@
       "version": 2
     },
     {
-      "id": "action.definitions",
-      "path": "prompts/shared/action-definitions.md",
+      "id": "action.skills",
+      "path": "prompts/shared/action-skills.md",
       "requires": [
         "layer.ir"
       ],

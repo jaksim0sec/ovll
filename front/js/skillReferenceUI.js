@@ -6,7 +6,7 @@ if(!api)return;
 function resolverFor({snapshot,functions}={}){
   if(!snapshot?.graph)return ()=>null;
   let canonical;
-  try{canonical=api.normalizeSkillSnapshot(snapshot)}catch{return ()=>null}
+  try{canonical=api.validateSkillSnapshot(snapshot)}catch{return ()=>null}
   const resolver=api.createSkillReferenceResolver({
     getSkillDefinitions:()=>canonical.skillDefinitions,
     getCanvasGraph:()=>canonical.graph,
@@ -24,13 +24,13 @@ function decorateAssistant(container,context){
   const resolve=resolverFor(context);
   const skip=new Set(['CODE','PRE','SCRIPT','STYLE','TEXTAREA']);
   function visit(parent){
-    for(const node of [...parent.childNodes]){
-      if(node.nodeType===1){
-        if(skip.has(node.tagName)||node.closest?.('.ovll-skill-ref'))continue;
-        visit(node);continue;
+    for(const skillNode of [...parent.childNodes]){
+      if(skillNode.nodeType===1){
+        if(skip.has(skillNode.tagName)||skillNode.closest?.('.ovll-skill-ref'))continue;
+        visit(skillNode);continue;
       }
-      if(node.nodeType!==3||!node.nodeValue?.includes('⟦ovll:ref:v1:'))continue;
-      const parts=api.segmentSkillReferences(node.nodeValue);
+      if(skillNode.nodeType!==3||!skillNode.nodeValue?.includes('⟦ovll:ref:v1:'))continue;
+      const parts=api.segmentSkillReferences(skillNode.nodeValue);
       if(!parts.some(part=>part.type==='candidate'))continue;
       const fragment=parent.ownerDocument.createDocumentFragment();
       for(const part of parts){
@@ -41,7 +41,7 @@ function decorateAssistant(container,context){
             {svgLibrary:global.OvllSvgLibrary}));
         else fragment.append(parent.ownerDocument.createTextNode(part.token));
       }
-      node.replaceWith(fragment);
+      skillNode.replaceWith(fragment);
     }
   }
   visit(container);

@@ -6,25 +6,25 @@ import {diagnoseModelTurn,normalizeModelTurn} from '../backend/ovllPointer/turnN
 import {createLocalPointerHost} from '../backend/ovllPointer/localHost.js';
 import {localModelContract} from '../backend/ovllPointer/modelContract.js';
 
-const node=key=>({op:'node.add',localNodeKey:key,
-  definitionRef:{definitionId:'builtin:write',version:1},settings:{request:key}});
+const skillNode=key=>({op:'skillNode.add',localSkillNodeKey:key,
+  skillDefinitionRef:{definitionId:'builtin:write',version:1},settings:{request:key}});
 const link={op:'link.add',localLinkKey:'connect',kind:'data',
-  from:{node:{localNodeKey:'first'},port:'result'},
-  to:{node:{localNodeKey:'second'},port:'in'}};
+  from:{skillNode:{localSkillNodeKey:'first'},port:'result'},
+  to:{skillNode:{localSkillNodeKey:'second'},port:'in'}};
 const turn=last=>({actions:[{kind:'ir.applyPatch',localKey:'p',args:{patch:{
-  graphId:'g',expectedGraphRevision:0,definitions:[],
-  operations:[node('first'),node('second'),last]
+  graphId:'g',expectedGraphRevision:0,skillDefinitions:[],
+  operations:[skillNode('first'),skillNode('second'),last]
 }}}]});
 
 test('semantic commands retain all canonical graph operation kinds without teaching internal fields',()=>{
-  assert.deepEqual(PATCH_OPERATION_KINDS,['node.add','node.update','node.delete','definition.appearance','definition.delete','link.add','link.remove']);
-  const instruction=localModelContract(undefined,{selectedModules:['action.nodes','action.definitions','action.links']});
+  assert.deepEqual(PATCH_OPERATION_KINDS,['skillNode.add','skillNode.update','skillNode.delete','skill.appearance','skill.delete','link.add','link.remove']);
+  const instruction=localModelContract(undefined,{selectedModules:['action.skill-nodes','action.skills','action.links']});
   for(const op of PATCH_OPERATION_KINDS)assert.ok(instruction.includes(op+':'),op);
-  for(const field of ['expectedGraphRevision','localNodeKey','localDefinitionKey','dependsOn'])assert.ok(!instruction.includes(field),field);
+  for(const field of ['expectedGraphRevision','localSkillNodeKey','localDefinitionKey','dependsOn'])assert.ok(!instruction.includes(field),field);
 });
 
 test('third unsupported graph operation reports invalidOperation with the actual allowed vocabulary',()=>{
-  const invalid=turn({...link,op:'node.connect'});
+  const invalid=turn({...link,op:'skillNode.connect'});
   assert.equal(createContractValidation().validateTurn(invalid),false);
   const errors=diagnoseModelTurn(invalid,createContractValidation().explainTurn(invalid));
   assert.equal(errors[0].path,'/actions/0/args/patch/operations/2/op');
@@ -42,7 +42,7 @@ test('valid operation missing a required member is reported as missing member, n
 });
 
 test('invalid operation receives actionable correction and only a valid proposal can be returned',async()=>{
-  const requests=[],bad=turn({...link,op:'node.connect'}),good=turn(link);
+  const requests=[],bad=turn({...link,op:'skillNode.connect'}),good=turn(link);
   const host=createLocalPointerHost({
     gateway:{complete:async params=>{
       requests.push(params);
@@ -51,7 +51,7 @@ test('invalid operation receives actionable correction and only a valid proposal
     resolveModel:async()=>({providerId:'fixture',model:'fixture',maxOutputTokens:2048})
   });
   const response=await host.turn({
-    snapshot:{graph:{graphId:'g',revision:0,nodes:[],connections:[]},definitions:[]},
+    snapshot:{graph:{graphId:'g',revision:0,skillNodes:[],connections:[]},skillDefinitions:[]},
     requestRef:'patch_repair',requestText:'두 노드를 연결해줘'
   });
   assert.equal(requests.length,2);
@@ -62,13 +62,13 @@ test('invalid operation receives actionable correction and only a valid proposal
   assert.equal(createContractValidation().validateTurn(normalizeModelTurn(splitModelMetadata(response).domain)),true);
 });
 
-test('an empty node picker cannot hide the canvas Node / Reset / Arrange toolbar',()=>{
+test('an empty skillNode picker cannot hide the canvas Node / Reset / Arrange toolbar',()=>{
   const css=readFileSync(new URL('../front/css/ui.css',import.meta.url),'utf8');
   const js=readFileSync(new URL('../front/js/canvasSkillBuilder.js',import.meta.url),'utf8');
-  assert.doesNotMatch(css,/\[data-canvas-node-builder\]\)\.is-empty\s*\{\s*display:\s*none/);
-  assert.match(js,/data-canvas-node-builder-toggle/);
-  assert.match(js,/data-canvas-node-builder-reset/);
-  assert.match(js,/data-canvas-node-builder-layout/);
-  assert.match(js,/canvas-node-builder-empty/);
-  assert.match(css,/\.canvas-node-builder-empty\s*\{/);
+  assert.doesNotMatch(css,/\[data-canvas-skillNode-builder\]\)\.is-empty\s*\{\s*display:\s*none/);
+  assert.match(js,/data-canvas-skillNode-builder-toggle/);
+  assert.match(js,/data-canvas-skillNode-builder-reset/);
+  assert.match(js,/data-canvas-skillNode-builder-layout/);
+  assert.match(js,/canvas-skillNode-builder-empty/);
+  assert.match(css,/\.canvas-skillNode-builder-empty\s*\{/);
 });

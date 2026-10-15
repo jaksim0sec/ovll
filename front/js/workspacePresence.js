@@ -544,12 +544,12 @@ function resetConversation({
   return api;
 }
 
-function workAtNode(
+function workAtSkillNode(
   id,
   active=true
 ){
   return state.canvasMascot
-    ?.workAtNode?.(
+    ?.workAtSkillNode?.(
       id,
       active
     );
@@ -616,7 +616,7 @@ const api={
   canvasStatus,
   hideCanvasSpeech,
   resetConversation,
-  workAtNode,
+  workAtSkillNode,
   mascotState,
   attachCanvasMascot,
   react(){

@@ -64,10 +64,10 @@ export class ProposalKernel {
           if (typeof this.#schedule !== 'function') issue('DURABLE_QUEUE_REQUIRED', 503);
           const graph = this.#store.get(scope.workspaceRef, scope.graphId).graph;
           const targets = (a.targets || []).map(target => {
-            if (target.nodeId) return target.nodeId;
+            if (target.skillNodeId) return target.skillNodeId;
             const dep = results.get(target.fromAction);
             if (!action.dependsOn?.includes(target.fromAction) || !dep || !['applied','duplicate'].includes(dep.status)) issue('UNKNOWN_TARGET_PRODUCER');
-            return dep.createdRefs?.['node:' + target.localNodeKey] || issue('UNKNOWN_LOCAL_TARGET');
+            return dep.createdRefs?.['skillNode:' + target.localSkillNodeKey] || issue('UNKNOWN_LOCAL_TARGET');
           });
           const damMode = a.damMode || 'closed';
           const selected = computeScope(graph, targets, damMode);

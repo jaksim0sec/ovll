@@ -11,16 +11,16 @@ const source =
     "utf8"
   );
 
-test("node action pointerdown stays out of canvas drag handling", () => {
+test("skillNode action pointerdown stays out of canvas drag handling", () => {
   assert.match(
     source,
-    /listen\(\s*nodesLayer,\s*['"]pointerdown['"][\s\S]*?event\.target\.closest\(\s*['"]\[data-action\]['"]\s*\)[\s\S]*?event\.stopPropagation\(\)/
+    /listen\(\s*skillNodesLayer,\s*['"]pointerdown['"][\s\S]*?event\.target\.closest\(\s*['"]\[data-action\]['"]\s*\)[\s\S]*?event\.stopPropagation\(\)/
   );
 });
 
-test("node run still uses delegated click activation", () => {
+test("skillNode run still uses delegated click activation", () => {
   assert.match(
     source,
-    /listen\(\s*nodesLayer,\s*['"]click['"][\s\S]*?action\.dataset\.action\s*===\s*['"]run['"][\s\S]*?emit\(\s*['"]nodeRun['"]/
+    /listen\(\s*skillNodesLayer,\s*['"]click['"][\s\S]*?action\.dataset\.action\s*===\s*['"]run['"][\s\S]*?emit\(\s*['"]skillNodeRun['"]/
   );
 });

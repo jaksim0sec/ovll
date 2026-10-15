@@ -1,7 +1,7 @@
 (function(global){
 "use strict";
 
-function createCanvasNodeBuilder(options={}){
+function createCanvasSkillNodeBuilder(options={}){
   const document=options.document||global.document;
   const host=options.host;
 
@@ -36,37 +36,37 @@ function createCanvasNodeBuilder(options={}){
   const sequence=
     (
       Number(
-        global.__ovllCanvasNodeBuilderSeq
+        global.__ovllCanvasSkillNodeBuilderSeq
       )||0
     )+1;
 
-  global.__ovllCanvasNodeBuilderSeq=
+  global.__ovllCanvasSkillNodeBuilderSeq=
     sequence;
 
   const panelId=
-    "canvas-node-builder-panel-"+
+    "canvas-skillNode-builder-panel-"+
     sequence;
 
   const root=document.createElement("div");
-  root.className="canvas-node-builder";
-  root.dataset.canvasNodeBuilder="";
+  root.className="canvas-skillNode-builder";
+  root.dataset.canvasSkillNodeBuilder="";
 
   root.innerHTML=`
-    <div id="${panelId}" class="canvas-node-builder-panel" data-canvas-node-builder-panel role="dialog" aria-label="노드 추가">
-      <div class="canvas-node-builder-header">노드 추가</div>
-      <div class="canvas-node-builder-list" data-canvas-node-builder-list></div>
+    <div id="${panelId}" class="canvas-skillNode-builder-panel" data-canvas-skillNode-builder-panel role="dialog" aria-label="노드 추가">
+      <div class="canvas-skillNode-builder-header">노드 추가</div>
+      <div class="canvas-skillNode-builder-list" data-canvas-skillNode-builder-list></div>
     </div>
-    <div class="canvas-node-builder-actions">
-      <button data-canvas-node-builder-toggle type="button" aria-expanded="false" aria-controls="${panelId}">
-        <span class="canvas-node-builder-action-icon" data-builder-icon="nodeAdd" aria-hidden="true"></span>
+    <div class="canvas-skillNode-builder-actions">
+      <button data-canvas-skillNode-builder-toggle type="button" aria-expanded="false" aria-controls="${panelId}">
+        <span class="canvas-skillNode-builder-action-icon" data-builder-icon="skillNodeAdd" aria-hidden="true"></span>
         <span>노드</span>
       </button>
-      <button data-canvas-node-builder-reset type="button" aria-label="캔버스 초기화" title="캔버스 초기화">
-        <span class="canvas-node-builder-action-icon" data-builder-icon="canvasReset" aria-hidden="true"></span>
-        <span class="canvas-node-builder-reset-label">초기화</span>
+      <button data-canvas-skillNode-builder-reset type="button" aria-label="캔버스 초기화" title="캔버스 초기화">
+        <span class="canvas-skillNode-builder-action-icon" data-builder-icon="canvasReset" aria-hidden="true"></span>
+        <span class="canvas-skillNode-builder-reset-label">초기화</span>
       </button>
-      <button data-canvas-node-builder-layout type="button" aria-label="노드 정리하기" title="노드 정리하기">
-        <span class="canvas-node-builder-action-icon" data-builder-icon="canvasLayout" aria-hidden="true"></span>
+      <button data-canvas-skillNode-builder-layout type="button" aria-label="노드 정리하기" title="노드 정리하기">
+        <span class="canvas-skillNode-builder-action-icon" data-builder-icon="canvasLayout" aria-hidden="true"></span>
         <span>정리하기</span>
       </button>
     </div>
@@ -80,21 +80,21 @@ function createCanvasNodeBuilder(options={}){
 
   host.appendChild(root);
 
-  function definitions(){
+  function skillDefinitions(){
     const direct=options.getDefinitions?.();
     if(direct&&typeof direct==="object") return direct;
-    return canvas?.getNodeDefinitions?.()||{};
+    return canvas?.getSkillDefinitions?.()||{};
   }
 
   function render(){
     if(state.destroyed) return;
-    const list=root.querySelector("[data-canvas-node-builder-list]");
+    const list=root.querySelector("[data-canvas-skillNode-builder-list]");
     if(!list) return;
 
     list.textContent="";
     const groups=new Map();
 
-    for(const [type,definition] of Object.entries(definitions())){
+    for(const [type,definition] of Object.entries(skillDefinitions())){
       if(type==="start"||!definition) continue;
 
       if(
@@ -131,7 +131,7 @@ function createCanvasNodeBuilder(options={}){
 
     for(const group of ordered){
       const section=document.createElement("section");
-      section.className="canvas-node-builder-group";
+      section.className="canvas-skillNode-builder-group";
 
       if(group.custom){
         section.classList.add("is-custom");
@@ -139,18 +139,18 @@ function createCanvasNodeBuilder(options={}){
 
       if(showLabels){
         const label=document.createElement("div");
-        label.className="canvas-node-builder-group-title";
+        label.className="canvas-skillNode-builder-group-title";
         label.textContent=group.label;
         section.appendChild(label);
       }
 
       const grid=document.createElement("div");
-      grid.className="canvas-node-builder-options";
+      grid.className="canvas-skillNode-builder-options";
 
       for(const {type,definition} of group.entries){
         const button=document.createElement("button");
         button.type="button";
-        button.className="canvas-node-builder-option";
+        button.className="canvas-skillNode-builder-option";
         button.dataset.nodeType=type;
 
         if(group.custom){
@@ -158,27 +158,27 @@ function createCanvasNodeBuilder(options={}){
         }
 
         button.style.setProperty(
-          "--builder-node-color",
+          "--builder-skillNode-color",
           definition.color||"var(--text)"
         );
 
         const icon=document.createElement("span");
-        icon.className="canvas-node-builder-icon";
+        icon.className="canvas-skillNode-builder-icon";
         icon.innerHTML=SvgLibrary?.get?.(definition.iconKey)||definition.icon||"";
         icon.querySelector("svg")?.classList.add("svg-icon");
 
         const info=document.createElement("span");
-        info.className="canvas-node-builder-info";
+        info.className="canvas-skillNode-builder-info";
 
         const name=document.createElement("strong");
-        name.className="canvas-node-builder-name";
+        name.className="canvas-skillNode-builder-name";
         name.textContent=definition.name||type;
         info.appendChild(name);
 
         const description=String(definition.desc||"").trim();
         if(description){
           const detail=document.createElement("small");
-          detail.className="canvas-node-builder-description";
+          detail.className="canvas-skillNode-builder-description";
           detail.textContent=description;
           info.appendChild(detail);
         }
@@ -193,7 +193,7 @@ function createCanvasNodeBuilder(options={}){
 
     if(!ordered.length){
       const empty=document.createElement("div");
-      empty.className="canvas-node-builder-empty";
+      empty.className="canvas-skillNode-builder-empty";
       empty.textContent="추가할 노드를 불러오는 중이거나 현재 사용할 수 있는 노드가 없어요.";
       list.appendChild(empty);
     }
@@ -211,17 +211,17 @@ function createCanvasNodeBuilder(options={}){
       historyEnabled&&
       callOptions.history!==false
     ){
-      Navigation?.open?.("node-builder");
+      Navigation?.open?.("skillNode-builder");
     }
 
     if(
       !next&&
       historyEnabled&&
       callOptions.history!==false&&
-      Navigation?.isCurrent?.("node-builder")
+      Navigation?.isCurrent?.("skillNode-builder")
     ){
       Navigation.close(
-        "node-builder",
+        "skillNode-builder",
         ()=>setOpen(false,{history:false})
       );
       return state.open;
@@ -231,7 +231,7 @@ function createCanvasNodeBuilder(options={}){
     root.classList.toggle("is-open",state.open);
 
     root
-      .querySelector("[data-canvas-node-builder-toggle]")
+      .querySelector("[data-canvas-skillNode-builder-toggle]")
       ?.setAttribute("aria-expanded",String(state.open));
 
     return state.open;
@@ -241,10 +241,10 @@ function createCanvasNodeBuilder(options={}){
     clearTimeout(state.resetTimer);
     state.resetTimer=null;
 
-    const reset=root.querySelector("[data-canvas-node-builder-reset]");
+    const reset=root.querySelector("[data-canvas-skillNode-builder-reset]");
     reset?.classList.remove("is-confirming");
 
-    const label=reset?.querySelector(".canvas-node-builder-reset-label");
+    const label=reset?.querySelector(".canvas-skillNode-builder-reset-label");
     if(label) label.textContent="초기화";
   }
 
@@ -263,26 +263,26 @@ function createCanvasNodeBuilder(options={}){
   }
 
   listen(root,"click",event=>{
-    const layout=event.target.closest("[data-canvas-node-builder-layout]");
+    const layout=event.target.closest("[data-canvas-skillNode-builder-layout]");
     if(layout){
       event.preventDefault();
       canvas?.layout?.();
       return;
     }
 
-    const reset=event.target.closest("[data-canvas-node-builder-reset]");
+    const reset=event.target.closest("[data-canvas-skillNode-builder-reset]");
     if(reset){
       event.preventDefault();
 
       if(!canvas||typeof canvas.setState!=="function") return;
 
       const workflow=canvas.getWorkflow?.()||{
-        nodes:[],
+        skillNodes:[],
         connections:[]
       };
 
       const hasContent=
-        (workflow.nodes?.length||0)>0||
+        (workflow.skillNodes?.length||0)>0||
         (workflow.connections?.length||0)>0;
 
       if(
@@ -291,7 +291,7 @@ function createCanvasNodeBuilder(options={}){
       ){
         reset.classList.add("is-confirming");
 
-        const label=reset.querySelector(".canvas-node-builder-reset-label");
+        const label=reset.querySelector(".canvas-skillNode-builder-reset-label");
         if(label) label.textContent="한번 더";
 
         clearTimeout(state.resetTimer);
@@ -304,7 +304,7 @@ function createCanvasNodeBuilder(options={}){
 
       canvas.setState({
         workflow:{
-          nodes:[],
+          skillNodes:[],
           connections:[]
         },
         viewport:{
@@ -318,20 +318,20 @@ function createCanvasNodeBuilder(options={}){
       return;
     }
 
-    const toggle=event.target.closest("[data-canvas-node-builder-toggle]");
+    const toggle=event.target.closest("[data-canvas-skillNode-builder-toggle]");
     if(toggle){
       event.preventDefault();
       setOpen(!state.open);
       return;
     }
 
-    const option=event.target.closest(".canvas-node-builder-option");
+    const option=event.target.closest(".canvas-skillNode-builder-option");
     if(!option||!root.contains(option)) return;
 
     const type=option.dataset.nodeType;
-    if(!type||!canvas||typeof canvas.addNode!=="function") return;
+    if(!type||!canvas||typeof canvas.addSkillNode!=="function") return;
 
-    canvas.addNode(type);
+    canvas.addSkillNode(type);
     setOpen(false);
   });
 
@@ -350,7 +350,7 @@ function createCanvasNodeBuilder(options={}){
   if(historyEnabled){
     listen(global,"ovll:navigation-back",event=>{
       if(
-        event.detail?.layer==="node-builder"&&
+        event.detail?.layer==="skillNode-builder"&&
         state.open
       ){
         setOpen(false,{history:false});
@@ -387,6 +387,6 @@ function createCanvasNodeBuilder(options={}){
   return api;
 }
 
-global.createCanvasNodeBuilder=createCanvasNodeBuilder;
+global.createCanvasSkillNodeBuilder=createCanvasSkillNodeBuilder;
 
 })(window);

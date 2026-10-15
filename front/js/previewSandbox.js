@@ -71,10 +71,10 @@ function injectPolicy(source){
     )||[];
 
   for(
-    const node
+    const skillNode
     of existingPolicies
   ){
-    node.remove?.();
+    skillNode.remove?.();
   }
 
   const charset=
@@ -759,17 +759,17 @@ function revokeRootUrls(
     return;
   }
 
-  const nodes=
+  const skillNodes=
     root.querySelectorAll?.(
       "[data-ovll-object-url]"
     )||[];
 
   for(
-    const node
-    of nodes
+    const skillNode
+    of skillNodes
   ){
     const value=
-      node.getAttribute?.(
+      skillNode.getAttribute?.(
         "data-ovll-object-url"
       );
 

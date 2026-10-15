@@ -2,7 +2,7 @@
 
 1. Flow links express execution order; data links bind an actual output to a compatible input.
 2. An input permits multiple distinct upstream producers by default; multiple:false permits only one.
-3. Preserve every independent source, its originating node/port and provenance.
+3. Preserve every independent source, its originating skillNode/port and provenance.
 4. JSON ports can carry strings or structured materials.
 5. Respect required inputs, real ports/representations and declared branch/merge contracts.
 6. Avoid cycles, dangling endpoints and redundant edges. Data links also establish upstream dependencies; add flow links only for necessary control propagation and reuse semantic ports instead of redundant next/flow data ports.
@@ -14,4 +14,4 @@
 10. For export, read extraContext.availableResults and exact refs; use needs when contents are omitted.
 11. Connect the actual existing source output by data link to builtin:createFile input.
 12. Run only the requested export target, retaining the original source.
-13. Never fabricate a replacement upstream node or substitute a preview for the available result.
+13. Never fabricate a replacement upstream skillNode or substitute a preview for the available result.

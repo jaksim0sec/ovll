@@ -2,7 +2,7 @@
 "use strict";
 
 const LOCAL_ICONS=Object.freeze({
-  nodeAdd:`
+  skillNodeAdd:`
     <svg viewBox="0 0 20 20" fill="none" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
       <rect x="4.25" y="4.25" width="11.5" height="11.5" rx="3.6"></rect>
       <path d="M10 7.15v5.7M7.15 10h5.7"></path>

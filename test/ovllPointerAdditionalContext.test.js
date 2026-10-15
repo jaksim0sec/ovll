@@ -5,7 +5,7 @@ import vm from 'node:vm';
 import {createLocalPointerHost} from '../backend/ovllPointer/localHost.js';
 import {phaseWireContract} from '../backend/ovllPointer/modelContract.js';
 
-const snapshot={graph:{graphId:'g',revision:0,nodes:[],connections:[]},definitions:[]};
+const snapshot={graph:{graphId:'g',revision:0,skillNodes:[],connections:[]},skillDefinitions:[]};
 const record={requestDigest:'Make a report',responseDigest:'Explained the next step',sessionContext:'Preparing a report. Sources remain unresolved.',constraints:['Preserve exact citations']};
 function fixture(responses){
  const calls=[];
@@ -35,10 +35,10 @@ test('ordinary response carries exit records separately from the unchanged actio
 test('unselected action families stay out of initial canonical and wire prompts',async()=>{
  for(const structuredOutput of [false,true]){
   const calls=[],responses=[
-   {needs:[{kind:'contract',selector:{scope:'ref',ref:'prompt:action.definitions',depth:'full'},purpose:'Need custom node contract'}]},
+   {needs:[{kind:'contract',selector:{scope:'ref',ref:'prompt:action.skills',depth:'full'},purpose:'Need custom skillNode contract'}]},
    {message:'Ready for the custom definition'}
   ];
-  const wire=output=>({contract:'action-plan.v1',executionIntent:null,message:output.message??null,
+  const wire=output=>({contract:'action-plan.v3',executionIntent:null,message:output.message??null,
    actions:[],needs:(output.needs||[]).map(({selector,...n})=>({...n,selectorJson:JSON.stringify(selector)})),
    taskContext:null,requestDigest:null,responseDigest:null,sessionContext:null,constraints:null,supersededConstraints:null});
   const host=createLocalPointerHost({resolveModel:async()=>({providerId:'fixture',model:'offline'}),
@@ -48,16 +48,16 @@ test('unselected action families stay out of initial canonical and wire prompts'
   assert.equal(calls.length,2,'only one detailed module retrieval');
   const initial=calls[0].messages.map(x=>x.content).join('\n');
   const detailed=calls[1].messages.map(x=>x.content).join('\n');
-  assert.match(initial,/prompt:action\.definitions/);
-  assert.doesNotMatch(initial,/## action\.definitions/);
+  assert.match(initial,/prompt:action\.skills/);
+  assert.doesNotMatch(initial,/## action\.skills/);
   assert.doesNotMatch(initial,/# SELECTED EXAMPLES/);
-  assert.match(detailed,/## action\.definitions/);
+  assert.match(detailed,/## action\.skills/);
   assert.match(detailed,/skill\.define requires alias/);
-  assert.doesNotMatch(detailed,/## action\.nodes/);
+  assert.doesNotMatch(detailed,/## action\.skillNodes/);
   assert.doesNotMatch(detailed,/## action\.functions/);
   assert.ok(detailed.length>initial.length);
-  assert.ok(output._meta.selectedModules.includes('action.definitions'));
-  assert.ok(!output._meta.selectedModules.includes('action.nodes'));
+  assert.ok(output._meta.selectedModules.includes('action.skills'));
+  assert.ok(!output._meta.selectedModules.includes('action.skill-nodes'));
  }
 });
 test('simple direct chat never receives the full action repertoire',async()=>{
@@ -170,8 +170,8 @@ test('pending context is cleared only after its exact original references are re
  assert.equal(activity.updateAdditionalContext(previous,record,{pendingCovered:true}).pendingTurns.length,0);
 });
 test('selected continuation task conditions reach existing action handlers',async()=>{
- const {host}=fixture([{executionIntent:'requested',actions:[{localKey:'run',kind:'run.start',args:{targets:[{nodeId:'n'}],damMode:'closed'}}],taskContext:{objective:'Repeat the report',constraints:['Never include URLs']}}]);
- const state={graph:{graphId:'g',revision:0,nodes:[{nodeId:'n',definitionRef:{definitionId:'builtin:write',version:1},settings:{request:'Write report'},inputBindings:{}}],connections:[]},definitions:[]};
+ const {host}=fixture([{executionIntent:'requested',actions:[{localKey:'run',kind:'run.start',args:{targets:[{skillNodeId:'n'}],damMode:'closed'}}],taskContext:{objective:'Repeat the report',constraints:['Never include URLs']}}]);
+ const state={graph:{graphId:'g',revision:0,skillNodes:[{skillNodeId:'n',skillDefinitionRef:{definitionId:'builtin:write',version:1},settings:{request:'Write report'},inputBindings:{}}],connections:[]},skillDefinitions:[]};
  const proposal=await host.turn({snapshot:state,requestRef:'r',requestText:'Run it again',additionalContext:{recentTurns:[],sessionContext:'A report is in progress.',constraints:['Never include URLs']}});
  const api=browser(['ovllPointerLocalActions.js']).window.OvllPointerLocalActions;let task=null,executed;
  await api.coordinate({getContext:async()=>({snapshot:state}),request:async()=>proposal,onTaskContext:value=>{task=value;},handlers:{'run.start':async()=>{executed=task;return {status:'completed'};}}});
@@ -210,7 +210,7 @@ test('saved-function action execution receives chosen conditions together with f
  const source=readFileSync(new URL('../front/js/app.js',import.meta.url),'utf8');
  const start=source.indexOf('  async function runSavedLocalFunction('),end=source.indexOf('  async function runLocalPrompt(',start);
  let executed;
- const run=new Function('global','runLocalNodes',source.slice(start,end)+';return runSavedLocalFunction;')({OvllPointerFunctions:{bind:()=>({snapshot,targets:[],requestText:'Fresh inputs',invariants:['Use approved source']})}},async value=>{executed=value;});
+ const run=new Function('global','runLocalSkillNodes',source.slice(start,end)+';return runSavedLocalFunction;')({OvllPointerFunctions:{bind:()=>({snapshot,targets:[],requestText:'Fresh inputs',invariants:['Use approved source']})}},async value=>{executed=value;});
  await run({purpose:'Reusable report'},{},{objective:'Repeat report',constraints:['Never include URLs']});
  assert.deepEqual(executed.taskConstraints,['Use approved source','Never include URLs']);
  assert.equal(executed.taskContext.objective,'Repeat report');
@@ -218,11 +218,11 @@ test('saved-function action execution receives chosen conditions together with f
  assert.deepEqual(executed.taskConstraints,['Use approved source']);
 });
 test('dataset selection exposes file names and references without preloading contents',async()=>{
- const state={...snapshot,graph:{...snapshot.graph,nodes:[{nodeId:'file',definitionRef:{definitionId:'builtin:file',version:1},settings:{file:{name:'sources.txt',mime:'text/plain',textPreview:'EXACT PRIVATE SOURCE'}}}]}};
+ const state={...snapshot,graph:{...snapshot.graph,skillNodes:[{skillNodeId:'file',skillDefinitionRef:{definitionId:'builtin:file',version:1},settings:{file:{name:'sources.txt',mime:'text/plain',textPreview:'EXACT PRIVATE SOURCE'}}}]}};
  const {host,calls}=fixture([{message:'Select source',...record}]);
  await host.turn({snapshot:state,requestRef:'r',requestText:'Use sources.txt'});
- const data=JSON.parse(calls[0].messages.at(-1).content),node=data.context.materials[0].content.graph.skills[0];
- assert.equal(node.file.name,'sources.txt');assert.equal(node.file.ref,'file:file');
+ const data=JSON.parse(calls[0].messages.at(-1).content),skillNode=data.context.materials[0].content.graph.skillNodes[0];
+ assert.equal(skillNode.file.name,'sources.txt');assert.equal(skillNode.file.ref,'file:file');
  assert.doesNotMatch(calls[0].messages.at(-1).content,/EXACT PRIVATE SOURCE/);
 });
 test('selected conditions must fit existing task persistence before actions are admitted',async()=>{

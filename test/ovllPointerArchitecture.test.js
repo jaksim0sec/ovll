@@ -2,14 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync,existsSync} from 'node:fs';
 import vm from 'node:vm';
-import {iconSvg,nodeDefinitionsPublic,GENERATABLE_NODE_TYPES,getNodeDefinition,getPortDefinition} from '../backend/ovllPointer/skillCatalog.js';
+import {iconSvg,skillDefinitionsPublic,GENERATABLE_SKILL_NODE_TYPES,getSkillDefinition,getPortDefinition} from '../backend/ovllPointer/skillCatalog.js';
 import {localModelReady} from '../backend/ovllPointer/localHttp.js';
 const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
-test('canonical Pointer node catalog remains the source of UI definitions',()=>{
+test('canonical Pointer skillNode catalog remains the source of UI skillDefinitions',()=>{
   assert.equal(typeof iconSvg.globe,'string');
-  assert.equal(nodeDefinitionsPublic.research.iconKey,'globe');
-  assert.ok(GENERATABLE_NODE_TYPES.includes('write'));
-  assert.equal(getNodeDefinition('write').iconKey,'pen');
+  assert.equal(skillDefinitionsPublic.research.iconKey,'globe');
+  assert.ok(GENERATABLE_SKILL_NODE_TYPES.includes('write'));
+  assert.equal(getSkillDefinition('write').iconKey,'pen');
   assert.ok(getPortDefinition('write','output','result'));
 });
 test('active entrypoint and UI use only Pointer model and run routes',()=>{

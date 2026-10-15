@@ -103,7 +103,7 @@ test('recovered Gemini-style wire response still passes the full local ModelTurn
   }},{json:true,structuredOutput:true});
   const host=createLocalPointerHost({gateway,
     resolveModel:async()=>({providerId:'fixture',model:'fixture'})});
-  const snapshot={graph:{graphId:'g',revision:0,nodes:[],connections:[]},definitions:[]};
+  const snapshot={graph:{graphId:'g',revision:0,skillNodes:[],connections:[]},skillDefinitions:[]};
   const result=await host.turn({snapshot,requestRef:'schema_1',requestText:'안녕'});
   assert.equal(result.message,'안녕하세요');
   assert.equal(result._meta.providerCalls,2);

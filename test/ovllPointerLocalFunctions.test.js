@@ -2,13 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
+import * as skillStorageRuntime from '../front/js/ovllSkillStorageRuntime.mjs';
 import {createContractValidation} from '../backend/ovllPointer/validation.js';
 const script=readFileSync(new URL('../front/js/ovllPointerFunctions.js',import.meta.url),'utf8');
 test('locally saved function is a pinned immutable unverified draft and can be reused',()=>{
  const data=new Map(),localStorage={getItem:k=>data.get(k)||null,setItem:(k,v)=>data.set(k,v)};
  const window={localStorage,crypto:{randomUUID:()=> 'abcd'}};
  vm.runInNewContext(script,{window});
- const graph={graph:{graphId:'g',revision:1,nodes:[{nodeId:'n1'}],connections:[]},definitions:[]};
+ const graph={graph:{graphId:'g',revision:1,skillNodes:[{skillNodeId:'n1'}],connections:[]},skillDefinitions:[]};
  const saved=window.OvllPointerFunctions.save({purpose:'Research',snapshot:graph,targets:['n1']});
  graph.graph.revision=3;
  assert.equal(window.OvllPointerFunctions.get(saved.id).snapshot.graph.revision,1);
@@ -16,11 +17,11 @@ test('locally saved function is a pinned immutable unverified draft and can be r
  vm.runInNewContext(script,{window});
  assert.equal(window.OvllPointerFunctions.list()[0].id,saved.id);
 });
-test('saved functions reject dangling node targets',()=>{
+test('saved functions reject dangling skillNode targets',()=>{
  const window={localStorage:{getItem:()=>null,setItem:()=>{}},crypto:{randomUUID:()=> 'abcd'}};
  vm.runInNewContext(script,{window});
  assert.throws(()=>window.OvllPointerFunctions.save({purpose:'no',snapshot:{
-  graph:{graphId:'g',revision:0,nodes:[],connections:[]},definitions:[]},targets:['unknown']}),
+  graph:{graphId:'g',revision:0,skillNodes:[],connections:[]},skillDefinitions:[]},targets:['unknown']}),
   /INVALID_LOCAL_FUNCTION/);
 });
 test('local application hooks model proposals to stored graph and executes model-only DAG',()=>{
@@ -37,25 +38,25 @@ test('local application hooks model proposals to stored graph and executes model
 test('preserves saved function drafts created before OvllPointer rename',()=>{
   const cache=new Map(),storage={getItem:k=>cache.get(k)||null,setItem:(k,v)=>cache.set(k,v)};
   cache.set('ovll:vnext:functions:v1',JSON.stringify([{id:'fn_old',purpose:'기존 초안',version:1,
-    snapshot:{graph:{graphId:'g_old',revision:1,nodes:[{nodeId:'a'}],connections:[]},definitions:[]},targets:['a']}]));
-  const window={localStorage:storage,crypto:{randomUUID:()=> 'abcd'}};
+    snapshot:{graph:{graphId:'g_old',revision:1,skillNodes:[{skillNodeId:'a'}],connections:[]},skillDefinitions:[]},targets:['a']}]));
+  const window={OvllSkillStorageRuntime:skillStorageRuntime,localStorage:storage,crypto:{randomUUID:()=> 'abcd'}};
   vm.runInNewContext(script,{window});
   assert.equal(window.OvllPointerFunctions.list()[0].purpose,'기존 초안');
-  window.OvllPointerFunctions.save({purpose:'new',snapshot:{graph:{graphId:'g_new',revision:1,nodes:[{nodeId:'n'}],connections:[]},definitions:[]},targets:['n']});
+  window.OvllPointerFunctions.save({purpose:'new',snapshot:{graph:{graphId:'g_new',revision:1,skillNodes:[{skillNodeId:'n'}],connections:[]},skillDefinitions:[]},targets:['n']});
   assert.equal(window.OvllPointerFunctions.list().length,2);
 });
 test('saved replay binds new inputs without rewriting purpose or remembered instructions',()=>{
  const data=new Map(),window={localStorage:{getItem:k=>data.get(k)||null,setItem:(k,v)=>data.set(k,v)},crypto:{randomUUID:()=> 'replay'}};
  vm.runInNewContext(script,{window});const f=window.OvllPointerFunctions;
- const snapshot={graph:{graphId:'g',revision:1,nodes:[{nodeId:'n',definitionRef:{definitionId:'d',version:1},inputBindings:{source:'Old example'}}],connections:[]},definitions:[{definitionId:'d',version:1,purpose:'Summarize',instruction:'Preserve citations',inputs:[{name:'source',role:'자료',representation:'text',required:true}],outputs:[{name:'result',role:'summary',representation:'text'}]}]};
+ const snapshot={graph:{graphId:'g',revision:1,skillNodes:[{skillNodeId:'n',skillDefinitionRef:{definitionId:'d',version:1},inputBindings:{source:'Old example'}}],connections:[]},skillDefinitions:[{definitionId:'d',version:1,purpose:'Summarize',instruction:'Preserve citations',inputs:[{name:'source',role:'자료',representation:'text',required:true}],outputs:[{name:'result',role:'summary',representation:'text'}]}]};
  const saved=f.save({purpose:'Summarize customer notes',snapshot,targets:['n'],invariants:['Preserve names']});
  assert.equal(typeof f.bind,'function');
  const rebound=f.bind(saved,{[saved.inputs[0].name]:'New notes'});
- assert.equal(rebound.snapshot.graph.nodes[0].inputBindings.source,'New notes');
+ assert.equal(rebound.snapshot.graph.skillNodes[0].inputBindings.source,'New notes');
  assert.equal(rebound.requestText,'Summarize customer notes');
- assert.equal(rebound.snapshot.definitions[0].instruction,'Preserve citations');
+ assert.equal(rebound.snapshot.skillDefinitions[0].instruction,'Preserve citations');
  assert.equal(rebound.invariants[0],'Preserve names');
- assert.equal(f.get(saved.id).snapshot.graph.nodes[0].inputBindings.source,'Old example');
+ assert.equal(f.get(saved.id).snapshot.graph.skillNodes[0].inputBindings.source,'Old example');
  assert.throws(()=>f.bind(saved,{}),/FUNCTION_INPUT_REQUIRED/);
 });
 test('simple remembered model work saves and replays without editing the canvas',()=>{
@@ -63,47 +64,47 @@ test('simple remembered model work saves and replays without editing the canvas'
  vm.runInNewContext(script,{window});const f=window.OvllPointerFunctions;
  assert.equal(typeof f.saveDraft,'function');
  const fn=f.saveDraft({purpose:'Summarize',inputs:[{name:'source',role:'notes',representation:'text'}],outputs:[{name:'result',role:'summary',representation:'text'}],invariants:['Preserve names'],procedure:{kind:'model_task',instruction:'Summarize supplied notes faithfully'}});
- assert.equal(fn.snapshot.graph.nodes.length,1);
+ assert.equal(fn.snapshot.graph.skillNodes.length,1);
  const bound=f.bind(fn,{source:'Fresh notes'});
- assert.equal(bound.snapshot.graph.nodes[0].inputBindings.source,'Fresh notes');
+ assert.equal(bound.snapshot.graph.skillNodes[0].inputBindings.source,'Fresh notes');
  assert.equal(bound.invariants[0],'Preserve names');
 });
 test('a remembered file workflow exposes fresh files instead of silently replaying the old source',()=>{
  const values=new Map(),window={localStorage:{getItem:k=>values.get(k)||null,setItem:(k,v)=>values.set(k,v)},crypto:{randomUUID:()=> 'filefn'}};
  vm.runInNewContext(script,{window});const f=window.OvllPointerFunctions;
- const snapshot={graph:{graphId:'g',revision:1,nodes:[{nodeId:'file',definitionRef:{definitionId:'builtin:file',version:1},settings:{file:{name:'old.txt',textPreview:'Old notes'}}},{nodeId:'write',definitionRef:{definitionId:'d',version:1}}],connections:[{kind:'data',from:{nodeId:'file',port:'file'},to:{nodeId:'write',port:'in'}}]},definitions:[{definitionId:'builtin:file',version:1,executorKind:'tool_task',requiredCapabilities:['file.read_local'],inputs:[],outputs:[{name:'file',role:'file',representation:'json'}]},{definitionId:'d',version:1,inputs:[{name:'in',role:'material',representation:'json'}],outputs:[{name:'result',role:'report',representation:'json'}]}]};
+ const snapshot={graph:{graphId:'g',revision:1,skillNodes:[{skillNodeId:'file',skillDefinitionRef:{definitionId:'builtin:file',version:1},settings:{file:{name:'old.txt',textPreview:'Old notes'}}},{skillNodeId:'write',skillDefinitionRef:{definitionId:'d',version:1}}],connections:[{kind:'data',from:{skillNodeId:'file',port:'file'},to:{skillNodeId:'write',port:'in'}}]},skillDefinitions:[{definitionId:'builtin:file',version:1,executorKind:'tool_task',requiredCapabilities:['file.read_local'],inputs:[],outputs:[{name:'file',role:'file',representation:'json'}]},{definitionId:'d',version:1,inputs:[{name:'in',role:'material',representation:'json'}],outputs:[{name:'result',role:'report',representation:'json'}]}]};
  const fn=f.save({purpose:'Write from a file',snapshot,targets:['write']});
  assert.equal(fn.inputs.length,1);
  const bound=f.bind(fn,{[fn.inputs[0].name]:{name:'fresh.txt',textPreview:'Fresh notes'}});
- assert.equal(bound.snapshot.graph.nodes[0].settings.file.textPreview,'Fresh notes');
- assert.equal(f.get(fn.id).snapshot.graph.nodes[0].settings.file.name,'old.txt');
+ assert.equal(bound.snapshot.graph.skillNodes[0].settings.file.textPreview,'Fresh notes');
+ assert.equal(f.get(fn.id).snapshot.graph.skillNodes[0].settings.file.name,'old.txt');
  assert.throws(()=>f.bind(fn,{[fn.inputs[0].name]:'Not a file'}),/FUNCTION_INPUT_TYPE_MISMATCH/);
 });
 test('optional fresh inputs can be omitted without reusing stale sample bindings',()=>{
  const window={localStorage:{getItem:()=>null,setItem:()=>{}},crypto:{randomUUID:()=> 'optional'}};vm.runInNewContext(script,{window});const f=window.OvllPointerFunctions;
  const fn=f.saveDraft({purpose:'Write',inputs:[{name:'in',role:'optional material',representation:'text',required:false}],outputs:[{name:'result',role:'text',representation:'text'}],invariants:[],procedure:{kind:'model_task',instruction:'Write from supplied material when present'}});
- fn.snapshot.graph.nodes[0].inputBindings.in='Old sample';
- const run=f.bind(fn,{});assert.equal(run.snapshot.graph.nodes[0].inputBindings.in,undefined);
+ fn.snapshot.graph.skillNodes[0].inputBindings.in='Old sample';
+ const run=f.bind(fn,{});assert.equal(run.snapshot.graph.skillNodes[0].inputBindings.in,undefined);
 });
 test('explicit file destination without a kind is normalized to file replacement',()=>{
  const window={localStorage:{getItem:()=>null,setItem:()=>{}},crypto:{randomUUID:()=> 'mapped'}};vm.runInNewContext(script,{window});const f=window.OvllPointerFunctions;
- const snapshot={definitions:[{definitionId:'f',version:1,executorKind:'tool_task',requiredCapabilities:['file.read_local'],inputs:[],outputs:[{name:'file',role:'file',representation:'json'}]}],graph:{graphId:'g',revision:1,nodes:[{nodeId:'n',definitionRef:{definitionId:'f',version:1},settings:{file:{name:'old.txt'}}}],connections:[]}};
- const fn=f.save({purpose:'Read file',snapshot,targets:['n'],inputs:[{name:'source',role:'file',representation:'json',required:true}],inputMap:{source:{nodeId:'n',port:'file'}}});
- assert.equal(f.bind(fn,{source:{name:'new.txt'}}).snapshot.graph.nodes[0].settings.file.name,'new.txt');
+ const snapshot={skillDefinitions:[{definitionId:'f',version:1,executorKind:'tool_task',requiredCapabilities:['file.read_local'],inputs:[],outputs:[{name:'file',role:'file',representation:'json'}]}],graph:{graphId:'g',revision:1,skillNodes:[{skillNodeId:'n',skillDefinitionRef:{definitionId:'f',version:1},settings:{file:{name:'old.txt'}}}],connections:[]}};
+ const fn=f.save({purpose:'Read file',snapshot,targets:['n'],inputs:[{name:'source',role:'file',representation:'json',required:true}],inputMap:{source:{skillNodeId:'n',port:'file'}}});
+ assert.equal(f.bind(fn,{source:{name:'new.txt'}}).snapshot.graph.skillNodes[0].settings.file.name,'new.txt');
 });
 test('old-format saved functions infer only unambiguous scoped inputs and bind new material',()=>{
  const values=new Map(),storage={getItem:k=>values.get(k)||null,setItem:(k,v)=>values.set(k,v)};
  const input={name:'source',role:'notes',representation:'text',required:true};
  const old={id:'fn_old',version:1,purpose:'Summarize notes',inputs:[input],outputs:[],targets:['n'],invariants:['Preserve names'],
-  snapshot:{graph:{graphId:'g_old',revision:1,nodes:[{nodeId:'n',definitionRef:{definitionId:'d',version:1},inputBindings:{source:'Old notes'}}],connections:[]},
-   definitions:[{definitionId:'d',version:1,executorKind:'model_task',instruction:'Summarize faithfully',inputs:[input],outputs:[{name:'result',role:'summary',representation:'text'}]}]}};
+  snapshot:{graph:{graphId:'g_old',revision:1,skillNodes:[{skillNodeId:'n',skillDefinitionRef:{definitionId:'d',version:1},inputBindings:{source:'Old notes'}}],connections:[]},
+   skillDefinitions:[{definitionId:'d',version:1,executorKind:'model_task',instruction:'Summarize faithfully',inputs:[input],outputs:[{name:'result',role:'summary',representation:'text'}]}]}};
  storage.setItem('ovll:vnext:functions:v1',JSON.stringify([old]));
- const window={localStorage:storage};vm.runInNewContext(script,{window});const f=window.OvllPointerFunctions;
+ const window={OvllSkillStorageRuntime:skillStorageRuntime,localStorage:storage};vm.runInNewContext(script,{window});const f=window.OvllPointerFunctions;
  const bound=f.bind(f.get(old.id),{source:'New notes'});
- assert.equal(bound.snapshot.graph.nodes[0].inputBindings.source,'New notes');
+ assert.equal(bound.snapshot.graph.skillNodes[0].inputBindings.source,'New notes');
  assert.equal(bound.requestText,old.purpose);assert.deepEqual(Array.from(bound.invariants),old.invariants);
- assert.equal(f.get(old.id).snapshot.graph.nodes[0].inputBindings.source,'Old notes');
- const ambiguous=structuredClone(old);ambiguous.targets.push('n2');ambiguous.snapshot.graph.nodes.push({...ambiguous.snapshot.graph.nodes[0],nodeId:'n2'});
+ assert.equal(f.get(old.id).snapshot.graph.skillNodes[0].inputBindings.source,'Old notes');
+ const ambiguous=structuredClone(old);ambiguous.targets.push('n2');ambiguous.snapshot.graph.skillNodes.push({...ambiguous.snapshot.graph.skillNodes[0],skillNodeId:'n2'});
  assert.throws(()=>f.bind(ambiguous,{source:'New notes'}),/FUNCTION_INPUT_MAPPING_REQUIRED/);
 });
 
@@ -114,46 +115,46 @@ function functionStore(){
  return {f:reload(),reload,data};
 }
 function reusableGraph(){
- return {graph:{graphId:'g_contract',revision:1,nodes:[
-  {nodeId:'source',definitionRef:{definitionId:'d_source',version:1},inputBindings:{fresh:'old sample',secret:'unexposed sample',constant:'old constant'}},
-  {nodeId:'result',definitionRef:{definitionId:'d_result',version:1}},
-  {nodeId:'unrelated_sink',definitionRef:{definitionId:'d_other',version:1},settings:{request:'Send unrelated mail'}}
- ],connections:[{kind:'data',from:{nodeId:'source',port:'out'},to:{nodeId:'result',port:'in'}}]},definitions:[
+ return {graph:{graphId:'g_contract',revision:1,skillNodes:[
+  {skillNodeId:'source',skillDefinitionRef:{definitionId:'d_source',version:1},inputBindings:{fresh:'old sample',secret:'unexposed sample',constant:'old constant'}},
+  {skillNodeId:'result',skillDefinitionRef:{definitionId:'d_result',version:1}},
+  {skillNodeId:'unrelated_sink',skillDefinitionRef:{definitionId:'d_other',version:1},settings:{request:'Send unrelated mail'}}
+ ],connections:[{kind:'data',from:{skillNodeId:'source',port:'out'},to:{skillNodeId:'result',port:'in'}}]},skillDefinitions:[
   {definitionId:'d_source',version:1,inputs:['fresh','secret','constant'].map(name=>({name,role:name,representation:'text',required:false})),outputs:[{name:'out',role:'out',representation:'text'}]},
   {definitionId:'d_result',version:1,inputs:[{name:'in',role:'in',representation:'text'}],outputs:[{name:'out',role:'out',representation:'text'}]},
   {definitionId:'d_other',version:1,inputs:[],outputs:[]}
  ]};
 }
-test('saved target closure excludes unrelated sinks and their definitions',()=>{
+test('saved target closure excludes unrelated sinks and their skillDefinitions',()=>{
  const {f}=functionStore();const snapshot=reusableGraph();
  const fn=f.save({purpose:'Reuse just the selected result',snapshot,targets:['result']});
- assert.deepEqual(Array.from(fn.snapshot.graph.nodes,n=>n.nodeId),['source','result']);
- assert.deepEqual(Array.from(fn.snapshot.definitions,d=>d.definitionId),['d_source','d_result']);
- assert.equal(snapshot.graph.nodes.length,3);
+ assert.deepEqual(Array.from(fn.snapshot.graph.skillNodes,n=>n.skillNodeId),['source','result']);
+ assert.deepEqual(Array.from(fn.snapshot.skillDefinitions,d=>d.definitionId),['d_source','d_result']);
+ assert.equal(snapshot.graph.skillNodes.length,3);
 });
 test('partial function contracts clear hidden samples and preserve only explicit fixed values',()=>{
  const {f,reload}=functionStore();
  const fn=f.save({purpose:'Fresh notes',snapshot:reusableGraph(),targets:['result'],
   inputs:[{name:'material',role:'fresh',representation:'text',required:true}],
-  inputMap:{material:{nodeId:'source',port:'fresh'}},fixedInputs:{'source:constant':'intentional constant'}});
+  inputMap:{material:{skillNodeId:'source',port:'fresh'}},fixedInputs:{'source:constant':'intentional constant'}});
  const rebound=reload().bind(reload().get(fn.id),{material:'new notes'});
- const bindings=rebound.snapshot.graph.nodes[0].inputBindings;
+ const bindings=rebound.snapshot.graph.skillNodes[0].inputBindings;
  assert.equal(bindings.fresh,'new notes');assert.equal(bindings.secret,undefined);
  assert.equal(bindings.constant,'intentional constant');
 });
 test('new explicit no-input contracts discard samples while old no-input functions remain executable',()=>{
  const {f}=functionStore();
  const fresh=f.save({purpose:'No sample input',snapshot:reusableGraph(),targets:['result'],inputs:[],fixedInputs:{'source:constant':'fixed'}});
- const bindings=f.bind(fresh).snapshot.graph.nodes[0].inputBindings;
+ const bindings=f.bind(fresh).snapshot.graph.skillNodes[0].inputBindings;
  assert.equal(bindings.fresh,undefined);assert.equal(bindings.constant,'fixed');
  const legacy={...fresh};delete legacy.contractVersion;delete legacy.fixedInputs;
- legacy.snapshot.graph.nodes[0].inputBindings.fresh='historical constant';
- assert.equal(f.bind(legacy).snapshot.graph.nodes[0].inputBindings.fresh,'historical constant');
+ legacy.snapshot.graph.skillNodes[0].inputBindings.fresh='historical constant';
+ assert.equal(f.bind(legacy).snapshot.graph.skillNodes[0].inputBindings.fresh,'historical constant');
 });
 test('editing creates pinned immutable versions and inherits semantic contract across reload',()=>{
  const {f,reload}=functionStore();
  const first=f.save({purpose:'Preserve original purpose',invariants:['Keep citations'],snapshot:reusableGraph(),targets:['result'],
-  inputs:[{name:'material',role:'material',representation:'text',required:true}],inputMap:{material:{nodeId:'source',port:'fresh'}},
+  inputs:[{name:'material',role:'material',representation:'text',required:true}],inputMap:{material:{skillNodeId:'source',port:'fresh'}},
   presentation:{name:'Original',color:'#abc',iconKey:'pencil'}});
  const second=f.save({baseFunctionRef:{id:first.id,version:1},snapshot:reusableGraph(),targets:['result'],presentation:{name:'New name',color:'#12abEF',iconKey:'calendar'}});
  assert.equal(second.id,first.id);assert.equal(second.version,2);
@@ -184,7 +185,7 @@ test('revising a legacy no-input function makes its historical constants explici
  data.set(f.storageKey,JSON.stringify([old]));
  const revised=reload().save({baseFunctionRef:{id:old.id,version:1},presentation:{name:'New name',color:'#abc',iconKey:'pencil'}});
  assert.equal(revised.fixedInputs['source:fresh'],'old sample');
- assert.equal(f.bind(revised).snapshot.graph.nodes[0].inputBindings.fresh,'old sample');
+ assert.equal(f.bind(revised).snapshot.graph.skillNodes[0].inputBindings.fresh,'old sample');
 });
 test('remembered model-task revisions retain input mapping and immutable instructions',()=>{
  const {f}=functionStore();
@@ -192,9 +193,9 @@ test('remembered model-task revisions retain input mapping and immutable instruc
  const first=f.saveDraft(draft);
  const second=f.saveDraft({...draft,baseFunctionRef:{id:first.id,version:1},procedure:{kind:'model_task',instruction:'Revised instruction'}});
  assert.equal(second.id,first.id);assert.equal(second.version,2);
- assert.equal(f.bind(second,{source:'fresh'}).snapshot.graph.nodes[0].inputBindings.source,'fresh');
- assert.equal(f.get(first.id,1).snapshot.definitions[0].instruction,'Original instruction');
- assert.equal(second.snapshot.definitions[0].instruction,'Revised instruction');
+ assert.equal(f.bind(second,{source:'fresh'}).snapshot.graph.skillNodes[0].inputBindings.source,'fresh');
+ assert.equal(f.get(first.id,1).snapshot.skillDefinitions[0].instruction,'Original instruction');
+ assert.equal(second.snapshot.skillDefinitions[0].instruction,'Revised instruction');
 });
 
 test('legacy functions with exposed inputs clear unrelated samples before binding fresh material',()=>{
@@ -202,15 +203,15 @@ test('legacy functions with exposed inputs clear unrelated samples before bindin
  const fn={id:'old_partial',version:1,purpose:'Legacy partial',snapshot:reusableGraph(),targets:['result'],
   inputs:[{name:'fresh',role:'fresh',representation:'text',required:true}]};
  const bound=f.bind(fn,{fresh:'Fresh material'});
- assert.equal(bound.snapshot.graph.nodes[0].inputBindings.fresh,'Fresh material');
- assert.equal(bound.snapshot.graph.nodes[0].inputBindings.secret,undefined);
+ assert.equal(bound.snapshot.graph.skillNodes[0].inputBindings.fresh,'Fresh material');
+ assert.equal(bound.snapshot.graph.skillNodes[0].inputBindings.secret,undefined);
 });
 test('new replay also removes undeclared stale bindings without mutating saved samples',()=>{
- const {f}=functionStore();const snapshot=reusableGraph();snapshot.graph.nodes[0].inputBindings.undeclared='Old hidden material';
+ const {f}=functionStore();const snapshot=reusableGraph();snapshot.graph.skillNodes[0].inputBindings.undeclared='Old hidden material';
  const fn=f.save({purpose:'Clean input',snapshot,targets:['result']});
  const bound=f.bind(fn,{});
- assert.equal(bound.snapshot.graph.nodes[0].inputBindings.undeclared,undefined);
- assert.equal(fn.snapshot.graph.nodes[0].inputBindings.undeclared,'Old hidden material');
+ assert.equal(bound.snapshot.graph.skillNodes[0].inputBindings.undeclared,undefined);
+ assert.equal(fn.snapshot.graph.skillNodes[0].inputBindings.undeclared,'Old hidden material');
 });
 
 test('appearance-only revision retains fields and legacy missing input contract remains no-input',()=>{
@@ -220,7 +221,7 @@ test('appearance-only revision retains fields and legacy missing input contract 
  const changed=reload().save({baseFunctionRef:{id:old.id,version:1},presentation:{color:'#abc'}});
  assert.equal(changed.inputs.length,0);assert.equal(changed.presentation.name,'Same name');
  assert.equal(changed.presentation.iconKey,'pencil');assert.equal(changed.presentation.color,'#aabbcc');
- assert.equal(f.bind(changed).snapshot.graph.nodes[0].inputBindings.fresh,'old sample');
+ assert.equal(f.bind(changed).snapshot.graph.skillNodes[0].inputBindings.fresh,'old sample');
 });
 
 test('graph draft requires explicit selection when unrelated sinks make its result ambiguous',()=>{
@@ -228,12 +229,12 @@ test('graph draft requires explicit selection when unrelated sinks make its resu
  const draft={purpose:'Selected work',inputs:[],outputs:[],invariants:[],procedure:{kind:'graph',graphRef:{graphId:snapshot.graph.graphId,revision:1}}};
  assert.throws(()=>f.saveDraft(draft,snapshot),/FUNCTION_TARGET_SELECTION_REQUIRED/);
  const fn=f.saveDraft(draft,snapshot,{targets:['result']});
- assert.deepEqual(Array.from(fn.snapshot.graph.nodes,n=>n.nodeId),['source','result']);
+ assert.deepEqual(Array.from(fn.snapshot.graph.skillNodes,n=>n.skillNodeId),['source','result']);
  const revised=f.saveDraft({...draft,purpose:'Revised work'},snapshot,{targets:['result'],baseFunctionRef:{functionId:fn.id,version:1}});
  assert.equal(revised.id,fn.id);assert.equal(revised.version,2);
 });
 
-test('saved function replays fresh inputs while preserving independent per-node requests',async()=>{
+test('saved function replays fresh inputs while preserving independent per-skillNode requests',async()=>{
  const core=await import('../front/js/ovllPointerGraphCore.mjs');
  const plan=await import('../front/js/ovllPointerPlanCore.mjs');
  const results=await import('../front/js/ovllPointerResults.mjs');
@@ -242,7 +243,7 @@ test('saved function replays fresh inputs while preserving independent per-node 
   localStorage:{getItem:key=>stored.get(key)||null,setItem:(key,value)=>stored.set(key,value)}};
  vm.runInNewContext(script,{window});
  const functions=window.OvllPointerFunctions;
- const definitions=[
+ const skillDefinitions=[
   {definitionId:'d_research',version:1,purpose:'Research',instruction:'Read notes',
    executorKind:'model_task',inputs:[{name:'in',representation:'text',required:true}],
    outputs:[{name:'result',representation:'text'}]},
@@ -250,45 +251,45 @@ test('saved function replays fresh inputs while preserving independent per-node 
    executorKind:'model_task',inputs:[{name:'in',representation:'text',required:true}],
    outputs:[{name:'result',representation:'text'}]}
  ];
- const snapshot={graph:{graphId:'g_replay',revision:1,nodes:[
-  {nodeId:'research',definitionRef:{definitionId:'d_research',version:1},
+ const snapshot={graph:{graphId:'g_replay',revision:1,skillNodes:[
+  {skillNodeId:'research',skillDefinitionRef:{definitionId:'d_research',version:1},
    settings:{request:'Research the notes'},inputBindings:{in:'Old notes'}},
-  {nodeId:'write',definitionRef:{definitionId:'d_write',version:1},
+  {skillNodeId:'write',skillDefinitionRef:{definitionId:'d_write',version:1},
    settings:{request:'Write a sourced report'},inputBindings:{}}
- ],connections:[{id:'l',kind:'data',from:{nodeId:'research',port:'result'},
-   to:{nodeId:'write',port:'in'}}]},definitions};
+ ],connections:[{id:'l',kind:'data',from:{skillNodeId:'research',port:'result'},
+   to:{skillNodeId:'write',port:'in'}}]},skillDefinitions};
  const fn=functions.save({purpose:'Reusable report',snapshot,targets:['write'],
   invariants:['Preserve references']});
- const state={pointerGraph:snapshot,pointerRuns:[]};
+ const state={skillGraph:snapshot,skillRuns:[]};
  const workspaceStore={getConversation:()=>({state}),
-  updateConversationPointerRuns:(_id,runs)=>{state.pointerRuns=runs},
-  updateConversationPointerGraph:()=>{},getPointerDefinitions:()=>[]};
+  updateConversationSkillRuns:(_id,runs)=>{state.skillRuns=runs},
+  updateConversationSkillGraph:()=>{},getSkillDefinitions:()=>[]};
  window.OvllWorkspaceStore=workspaceStore;
  vm.runInNewContext(readFileSync(new URL('../front/js/ovllPointerLocal.js',import.meta.url),'utf8'),{window,console});
  const local=window.createOvllPointerLocal({workspaceStore,
   loadCore:async()=>core,loadPlan:async()=>plan,loadResults:async()=>results,
-  loadCatalog:async()=>({definitions})});
+  loadCatalog:async()=>({skillDefinitions})});
  const app=readFileSync(new URL('../front/js/app.js',import.meta.url),'utf8');
  const first=app.indexOf('async function runSavedLocalFunction(fn,bindings');
  const last=app.indexOf('  async function runLocalPrompt(',first);
  assert.ok(first>=0&&last>first,'saved function replay entry point remains available');
- const runSaved=new Function('global','runLocalNodes',app.slice(first,last)+
+ const runSaved=new Function('global','runLocalSkillNodes',app.slice(first,last)+
   ';return runSavedLocalFunction;')(window,async args=>local.run({...args,conversationId:'c',
-    executeNode:async step=>{
-     seen.push({nodeId:step.nodeId,requestText:step.requestText,
-      boundInput:step.snapshot.graph.nodes.find(n=>n.nodeId===step.nodeId)?.inputBindings?.in,
+    executeSkillNode:async step=>{
+     seen.push({skillNodeId:step.skillNodeId,requestText:step.requestText,
+      boundInput:step.snapshot.graph.skillNodes.find(n=>n.skillNodeId===step.skillNodeId)?.inputBindings?.in,
       upstream:Array.from(step.inputArtifacts,i=>i.value)});
      return {status:'success',outputs:{status:'produced',values:{
-      result:{inline:step.nodeId==='research'?'Research evidence':'Final report'}}}};
+      result:{inline:step.skillNodeId==='research'?'Research evidence':'Final report'}}}};
     }}));
  const seen=[];
  const run=await runSaved(fn,{[fn.inputs[0].name]:'Fresh notes'});
  assert.equal(run.status,'completed');
- assert.deepEqual(seen.map(x=>x.nodeId),['research','write']);
+ assert.deepEqual(seen.map(x=>x.skillNodeId),['research','write']);
  assert.deepEqual(seen.map(x=>x.requestText),['Research the notes','Write a sourced report']);
  assert.equal(seen[0].boundInput,'Fresh notes');
  assert.deepEqual(seen[1].upstream,['Research evidence']);
- assert.equal(functions.get(fn.id).snapshot.graph.nodes[0].inputBindings.in,'Old notes');
+ assert.equal(functions.get(fn.id).snapshot.graph.skillNodes[0].inputBindings.in,'Old notes');
  assert.equal(fn.purpose,'Reusable report');
 });
 
@@ -309,16 +310,16 @@ test('reused function validates object/array inputs before any model or tool cal
   const before=JSON.stringify(functions.get(saved.id).snapshot);
   assert.throws(()=>functions.bind(saved,{data:invalid}),/FUNCTION_INPUT_TYPE_MISMATCH/);
   const bound=functions.bind(saved,{data:valid});
-  assert.deepEqual(JSON.parse(JSON.stringify(bound.snapshot.graph.nodes[0].inputBindings.data)),valid);
+  assert.deepEqual(JSON.parse(JSON.stringify(bound.snapshot.graph.skillNodes[0].inputBindings.data)),valid);
   assert.equal(JSON.stringify(functions.get(saved.id).snapshot),before);
  }
 });
 
-test('saved function cannot mask a required node input with optional or absent contract',()=>{
+test('saved function cannot mask a required skillNode input with optional or absent contract',()=>{
  const {f}=functionStore(),snapshot={graph:{graphId:'g_required',revision:1,
-  nodes:[{nodeId:'source',definitionRef:{definitionId:'source_def',version:1},
+  skillNodes:[{skillNodeId:'source',skillDefinitionRef:{definitionId:'source_def',version:1},
    inputBindings:{source:'old sample'},settings:{request:'Analyze material'}}],connections:[]},
-  definitions:[{definitionId:'source_def',version:1,executorKind:'model_task',
+  skillDefinitions:[{definitionId:'source_def',version:1,executorKind:'model_task',
    purpose:'Analyze',instruction:'Analyze material',
    inputs:[{name:'source',role:'Input material',representation:'text',required:true}],
    outputs:[{name:'result',role:'Answer',representation:'text'}]}]};
@@ -326,21 +327,21 @@ test('saved function cannot mask a required node input with optional or absent c
  const aliased={name:'material',role:'Fresh material',representation:'text'};
  assert.throws(()=>f.save({...args,inputs:[]}),/FUNCTION_REQUIRED_INPUT_CONTRACT/);
  assert.throws(()=>f.save({...args,inputs:[{...aliased,required:false}],
-  inputMap:{material:{nodeId:'source',port:'source'}}}),/FUNCTION_REQUIRED_INPUT_CONTRACT/);
+  inputMap:{material:{skillNodeId:'source',port:'source'}}}),/FUNCTION_REQUIRED_INPUT_CONTRACT/);
  const saved=f.save({...args,inputs:[{...aliased,required:true}],
-  inputMap:{material:{nodeId:'source',port:'source'}}});
- assert.equal(f.bind(saved,{material:'new input'}).snapshot.graph.nodes[0].inputBindings.source,'new input');
+  inputMap:{material:{skillNodeId:'source',port:'source'}}});
+ assert.equal(f.bind(saved,{material:'new input'}).snapshot.graph.skillNodes[0].inputBindings.source,'new input');
  assert.throws(()=>f.bind(saved,{}),/FUNCTION_INPUT_REQUIRED/);
  const pinned=f.save({...args,inputs:[],fixedInputs:{'source:source':'approved constant'}});
- assert.equal(f.bind(pinned).snapshot.graph.nodes[0].inputBindings.source,'approved constant');
- assert.equal(f.get(saved.id).snapshot.graph.nodes[0].inputBindings.source,'old sample');
+ assert.equal(f.bind(pinned).snapshot.graph.skillNodes[0].inputBindings.source,'approved constant');
+ assert.equal(f.get(saved.id).snapshot.graph.skillNodes[0].inputBindings.source,'old sample');
 });
 test('saving a reusable file operation requires an explicit fresh file or deliberate fixed file',()=>{
  const {f}=functionStore();
- const snapshot={graph:{graphId:'g_required_file',revision:1,nodes:[{nodeId:'file',
-  definitionRef:{definitionId:'builtin:file',version:1},
+ const snapshot={graph:{graphId:'g_required_file',revision:1,skillNodes:[{skillNodeId:'file',
+  skillDefinitionRef:{definitionId:'builtin:file',version:1},
   settings:{file:{name:'previous.txt',textPreview:'old text'}}}],connections:[]},
-  definitions:[{definitionId:'builtin:file',version:1,executorKind:'tool_task',
+  skillDefinitions:[{definitionId:'builtin:file',version:1,executorKind:'tool_task',
    requiredCapabilities:['file.read_local'],inputs:[],
    outputs:[{name:'file',role:'File',representation:'json'}]}]};
  const options={purpose:'Read a fresh file',snapshot,targets:['file']};
@@ -349,17 +350,17 @@ test('saving a reusable file operation requires an explicit fresh file or delibe
  assert.equal(fn.inputs.length,1);
  assert.throws(()=>f.bind(fn,{}),/FUNCTION_INPUT_REQUIRED/);
  const fresh=f.bind(fn,{[fn.inputs[0].name]:{name:'fresh.txt',textPreview:'new text'}});
- assert.equal(fresh.snapshot.graph.nodes[0].settings.file.name,'fresh.txt');
- assert.equal(f.get(fn.id).snapshot.graph.nodes[0].settings.file.name,'previous.txt');
+ assert.equal(fresh.snapshot.graph.skillNodes[0].settings.file.name,'fresh.txt');
+ assert.equal(f.get(fn.id).snapshot.graph.skillNodes[0].settings.file.name,'previous.txt');
 });
 
 test('function output contract rejects nonexistent or mislabeled result ports',()=>{
  const {f}=functionStore(),snapshot={
-  graph:{graphId:'g_outputs',revision:1,nodes:[{
-   nodeId:'report',definitionRef:{definitionId:'d_report',version:1},
+  graph:{graphId:'g_outputs',revision:1,skillNodes:[{
+   skillNodeId:'report',skillDefinitionRef:{definitionId:'d_report',version:1},
    settings:{request:'Prepare sourced report'},inputBindings:{}
   }],connections:[]},
-  definitions:[{definitionId:'d_report',version:1,executorKind:'model_task',
+  skillDefinitions:[{definitionId:'d_report',version:1,executorKind:'model_task',
    inputs:[],outputs:[{name:'result',role:'Report',representation:'text'}]}]
  };
  const base={purpose:'Reusable sourced report',snapshot,targets:['report']};
@@ -368,17 +369,17 @@ test('function output contract rejects nonexistent or mislabeled result ports',(
  assert.throws(()=>f.save({...base,outputs:[{name:'missing',role:'Unknown',representation:'array'}]}),
   /FUNCTION_OUTPUT_MAPPING_REQUIRED/);
  const mapped=f.save({...base,outputs:[{name:'summary',role:'Report',representation:'text'}]});
- assert.deepEqual(JSON.parse(JSON.stringify(mapped.outputMap.summary)),{nodeId:'report',port:'result'});
+ assert.deepEqual(JSON.parse(JSON.stringify(mapped.outputMap.summary)),{skillNodeId:'report',port:'result'});
  const auto=f.save(base);
  assert.deepEqual(JSON.parse(JSON.stringify(auto.outputs)),[{name:'report:result',role:'Report',representation:'text'}]);
- assert.deepEqual(JSON.parse(JSON.stringify(auto.outputMap['report:result'])),{nodeId:'report',port:'result'});
+ assert.deepEqual(JSON.parse(JSON.stringify(auto.outputMap['report:result'])),{skillNodeId:'report',port:'result'});
 });
-test('function output contract preserves precise multi-node selection and rejects ambiguous aliases',()=>{
- const {f}=functionStore(),snapshot={graph:{graphId:'g_multi',revision:1,nodes:[
-  {nodeId:'source',definitionRef:{definitionId:'d',version:1}},
-  {nodeId:'report',definitionRef:{definitionId:'d',version:1}}
- ],connections:[{kind:'data',from:{nodeId:'source',port:'result'},to:{nodeId:'report',port:'in'}}]},
- definitions:[{definitionId:'d',version:1,executorKind:'model_task',
+test('function output contract preserves precise multi-skillNode selection and rejects ambiguous aliases',()=>{
+ const {f}=functionStore(),snapshot={graph:{graphId:'g_multi',revision:1,skillNodes:[
+  {skillNodeId:'source',skillDefinitionRef:{definitionId:'d',version:1}},
+  {skillNodeId:'report',skillDefinitionRef:{definitionId:'d',version:1}}
+ ],connections:[{kind:'data',from:{skillNodeId:'source',port:'result'},to:{skillNodeId:'report',port:'in'}}]},
+ skillDefinitions:[{definitionId:'d',version:1,executorKind:'model_task',
   inputs:[{name:'in',representation:'text',required:false}],
   outputs:[{name:'result',role:'Result',representation:'text'}]}]};
  const base={purpose:'Compare research outputs',snapshot,targets:['report']};
@@ -387,8 +388,8 @@ test('function output contract preserves precise multi-node selection and reject
   {name:'report:result',role:'Report',representation:'text'}
  ]});
  assert.deepEqual(JSON.parse(JSON.stringify(qualified.outputMap)),{
-  'source:result':{nodeId:'source',port:'result'},
-  'report:result':{nodeId:'report',port:'result'}
+  'source:result':{skillNodeId:'source',port:'result'},
+  'report:result':{skillNodeId:'report',port:'result'}
  });
  assert.throws(()=>f.save({...base,outputs:[
   {name:'report:result',representation:'text'},{name:'report:result',representation:'text'}
@@ -399,28 +400,28 @@ test('function output contract preserves precise multi-node selection and reject
  const labels=f.save({...base,outputs:[
   {name:'evidence',role:'Evidence',representation:'text'},
   {name:'report',role:'Report',representation:'text'}],
-  outputMap:{evidence:{nodeId:'source',port:'result'},report:{nodeId:'report',port:'result'}}
+  outputMap:{evidence:{skillNodeId:'source',port:'result'},report:{skillNodeId:'report',port:'result'}}
  });
- assert.equal(labels.outputMap.evidence.nodeId,'source');
- assert.equal(labels.outputMap.report.nodeId,'report');
+ assert.equal(labels.outputMap.evidence.skillNodeId,'source');
+ assert.equal(labels.outputMap.report.skillNodeId,'report');
 });
 test('saved output mappings remain pinned across versions and leave the saved graph intact',()=>{
  const {f,reload}=functionStore(),snapshot={graph:{graphId:'g_pinned',revision:1,
-  nodes:[{nodeId:'write',definitionRef:{definitionId:'d',version:1}}],connections:[]},
-  definitions:[{definitionId:'d',version:1,executorKind:'model_task',inputs:[],
+  skillNodes:[{skillNodeId:'write',skillDefinitionRef:{definitionId:'d',version:1}}],connections:[]},
+  skillDefinitions:[{definitionId:'d',version:1,executorKind:'model_task',inputs:[],
    outputs:[{name:'result',role:'text',representation:'text'}]}]};
  const first=f.save({purpose:'Reusable text',snapshot,targets:['write'],
   outputs:[{name:'summary',role:'Summary',representation:'text'}]});
  const original=JSON.stringify(first.snapshot);
  const second=f.save({baseFunctionRef:{id:first.id,version:1},
   presentation:{name:'Updated appearance'}});
- assert.deepEqual(JSON.parse(JSON.stringify(second.outputMap)),{summary:{nodeId:'write',port:'result'}});
+ assert.deepEqual(JSON.parse(JSON.stringify(second.outputMap)),{summary:{skillNodeId:'write',port:'result'}});
  assert.equal(JSON.stringify(reload().get(first.id,1).snapshot),original);
  assert.equal(second.verificationStatus,'draft');
  const renamed=f.save({baseFunctionRef:{id:first.id,version:2},
   outputs:[{name:'newSummary',role:'Summary',representation:'text'}]});
  assert.deepEqual(JSON.parse(JSON.stringify(renamed.outputMap)),{
-  newSummary:{nodeId:'write',port:'result'}});
+  newSummary:{skillNodeId:'write',port:'result'}});
  assert.equal(reload().get(first.id,2).outputs[0].name,'summary');
 });
 
@@ -429,33 +430,33 @@ test('model function draft accepts exact explicit output map and rejects invente
  const draft={purpose:'Compare sources',inputs:[],
   outputs:[{name:'summary',role:'Summary',representation:'text'}],invariants:[],
   procedure:{kind:'graph',graphRef:{graphId:'g',revision:1}},
-  outputMap:{summary:{nodeId:'write',port:'result'}}};
+  outputMap:{summary:{skillNodeId:'write',port:'result'}}};
  assert.equal(validator.validate('FunctionDraft',draft),true);
  assert.equal(validator.validate('FunctionDraft',{...draft,
-  outputMap:{summary:{nodeId:'write',port:'result',fabricated:true}}}),false);
+  outputMap:{summary:{skillNodeId:'write',port:'result',fabricated:true}}}),false);
  assert.equal(validator.validate('FunctionDraft',{...draft,
-  outputMap:{summary:{nodeId:'write'}}}),false);
+  outputMap:{summary:{skillNodeId:'write'}}}),false);
 });
 
 test('selected sink resolves shared result port without guessing among multiple targets',()=>{
  const {f}=functionStore();
- const snapshot={graph:{graphId:'g_sink',revision:1,nodes:[
-  {nodeId:'research',definitionRef:{definitionId:'d',version:1}},
-  {nodeId:'report',definitionRef:{definitionId:'d',version:1}}
+ const snapshot={graph:{graphId:'g_sink',revision:1,skillNodes:[
+  {skillNodeId:'research',skillDefinitionRef:{definitionId:'d',version:1}},
+  {skillNodeId:'report',skillDefinitionRef:{definitionId:'d',version:1}}
  ],connections:[{kind:'data',
-  from:{nodeId:'research',port:'result'},to:{nodeId:'report',port:'in'}}]},
- definitions:[{definitionId:'d',version:1,executorKind:'model_task',
+  from:{skillNodeId:'research',port:'result'},to:{skillNodeId:'report',port:'in'}}]},
+ skillDefinitions:[{definitionId:'d',version:1,executorKind:'model_task',
   inputs:[{name:'in',role:'Evidence',representation:'text'}],
   outputs:[{name:'result',role:'Text',representation:'text'}]}]};
  const output=[{name:'result',role:'Report',representation:'text'}];
  const saved=f.save({purpose:'Research then write',snapshot,targets:['report'],outputs:output});
- assert.deepEqual(JSON.parse(JSON.stringify(saved.outputMap.result)),{nodeId:'report',port:'result'});
+ assert.deepEqual(JSON.parse(JSON.stringify(saved.outputMap.result)),{skillNodeId:'report',port:'result'});
  assert.throws(()=>f.save({purpose:'Two independent targets',snapshot,
   targets:['research','report'],outputs:output}),/FUNCTION_OUTPUT_MAPPING_REQUIRED/);
  const explicit=f.save({purpose:'Both results',snapshot,targets:['report'],
   outputs:[{name:'sourceText',role:'Evidence',representation:'text'},
    {name:'reportText',role:'Report',representation:'text'}],
-  outputMap:{sourceText:{nodeId:'research',port:'result'},reportText:{nodeId:'report',port:'result'}}});
- assert.equal(explicit.outputMap.sourceText.nodeId,'research');
- assert.equal(explicit.outputMap.reportText.nodeId,'report');
+  outputMap:{sourceText:{skillNodeId:'research',port:'result'},reportText:{skillNodeId:'report',port:'result'}}});
+ assert.equal(explicit.outputMap.sourceText.skillNodeId,'research');
+ assert.equal(explicit.outputMap.reportText.skillNodeId,'report');
 });

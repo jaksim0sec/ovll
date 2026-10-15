@@ -8,7 +8,7 @@ const def={definitionId:'d1',version:1,purpose:'Research',
  instruction:'Provide a result',executorKind:'model_task',inputs:[],
  outputs:[{name:'result',representation:'text'}]};
 const graph=()=>({skillDefinitions:[def],graph:{graphId:'g1',revision:0,
- skills:[{skillId:'n_old',skillDefinitionRef:{definitionId:'d1',version:1},settings:{request:'Test task'}}],
+ skillNodes:[{skillNodeId:'n_old',skillDefinitionRef:{definitionId:'d1',version:1},settings:{request:'Test task'}}],
  connections:[]}});
 
 test('new Skill host uses canonical input/output without extra provider calls',async()=>{
@@ -19,8 +19,8 @@ test('new Skill host uses canonical input/output without extra provider calls',a
   })};}},
   resolveModel:async()=>({providerId:'fixture',model:'test',maxOutputTokens:200})
  });
- const result=await host.skill({snapshot:graph(),requestRef:'req1',skillId:'n_old'});
- assert.equal(result.skillId,'n_old');
+ const result=await host.skillNode({snapshot:graph(),requestRef:'req1',skillNodeId:'n_old'});
+ assert.equal(result.skillNodeId,'n_old');
  assert.equal('nodeId' in result,false);
  assert.equal(result.status,'success');
  assert.equal(result.outputs.values.result.inline,'Succeeded');
@@ -33,20 +33,17 @@ test('Skill host rejects v1 graph and Node-shaped selectors without invoking the
   gateway:{complete:async()=>{calls++;return{text:'{}'};}},
   resolveModel:async()=>({providerId:'fixture',model:'test',maxOutputTokens:200})
  });
- const legacy=graph();legacy.graph.nodes=legacy.graph.skills;
- await assert.rejects(host.skill({snapshot:legacy,requestRef:'req2',skillId:'n_old'}),
-   e=>e.code==='INVALID_SKILL_SNAPSHOT');
- await assert.rejects(host.skill({snapshot:graph(),requestRef:'req3',
-   skillId:'n_old',nodeId:'n_old'}),e=>e.code==='INVALID_SKILL_REQUEST');
+ const legacy=graph();legacy.graph.nodes=legacy.graph.skillNodes;delete legacy.graph.skillNodes;
+ await assert.rejects(host.skillNode({snapshot:legacy,requestRef:'req2',skillNodeId:'n_old'}));
+ await assert.rejects(host.skillNode({snapshot:graph(),requestRef:'req3',nodeId:'n_old'}));
  assert.equal(calls,0);
 });
 
-test('Skill HTTP route validates canonical graph before rate budget and preserves old /node route',async()=>{
+test('Skill HTTP route validates canonical graph before rate budget and has no parallel legacy route',async()=>{
  let calls=0;
  const app=express();app.use(express.json());
  mountLocalPointerRoutes(app,{enabled:()=>true,createHost:()=>({
-  skill:async body=>{calls++;return{skillId:body.skillId,status:'success',_meta:{providerCalls:1}};},
-  node:async body=>{calls++;return{nodeId:body.nodeId,status:'success',_meta:{providerCalls:1}};}
+  skillNode:async body=>{calls++;return{skillNodeId:body.skillNodeId,status:'success',_meta:{providerCalls:1}};}
  })});
  const server=await new Promise(resolve=>{
   const listener=app.listen(0,'127.0.0.1',()=>resolve(listener));
@@ -55,18 +52,17 @@ test('Skill HTTP route validates canonical graph before rate budget and preserve
  const send=(route,body)=>fetch(endpoint+route,{method:'POST',
   headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
  try{
-   const invalid=await send('skill',{snapshot:{},skillId:'n_old'});
+   const invalid=await send('skill-node',{snapshot:{},skillNodeId:'n_old'});
    assert.equal(invalid.status,422);
    assert.equal((await invalid.json()).error.code,'INVALID_SKILL_SNAPSHOT');
    assert.equal(calls,0);
-   const response=await send('skill',{snapshot:graph(),skillId:'n_old'});
+   const response=await send('skill-node',{snapshot:graph(),skillNodeId:'n_old'});
    assert.equal(response.status,200);
-   assert.equal((await response.json()).skillId,'n_old');
+   assert.equal((await response.json()).skillNodeId,'n_old');
    assert.equal(calls,1);
-   const old=await send('node',{nodeId:'n_old',requestText:'Run the old format'});
-   assert.equal(old.status,200);
-   assert.equal((await old.json()).nodeId,'n_old');
-   assert.equal(calls,2);
+   const old=await send('node',{skillNodeId:'n_old',requestText:'Run the old format'});
+   assert.equal(old.status,404);
+   assert.equal(calls,1);
  }finally{
    server.closeAllConnections?.();
    await new Promise(resolve=>server.close(resolve));

@@ -5,17 +5,17 @@ const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
 test('composer emits canonical Skill references only after live scope resolution',()=>{
  const src=read('front/js/ovllComposer.js');
  assert.match(src,/function referenceFor\(item\)/);
- assert.match(src,/getSkillSnapshot\?\.\(\)/);
+ assert.match(src,/getSnapshot\?\.\(\)/);
  assert.match(src,/const verified=resolve\?\.\(reference\)/);
  assert.match(src,/tag\.dataset\.ovllRefToken=api\.serializeSkillReference\(reference\)/);
- assert.match(src,/parseSkillReference\(node\.dataset\.ovllRefToken\)/);
+ assert.match(src,/parseSkillReference\(skillNode\.dataset\.ovllRefToken\)/);
  assert.match(src,/getWireText:plainValue/);
 });
 test('literal user typed token is escaped without losing editor draft identity',()=>{
  const src=read('front/js/ovllComposer.js');
  assert.match(src,/escapeSkillReferenceLiteral\?\.\(p\.text\)/);
  assert.match(src,/p\.type==="reference"/);
- assert.match(src,/labelSnapshot:node\.dataset\.ovllRefLabel/);
+ assert.match(src,/labelSnapshot:skillNode\.dataset\.ovllRefLabel/);
  assert.match(src,/editor\.append\(createTag\(\{reference:p\.reference/);
 });
 test('old saved drafts remain loadable and mobile input behavior unchanged',()=>{
@@ -26,8 +26,8 @@ test('old saved drafts remain loadable and mobile input behavior unchanged',()=>
  assert.match(src,/const hasReference = contentParts/);
 });
 test('composer and chat use same scope snapshot and shared chip class',()=>{
- assert.match(read('front/js/app.js'),/getSkillSnapshot:\(\)=>state\.pointerGraphSnapshot/);
- assert.match(read('front/js/ovllWorkspace.js'),/getSkillSnapshot:\(\)=>options\.getSkillSnapshot/);
+ assert.match(read('front/js/app.js'),/getSnapshot:\(\)=>state\.pointerGraphSnapshot/);
+ assert.match(read('front/js/ovllWorkspace.js'),/getSnapshot:\(\)=>options\.getSnapshot/);
  assert.match(read('front/js/ovllComposer.js'),/createSkillReferenceChip/);
  assert.match(read('front/js/ovllComposer.js'),/classList\.add\("ovll-rich-ref"\)/);
 });

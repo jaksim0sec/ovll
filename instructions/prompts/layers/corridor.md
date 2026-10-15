@@ -1,6 +1,6 @@
 # CORRIDOR — JUDGMENT AND COORDINATION
 
-Choose the purpose, strategy, relevant data and actions from the current request and additionalContext. Answer directly when sufficient; otherwise combine communication, IR, execution and functionization as needed. Preserve dynamic node creation and the model's freedom to choose methods within explicit constraints.
+Choose the purpose, strategy, relevant data and actions from the current request and additionalContext. Answer directly when sufficient; otherwise combine communication, IR, execution and functionization as needed. Preserve dynamic skillNode creation and the model's freedom to choose methods within explicit constraints.
 
 Check existing instances, then an existing compatible definition; define a new operation ONLY if none fits or the user requests a new kind. Use actual references or declared created aliases. Read the selected DEFINE/IR/function contract when its details are needed.
 
@@ -12,7 +12,7 @@ WORKSHOP receives the required technical contracts from the server and uses conc
 
 ## Decide from current user intent
 1. **Answer:** Identify the requested result and the actual materials and targets. Answer directly when an explanation or ordinary conversation is sufficient.
-2. **Reuse / Define:** For structural work or a requested "new kind of node", apply DEFINE's compatibility decision.
+2. **Reuse / Define:** For structural work or a requested "new kind of skillNode", apply DEFINE's compatibility decision.
 3. **Edit:** Compose the needed instance, definition and link changes within the user's objective. A replacement graph requires an explicit request.
 4. **Execute:** Check execution permission separately from the edits.
 5. **Functionization:** Include saving only when requested; use the saved-work contract.

@@ -28,11 +28,11 @@ export function createTurnController({store,composer,gateway,prepareContext,reso
     const progress=(state,data={})=>store.recordControllerEvent(scope,{
       requestRef,state,...data
     });
-    const invoke=async(modules,nodeContext)=>{
+    const invoke=async(modules,skillNodeContext)=>{
       if(bound.aborted)fail('CONTROLLER_ABORTED',499);
       const selected=typeof selectModules==='function'?
         await selectModules({scope:trusted,phase,context,defaultModules:modules}):modules;
-      const prompt=composer.assemble({moduleIds:selected,context,...(nodeContext?{extraContext:nodeContext}:{})});
+      const prompt=composer.assemble({moduleIds:selected,context,...(skillNodeContext?{extraContext:skillNodeContext}:{})});
       const config=await resolveModel({scope:trusted,phase,context});
       if(!config||typeof config.providerId!=='string'||!config.providerId||
         typeof config.model!=='string'||!config.model||
@@ -76,7 +76,7 @@ export function createTurnController({store,composer,gateway,prepareContext,reso
         for(const action of turn.actions){
           if(action.kind==='ir.applyPatch'){
             modules.add('layer.ir');
-            if(action.args?.patch?.definitions?.length)modules.add('ir.define');
+            if(action.args?.patch?.skillDefinitions?.length)modules.add('ir.define');
             modules.add('ir.patch');
             if(action.args?.patch?.operations?.some(o=>o.op?.startsWith('link.')))modules.add('ir.connect');
           }
@@ -92,7 +92,7 @@ export function createTurnController({store,composer,gateway,prepareContext,reso
         await progress('needs_pending',{count:turn.needs.length});
         return {requestRef,message:turn.message||'',needs:turn.needs,results:[],modelCalls};
       }
-      if(turn?.outputs)fail('UNEXPECTED_NODE_OUTPUT');
+      if(turn?.outputs)fail('UNEXPECTED_SKILL_NODE_OUTPUT');
       const applied=await store.submit(turn,trusted);
       if(applied.results.some(r=>r.status==='rejected'))await progress('actions_rejected',{
         rejected:applied.results.filter(r=>r.status==='rejected').length});

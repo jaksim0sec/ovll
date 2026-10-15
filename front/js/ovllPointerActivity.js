@@ -22,42 +22,42 @@ function createOperations({getConversationId,isDestroyed=()=>false}={}){
   return Object.freeze({begin,isCurrent,isActive:operation=>isCurrent(operation)&&!operation.signal.aborted,
     cancel,invalidate,finish,getCurrent:()=>current});
 }
-function createRunPresence({presence,isActive=()=>true,getNodeLabel=()=>''}={}){
-  const transitions=new Map();let active=null,activeNode=null;
-  const label=id=>String(getNodeLabel(id)||'노드').trim()||'노드';
+function createRunPresence({presence,isActive=()=>true,getSkillNodeLabel=()=>''}={}){
+  const transitions=new Map();let active=null,activeSkillNode=null;
+  const label=id=>String(getSkillNodeLabel(id)||'노드').trim()||'노드';
   function update(run){
     if(!run||!isActive())return;
-    for(const entry of run.nodes||[]){
-      const key=String(run.runId)+':'+entry.nodeId,previous=transitions.get(key);
+    for(const entry of run.skillNodes||[]){
+      const key=String(run.runId)+':'+entry.skillNodeId,previous=transitions.get(key);
       if(previous===entry.status)continue;
       transitions.set(key,entry.status);
       if(previous!=='running'||entry.status==='running')continue;
-      if(active===key){presence?.workAtNode?.(entry.nodeId,false);active=null;activeNode=null;}
+      if(active===key){presence?.workAtSkillNode?.(entry.skillNodeId,false);active=null;activeSkillNode=null;}
       if(entry.status==='success'){
-        presence?.mascotState?.('nodeSuccess',{nodeId:entry.nodeId});
-        presence?.canvasStatus?.(label(entry.nodeId)+' 실행 완료',{hold:1700});
+        presence?.mascotState?.('skillNodeSuccess',{skillNodeId:entry.skillNodeId});
+        presence?.canvasStatus?.(label(entry.skillNodeId)+' 실행 완료',{hold:1700});
       }else if(['failed','blocked','outcome_unknown'].includes(entry.status)){
-        presence?.mascotState?.('nodeError',{nodeId:entry.nodeId});
-        presence?.canvasStatus?.(label(entry.nodeId)+' 실행 실패',{hold:2200});
+        presence?.mascotState?.('skillNodeError',{skillNodeId:entry.skillNodeId});
+        presence?.canvasStatus?.(label(entry.skillNodeId)+' 실행 실패',{hold:2200});
       }else if(entry.status==='cancelled'){
-        presence?.mascotState?.('cancelled',{nodeId:entry.nodeId});
+        presence?.mascotState?.('cancelled',{skillNodeId:entry.skillNodeId});
         presence?.canvasStatus?.('실행 중단됨',{hold:1700});
       }
     }
-    const running=(run.nodes||[]).find(entry=>entry.status==='running');
+    const running=(run.skillNodes||[]).find(entry=>entry.status==='running');
     if(running){
-      const key=String(run.runId)+':'+running.nodeId;
+      const key=String(run.runId)+':'+running.skillNodeId;
       if(active!==key){
-        if(active)presence?.workAtNode?.(activeNode,false);
-        presence?.workAtNode?.(running.nodeId,true);
-        presence?.canvasStatus?.(label(running.nodeId)+' 실행 중',{hold:0});
-        active=key;activeNode=running.nodeId;
+        if(active)presence?.workAtSkillNode?.(activeSkillNode,false);
+        presence?.workAtSkillNode?.(running.skillNodeId,true);
+        presence?.canvasStatus?.(label(running.skillNodeId)+' 실행 중',{hold:0});
+        active=key;activeSkillNode=running.skillNodeId;
       }
     }
   }
   function reset(){
-    if(active)presence?.workAtNode?.(activeNode,false);
-    active=null;activeNode=null;transitions.clear();
+    if(active)presence?.workAtSkillNode?.(activeSkillNode,false);
+    active=null;activeSkillNode=null;transitions.clear();
   }
   return Object.freeze({update,reset});
 }

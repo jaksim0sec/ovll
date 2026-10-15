@@ -7,22 +7,22 @@ import {createContractValidation} from '../backend/ovllPointer/validation.js';
 import {phaseOutputIssues} from '../backend/ovllPointer/modelContract.js';
 import {getPointerCatalog} from '../backend/ovllPointer/skillCatalog.js';
 
-const graph=()=>({graph:{graphId:'g',revision:1,nodes:[{
-  nodeId:'n_vocabulary',definitionRef:{definitionId:'d_vocab',version:1},
+const graph=()=>({graph:{graphId:'g',revision:1,skillNodes:[{
+  skillNodeId:'n_vocabulary',skillDefinitionRef:{definitionId:'d_vocab',version:1},
   settings:{request:'Write vocabulary'},inputBindings:{}
-}],connections:[]},definitions:[{
+}],connections:[]},skillDefinitions:[{
   definitionId:'d_vocab',version:1,purpose:'Japanese vocabulary list',
   executorKind:'model_task',instruction:'Write Japanese words and meanings',
   inputs:[],outputs:[{name:'result',role:'result',representation:'json'}],
   presentation:{name:'일본어 단어장'}
 }]});
-const patch={graphId:'g',expectedGraphRevision:1,definitions:[],operations:[{
-  op:'node.add',localNodeKey:'copy',definitionRef:{definitionId:'d_vocab',version:1},
+const patch={graphId:'g',expectedGraphRevision:1,skillDefinitions:[],operations:[{
+  op:'skillNode.add',localSkillNodeKey:'copy',skillDefinitionRef:{definitionId:'d_vocab',version:1},
   settings:{request:'Write vocabulary'},inputBindings:{}
 }]};
 const edit={localKey:'edit',kind:'ir.applyPatch',args:{patch}};
 const run={localKey:'run',kind:'run.start',dependsOn:['edit'],
-  args:{targets:[{fromAction:'edit',localNodeKey:'copy'}]}};
+  args:{targets:[{fromAction:'edit',localSkillNodeKey:'copy'}]}};
 const host=(responses,received)=>createLocalPointerHost({
   gateway:{complete:async args=>{received.push(args);return{text:JSON.stringify(responses.shift())};}},
   resolveModel:async()=>({providerId:'mock',model:'mock',maxOutputTokens:1024})
@@ -52,7 +52,7 @@ test('authorized graph build and run still completes the planning phase in one c
   assert.equal(response.actions.length,2);
 });
 
-test('a node execution receives its own task rather than an earlier unrelated workspace objective',async()=>{
+test('a skillNode execution receives its own task rather than an earlier unrelated workspace objective',async()=>{
   const observed=[];
   const fake=createLocalPointerHost({
     gateway:{complete:async ({messages})=>{
@@ -62,12 +62,12 @@ test('a node execution receives its own task rather than an earlier unrelated wo
     }},
     resolveModel:async()=>({providerId:'mock',model:'mock'})
   });
-  await fake.node({snapshot:graph(),nodeId:'n_vocabulary',requestRef:'node1',
+  await fake.skillNode({snapshot:graph(),skillNodeId:'n_vocabulary',requestRef:'node1',
     requestText:'Write vocabulary',taskContext:{objective:'식물 연구하기',
     requestText:'일본어 노드 복제해줘',constraints:['Only plants']},taskConstraints:[]});
   assert.equal(observed[0].context.objective,'Write vocabulary');
   assert.deepEqual(observed[0].context.constraints,[]);
-  assert.equal(observed[0].nodeContext.instruction,'Write Japanese words and meanings');
+  assert.equal(observed[0].skillNodeContext.instruction,'Write Japanese words and meanings');
 });
 
 test('new chat instruction becomes current objective and old requirements stay historical',()=>{
@@ -80,12 +80,12 @@ test('new chat instruction becomes current objective and old requirements stay h
   assert.ok(current.requestHistory.includes('식물 성장 조사해줘'));
 });
 
-test('chat orchestration text is never reused as node execution content',()=>{
+test('chat orchestration text is never reused as skillNode execution content',()=>{
   const src=readFileSync(new URL('../front/js/app.js',import.meta.url),'utf8');
   const handler=src.slice(src.indexOf("'run.start':async(action,applied)=>"),src.indexOf("'function.run':async action=>"));
-  assert.ok(handler.includes('runLocalNodes({targets'));
+  assert.ok(handler.includes('runLocalSkillNodes({targets'));
   assert.doesNotMatch(handler,/requestText:\s*value/);
-  assert.match(src,/const run=await runLocalNodes\(\{targets,damMode:action\.args\.damMode\|\|'closed',/);
+  assert.match(src,/const run=await runLocalSkillNodes\(\{targets,damMode:action\.args\.damMode\|\|'closed',/);
  assert.match(handler,/taskContext,taskConstraints:taskContext\.constraints,cache,operation/);
  assert.doesNotMatch(handler,/requestText:\s*value/);
 });

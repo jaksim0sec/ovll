@@ -1,17 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createPromptComposer } from '../backend/ovllPointer/promptComposer.js';
-import { createModelNodeExecutor } from '../backend/ovllPointer/modelExecutor.js';
+import { createModelSkillNodeExecutor } from '../backend/ovllPointer/modelExecutor.js';
 import { createPointerRuntime } from '../backend/ovllPointer/runtime.js';
 
 const context={requestRef:'r1',objective:'Summarize notes',constraints:['Preserve sources'],
-  capabilities:[],outputContract:'NodeOutput',requestText:'Summarize these notes',
+  capabilities:[],outputContract:'SkillNodeOutput',requestText:'Summarize these notes',
   materials:[{ref:'source1',kind:'text',source:'user_input',content:'Actual source text',
     truncated:false,provenanceRefs:['user:r1']}]};
 const definition={definitionId:'d1',version:1,executorKind:'model_task',
   purpose:'Summarize',instruction:'One sentence',inputs:[{name:'source',role:'source',representation:'text'}],
   outputs:[{name:'result',role:'result',representation:'text',required:true}]};
-const node={nodeId:'n1',definitionRef:{definitionId:'d1',version:1}},job={runRef:'r1'};
+const skillNode={skillNodeId:'n1',skillDefinitionRef:{definitionId:'d1',version:1}},job={runRef:'r1'};
 const good=JSON.stringify({outputs:{status:'produced',values:{result:{inline:'summary'}}}});
 const composer=createPromptComposer();
 
@@ -26,10 +26,10 @@ test('composer resolves only required registry modules, with stable Core and sep
   assert.ok(a.messages[2].content.includes('Actual source text'));
   assert.ok(!a.moduleIds.includes('layer.ir'));
 });
-test('plain entry does not force IR or node-output behavior',()=>{
+test('plain entry does not force IR or skillNode-output behavior',()=>{
   const a=composer.assemble({context});
   assert.deepEqual(a.moduleIds,['core','shared.skill-references','layer.entry']);
-  assert.ok(!a.messages[1].content.includes('NodeOutput produced/blocked'));
+  assert.ok(!a.messages[1].content.includes('SkillNodeOutput produced/blocked'));
 });
 test('unknown module and forged or oversized context are refused',()=>{
   assert.throws(()=>composer.assemble({context,moduleIds:['nonexistent']}),e=>e.code==='UNKNOWN_PROMPT_MODULE');
@@ -40,15 +40,15 @@ test('unknown module and forged or oversized context are refused',()=>{
 function fixture(text=good,providedContext=context){
   const calls=[],gateway={complete:async x=>{calls.push(x);return {text,usage:{total_tokens:9},
     providerId:x.providerId,model:x.model,providerRequestId:'p1'};}};
-  const execute=createModelNodeExecutor({gateway,composer,loadContext:async()=>providedContext,
+  const execute=createModelSkillNodeExecutor({gateway,composer,loadContext:async()=>providedContext,
     resolveModel:async()=>({providerId:'mock',model:'fixture',output:'text'})});
   return {execute,calls,gateway};
 }
-test('model node adapter assembles exact inputs and validates real output contract',async()=>{
+test('model skillNode adapter assembles exact inputs and validates real output contract',async()=>{
   const f=fixture();
-  const response=await f.execute({job,node,definition,inputBindings:{source:'abc'},
+  const response=await f.execute({job,skillNode,definition,inputBindings:{source:'abc'},
     inputArtifacts:[{port:'source',value:'trusted upstream',valueRef:'v1',
-      representation:'text',sourceNodeId:'n0',sourcePort:'result'}]});
+      representation:'text',sourceSkillNodeId:'n0',sourcePort:'result'}]});
   assert.deepEqual(response,JSON.parse(good).outputs);
   assert.equal(f.calls.length,1);
   assert.match(f.calls[0].messages[2].content,/trusted upstream/);
@@ -59,20 +59,20 @@ test('invalid model JSON, invented port, actions and wrong types never become su
     ['not json','MODEL_INVALID_JSON'],
     [JSON.stringify({outputs:{status:'produced',values:{result:{inline:'summary'},fictional:{inline:'x'}}}}),'UNKNOWN_OUTPUT_PORT'],
     [JSON.stringify({outputs:{status:'produced',values:{fictional:{inline:'x'}}}}),'REQUIRED_OUTPUT_MISSING'],
-    [JSON.stringify({message:'finished'}),'MODEL_NODE_OUTPUT_REQUIRED'],
+    [JSON.stringify({message:'finished'}),'MODEL_SKILL_NODE_OUTPUT_REQUIRED'],
     [JSON.stringify({outputs:{status:'produced',values:{result:{inline:7}}}}),'OUTPUT_REPRESENTATION_MISMATCH']
   ];
   for(const [response,code] of failures) {
     const f=fixture(response);
-    await assert.rejects(f.execute({job,node,definition}),e=>e.code===code);
+    await assert.rejects(f.execute({job,skillNode,definition}),e=>e.code===code);
   }
 });
 test('invalid trusted context prevents any provider call; blocked output stays blocked',async()=>{
   const f=fixture(good,{...context,actorRef:'user-supplied'});
-  await assert.rejects(f.execute({job,node,definition}),e=>e.code==='INVALID_CONTEXT_BUNDLE');
+  await assert.rejects(f.execute({job,skillNode,definition}),e=>e.code==='INVALID_CONTEXT_BUNDLE');
   assert.equal(f.calls.length,0);
   const b=fixture(JSON.stringify({outputs:{status:'blocked',reason:'Missing source'}}));
-  assert.deepEqual(await b.execute({job,node,definition}),{status:'blocked',reason:'Missing source'});
+  assert.deepEqual(await b.execute({job,skillNode,definition}),{status:'blocked',reason:'Missing source'});
 });
 test('OvllPointer runtime can optionally wire model adapter without touching legacy service',()=>{
   const f=fixture();

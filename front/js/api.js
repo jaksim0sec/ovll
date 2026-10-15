@@ -41,19 +41,19 @@
   /* =======================================================
      Internal State
      ======================================================= */
-  const NODE_DEFINITIONS_KEY =
-    "ovll:node-definitions";
-  let nodeDefinitionsCache = null;
-  let nodeDefinitionsPromise = null;
-  let nodeDefinitionsFresh = false;
+  const SKILL_DEFINITIONS_KEY =
+    "ovll:skill-definitions";
+  let skillDefinitionsCache = null;
+  let skillDefinitionsPromise = null;
+  let skillDefinitionsFresh = false;
 
-  function readStoredNodeDefinitions() {
+  function readStoredSkillDefinitions() {
     try {
       const parsed =
         JSON.parse(
           localStorage.getItem(
-            NODE_DEFINITIONS_KEY
-          ) || "null"
+            SKILL_DEFINITIONS_KEY
+          ) || localStorage.getItem("ovll:node-definitions") || "null"
         );
 
       return (
@@ -68,21 +68,21 @@
     }
   }
 
-  function storeNodeDefinitions(
-    definitions
+  function storeSkillDefinitions(
+    skillDefinitions
   ) {
     try {
       localStorage.setItem(
-        NODE_DEFINITIONS_KEY,
+        SKILL_DEFINITIONS_KEY,
         JSON.stringify(
-          definitions
+          skillDefinitions
         )
       );
     } catch {}
   }
 
-  nodeDefinitionsCache =
-    readStoredNodeDefinitions();
+  skillDefinitionsCache =
+    readStoredSkillDefinitions();
   /* =======================================================
      Request
      ======================================================= */
@@ -426,29 +426,29 @@
     return result;
   }
 
-  async function getNodeDefinitions(
+  async function getSkillDefinitions(
     options = {}
   ) {
     if (
-      nodeDefinitionsCache &&
-      nodeDefinitionsFresh &&
+      skillDefinitionsCache &&
+      skillDefinitionsFresh &&
       !options.force
     ) {
-      return nodeDefinitionsCache;
+      return skillDefinitionsCache;
     }
     if (
-      nodeDefinitionsPromise &&
+      skillDefinitionsPromise &&
       !options.force
     ) {
-      return nodeDefinitionsPromise;
+      return skillDefinitionsPromise;
     }
     const stale =
-      nodeDefinitionsCache ||
-      readStoredNodeDefinitions();
+      skillDefinitionsCache ||
+      readStoredSkillDefinitions();
 
-    nodeDefinitionsPromise =
+    skillDefinitionsPromise =
       request(
-        "node-definitions",
+        "skill-definitions",
         {
           method: "GET",
           cache: "no-store",
@@ -458,10 +458,10 @@
       .then(result => {
         if (
           !result ||
-          typeof result.nodes !==
+          typeof result.skillDefinitions !==
             "object" ||
-          result.nodes === null ||
-          Array.isArray(result.nodes)
+          result.skillDefinitions === null ||
+          Array.isArray(result.skillDefinitions)
         ) {
           throw new Error(
             "노드 정의 응답이 올바르지 않습니다."
@@ -472,20 +472,20 @@
           throw new Error("서버 SVG 라이브러리를 불러오지 못했습니다.");
         }
 
-        nodeDefinitionsCache =
-          result.nodes;
-        nodeDefinitionsFresh = true;
-        storeNodeDefinitions(
-          nodeDefinitionsCache
+        skillDefinitionsCache =
+          result.skillDefinitions;
+        skillDefinitionsFresh = true;
+        storeSkillDefinitions(
+          skillDefinitionsCache
         );
 
         /*
          * 기존 코드와의 호환성을 위해
          * 전역에도 노출한다.
          */
-        global.nodeDefinitions =
-          nodeDefinitionsCache;
-        return nodeDefinitionsCache;
+        global.skillDefinitions =
+          skillDefinitionsCache;
+        return skillDefinitionsCache;
       })
       .catch(error => {
         if (stale) {
@@ -494,9 +494,9 @@
             error
           );
 
-          nodeDefinitionsCache =
+          skillDefinitionsCache =
             stale;
-          global.nodeDefinitions =
+          global.skillDefinitions =
             stale;
 
           return stale;
@@ -505,10 +505,10 @@
         throw error;
       })
       .finally(() => {
-        nodeDefinitionsPromise =
+        skillDefinitionsPromise =
           null;
       });
-    return nodeDefinitionsPromise;
+    return skillDefinitionsPromise;
   }
   async function createArtifact(
     input,
@@ -643,6 +643,6 @@
   /* =======================================================
      Public API
      ======================================================= */
-  const api = Object.freeze({request,getNodeDefinitions,createArtifact});
+  const api = Object.freeze({request,getSkillDefinitions,createArtifact});
   global.AstraAPI = api;
 })(window);

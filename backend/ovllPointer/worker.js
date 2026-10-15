@@ -1,5 +1,5 @@
 // Execution boundary: the worker never decides or invents graph semantics.
-// A trusted executor must resolve pinned GraphRevision and record its node attempts.
+// A trusted executor must resolve pinned GraphRevision and record its skillNode attempts.
 import { KernelError } from './graph.js';
 const fail=(code,status=422)=>{throw new KernelError(code,code,status);};
 export function createRunWorker({store,executeRun,workerRef,leaseSeconds=30}={}) {

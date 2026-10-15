@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import vm from "node:vm";
 
-function loadCustomNodes(records){
+function loadCustomSkillNodes(records){
   const byId=
     new Map(
       records.map(record=>[
@@ -29,7 +29,7 @@ function loadCustomNodes(records){
         return true;
       }
     },
-    OvllCustomNodeStore:{
+    OvllCustomSkillStore:{
       list(){
         return [
           ...byId.values()
@@ -96,7 +96,7 @@ function loadCustomNodes(records){
     }
   );
 
-  window.OvllCustomNodesTestState={
+  window.OvllCustomSkillsTestState={
     get plugin(){
       return registeredPlugin;
     },
@@ -105,10 +105,10 @@ function loadCustomNodes(records){
     }
   };
 
-  return window.OvllCustomNodes;
+  return window.OvllCustomSkills;
 }
 
-const definitions={
+const skillDefinitions={
   research:{
     inputs:[
       {id:"in"}
@@ -150,7 +150,7 @@ function customRecord(){
     name:"조사 후 작성",
     color:"#7c6cf2",
     workflow:{
-      nodes:[
+      skillNodes:[
         {
           id:"a",
           type:"research",
@@ -178,11 +178,11 @@ function customRecord(){
         {
           id:"ab",
           from:{
-            node:"a",
+            skillNode:"a",
             port:"result"
           },
           to:{
-            node:"b",
+            skillNode:"b",
             port:"in"
           },
           data:{
@@ -195,15 +195,15 @@ function customRecord(){
 }
 
 test(
-  "custom node expands into ordinary runtime nodes and reconnects outer edges",
+  "custom skillNode expands into ordinary runtime skillNodes and reconnects outer edges",
   ()=>{
-    const CustomNodes=
-      loadCustomNodes([
+    const CustomSkillNodes=
+      loadCustomSkillNodes([
         customRecord()
       ]);
 
     const visible={
-      nodes:[
+      skillNodes:[
         {
           id:"p",
           type:"research",
@@ -224,11 +224,11 @@ test(
         {
           id:"outer-in",
           from:{
-            node:"p",
+            skillNode:"p",
             port:"result"
           },
           to:{
-            node:"c",
+            skillNode:"c",
             port:"in"
           },
           data:{
@@ -238,11 +238,11 @@ test(
         {
           id:"outer-out",
           from:{
-            node:"c",
+            skillNode:"c",
             port:"result"
           },
           to:{
-            node:"q",
+            skillNode:"q",
             port:"in"
           },
           data:{
@@ -253,19 +253,19 @@ test(
     };
 
     const expanded=
-      CustomNodes.expandWorkflow(
+      CustomSkillNodes.expandWorkflow(
         visible,
         "c",
         {
           mode:"spread",
-          definitions
+          skillDefinitions
         }
       );
 
     assert.deepEqual(
       Array.from(
-        expanded.workflow.nodes,
-        node=>node.id
+        expanded.workflow.skillNodes,
+        skillNode=>skillNode.id
       ),
       [
         "p",
@@ -297,7 +297,7 @@ test(
         )
       ),
       {
-        node:"c~a",
+        skillNode:"c~a",
         port:"in"
       }
     );
@@ -309,7 +309,7 @@ test(
         )
       ),
       {
-        node:"c~a",
+        skillNode:"c~a",
         port:"result"
       }
     );
@@ -321,18 +321,18 @@ test(
         )
       ),
       {
-        node:"c~b",
+        skillNode:"c~b",
         port:"result"
       }
     );
 
     const target=
-      CustomNodes.expandWorkflow(
+      CustomSkillNodes.expandWorkflow(
         visible,
         "c",
         {
           mode:"target",
-          definitions
+          skillDefinitions
         }
       );
 
@@ -346,14 +346,14 @@ test(
 test(
   "custom flow requires exactly one terminal output",
   ()=>{
-    const CustomNodes=
-      loadCustomNodes([]);
+    const CustomSkillNodes=
+      loadCustomSkillNodes([]);
 
     assert.throws(
       ()=>
-        CustomNodes.validateWorkflow(
+        CustomSkillNodes.validateWorkflow(
           {
-            nodes:[
+            skillNodes:[
               {
                 id:"judge",
                 type:"judge",
@@ -362,7 +362,7 @@ test(
             ],
             connections:[]
           },
-          definitions
+          skillDefinitions
         ),
       /결과 출구가 하나/
     );
@@ -370,17 +370,17 @@ test(
 );
 
 test(
-  "runtime projection collapses internal node events back to the visible custom node",
+  "runtime projection collapses internal skillNode events back to the visible custom skillNode",
   ()=>{
-    const CustomNodes=
-      loadCustomNodes([
+    const CustomSkillNodes=
+      loadCustomSkillNodes([
         customRecord()
       ]);
 
     const expansion=
-      CustomNodes.expandWorkflow(
+      CustomSkillNodes.expandWorkflow(
         {
-          nodes:[
+          skillNodes:[
             {
               id:"c",
               type:"custom:cw",
@@ -392,20 +392,20 @@ test(
         "c",
         {
           mode:"spread",
-          definitions
+          skillDefinitions
         }
       );
 
     const projection=
-      CustomNodes
+      CustomSkillNodes
         .createRuntimeProjection(
           expansion
         );
 
     const first=
       projection.project({
-        type:"node:state",
-        nodeId:"c~a",
+        type:"skillNode:state",
+        skillNodeId:"c~a",
         status:"RUNNING",
         state:{
           status:"RUNNING",
@@ -414,7 +414,7 @@ test(
       });
 
     assert.equal(
-      first[0]?.nodeId,
+      first[0]?.skillNodeId,
       "c"
     );
 
@@ -424,8 +424,8 @@ test(
     );
 
     projection.project({
-      type:"node:state",
-      nodeId:"c~a",
+      type:"skillNode:state",
+      skillNodeId:"c~a",
       status:"SUCCESS",
       state:{
         status:"SUCCESS",
@@ -439,8 +439,8 @@ test(
 
     const finish=
       projection.project({
-        type:"node:state",
-        nodeId:"c~b",
+        type:"skillNode:state",
+        skillNodeId:"c~b",
         status:"SUCCESS",
         state:{
           status:"SUCCESS",
@@ -453,7 +453,7 @@ test(
       });
 
     assert.equal(
-      finish[0]?.nodeId,
+      finish[0]?.skillNodeId,
       "c"
     );
 
@@ -473,7 +473,7 @@ test(
 );
 
 test(
-  "custom nodes register through the canvas plugin contract",
+  "custom skillNodes register through the canvas plugin contract",
   ()=>{
     const byId=
       new Map([
@@ -498,7 +498,7 @@ test(
           return true;
         }
       },
-      OvllCustomNodeStore:{
+      OvllCustomSkillStore:{
         list(){
           return [
             ...byId.values()
@@ -578,7 +578,7 @@ test(
 
     assert.equal(
       plugin?.id,
-      "custom-nodes"
+      "custom-skills"
     );
 
     const workspaceDefinitions=
@@ -616,7 +616,7 @@ test(
     const prepared=
       plugin.prepareRuntime({
         workflow:{
-          nodes:[
+          skillNodes:[
             {
               id:"c",
               type:"custom:cw",
@@ -628,7 +628,7 @@ test(
         pivotId:"c",
         mode:"spread",
         baseDefinitions:
-          definitions
+          skillDefinitions
       });
 
     assert.equal(
@@ -644,7 +644,7 @@ test(
     );
 
     window
-      .OvllCustomNodeStore
+      .OvllCustomSkillStore
       .save({
         ...customRecord(),
         name:"갱신"

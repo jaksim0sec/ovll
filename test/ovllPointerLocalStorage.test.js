@@ -27,17 +27,17 @@ test('local GraphPatch persists into exported conversation, survives reload, pre
   const {store,local,values}=browser(),chat=store.getActiveConversation(),conversationId=chat.id;
   const graphId=local.graphId(conversationId);
   assert.equal((await local.state(conversationId)).graph.graph.revision,0);
-  const patch={graphId,expectedGraphRevision:0,definitions:[definition],
-    operations:[{op:'node.add',localNodeKey:'root',definitionRef:{localDefinitionKey:'summary'}}]};
+  const patch={graphId,expectedGraphRevision:0,skillDefinitions:[definition],
+    operations:[{op:'skillNode.add',localSkillNodeKey:'root',skillDefinitionRef:{localDefinitionKey:'summary'}}]};
   const applied=await local.turn({conversationId,graphId,
     actions:[{kind:'ir.applyPatch',localKey:'edit',args:{patch}}]});
   assert.equal(applied.results[0].status,'applied');
   assert.equal((await local.state(conversationId)).graph.graph.revision,1);
   const prior=store.getConversation(conversationId).state;
   store.updateConversationState(conversationId,{...prior,messages:[{role:'user',text:'hello'}]});
-  assert.equal((await local.state(conversationId)).graph.graph.nodes.length,1);
+  assert.equal((await local.state(conversationId)).graph.graph.skillNodes.length,1);
   const exported=store.exportJSON();
-  assert.equal(JSON.parse(exported).conversations.find(c=>c.id===conversationId).state.pointerGraph.graph.revision,1);
+  assert.equal(JSON.parse(exported).conversations.find(c=>c.id===conversationId).state.skillGraph.graph.revision,1);
   store.reset();store.importJSON(exported);
   assert.equal((await local.state(conversationId)).graph.graph.revision,1);
   assert.equal(store.getConversation(conversationId).state.messages[0].text,'hello');
@@ -45,8 +45,8 @@ test('local GraphPatch persists into exported conversation, survives reload, pre
 });
 test('stale graph writes fail closed and distinct conversations never share graphs',async()=>{
   const {store,local}=browser(),first=store.getActiveConversation().id,g=local.graphId(first);
-  const patch={graphId:g,expectedGraphRevision:0,definitions:[definition],
-    operations:[{op:'node.add',localNodeKey:'root',definitionRef:{localDefinitionKey:'summary'}}]};
+  const patch={graphId:g,expectedGraphRevision:0,skillDefinitions:[definition],
+    operations:[{op:'skillNode.add',localSkillNodeKey:'root',skillDefinitionRef:{localDefinitionKey:'summary'}}]};
   const args={conversationId:first,graphId:g,actions:[{kind:'ir.applyPatch',localKey:'a',args:{patch}}]};
   await local.turn(args);
   await assert.rejects(()=>local.turn(args),error=>error.code==='STALE_REVISION');
@@ -54,7 +54,7 @@ test('stale graph writes fail closed and distinct conversations never share grap
   const section=store.getSnapshot().sections[0].id,ctx=store.getSnapshot().contextBundles[0].id;
   const second=store.createConversation(section,ctx,'Another');
   const other=await local.state(second.id);
-  assert.equal(other.graph.graph.nodes.length,0);
+  assert.equal(other.graph.graph.skillNodes.length,0);
   await assert.rejects(()=>local.turn({...args,conversationId:second.id}),
     /LOCAL_GRAPH_SCOPE_MISMATCH/);
   assert.equal((await local.state(first)).graph.graph.revision,1);
@@ -71,12 +71,12 @@ test('legacy vnextGraph and vnextRuns are normalized without dropping snapshots'
   const {store,values}=browser(),id=store.getActiveConversation().id;
   const exported=JSON.parse(store.exportJSON());
   const c=exported.conversations.find(x=>x.id===id);
-  const graph={graph:{graphId:'g_'+id,revision:0,nodes:[],connections:[]},definitions:[]};
-  delete c.state.pointerGraph;delete c.state.pointerRuns;
+  const graph={graph:{graphId:'g_'+id,revision:0,skillNodes:[],connections:[]},skillDefinitions:[]};
+  delete c.state.skillGraph;delete c.state.skillRuns;
   c.state.vnextGraph=graph;c.state.vnextRuns=[];
   store.importJSON(exported);
   const restored=store.getConversation(id);
-  assert.equal(restored.state.pointerGraph.graph.graphId,graph.graph.graphId);
-  assert.equal(restored.state.pointerRuns.length,0);
+  assert.equal(restored.state.skillGraph.graph.graphId,graph.graph.graphId);
+  assert.equal(restored.state.skillRuns.length,0);
   assert.ok(values.has(store.storageKey));
 });

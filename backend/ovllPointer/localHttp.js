@@ -3,7 +3,7 @@ import {resolveLocalPointerProvider} from './configuredProvider.js';
 import {getPointerCatalog} from './skillCatalog.js';
 import {MODEL_CONTEXT_LIMITS} from './contextLimits.js';
 import {assertCanonicalSkillSnapshot} from '../../front/js/ovllSkillCodec.mjs';
-const allowed=new Set(['turn','node','skill','response']);
+const allowed=new Set(['turn','skill-node','response']);
 export function localModelReady(env=process.env){
   if(env.OVLL_POINTER_LOCAL_MODEL_ENABLED==='false')return false;
   const selected=resolveLocalPointerProvider(env);
@@ -68,15 +68,15 @@ export function mountLocalPointerRoutes(app,{createHost=()=>createConfiguredLoca
     if(!enabled())return res.status(503).json({error:{code:'LOCAL_MODEL_DISABLED'}});
     const body=req.body;
     if(!body||typeof body!=='object'||Array.isArray(body)||
-      (!['node','skill'].includes(kind)&&(typeof body.requestText!=='string'||!body.requestText.trim()))||
+      (kind!=='skill-node'&&(typeof body.requestText!=='string'||!body.requestText.trim()))||
       (body.requestText!==undefined&&(typeof body.requestText!=='string'||body.requestText.length>limits.maxRequestChars)))
       return res.status(422).json({error:{code:'INVALID_LOCAL_MODEL_REQUEST'}});
     if(Buffer.byteLength(JSON.stringify(body),'utf8')>262144)
       return res.status(413).json({error:{code:'LOCAL_MODEL_PAYLOAD_TOO_LARGE'}});
     // Validation happens BEFORE reserving a model call or rate-limit budget.
-    if(kind==='skill'){
-      if(typeof body.skillId!=='string'||!body.skillId||
-        body.skillId.length>160||'nodeId' in body)
+    if(kind==='skill-node'){
+      if(typeof body.skillNodeId!=='string'||!body.skillNodeId||
+        body.skillNodeId.length>160||'nodeId' in body||'skillId' in body)
         return res.status(422).json({error:{code:'INVALID_SKILL_REQUEST'}});
       try{assertCanonicalSkillSnapshot(body.snapshot)}
       catch{return res.status(422).json({error:{code:'INVALID_SKILL_SNAPSHOT'}})}
@@ -110,7 +110,7 @@ export function mountLocalPointerRoutes(app,{createHost=()=>createConfiguredLoca
         started=true;
         try{
           if(!host)host=createHost();
-          const result=await host[kind]({...body,signal:controller.signal});settle(result,1);return result;
+          const result=await host[kind==='skill-node'?'skillNode':kind]({...body,signal:controller.signal});settle(result,1);return result;
         }catch(error){settle(error,error?.code==='INVALID_LOCAL_MODEL_REQUEST'?0:1);throw error;}
       },controller.signal);
       if(!res.headersSent&&!res.destroyed)res.json(result);

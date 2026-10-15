@@ -66,19 +66,19 @@ const listeners=[];
 const events=new Map();
 
 function listen(
-  node,
+  skillNode,
   type,
   handler,
   options
 ){
-  node.addEventListener(
+  skillNode.addEventListener(
     type,
     handler,
     options
   );
 
   listeners.push(
-    ()=>node.removeEventListener(
+    ()=>skillNode.removeEventListener(
       type,
       handler,
       options

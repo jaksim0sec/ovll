@@ -416,7 +416,7 @@
   :is(#composer-form,[data-ovll-composer-form]).ovll-composer-rich.is-expanded .ovll-rich-toolbar > .ovll-rich-canvas {
     display: none;
   }
-  /* Canvas nodes remain reachable in the @ reference picker. */
+  /* Canvas skillNodes remain reachable in the @ reference picker. */
 }
 @media (prefers-reduced-motion: reduce) {
   .ovll-composer-rich,

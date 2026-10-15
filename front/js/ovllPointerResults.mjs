@@ -57,64 +57,66 @@ export function taskSemantics(task={}){
   const {requestText,requestHistory,historyDigest,...semantic}=task;
   return semantic;
 }
-function fingerprint(snapshot,nodeId,options={},legacyTask=false){
-  if(!snapshot?.graph||!Array.isArray(snapshot.graph.nodes)||!Array.isArray(snapshot.definitions))throw new Error('INVALID_RESULT_CONTEXT');
-  const nodes=new Map(snapshot.graph.nodes.map(node=>[node.nodeId,node]));
-  const definitions=new Map(snapshot.definitions.map(def=>[def.definitionId+':'+def.version,def]));
-  const selected=new Set(),queue=[nodeId];
+// Persisted evidence has a fixed byte format. These hash labels are historical
+// protocol literals, not a second graph representation or runtime adapter.
+function fingerprint(snapshot,skillNodeId,options={},legacyTask=false){
+  if(!snapshot?.graph||!Array.isArray(snapshot.graph.skillNodes)||!Array.isArray(snapshot.skillDefinitions))throw new Error('INVALID_RESULT_CONTEXT');
+  const skillNodes=new Map(snapshot.graph.skillNodes.map(skillNode=>[skillNode.skillNodeId,skillNode]));
+  const skillDefinitions=new Map(snapshot.skillDefinitions.map(def=>[def.definitionId+':'+def.version,def]));
+  const selected=new Set(),queue=[skillNodeId];
   while(queue.length){
     const id=queue.pop();if(selected.has(id))continue;
-    const node=nodes.get(id);if(!node)throw new Error('RESULT_NODE_NOT_FOUND');
+    const skillNode=skillNodes.get(id);if(!skillNode)throw new Error('RESULT_SKILL_NODE_NOT_FOUND');
     selected.add(id);
-    for(const link of snapshot.graph.connections||[])if(link.to.nodeId===id)queue.push(link.from.nodeId);
+    for(const link of snapshot.graph.connections||[])if(link.to.skillNodeId===id)queue.push(link.from.skillNodeId);
   }
   const semantics=[...selected].sort().map(id=>{
-    const node=nodes.get(id),definition=definitions.get(node.definitionRef?.definitionId+':'+node.definitionRef?.version);
+    const skillNode=skillNodes.get(id),definition=skillDefinitions.get(skillNode.skillDefinitionRef?.definitionId+':'+skillNode.skillDefinitionRef?.version);
     if(!definition)throw new Error('RESULT_DEFINITION_NOT_FOUND');
-    return {nodeId:id,definitionRef:semanticDefinitionRef(node.definitionRef,definition),
+    return {nodeId:id,definitionRef:semanticDefinitionRef(skillNode.skillDefinitionRef,definition),
       definition:definitionSemantics(definition),
-      settings:semanticSettings(node.settings),inputBindings:node.inputBindings||{}};
+      settings:semanticSettings(skillNode.settings),inputBindings:skillNode.inputBindings||{}};
   });
-  const connections=(snapshot.graph.connections||[]).filter(link=>selected.has(link.to.nodeId))
-    .map(({kind,from,to})=>({kind,from,to})).sort(compareSemantic);
-  const inputArtifacts=(options.inputArtifacts||[]).map(({valueRef,runId,planEpoch,...input})=>input)
+  const connections=(snapshot.graph.connections||[]).filter(link=>selected.has(link.to.skillNodeId))
+    .map(({kind,from,to})=>({kind,from:{nodeId:from.skillNodeId,port:from.port},to:{nodeId:to.skillNodeId,port:to.port}})).sort(compareSemantic);
+  const inputArtifacts=(options.inputArtifacts||[]).map(({valueRef,runId,planEpoch,sourceSkillNodeId,...input})=>({...input,...(sourceSkillNodeId===undefined?{}:{sourceNodeId:sourceSkillNodeId})}))
     .sort(compareSemantic);
-  return semanticDigest(canonicalSemanticValue({nodeId,nodes:semantics,connections,context:{
+  return semanticDigest(canonicalSemanticValue({nodeId:skillNodeId,nodes:semantics,connections,context:{
     requestText:options.requestText||'',taskContext:legacyTask?options.taskContext||{}:taskSemantics(options.taskContext||{}),taskConstraints:options.taskConstraints||[],
     executorIdentity:options.executorIdentity||'local-v1',inputArtifacts,
     dependencyResults:options.dependencyResults||{}}}));
 }
-export function nodeSemanticFingerprint(snapshot,nodeId,options={}){
-  return fingerprint(snapshot,nodeId,options);
+export function skillNodeSemanticFingerprint(snapshot,skillNodeId,options={}){
+  return fingerprint(snapshot,skillNodeId,options);
 }
-export function isCurrentNodeResult(snapshot,nodeId,result,options={}){
-  if(result?.status!=='success'||result.nodeId!==nodeId||typeof result.semanticFingerprint!=='string')return false;
+export function isCurrentSkillNodeResult(snapshot,skillNodeId,result,options={}){
+  if(result?.status!=='success'||result.skillNodeId!==skillNodeId||typeof result.semanticFingerprint!=='string')return false;
   try{
-    const node=snapshot.graph.nodes.find(node=>node.nodeId===nodeId);
-    const definition=snapshot.definitions.find(def=>def.definitionId===node?.definitionRef?.definitionId&&def.version===node?.definitionRef?.version);
+    const skillNode=snapshot.graph.skillNodes.find(skillNode=>skillNode.skillNodeId===skillNodeId);
+    const definition=snapshot.skillDefinitions.find(def=>def.definitionId===skillNode?.skillDefinitionRef?.definitionId&&def.version===skillNode?.skillDefinitionRef?.version);
     if(!isVerifiedProducedOutput(definition,result.outputs))return false;
     const recorded=result.semanticContext||{},current={...recorded,...options};
-    const expected=nodeSemanticFingerprint(snapshot,nodeId,current);
+    const expected=skillNodeSemanticFingerprint(snapshot,skillNodeId,current);
     if(result.semanticFingerprint===expected)return true;
     // Verify the persisted legacy evidence on today's graph before comparing
     // normalized Task identity. Changed graphs or execution inputs cannot pass.
-    return result.semanticFingerprint===fingerprint(snapshot,nodeId,recorded,true)&&
-      nodeSemanticFingerprint(snapshot,nodeId,recorded)===expected;
+    return result.semanticFingerprint===fingerprint(snapshot,skillNodeId,recorded,true)&&
+      skillNodeSemanticFingerprint(snapshot,skillNodeId,recorded)===expected;
   }
   catch{return false;}
 }
-export function currentResultNodes(snapshot,nodes,options={}){
-  const byId=new Map((nodes||[]).map(node=>[node.nodeId,node])),validity=new Map(),active=new Set();
+export function currentResultSkillNodes(snapshot,skillNodes,options={}){
+  const byId=new Map((skillNodes||[]).map(skillNode=>[skillNode.skillNodeId,skillNode])),validity=new Map(),active=new Set();
   const current=id=>{
     if(validity.has(id))return validity.get(id);
-    const node=byId.get(id);
-    if(!node||active.has(id))return false;
-    if(node.status==='skipped'){
-      try{if(node.semanticFingerprint!==nodeSemanticFingerprint(snapshot,id,{...node.semanticContext,...options}))return false;}catch{return false;}
-    }else if(!isCurrentNodeResult(snapshot,id,node,options))return false;
+    const skillNode=byId.get(id);
+    if(!skillNode||active.has(id))return false;
+    if(skillNode.status==='skipped'){
+      try{if(skillNode.semanticFingerprint!==skillNodeSemanticFingerprint(snapshot,id,{...skillNode.semanticContext,...options}))return false;}catch{return false;}
+    }else if(!isCurrentSkillNodeResult(snapshot,id,skillNode,options))return false;
     active.add(id);
-    const dependencies={...node.semanticContext,...options}.dependencyResults||{};
-    const parents=new Set((snapshot.graph.connections||[]).filter(link=>link.to.nodeId===id).map(link=>link.from.nodeId));
+    const dependencies={...skillNode.semanticContext,...options}.dependencyResults||{};
+    const parents=new Set((snapshot.graph.connections||[]).filter(link=>link.to.skillNodeId===id).map(link=>link.from.skillNodeId));
     const valid=parents.size===Object.keys(dependencies).length&&[...parents].every(parentId=>{
       const evidence=dependencies[parentId];
       const parent=byId.get(parentId);
@@ -123,9 +125,9 @@ export function currentResultNodes(snapshot,nodes,options={}){
     });
     active.delete(id);validity.set(id,valid);return valid;
   };
-  return (nodes||[]).map(node=>{
-    if(node.status!=='success')return {...node};
-    const resultCurrent=current(node.nodeId);
-    return {...node,status:resultCurrent?'success':'stale',resultCurrent};
+  return (skillNodes||[]).map(skillNode=>{
+    if(skillNode.status!=='success')return {...skillNode};
+    const resultCurrent=current(skillNode.skillNodeId);
+    return {...skillNode,status:resultCurrent?'success':'stale',resultCurrent};
   });
 }

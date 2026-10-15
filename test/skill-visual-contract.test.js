@@ -4,7 +4,7 @@ import fs from "node:fs";
 
 const css = fs.readFileSync(new URL("../front/css/skill.css", import.meta.url), "utf8");
 const sharedCss = fs.readFileSync(new URL("../front/css/style.css", import.meta.url), "utf8");
-const canvasNode = fs.readFileSync(new URL("../front/js/canvasSkill.js", import.meta.url), "utf8");
+const canvasSkillNode = fs.readFileSync(new URL("../front/js/canvasSkill.js", import.meta.url), "utf8");
 const catalog = fs.readFileSync(new URL("../backend/ovllPointer/skillCatalog.js", import.meta.url), "utf8");
 
 function cssBlock(selector) {
@@ -33,15 +33,15 @@ function cssBlock(selector) {
     css.indexOf("}", open);
   return css.slice(open + 1, close);
 }
-function serverNodeIcon(type) {
-  const start=catalog.indexOf("const defaultNodeDef = {");
-  const end=catalog.indexOf("const CUSTOM_NODE_TYPE_RE",start);
-  const definitions=catalog.slice(start,end);
-  const from=definitions.indexOf(`\n  ${type}: {`);
+function serverSkillNodeIcon(type) {
+  const start=catalog.indexOf("const defaultSkillDefinitions = {");
+  const end=catalog.indexOf("const CUSTOM_SKILL_NODE_TYPE_RE",start);
+  const skillDefinitions=catalog.slice(start,end);
+  const from=skillDefinitions.indexOf(`\n  ${type}: {`);
   assert.notEqual(from,-1,`missing server definition: ${type}`);
-  const to=definitions.indexOf("\n  },",from);
-  const node=definitions.slice(from,to<0?definitions.length:to);
-  const key=node.match(/iconKey:\s*['"]([^'"]+)['"]/)?.[1];
+  const to=skillDefinitions.indexOf("\n  },",from);
+  const skillNode=skillDefinitions.slice(from,to<0?skillDefinitions.length:to);
+  const key=skillNode.match(/iconKey:\s*['"]([^'"]+)['"]/)?.[1];
   assert.ok(key,`missing iconKey for ${type}`);
 
   const libraryStart=catalog.indexOf("const iconSvg = Object.freeze({");
@@ -57,11 +57,11 @@ function serverNodeIcon(type) {
 }
 
 
-test("request area stays flat and visually attached to the node title", () => {
-  assert.match(css, /:root\.dark\s+\.vc-node-icon\s*\{[\s\S]*?background:\s*transparent;/);
+test("request area stays flat and visually attached to the skillNode title", () => {
+  assert.match(css, /:root\.dark\s+\.vc-skill-node-icon\s*\{[\s\S]*?background:\s*transparent;/);
 
   const request = css.match(/\.vc-request-group\s*\{([\s\S]*?)\n\}/)?.[1] ?? "";
-  const expandedBody = css.match(/\.vc-node\.vc-expanded\s+\.vc-node-body\s*\{([\s\S]*?)\n\}/)?.[1] ?? "";
+  const expandedBody = css.match(/\.vc-skill-node\.vc-expanded\s+\.vc-skill-node-body\s*\{([\s\S]*?)\n\}/)?.[1] ?? "";
 
   assert.match(request, /padding:\s*\.1rem\s*\.18rem\s*\.18rem/);
   assert.match(request, /border:\s*0/);
@@ -71,42 +71,42 @@ test("request area stays flat and visually attached to the node title", () => {
   assert.doesNotMatch(css, /:root\.dark\s+\.vc-request-group\s*\{/);
 });
 
-test("node icons align to their visible glyph width without hidden x-space", () => {
-  const icon = cssBlock(".vc-node-icon");
+test("skillNode icons align to their visible glyph width without hidden x-space", () => {
+  const icon = cssBlock(".vc-skill-node-icon");
   assert.match(icon, /width:\s*1\.75rem/);
   assert.match(icon, /flex:\s*0 0 1\.75rem/);
   assert.match(icon, /justify-content:\s*flex-start/);
-  assert.match(cssBlock(".vc-node-icon svg"), /width:\s*1\.455rem/);
-  assert.doesNotMatch(cssBlock(".vc-node-icon svg"), /stroke-width:/);
+  assert.match(cssBlock(".vc-skill-node-icon svg"), /width:\s*1\.455rem/);
+  assert.doesNotMatch(cssBlock(".vc-skill-node-icon svg"), /stroke-width:/);
   assert.match(sharedCss, /svg\.svg-icon\s*\{[^}]*--svg-icon-stroke-width:\s*1\.9/);
   assert.match(sharedCss, /svg\.svg-icon\s+\[stroke-width\]/);
-  assert.match(canvasNode, /\.vc-node-icon svg'\)\?\.classList\.add\('svg-icon'\)/);
+  assert.match(canvasSkillNode, /\.vc-skill-node-icon svg'\)\?\.classList\.add\('svg-icon'\)/);
 });
 
-test("node titles use a lighter identity weight", () => {
-  assert.match(cssBlock(".vc-node-title"), /font-weight:\s*630/);
+test("skillNode titles use a lighter identity weight", () => {
+  assert.match(cssBlock(".vc-skill-node-title"), /font-weight:\s*630/);
   assert.match(cssBlock(".vc-file-title"), /font-weight:\s*630/);
 });
 
-test("node shell and footer actions keep subtle neutral outlines by default", () => {
-  const node = cssBlock(".vc-node");
-  const run = cssBlock(".vc-node-run");
-  const del = cssBlock(".vc-node-delete");
-  assert.match(node, /border:\s*\.0625rem solid var\(--line\)/);
-  assert.match(node, /box-shadow:\s*var\(--shadow-soft\)/);
-  assert.doesNotMatch(node, /0 0 0/);
+test("skillNode shell and footer actions keep subtle neutral outlines by default", () => {
+  const skillNode = cssBlock(".vc-skill-node");
+  const run = cssBlock(".vc-skill-node-run");
+  const del = cssBlock(".vc-skill-node-delete");
+  assert.match(skillNode, /border:\s*\.0625rem solid var\(--line\)/);
+  assert.match(skillNode, /box-shadow:\s*var\(--shadow-soft\)/);
+  assert.doesNotMatch(skillNode, /0 0 0/);
   assert.match(run, /inset 0 0 0 \.0625rem/);
   assert.match(del, /inset 0 0 0 \.0625rem/);
 });
 
 test("expanded footer buttons share width", () => {
-  const run = cssBlock(".vc-node-run");
-  const del = cssBlock(".vc-node-delete");
+  const run = cssBlock(".vc-skill-node-run");
+  const del = cssBlock(".vc-skill-node-delete");
   assert.match(run, /flex:\s*1 1 0/);
   assert.match(del, /flex:\s*1 1 0/);
 });
 
-test("file node follows the same compact one-line identity hierarchy", () => {
+test("file skillNode follows the same compact one-line identity hierarchy", () => {
   const titleWrap = cssBlock(".vc-file-title-wrap");
   const type = cssBlock(".vc-file-type");
   assert.match(titleWrap, /flex-direction:\s*row/);
@@ -114,11 +114,11 @@ test("file node follows the same compact one-line identity hierarchy", () => {
   assert.match(type, /border-radius:\s*999px/);
 });
 
-test("node footer actions use balanced rounded stroke glyphs and compact spacing", () => {
-  const runCss = cssBlock(".vc-node-run svg");
-  const deleteCss = cssBlock(".vc-node-delete svg");
-  const runButton = cssBlock(".vc-node-run");
-  const deleteButton = cssBlock(".vc-node-delete");
+test("skillNode footer actions use balanced rounded stroke glyphs and compact spacing", () => {
+  const runCss = cssBlock(".vc-skill-node-run svg");
+  const deleteCss = cssBlock(".vc-skill-node-delete svg");
+  const runButton = cssBlock(".vc-skill-node-run");
+  const deleteButton = cssBlock(".vc-skill-node-delete");
 
   assert.match(runCss, /width:\s*1\.04rem/);
   assert.match(deleteCss, /width:\s*1\.04rem/);
@@ -130,25 +130,25 @@ test("node footer actions use balanced rounded stroke glyphs and compact spacing
   assert.match(deleteButton, /font-size:\s*\.66rem/);
   assert.match(runButton, /font-weight:\s*620/);
   assert.match(deleteButton, /font-weight:\s*620/);
-  assert.match(runButton, /color:\s*var\(--node-color\)/);
+  assert.match(runButton, /color:\s*var\(--skill-node-color\)/);
   assert.match(runCss, /color:\s*currentColor/);
   assert.match(deleteCss, /color:\s*currentColor/);
-  assert.match(cssBlock(".vc-node-run:hover"), /color:\s*var\(--node-color\)/);
-  assert.match(runButton, /var\(--node-color\)\s+7%/);
+  assert.match(cssBlock(".vc-skill-node-run:hover"), /color:\s*var\(--skill-node-color\)/);
+  assert.match(runButton, /var\(--skill-node-color\)\s+7%/);
   assert.match(deleteButton, /var\(--text\)\s+5\.6%/);
 
-  const runStart = canvasNode.indexOf("run: `");
-  const runEnd = canvasNode.indexOf("stop: `", runStart);
-  const runIcon = canvasNode.slice(runStart, runEnd);
+  const runStart = canvasSkillNode.indexOf("run: `");
+  const runEnd = canvasSkillNode.indexOf("stop: `", runStart);
+  const runIcon = canvasSkillNode.slice(runStart, runEnd);
   assert.match(runIcon, /M7\.5 5\.7c-\.52-\.33-1\.2\.05-1\.2\.67v7\.26/);
   assert.match(runIcon, /stroke-width="1\.42"/);
   assert.match(runIcon, /stroke-linecap="round"/);
   assert.match(runIcon, /stroke-linejoin="round"/);
   assert.doesNotMatch(runIcon, /fill="currentColor"/);
 
-  const deleteStart = canvasNode.indexOf("delete: `");
-  const deleteEnd = canvasNode.indexOf("run: `", deleteStart);
-  const deleteIcon = canvasNode.slice(deleteStart, deleteEnd);
+  const deleteStart = canvasSkillNode.indexOf("delete: `");
+  const deleteEnd = canvasSkillNode.indexOf("run: `", deleteStart);
+  const deleteIcon = canvasSkillNode.slice(deleteStart, deleteEnd);
   assert.match(deleteIcon, /M5\.65 6\.55h8\.7/);
   assert.match(deleteIcon, /stroke-width="1\.42"/);
   assert.match(deleteIcon, /stroke-linecap="round"/);
@@ -156,7 +156,7 @@ test("node footer actions use balanced rounded stroke glyphs and compact spacing
   assert.doesNotMatch(deleteIcon, /fill="currentColor"/);
 });
 
-test("server-owned node icons share one rounded monoline visual contract", () => {
+test("server-owned skillNode icons share one rounded monoline visual contract", () => {
   const icons =
     Object.fromEntries(
       [
@@ -170,7 +170,7 @@ test("server-owned node icons share one rounded monoline visual contract", () =>
       ].map(
         type => [
           type,
-          serverNodeIcon(type)
+          serverSkillNodeIcon(type)
         ]
       )
     );
@@ -211,8 +211,8 @@ test("server-owned node icons share one rounded monoline visual contract", () =>
     );
     assert.doesNotMatch(
       icon,
-      /var\(--node\)/,
-      `${type} must not depend on node background`
+      /var\(--skill-node\)/,
+      `${type} must not depend on skillNode background`
     );
     assert.match(
       icon,
@@ -244,7 +244,7 @@ test("ports and connection lines are neutral borderless geometry", () => {
   const dragConnection = cssBlock(".vc-drag-connection");
 
   assert.match(port, /border:\s*\.0625rem solid/);
-  assert.match(port, /background:\s*var\(--node\)/);
+  assert.match(port, /background:\s*var\(--skill-node\)/);
   assert.match(port, /var\(--text\)\s+var\(--port-contrast, 18%\)/);
   assert.match(port, /border-radius:\s*50%/);
 
@@ -253,21 +253,21 @@ test("ports and connection lines are neutral borderless geometry", () => {
   assert.match(dragConnection, /var\(--text\)\s+42%/);
 
   assert.doesNotMatch(
-    canvasNode,
+    canvasSkillNode,
     /path\.style\.setProperty\(\s*['"]--connection-color/
   );
   assert.doesNotMatch(
-    canvasNode,
+    canvasSkillNode,
     /path\.style\.stroke\s*=\s*definition\.color/
   );
   assert.doesNotMatch(
-    canvasNode,
+    canvasSkillNode,
     /dot\.style\.fill\s*=\s*definition\.color/
   );
 });
 
-test("mobile keeps node identity legible and actions touchable", () => {
-  assert.match(css, /@media \(max-width: 37\.5rem\)[\s\S]*?\.vc-node-title\s*\{\s*font-size:\s*\.82rem/);
-  assert.match(css, /@media \(max-width: 37\.5rem\)[\s\S]*?\.vc-node-icon\s*\{[\s\S]*?width:\s*1\.704rem[\s\S]*?flex-basis:\s*1\.704rem/);
-  assert.match(css, /@media \(hover: none\) and \(pointer: coarse\)[\s\S]*?\.vc-node-run,\s*\.vc-node-delete\s*\{[\s\S]*?padding-inline:\s*\.55rem/);
+test("mobile keeps skillNode identity legible and actions touchable", () => {
+  assert.match(css, /@media \(max-width: 37\.5rem\)[\s\S]*?\.vc-skill-node-title\s*\{\s*font-size:\s*\.82rem/);
+  assert.match(css, /@media \(max-width: 37\.5rem\)[\s\S]*?\.vc-skill-node-icon\s*\{[\s\S]*?width:\s*1\.704rem[\s\S]*?flex-basis:\s*1\.704rem/);
+  assert.match(css, /@media \(hover: none\) and \(pointer: coarse\)[\s\S]*?\.vc-skill-node-run,\s*\.vc-skill-node-delete\s*\{[\s\S]*?padding-inline:\s*\.55rem/);
 });

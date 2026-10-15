@@ -1,21 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-const local=readFileSync(new URL('../front/js/ovllPointerLocal.js',import.meta.url),'utf8');
-const api=readFileSync(new URL('../front/js/ovllPointerApi.js',import.meta.url),'utf8');
-const host=readFileSync(new URL('../backend/ovllPointer/localHost.js',import.meta.url),'utf8');
-const route=readFileSync(new URL('../backend/ovllPointer/localHttp.js',import.meta.url),'utf8');
-test('active browser model tasks send canonical Skill ingress with stable IDs',()=>{
- assert.match(local,/async function executeModelSkill\(\{snapshot,nodeId,\.\.\.args\}\)/);
- assert.match(local,/normalizeSkillSnapshot\(snapshot,\{source:'legacy'\}\)/);
- assert.match(local,/skillAPI\(\{snapshot:canonical,skillId:nodeId,\.\.\.args\}\)/);
- assert.match(local,/if\(result\?\.skillId!==nodeId\)throw/);
- assert.match(local,/executeNode=executeModelSkill/);
- assert.match(api,/request\('local\/skill'/);
- assert.match(route,/const allowed=new Set\(\['turn','node','skill','response'\]\)/);
- assert.match(host,/async function skill\(\{snapshot,skillId,\.\.\.args\}/);
-});
-test('old node route remains narrow compatibility and no extra model call is injected',()=>{
- assert.match(local,/return global\.OvllPointerApi\.localNode\(\{snapshot,nodeId,\.\.\.args\}\)/);
- assert.doesNotMatch(local,/executeModelSkill[\s\S]{0,900}gateway\.complete/);
+import vm from 'node:vm';
+test('browser sends one native skill-node request with the original snapshot and instance ID',async()=>{
+ const calls=[],snapshot={graph:{graphId:'g',revision:0,skillNodes:[],connections:[]},skillDefinitions:[]};
+ const window={fetch:async(url,options)=>{calls.push({url,body:JSON.parse(options.body)});return{ok:true,json:async()=>({skillNodeId:'n_original',status:'success'})};}};
+ vm.runInNewContext(readFileSync(new URL('../front/js/ovllPointerApi.js',import.meta.url),'utf8'),{window,Date,Math});
+ const result=await window.OvllPointerApi.localSkillNode({snapshot,requestRef:'r',skillNodeId:'n_original'});
+ assert.equal(calls.length,1);assert.equal(calls[0].url,'/api/pointer/local/skill-node');
+ assert.deepEqual(calls[0].body.snapshot,snapshot);assert.equal(calls[0].body.skillNodeId,'n_original');
+ assert.equal('nodeId' in calls[0].body,false);assert.equal(result.skillNodeId,'n_original');
+ assert.equal(window.OvllPointerApi.localSkill,undefined);assert.equal(window.OvllPointerApi.localNode,undefined);
 });

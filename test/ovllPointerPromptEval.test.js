@@ -4,14 +4,14 @@ import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {PROMPT_EVAL_CASES,gradePromptEvalTurn,promptEvalSnapshot,promptEvalExtra}
  from '../backend/ovllPointer/promptEval.js';
-const patch=(definitions,operations)=>({kind:'ir.applyPatch',localKey:'p',
- args:{patch:{graphId:'g_eval',expectedGraphRevision:0,definitions,operations}}});
+const patch=(skillDefinitions,operations)=>({kind:'ir.applyPatch',localKey:'p',
+ args:{patch:{graphId:'g_eval',expectedGraphRevision:0,skillDefinitions,operations}}});
 const run=()=>({kind:'run.start',localKey:'r',dependsOn:['p'],
- args:{targets:[{fromAction:'p',localNodeKey:'n'}]}});
+ args:{targets:[{fromAction:'p',localSkillNodeKey:'n'}]}});
 test('evaluator retains six task behaviors and adds four held-out boundaries',()=>{
  assert.deepEqual(PROMPT_EVAL_CASES.map(c=>c.id),['chat','new-kind','edit-only','reuse-run','compose-run','pdf-export',
   'explain-save','new-kind-run','multi-source','read-before-plan']);
- assert.equal(promptEvalSnapshot('reuse-run').graph.nodes[0].nodeId,'existing-write');
+ assert.equal(promptEvalSnapshot('reuse-run').graph.skillNodes[0].skillNodeId,'existing-write');
  assert.equal(promptEvalExtra('pdf-export').availableResults.items[0].resultCurrent,true);
 });
 test('direct answer must not contain unauthorized actions',()=>{
@@ -19,32 +19,32 @@ test('direct answer must not contain unauthorized actions',()=>{
  assert.equal(gradePromptEvalTurn('chat',{message:'Done',executionIntent:'requested',actions:[run()]}).pass,false);
 });
 test('new kind requires a new definition and matching instance',()=>{
- const n={op:'node.add',localNodeKey:'n',definitionRef:{localDefinitionKey:'d'}};
+ const n={op:'skillNode.add',localSkillNodeKey:'n',skillDefinitionRef:{localDefinitionKey:'d'}};
  assert.ok(gradePromptEvalTurn('new-kind',{actions:[patch([{localKey:'d'}],[n])]}).pass);
  assert.equal(gradePromptEvalTurn('new-kind',{actions:[patch([],[{
-  ...n,definitionRef:{definitionId:'builtin:write'}}])]}).pass,false);
+  ...n,skillDefinitionRef:{definitionId:'builtin:write'}}])]}).pass,false);
 });
 test('editing a graph does not approve running it',()=>{
- const p=patch([],[{op:'node.update',nodeId:'existing-write'}]);
+ const p=patch([],[{op:'skillNode.update',skillNodeId:'existing-write'}]);
  assert.ok(gradePromptEvalTurn('edit-only',{actions:[p]}).pass);
  assert.equal(gradePromptEvalTurn('edit-only',{executionIntent:'requested',actions:[p,run()]}).pass,false);
 });
-test('reuse existing writing node does not create duplicates',()=>{
- const existing={kind:'run.start',args:{targets:[{nodeId:'existing-write'}]}};
+test('reuse existing writing skillNode does not create duplicates',()=>{
+ const existing={kind:'run.start',args:{targets:[{skillNodeId:'existing-write'}]}};
  assert.ok(gradePromptEvalTurn('reuse-run',{executionIntent:'requested',actions:[existing]}).pass);
  assert.equal(gradePromptEvalTurn('reuse-run',{executionIntent:'requested',actions:[
-  patch([],[{op:'node.add',localNodeKey:'duplicate'}]),existing]}).pass,false);
+  patch([],[{op:'skillNode.add',localSkillNodeKey:'duplicate'}]),existing]}).pass,false);
 });
-test('composite node creation and execution require same local key and dependency',()=>{
- const p=patch([],[{op:'node.add',localNodeKey:'n'}]);
+test('composite skillNode creation and execution require same local key and dependency',()=>{
+ const p=patch([],[{op:'skillNode.add',localSkillNodeKey:'n'}]);
  assert.ok(gradePromptEvalTurn('compose-run',{executionIntent:'requested',actions:[p,run()]}).pass);
  assert.equal(gradePromptEvalTurn('compose-run',{executionIntent:'requested',actions:[
   p,{...run(),dependsOn:[]}]}).pass,false);
 });
 test('PDF export needs a real data link from the existing source',()=>{
- const file={op:'node.add',localNodeKey:'n',definitionRef:{definitionId:'builtin:createFile'}};
+ const file={op:'skillNode.add',localSkillNodeKey:'n',skillDefinitionRef:{definitionId:'builtin:createFile'}};
  const link={op:'link.add',kind:'data',
-  from:{node:{nodeId:'existing-research'}},to:{node:{localNodeKey:'n'}}};
+  from:{skillNode:{skillNodeId:'existing-research'}},to:{skillNode:{localSkillNodeKey:'n'}}};
  assert.ok(gradePromptEvalTurn('pdf-export',{executionIntent:'requested',
   actions:[patch([],[file,link]),run()]}).pass);
  assert.equal(gradePromptEvalTurn('pdf-export',{executionIntent:'requested',

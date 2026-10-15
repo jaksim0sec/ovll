@@ -22,11 +22,11 @@ function setup(out,input){
    loadCore:async()=>({MemoryGraphRepository}),
    loadPlan:async()=>({buildExecutionPlan,matchesInputRepresentation}),loadResults:async()=>results,
    loadCatalog:async()=>getPointerCatalog()});
- const patch={graphId,expectedGraphRevision:0,definitions:[def('source',null,out),def('consumer',input,'text')],
-   operations:[{op:'node.add',localNodeKey:'a',definitionRef:{localDefinitionKey:'source'}},
-   {op:'node.add',localNodeKey:'b',definitionRef:{localDefinitionKey:'consumer'}},
-   {op:'link.add',localLinkKey:'link',kind:'data',from:{node:{localNodeKey:'a'},port:'result'},
-     to:{node:{localNodeKey:'b'},port:'in'}}]};
+ const patch={graphId,expectedGraphRevision:0,skillDefinitions:[def('source',null,out),def('consumer',input,'text')],
+   operations:[{op:'skillNode.add',localSkillNodeKey:'a',skillDefinitionRef:{localDefinitionKey:'source'}},
+   {op:'skillNode.add',localSkillNodeKey:'b',skillDefinitionRef:{localDefinitionKey:'consumer'}},
+   {op:'link.add',localLinkKey:'link',kind:'data',from:{skillNode:{localSkillNodeKey:'a'},port:'result'},
+     to:{skillNode:{localSkillNodeKey:'b'},port:'in'}}]};
  return {store,id,local,graphId,patch};
 }
 test('data port compatibility shares strict semantic rules between graph and plan',async()=>{
@@ -43,7 +43,7 @@ test('data port compatibility shares strict semantic rules between graph and pla
   actions:[{kind:'ir.applyPatch',localKey:'a',args:{patch:textToJson.patch}}]});
  assert.equal(result.results[0].status,'applied');
  const graph=(await textToJson.local.state(textToJson.id)).graph;
- const targets=[graph.graph.nodes[1].nodeId];
+ const targets=[graph.graph.skillNodes[1].skillNodeId];
  assert.equal(buildExecutionPlan(graph,{graphRef:{graphId:graph.graph.graphId,revision:1},
    targets,damMode:'closed'}).order.length,2);
 });
@@ -52,11 +52,11 @@ test('text output is delivered unchanged to JSON input as a JSON string',async()
  await x.local.turn({conversationId:x.id,graphId:x.graphId,actions:[{
   kind:'ir.applyPatch',localKey:'build',args:{patch:x.patch}}]});
  const state=(await x.local.state(x.id)).graph;
- const target=state.graph.nodes[1].nodeId;
+ const target=state.graph.skillNodes[1].skillNodeId;
  let consumed;
- const result=await x.local.run({conversationId:x.id,targets:[target],executeNode:async({nodeId,inputArtifacts})=>{
-   if(nodeId===target)consumed=inputArtifacts[0].value;
-   return {status:'success',outputs:{status:'produced',values:{result:{inline:nodeId===target?'ok':'日本語の単語'}}}};
+ const result=await x.local.run({conversationId:x.id,targets:[target],executeSkillNode:async({skillNodeId,inputArtifacts})=>{
+   if(skillNodeId===target)consumed=inputArtifacts[0].value;
+   return {status:'success',outputs:{status:'produced',values:{result:{inline:skillNodeId===target?'ok':'日本語の単語'}}}};
  }});
  assert.equal(result.status,'completed');
  assert.equal(consumed,'日本語の単語');
@@ -65,17 +65,17 @@ test('JSON output narrows to text only after checking the actual runtime value',
  const x=setup('json','text');
  await x.local.turn({conversationId:x.id,graphId:x.graphId,actions:[{
   kind:'ir.applyPatch',localKey:'build',args:{patch:x.patch}}]});
- const state=(await x.local.state(x.id)).graph,target=state.graph.nodes[1].nodeId;
+ const state=(await x.local.state(x.id)).graph,target=state.graph.skillNodes[1].skillNodeId;
  let consumed=false;
- const failed=await x.local.run({conversationId:x.id,targets:[target],executeNode:async({nodeId})=>{
-   if(nodeId===target)consumed=true;
+ const failed=await x.local.run({conversationId:x.id,targets:[target],executeSkillNode:async({skillNodeId})=>{
+   if(skillNodeId===target)consumed=true;
    return {status:'success',outputs:{status:'produced',values:{result:{inline:{words:['a']}}}}};
  }});
  assert.equal(failed.status,'failed');
- assert.equal(failed.nodes.at(-1).error,'INPUT_REPRESENTATION_MISMATCH');
+ assert.equal(failed.skillNodes.at(-1).error,'INPUT_REPRESENTATION_MISMATCH');
  assert.equal(consumed,false,'invalid object cannot reach text-only executor');
- const passed=await x.local.run({conversationId:x.id,targets:[target],executeNode:async({nodeId})=>({
-   status:'success',outputs:{status:'produced',values:{result:{inline:nodeId===target?'done':'string content'}}}
+ const passed=await x.local.run({conversationId:x.id,targets:[target],executeSkillNode:async({skillNodeId})=>({
+   status:'success',outputs:{status:'produced',values:{result:{inline:skillNodeId===target?'done':'string content'}}}
  })});
  assert.equal(passed.status,'completed');
 });
@@ -83,12 +83,12 @@ test('unknown custom semantic representations cannot be bridged into JSON withou
  assert.equal(compatibleDataRepresentation('custom/undocumented','json'),false);
  const repository=new MemoryGraphRepository(),graphId='g_types';
  repository.create('local',graphId);
- const patch={graphId,expectedGraphRevision:0,definitions:[def('a',null,'custom/undocumented'),
+ const patch={graphId,expectedGraphRevision:0,skillDefinitions:[def('a',null,'custom/undocumented'),
   def('b','json','text')],operations:[
-   {op:'node.add',localNodeKey:'a',definitionRef:{localDefinitionKey:'a'}},
-   {op:'node.add',localNodeKey:'b',definitionRef:{localDefinitionKey:'b'}},
+   {op:'skillNode.add',localSkillNodeKey:'a',skillDefinitionRef:{localDefinitionKey:'a'}},
+   {op:'skillNode.add',localSkillNodeKey:'b',skillDefinitionRef:{localDefinitionKey:'b'}},
    {op:'link.add',localLinkKey:'link',kind:'data',
-    from:{node:{localNodeKey:'a'},port:'result'},to:{node:{localNodeKey:'b'},port:'in'}}]};
+    from:{skillNode:{localSkillNodeKey:'a'},port:'result'},to:{skillNode:{localSkillNodeKey:'b'},port:'in'}}]};
  assert.throws(()=>repository.apply('local',patch),e=>e.code==='PORT_MISMATCH');
  assert.equal(repository.get('local',graphId).graph.revision,0,'no partial write');
 });

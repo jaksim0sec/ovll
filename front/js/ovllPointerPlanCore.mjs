@@ -30,42 +30,42 @@ export function isVerifiedProducedOutput(definition,output){
   });
 }
 export function buildExecutionPlan(snapshot, run) {
-  if (!snapshot?.graph || !Array.isArray(snapshot.definitions) || !run?.graphRef) reject('INVALID_EXECUTION_CONTEXT');
+  if (!snapshot?.graph || !Array.isArray(snapshot.skillDefinitions) || !run?.graphRef) reject('INVALID_EXECUTION_CONTEXT');
   const graph=snapshot.graph;
   if (graph.graphId!==run.graphRef.graphId || graph.revision!==run.graphRef.revision) reject('PINNED_GRAPH_MISMATCH',409);
   if (!Array.isArray(run.targets) || !run.targets.length) reject('RUN_TARGETS_REQUIRED');
   const selected=new Set(computeScope(graph,run.targets,run.damMode));
-  const nodes=new Map(graph.nodes.map(n=>[n.nodeId,n]));
-  const defs=new Map(snapshot.definitions.map(d=>[d.definitionId+':'+d.version,d]));
+  const skillNodes=new Map(graph.skillNodes.map(n=>[n.skillNodeId,n]));
+  const defs=new Map(snapshot.skillDefinitions.map(d=>[d.definitionId+':'+d.version,d]));
   const parents=new Map([...selected].map(n=>[n,new Set()]));
   const outgoing=new Map([...selected].map(n=>[n,new Set()]));
   for(const link of graph.connections){
-    if(!selected.has(link.from.nodeId)||!selected.has(link.to.nodeId))continue;
+    if(!selected.has(link.from.skillNodeId)||!selected.has(link.to.skillNodeId))continue;
     if(link.kind==='flow'){
-      const from=nodes.get(link.from.nodeId),to=nodes.get(link.to.nodeId);
-      const source=defs.get(from?.definitionRef.definitionId+':'+from?.definitionRef.version);
-      const destination=defs.get(to?.definitionRef.definitionId+':'+to?.definitionRef.version);
+      const from=skillNodes.get(link.from.skillNodeId),to=skillNodes.get(link.to.skillNodeId);
+      const source=defs.get(from?.skillDefinitionRef.definitionId+':'+from?.skillDefinitionRef.version);
+      const destination=defs.get(to?.skillDefinitionRef.definitionId+':'+to?.skillDefinitionRef.version);
       if(!isFlowPort(source,link.from.port,'outputs')||!isFlowPort(destination,link.to.port,'inputs'))reject('PORT_MISMATCH');
     }
     if(!['flow','data'].includes(link.kind)) reject('UNKNOWN_EDGE_KIND');
-    parents.get(link.to.nodeId).add(link.from.nodeId);
-    outgoing.get(link.from.nodeId).add(link.to.nodeId);
+    parents.get(link.to.skillNodeId).add(link.from.skillNodeId);
+    outgoing.get(link.from.skillNodeId).add(link.to.skillNodeId);
   }
-  for(const nodeId of selected){
-    const node=nodes.get(nodeId),definition=defs.get(node?.definitionRef.definitionId+':'+node?.definitionRef.version);
+  for(const skillNodeId of selected){
+    const skillNode=skillNodes.get(skillNodeId),definition=defs.get(skillNode?.skillDefinitionRef.definitionId+':'+skillNode?.skillDefinitionRef.version);
     if(!definition)reject('PLAN_DEFINITION_NOT_FOUND');
     if(definition.executorKind==='subgraph')reject('SUBGRAPH_EXECUTOR_NOT_IMPLEMENTED',501);
-    const inputs=new Map((definition.inputs||[]).map(p=>[p.name,p])),bound=node.inputBindings||{};
-    const incoming=graph.connections.filter(l=>l.kind==='data'&&l.to.nodeId===nodeId),ports=new Set(),sources=new Set();
+    const inputs=new Map((definition.inputs||[]).map(p=>[p.name,p])),bound=skillNode.inputBindings||{};
+    const incoming=graph.connections.filter(l=>l.kind==='data'&&l.to.skillNodeId===skillNodeId),ports=new Set(),sources=new Set();
     for(const link of incoming){
-      const sourceKey=JSON.stringify([link.from.nodeId,link.from.port,link.to.port]);
+      const sourceKey=JSON.stringify([link.from.skillNodeId,link.from.port,link.to.port]);
       if(sources.has(sourceKey))reject('DUPLICATE_INPUT_SOURCE');
       sources.add(sourceKey);
       const input=inputs.get(link.to.port);
       if(Object.hasOwn(bound,link.to.port)||ports.has(link.to.port)&&input?.multiple===false)
         reject('AMBIGUOUS_INPUT_PRODUCERS');
       ports.add(link.to.port);
-      const parent=nodes.get(link.from.nodeId),parentDef=defs.get(parent?.definitionRef.definitionId+':'+parent?.definitionRef.version);
+      const parent=skillNodes.get(link.from.skillNodeId),parentDef=defs.get(parent?.skillDefinitionRef.definitionId+':'+parent?.skillDefinitionRef.version);
       const out=parentDef?.outputs.find(p=>p.name===link.from.port);
       if(!out||!input||!compatibleDataRepresentation(out.representation,input.representation))reject('PORT_MISMATCH');
     }
@@ -76,13 +76,13 @@ export function buildExecutionPlan(snapshot, run) {
   const ready=[...selected].filter(n=>remaining.get(n)===0).sort();
   const order=[];
   while(ready.length){
-    const nodeId=ready.shift();const node=nodes.get(nodeId);
-    if(!node)reject('PLAN_NODE_NOT_FOUND');
-    const definition=defs.get(node.definitionRef.definitionId+':'+node.definitionRef.version);
+    const skillNodeId=ready.shift();const skillNode=skillNodes.get(skillNodeId);
+    if(!skillNode)reject('PLAN_SKILL_NODE_NOT_FOUND');
+    const definition=defs.get(skillNode.skillDefinitionRef.definitionId+':'+skillNode.skillDefinitionRef.version);
     if(!definition)reject('PLAN_DEFINITION_NOT_FOUND');
     if(!['model_task','tool_task','subgraph'].includes(definition.executorKind))reject('UNSUPPORTED_EXECUTOR_KIND');
-    order.push({nodeId,node,definition,predecessors:[...parents.get(nodeId)].sort()});
-    for(const next of outgoing.get(nodeId)){remaining.set(next,remaining.get(next)-1);if(!remaining.get(next)){ready.push(next);ready.sort();}}
+    order.push({skillNodeId,skillNode,definition,predecessors:[...parents.get(skillNodeId)].sort()});
+    for(const next of outgoing.get(skillNodeId)){remaining.set(next,remaining.get(next)-1);if(!remaining.get(next)){ready.push(next);ready.sort();}}
   }
   if(order.length!==selected.size) reject('PLAN_DEPENDENCY_CYCLE');
   return {graphRef:{...run.graphRef},planEpoch:run.planEpoch,targets:[...run.targets],order};

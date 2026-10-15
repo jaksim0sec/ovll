@@ -1,5 +1,5 @@
 /* =========================================================
-   CANONICAL NODE DEFINITION
+   CANONICAL SKILL_NODE DEFINITION
 ========================================================= */
 
 /* Server-owned SVG catalog; clients only cache these paths. */
@@ -95,7 +95,7 @@ export const iconSvg = Object.freeze({
   'translate': `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.28" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.2 5h8M7.2 3v2M9.7 5c-.6 4-2.8 6.4-6 8M4.8 7c1.1 2.5 2.8 4.1 5.2 5M10.6 16.5l3-7 3 7M11.8 14h3.6"/></svg>`,
 });
 
-const defaultNodeDef = {
+const defaultSkillDefinitions = {
   start: {
     name: '시작하기',
     desc: 'AI 작업을 시작하는 기준점입니다.',
@@ -417,12 +417,12 @@ const defaultNodeDef = {
   }
 };
 
-export const CUSTOM_NODE_TYPE_RE =
+export const CUSTOM_SKILL_NODE_TYPE_RE =
   /^custom:[a-zA-Z0-9_-]{1,64}$/;
 
-const customNodeDef = {
+const customSkillDefinition = {
   iconKey: 'custom',
-  name: '커스텀 노드',
+  name: '커스텀 스킬',
   desc: '사용자가 저장한 서브플로우입니다.',
   llmdesc: '사용자가 직접 만든 불투명 서브플로우. 기존 custom id는 보존하고 새 id를 임의로 만들지 않음.',
   tag: 'CUSTOM',
@@ -451,35 +451,35 @@ const customNodeDef = {
 };
 
 /* =========================================================
-   NODE DEFINITIONS
+   SKILL_NODE DEFINITIONS
 ========================================================= */
 
-export const nodeDefinitionsPublic = JSON.parse(
-  JSON.stringify(defaultNodeDef)
+export const skillDefinitionsPublic = JSON.parse(
+  JSON.stringify(defaultSkillDefinitions)
 );
 
-export const GENERATABLE_NODE_TYPES = Object.keys(
-  defaultNodeDef
+export const GENERATABLE_SKILL_NODE_TYPES = Object.keys(
+  defaultSkillDefinitions
 ).filter(
   type => type !== 'start'
 );
 
-export function getNodeDefinition(type) {
+export function getSkillDefinition(type) {
   const key = String(type || '');
 
-  if (defaultNodeDef[key]) {
-    return defaultNodeDef[key];
+  if (defaultSkillDefinitions[key]) {
+    return defaultSkillDefinitions[key];
   }
 
-  if (CUSTOM_NODE_TYPE_RE.test(key)) {
-    return customNodeDef;
+  if (CUSTOM_SKILL_NODE_TYPE_RE.test(key)) {
+    return customSkillDefinition;
   }
 
   return null;
 }
 
 export function getPortDefinition(type, direction, portId) {
-  const def = getNodeDefinition(type);
+  const def = getSkillDefinition(type);
   if (!def) return null;
 
   const ports =
@@ -492,10 +492,10 @@ export function getPortDefinition(type, direction, portId) {
   ) || null;
 }
 
-function buildNodeDefinitionPrompt() {
-  return GENERATABLE_NODE_TYPES
+function buildSkillDefinitionPrompt() {
+  return GENERATABLE_SKILL_NODE_TYPES
     .map(type => {
-      const def = defaultNodeDef[type];
+      const def = defaultSkillDefinitions[type];
 
       const inputs =
         (def.inputs || [])
@@ -536,15 +536,15 @@ function buildNodeDefinitionPrompt() {
     .join('\n');
 }
 
-export const NODE_DEFINITION_PROMPT =
-  buildNodeDefinitionPrompt();
+export const SKILL_NODE_DEFINITION_PROMPT =
+  buildSkillDefinitionPrompt();
 
 
-// Stable reusable work definitions for the Pointer kernel, derived from the existing UI catalog.
+// Stable reusable work skillDefinitions for the Pointer kernel, derived from the existing UI catalog.
 // Version 1 is canonical. A custom revision receives its own version and remains reusable.
 export function getPointerCatalog() {
-  const definitions=GENERATABLE_NODE_TYPES.map(type=>{
-    const ui=defaultNodeDef[type], tool=type==='file'||type==='createFile';
+  const skillDefinitions=GENERATABLE_SKILL_NODE_TYPES.map(type=>{
+    const ui=defaultSkillDefinitions[type], tool=type==='file'||type==='createFile';
     const port=p=>({name:p.id,role:p.name,representation:'json',required:false,
       multiple:p.multiple!==false});
     return {definitionId:'builtin:'+type,version:1,purpose:ui.desc,
@@ -555,11 +555,11 @@ export function getPointerCatalog() {
         type==='judge'?['model_task','branch.exclusive']:['model_task'],
       presentation:{name:ui.name,iconKey:ui.iconKey,color:ui.color}};
   });
-  return {definitions,capabilities:['chat','ir.applyPatch','run.start','function.save',
+  return {skillDefinitions,capabilities:['chat','ir.applyPatch','run.start','function.save',
     'function.run','question.ask','model_task','file.read_local','artifact.create','branch.exclusive']};
 }
 export function withPointerCatalog(snapshot) {
-  const builtins=getPointerCatalog().definitions;
-  return {...snapshot,definitions:[...(snapshot.definitions||[]).filter(d=>
+  const builtins=getPointerCatalog().skillDefinitions;
+  return {...snapshot,skillDefinitions:[...(snapshot.skillDefinitions||[]).filter(d=>
     !builtins.some(b=>b.definitionId===d.definitionId&&b.version===d.version)),...builtins]};
 }

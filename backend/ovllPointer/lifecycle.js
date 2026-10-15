@@ -65,9 +65,9 @@ export async function cancelRun(c,scope,runRef,{emit}){
   await c.query("UPDATE ov_run_queue SET status='cancelled',execution_token=NULL,lease_token=NULL,leased_until=NULL,updated_at=now() WHERE workspace_id=$1 AND run_id=$2",[scope.workspaceRef,runRef]);
   await c.query("UPDATE ov_runs SET status='cancelled',snapshot=jsonb_set(snapshot,'{status}','\"cancelled\"') WHERE workspace_id=$1 AND run_id=$2",[scope.workspaceRef,runRef]);
   const pin=await c.query('SELECT snapshot FROM ov_graph_revisions WHERE workspace_id=$1 AND graph_id=$2 AND revision=$3',[scope.workspaceRef,r.rows[0].graph_id,r.rows[0].graph_revision]);
-  const attempts=await c.query("SELECT attempt_id,definition_ref FROM ov_attempts WHERE workspace_id=$1 AND run_id=$2 AND status='running' FOR UPDATE",[scope.workspaceRef,runRef]);
+  const attempts=await c.query("SELECT attempt_id,skill_definition_ref FROM ov_attempts WHERE workspace_id=$1 AND run_id=$2 AND status='running' FOR UPDATE",[scope.workspaceRef,runRef]);
   for(const attempt of attempts.rows){
-    const definition=pin.rows[0]?.snapshot.definitions.find(d=>d.definitionId===attempt.definition_ref?.definitionId&&d.version===attempt.definition_ref?.version);
+    const definition=pin.rows[0]?.snapshot.skillDefinitions.find(d=>d.definitionId===attempt.skill_definition_ref?.definitionId&&d.version===attempt.skill_definition_ref?.version);
     const status=definition?.executorKind==='model_task'?'cancelled':'outcome_unknown';
     await c.query('UPDATE ov_attempts SET status=$3,result=$4::jsonb WHERE workspace_id=$1 AND attempt_id=$2',[scope.workspaceRef,attempt.attempt_id,status,json({code:'RUN_CANCELLED'})]);
   }
@@ -76,7 +76,7 @@ export async function cancelRun(c,scope,runRef,{emit}){
 export async function retryRun(c,scope,args,{emit}){
   const task=await taskRow(c,scope);
   if(task.status!=='active')deny('TASK_NOT_ACTIVE',409);
-  if(!id(args.runRef)||!id(args.nodeId))deny('BAD_RETRY');
+  if(!id(args.runRef)||!id(args.skillNodeId))deny('BAD_RETRY');
   const q=await c.query('SELECT status,external_effect FROM ov_run_queue WHERE workspace_id=$1 AND run_id=$2 FOR UPDATE',[scope.workspaceRef,args.runRef]);
   if(!q.rows.length)deny('RUN_NOT_FOUND',404);
   const r=await c.query('SELECT status,task_id,snapshot,plan_epoch FROM ov_runs WHERE workspace_id=$1 AND run_id=$2 FOR UPDATE',[scope.workspaceRef,args.runRef]);
@@ -85,13 +85,13 @@ export async function retryRun(c,scope,args,{emit}){
   if(row.task_id!==scope.taskRef)deny('RUN_TASK_SCOPE_MISMATCH',403);
   if(q.rows[0].external_effect||!['failed','waiting'].includes(row.status))deny('RUN_RETRY_NOT_SAFE',409);
   const pin=await c.query('SELECT snapshot FROM ov_graph_revisions WHERE workspace_id=$1 AND graph_id=$2 AND revision=$3',[scope.workspaceRef,run.graphRef.graphId,run.graphRef.revision]);
-  if(!pin.rows.length||!buildExecutionPlan(pin.rows[0].snapshot,run).order.some(n=>n.nodeId===args.nodeId))deny('RETRY_NODE_OUTSIDE_PLAN');
-  const a=await c.query('SELECT attempt_id,status FROM ov_attempts WHERE workspace_id=$1 AND run_id=$2 AND node_id=$3 AND plan_epoch=$4 ORDER BY generation DESC LIMIT 1',[scope.workspaceRef,args.runRef,args.nodeId,row.plan_epoch]);
+  if(!pin.rows.length||!buildExecutionPlan(pin.rows[0].snapshot,run).order.some(n=>n.skillNodeId===args.skillNodeId))deny('RETRY_SKILL_NODE_OUTSIDE_PLAN');
+  const a=await c.query('SELECT attempt_id,status FROM ov_attempts WHERE workspace_id=$1 AND run_id=$2 AND skill_node_id=$3 AND plan_epoch=$4 ORDER BY generation DESC LIMIT 1',[scope.workspaceRef,args.runRef,args.skillNodeId,row.plan_epoch]);
   if(args.attemptRef&&a.rows[0]?.attempt_id!==args.attemptRef)deny('STALE_RETRY_ATTEMPT',409);
-  if(a.rows[0]?.status!=='failed')deny('NODE_RETRY_NOT_SAFE',409);
+  if(a.rows[0]?.status!=='failed')deny('SKILL_NODE_RETRY_NOT_SAFE',409);
   await c.query("UPDATE ov_run_queue SET status='queued',execution_token=NULL,lease_token=NULL,leased_until=NULL,updated_at=now() WHERE workspace_id=$1 AND run_id=$2",[scope.workspaceRef,args.runRef]);
   await c.query("UPDATE ov_runs SET status='queued',snapshot=jsonb_set(snapshot,'{status}','\"queued\"') WHERE workspace_id=$1 AND run_id=$2",[scope.workspaceRef,args.runRef]);
-  await emit(c,scope.workspaceRef,'run.retry_queued',{runRef:args.runRef,nodeId:args.nodeId,previousAttemptRef:a.rows[0].attempt_id});
+  await emit(c,scope.workspaceRef,'run.retry_queued',{runRef:args.runRef,skillNodeId:args.skillNodeId,previousAttemptRef:a.rows[0].attempt_id});
   return args.runRef;
 }
 export async function completeTask(c,scope,outcomeRefs,{emit,verifyTaskOutcomes,maxValidationMs=5000}){

@@ -8,10 +8,10 @@ for(const c of cases)test('frozen schema fixture: '+c.name,()=>assert.equal(vali
 test('runtime envelope rejects bytes, depth, cycles and non-JSON values before schema traversal',()=>{
  assert.equal(validation.validateTurn({message:'가'.repeat(11000)}),false);
  let value={};for(let n=0;n<14;n++)value={nested:value};
- assert.equal(validation.validate('NodeOutput',{status:'produced',values:{result:{inline:value}}}),false);
+ assert.equal(validation.validate('SkillNodeOutput',{status:'produced',values:{result:{inline:value}}}),false);
  const cycle={};cycle.self=cycle;
  assert.equal(validation.validateTurn(cycle),false);
- assert.equal(validation.validate('NodeOutput',{status:'produced',values:{result:{inline:NaN}}}),false);
+ assert.equal(validation.validate('SkillNodeOutput',{status:'produced',values:{result:{inline:NaN}}}),false);
 });
 test('validation never mutates or silently coerces original model values',()=>{
  const v={message:4};assert.equal(validation.validateTurn(v),false);assert.deepEqual(v,{message:4});

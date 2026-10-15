@@ -11,9 +11,9 @@ const plain=value=>JSON.parse(JSON.stringify(value));
 function setup(){
   const stored=new Map(),window={crypto:{randomUUID:()=> 'delivery'},
     localStorage:{getItem:key=>stored.get(key)||null,setItem:(key,value)=>stored.set(key,value)}};
-  const state={pointerRuns:[]},workspaceStore={getConversation:()=>({state}),
-    updateConversationPointerRuns:(_id,runs)=>{state.pointerRuns=runs},
-    updateConversationPointerGraph:()=>{},getPointerDefinitions:()=>[]};
+  const state={skillRuns:[]},workspaceStore={getConversation:()=>({state}),
+    updateConversationSkillRuns:(_id,runs)=>{state.skillRuns=runs},
+    updateConversationSkillGraph:()=>{},getSkillDefinitions:()=>[]};
   window.OvllWorkspaceStore=workspaceStore;
   for(const name of ['ovllPointerFunctions.js','ovllPointerLocal.js','ovllPointerLocalActions.js'])
     vm.runInNewContext(read(name),{window,console});
@@ -21,19 +21,19 @@ function setup(){
     loadPlan:async()=>plan,loadResults:async()=>results});
   const app=read('app.js'),first=app.indexOf('async function runSavedLocalFunction(fn,bindings'),
     last=app.indexOf('  async function runLocalPrompt(',first);
-  const replay=(executeNode,options={})=>new Function('global','runLocalNodes',app.slice(first,last)+
-    ';return runSavedLocalFunction;')(window,args=>local.run({...args,...options,conversationId:'c',executeNode}));
+  const replay=(executeSkillNode,options={})=>new Function('global','runLocalSkillNodes',app.slice(first,last)+
+    ';return runSavedLocalFunction;')(window,args=>local.run({...args,...options,conversationId:'c',executeSkillNode}));
   return {window,state,local,replay};
 }
-const snapshot={graph:{graphId:'g_delivery',revision:1,nodes:[{
-  nodeId:'writer',definitionRef:{definitionId:'d_writer',version:1},settings:{request:'Summarize'}}],connections:[]},
-  definitions:[{definitionId:'d_writer',version:1,purpose:'Summarize',instruction:'Summarize faithfully',
+const snapshot={graph:{graphId:'g_delivery',revision:1,skillNodes:[{
+  skillNodeId:'writer',skillDefinitionRef:{definitionId:'d_writer',version:1},settings:{request:'Summarize'}}],connections:[]},
+  skillDefinitions:[{definitionId:'d_writer',version:1,purpose:'Summarize',instruction:'Summarize faithfully',
     executorKind:'model_task',inputs:[],outputs:[
       {name:'report',representation:'text',required:false},
       {name:'notes',representation:'text',required:false}]}]};
 const produced=values=>({status:'success',outputs:{status:'produced',values}});
 const save=window=>window.OvllPointerFunctions.save({purpose:'Reusable summary',snapshot,targets:['writer'],
-  outputs:[{name:'summary',representation:'text'}],outputMap:{summary:{nodeId:'writer',port:'report'}}});
+  outputs:[{name:'summary',representation:'text'}],outputMap:{summary:{skillNodeId:'writer',port:'report'}}});
 
 test('saved replay returns only the declared public output and persists its exact source ref',async()=>{
   const {window,state,replay}=setup(),fn=save(window);
@@ -42,9 +42,9 @@ test('saved replay returns only the declared public output and persists its exac
   assert.ok(run.functionOutputs);
   assert.deepEqual(plain(run.functionOutputs),{summary:{inline:'Final report'}});
   assert.equal(run.functionOutputRefs.summary,'local:'+run.runId+':writer:report');
-  assert.deepEqual(plain(state.pointerRuns[0].functionOutputs),plain(run.functionOutputs));
+  assert.deepEqual(plain(state.skillRuns[0].functionOutputs),plain(run.functionOutputs));
   assert.equal(window.OvllPointerLocalActions.presentation({runs:[run]}).text,'summary: Final report');
-  assert.equal(run.nodes[0].outputs.values.notes.inline,'Working notes');
+  assert.equal(run.skillNodes[0].outputs.values.notes.inline,'Working notes');
 });
 
 test('a missing declared public output cannot be reported as a completed function',async()=>{
@@ -59,28 +59,28 @@ test('a missing declared public output cannot be reported as a completed functio
 });
 
 test('invalid persisted output mappings fail before executor calls or run storage',async()=>{
-  for(const outputMap of [{summary:{nodeId:'outside',port:'report'}},
-    {summary:{nodeId:'writer',port:'missing'}},
-    {summary:{nodeId:'writer',port:'report',unexpected:true}}]){
+  for(const outputMap of [{summary:{skillNodeId:'outside',port:'report'}},
+    {summary:{skillNodeId:'writer',port:'missing'}},
+    {summary:{skillNodeId:'writer',port:'report',unexpected:true}}]){
     const {window,state,replay}=setup(),fn=save(window);let calls=0;
     await assert.rejects(()=>replay(async()=>{calls++;return produced({report:{inline:'Result'}});})
       ({...fn,outputMap},{}),/FUNCTION_OUTPUT_MAPPING_REQUIRED/);
-    assert.equal(calls,0);assert.equal(state.pointerRuns.length,0);
+    assert.equal(calls,0);assert.equal(state.skillRuns.length,0);
   }
 });
 
 test('public outputs can include dependency ports without leaking other sink ports',async()=>{
   const {window,replay}=setup();
   const graph=plain(snapshot);
-  graph.graph.nodes.unshift({nodeId:'source',definitionRef:{definitionId:'d_source',version:1}});
-  graph.definitions.push({definitionId:'d_source',version:1,purpose:'Read',instruction:'Read source',
+  graph.graph.skillNodes.unshift({skillNodeId:'source',skillDefinitionRef:{definitionId:'d_source',version:1}});
+  graph.skillDefinitions.push({definitionId:'d_source',version:1,purpose:'Read',instruction:'Read source',
     executorKind:'model_task',inputs:[],outputs:[{name:'evidence',representation:'text'}]});
-  graph.definitions[0].inputs=[{name:'in',representation:'text',required:true}];
-  graph.graph.connections.push({id:'data',kind:'data',from:{nodeId:'source',port:'evidence'},to:{nodeId:'writer',port:'in'}});
+  graph.skillDefinitions[0].inputs=[{name:'in',representation:'text',required:true}];
+  graph.graph.connections.push({id:'data',kind:'data',from:{skillNodeId:'source',port:'evidence'},to:{skillNodeId:'writer',port:'in'}});
   const fn=window.OvllPointerFunctions.save({purpose:'Evidence and report',snapshot:graph,targets:['writer'],
     outputs:[{name:'evidence',representation:'text'},{name:'summary',representation:'text'}],
-    outputMap:{evidence:{nodeId:'source',port:'evidence'},summary:{nodeId:'writer',port:'report'}}});
-  const run=await replay(async step=>produced(step.nodeId==='source'?{evidence:{inline:'Actual evidence'}}:
+    outputMap:{evidence:{skillNodeId:'source',port:'evidence'},summary:{skillNodeId:'writer',port:'report'}}});
+  const run=await replay(async step=>produced(step.skillNodeId==='source'?{evidence:{inline:'Actual evidence'}}:
     {report:{inline:'Final report'},notes:{inline:'Private scratch'}}))(fn,{});
   assert.ok(run.functionOutputs);
   assert.deepEqual(plain(run.functionOutputs),{evidence:{inline:'Actual evidence'},summary:{inline:'Final report'}});
@@ -91,12 +91,12 @@ test('public outputs can include dependency ports without leaking other sink por
 
 test('selected artifact output keeps confirmed file cards and excludes unselected ports',()=>{
   const {window}=setup(),artifact={id:'pdf',name:'Report.pdf',downloadUrl:'/api/artifacts/pdf'};
-  const run={status:'completed',targets:['writer'],outputMap:{document:{nodeId:'writer',port:'file'}},nodes:[{
-    nodeId:'writer',status:'success',resultCurrent:true,toolEffectStarted:true,effectConfirmed:true,
+  const run={status:'completed',targets:['writer'],outputMap:{document:{skillNodeId:'writer',port:'file'}},skillNodes:[{
+    skillNodeId:'writer',status:'success',resultCurrent:true,toolEffectStarted:true,effectConfirmed:true,
     outputs:{values:{file:{inline:artifact},notes:{inline:'Internal notes'}}}}]};
   const delivered=window.OvllPointerLocalActions.presentation({runs:[run]});
   assert.deepEqual(plain(delivered.artifacts),[artifact]);assert.doesNotMatch(delivered.text,/Internal notes/);
-  run.nodes[0].effectConfirmed=false;
+  run.skillNodes[0].effectConfirmed=false;
   assert.deepEqual(plain(window.OvllPointerLocalActions.presentation({runs:[run]}).artifacts),[]);
 });
 
@@ -107,7 +107,7 @@ test('legacy functions without output mappings retain ordinary target delivery',
   assert.equal(window.OvllPointerLocalActions.presentation({runs:[run]}).text,'Legacy report\n\nLegacy notes');
 });
 
-test('automatic output names do not expose internal node IDs in chat',async()=>{
+test('automatic output names do not expose internal skillNode IDs in chat',async()=>{
   const {window,replay}=setup();
   const fn=window.OvllPointerFunctions.save({purpose:'Default outputs',snapshot,targets:['writer']});
   const run=await replay(async()=>produced({report:{inline:'Final report'},notes:{inline:'Notes'}}))(fn,{});
@@ -118,7 +118,7 @@ test('missing optional public outputs preserve successful partial delivery',asyn
   const {window,replay}=setup();
   const fn=window.OvllPointerFunctions.save({purpose:'Report with optional notes',snapshot,targets:['writer'],
     outputs:[{name:'summary',representation:'text',required:true},{name:'detail',representation:'text',required:false}],
-    outputMap:{summary:{nodeId:'writer',port:'report'},detail:{nodeId:'writer',port:'notes'}}});
+    outputMap:{summary:{skillNodeId:'writer',port:'report'},detail:{skillNodeId:'writer',port:'notes'}}});
   const run=await replay(async()=>produced({report:{inline:'Final report'}}))(fn,{});
   assert.equal(run.status,'completed');assert.equal(run.coverage.complete,true);
   assert.deepEqual(plain(run.functionOutputs),{summary:{inline:'Final report'}});
@@ -128,7 +128,7 @@ test('an optional public output cannot stand in for a missing required output',a
   const {window,replay}=setup();
   const fn=window.OvllPointerFunctions.save({purpose:'Required report',snapshot,targets:['writer'],
     outputs:[{name:'summary',representation:'text',required:true},{name:'detail',representation:'text',required:false}],
-    outputMap:{summary:{nodeId:'writer',port:'report'},detail:{nodeId:'writer',port:'notes'}}});
+    outputMap:{summary:{skillNodeId:'writer',port:'report'},detail:{skillNodeId:'writer',port:'notes'}}});
   const run=await replay(async()=>produced({notes:{inline:'Working notes'}}))(fn,{});
   assert.equal(run.status,'failed');assert.equal(run.coverage.complete,false);
 });
@@ -136,23 +136,23 @@ test('an optional public output cannot stand in for a missing required output',a
 test('revised required public outputs invalidate incomplete dependency history and cache reuse',async()=>{
   for(const sharedCache of [false,true]){
     const {window,replay}=setup(),graph=plain(snapshot),cache=new Map();
-    graph.graph.nodes.unshift({nodeId:'source',definitionRef:{definitionId:'d_source',version:1}});
-    graph.definitions.push({definitionId:'d_source',version:1,purpose:'Read',instruction:'Read source',
+    graph.graph.skillNodes.unshift({skillNodeId:'source',skillDefinitionRef:{definitionId:'d_source',version:1}});
+    graph.skillDefinitions.push({definitionId:'d_source',version:1,purpose:'Read',instruction:'Read source',
       executorKind:'model_task',inputs:[],outputs:[{name:'data',representation:'text',required:true},
         {name:'evidence',representation:'text',required:false}]});
-    graph.definitions[0].inputs=[{name:'in',representation:'text',required:true}];
-    graph.graph.connections.push({id:'data',kind:'data',from:{nodeId:'source',port:'data'},to:{nodeId:'writer',port:'in'}});
+    graph.skillDefinitions[0].inputs=[{name:'in',representation:'text',required:true}];
+    graph.graph.connections.push({id:'data',kind:'data',from:{skillNodeId:'source',port:'data'},to:{skillNodeId:'writer',port:'in'}});
     const fn=window.OvllPointerFunctions.save({purpose:'Report',snapshot:graph,
       targets:sharedCache?['source','writer']:['writer'],outputs:[{name:'summary',representation:'text',required:true}],
-      outputMap:{summary:{nodeId:'writer',port:'report'}}});
+      outputMap:{summary:{skillNodeId:'writer',port:'report'}}});
     let sourceCalls=0;
     const runSaved=replay(async step=>{
-      if(step.nodeId==='writer')return produced({report:{inline:'Report'}});
+      if(step.skillNodeId==='writer')return produced({report:{inline:'Report'}});
       sourceCalls++;return produced({data:{inline:'Source'},...(sourceCalls>1?{evidence:{inline:'Verified evidence'}}:{})});
     },sharedCache?{cache}:{});
     assert.equal((await runSaved(fn,{})).status,'completed');
     const revised={...fn,outputs:[...fn.outputs,{name:'evidence',representation:'text',required:true}],
-      outputMap:{...fn.outputMap,evidence:{nodeId:'source',port:'evidence'}}};
+      outputMap:{...fn.outputMap,evidence:{skillNodeId:'source',port:'evidence'}}};
     const run=await runSaved(revised,{});
     assert.equal(sourceCalls,2);assert.equal(run.status,'completed');
     assert.equal(run.functionOutputs.evidence.inline,'Verified evidence');
@@ -163,8 +163,8 @@ test('structured deliverables are readable while original typed outputs stay int
  const {window}=setup();
  const data={title:'초콜릿의 역사',overview:'문명별 기원과 전파',
   sections:[{title:'올메크 문명',content:'카카오를 음료로 활용'}],conclusion:'역사를 이해할 수 있음'};
- const run={status:'completed',targets:['writer'],nodes:[{
-  nodeId:'writer',status:'success',resultCurrent:true,outputs:{values:{result:{inline:data}}}
+ const run={status:'completed',targets:['writer'],skillNodes:[{
+  skillNodeId:'writer',status:'success',resultCurrent:true,outputs:{values:{result:{inline:data}}}
  }]};
  const message=window.OvllPointerLocalActions.presentation({runs:[run]}).text;
  assert.match(message,/# 초콜릿의 역사/);
@@ -172,15 +172,15 @@ test('structured deliverables are readable while original typed outputs stay int
  assert.match(message,/## 올메크 문명\n\n카카오를 음료로 활용/);
  assert.match(message,/## 결론\n\n역사를 이해할 수 있음/);
  assert.doesNotMatch(message,/\{"title":/);
- assert.deepEqual(plain(run.nodes[0].outputs.values.result.inline),data);
+ assert.deepEqual(plain(run.skillNodes[0].outputs.values.result.inline),data);
 });
 test('mixed graph patch failures do not claim unqualified completion',()=>{
  const {window}=setup();
  const message=window.OvllPointerLocalActions.presentation({facts:[
-  {kind:'ir.applyPatch',status:'failed',error:'NODE_HAS_LINKS'},
+  {kind:'ir.applyPatch',status:'failed',error:'SKILL_NODE_HAS_LINKS'},
   {kind:'ir.applyPatch',status:'applied'}
  ]}).text;
- assert.match(message,/NODE_HAS_LINKS/);
+ assert.match(message,/SKILL_NODE_HAS_LINKS/);
  assert.match(message,/작업 구성 일부만 반영했어/);
  assert.doesNotMatch(message,/^작업 구성을 반영했어\.$/m);
 });

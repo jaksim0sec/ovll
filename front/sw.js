@@ -1,5 +1,5 @@
 importScripts('/asset-manifest.js');
-const CACHE = 'ovll-shell-v86';
+const CACHE = 'ovll-shell-v87';
 
 const SHELL = self.OVLL_ASSETS.precache;
 

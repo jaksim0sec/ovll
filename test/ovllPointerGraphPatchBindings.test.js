@@ -10,16 +10,16 @@ const window={};
 for(const name of ['Projection','GraphPatch'])
   vm.runInNewContext(readFileSync(new URL('../front/js/ovllPointer'+name+'.js',import.meta.url),'utf8'),{window});
 const edge=(from,to,port='source',kind='data')=>({id:from+'_'+to+'_'+port+'_'+kind,kind,
-  from:{nodeId:from,port:'result'},to:{nodeId:to,port}});
-const canvasEdge=(from,to,port='source',kind='data')=>({from:{node:from,port:'result'},
-  to:{node:to,port},data:{kind}});
+  from:{skillNodeId:from,port:'result'},to:{skillNodeId:to,port}});
+const canvasEdge=(from,to,port='source',kind='data')=>({from:{skillNode:from,port:'result'},
+  to:{skillNode:to,port},data:{kind}});
 function sample(){
   const definition={definitionId:'d',version:1,purpose:'Use sources',instruction:'Preserve evidence',
     executorKind:'model_task',inputs:['source','constant','established'].map(name=>({name,representation:'text'})),
     outputs:[{name:'result',representation:'text'}]};
-  return {definitions:[definition],graph:{graphId:'g',revision:1,nodes:['a','b','other'].map(nodeId=>({
-    nodeId,definitionRef:{definitionId:'d',version:1},settings:{},
-    inputBindings:nodeId==='b'?{source:'Literal source',constant:'Keep this'}:{}})),
+  return {skillDefinitions:[definition],graph:{graphId:'g',revision:1,skillNodes:['a','b','other'].map(skillNodeId=>({
+    skillNodeId,skillDefinitionRef:{definitionId:'d',version:1},settings:{},
+    inputBindings:skillNodeId==='b'?{source:'Literal source',constant:'Keep this'}:{}})),
     connections:[edge('other','b','established')]}};
 }
 const workflow=snapshot=>clone(window.OvllPointerProjection.projectGraph(snapshot).workflow);
@@ -28,19 +28,19 @@ function repository(snapshot){const repo=new MemoryGraphRepository();repo.restor
 function apply(repo,patch){let id=0;return repo.apply('w',patch,()=>String(++id));}
 
 test('manual research-to-export data link replaces the export literal in one valid patch',()=>{
-  const snapshot={definitions:getPointerCatalog().definitions,graph:{graphId:'g',revision:1,nodes:[
-    {nodeId:'a',definitionRef:{definitionId:'builtin:research',version:1},inputBindings:{in:{topic:'Research this'}},settings:{}},
-    {nodeId:'b',definitionRef:{definitionId:'builtin:createFile',version:1},inputBindings:{in:{text:'Previous body'}},settings:{request:'Export PDF'}}
+  const snapshot={skillDefinitions:getPointerCatalog().skillDefinitions,graph:{graphId:'g',revision:1,skillNodes:[
+    {skillNodeId:'a',skillDefinitionRef:{definitionId:'builtin:research',version:1},inputBindings:{in:{topic:'Research this'}},settings:{}},
+    {skillNodeId:'b',skillDefinitionRef:{definitionId:'builtin:createFile',version:1},inputBindings:{in:{text:'Previous body'}},settings:{request:'Export PDF'}}
   ],connections:[]}};
   const view=workflow(snapshot);
   // A manual canvas gesture has no kind metadata; declared builtin ports infer data.
-  view.connections.push({from:{node:'a',port:'result'},to:{node:'b',port:'in'}});
+  view.connections.push({from:{skillNode:'a',port:'result'},to:{skillNode:'b',port:'in'}});
   const repo=repository(snapshot);apply(repo,build(snapshot,view));
   const graph=repo.get('w','g').graph;
   assert.equal(graph.revision,2);
-  assert.deepEqual(graph.nodes[1].inputBindings,{});
-  assert.deepEqual(graph.nodes[0].inputBindings,snapshot.graph.nodes[0].inputBindings);
-  assert.deepEqual(graph.nodes[1].settings,{request:'Export PDF'});
+  assert.deepEqual(graph.skillNodes[1].inputBindings,{});
+  assert.deepEqual(graph.skillNodes[0].inputBindings,snapshot.graph.skillNodes[0].inputBindings);
+  assert.deepEqual(graph.skillNodes[1].settings,{request:'Export PDF'});
   assert.equal(graph.connections[0].kind,'data');
   assert.equal(graph.connections[0].to.port,'in');
 });
@@ -51,7 +51,7 @@ test('new data links preserve unrelated bindings, existing connections and calle
   const before=clone({snapshot,view}),repo=repository(snapshot);
   apply(repo,build(snapshot,view));
   const graph=repo.get('w','g').graph;
-  assert.deepEqual(graph.nodes[1].inputBindings,{constant:'Keep this'});
+  assert.deepEqual(graph.skillNodes[1].inputBindings,{constant:'Keep this'});
   assert.deepEqual(graph.connections[0],snapshot.graph.connections[0]);
   assert.equal(graph.connections.length,2);
   assert.deepEqual({snapshot,view},before);
@@ -59,33 +59,33 @@ test('new data links preserve unrelated bindings, existing connections and calle
 
 test('new data links use persisted bindings when canvas metadata is absent',()=>{
   const snapshot=sample(),view=workflow(snapshot);
-  delete view.nodes[1].data.pointer.inputBindings;
+  delete view.skillNodes[1].data.pointer.inputBindings;
   view.connections.push(canvasEdge('a','b'));
   const repo=repository(snapshot);apply(repo,build(snapshot,view));
-  assert.deepEqual(repo.get('w','g').graph.nodes[1].inputBindings,{constant:'Keep this'});
+  assert.deepEqual(repo.get('w','g').graph.skillNodes[1].inputBindings,{constant:'Keep this'});
 });
 
-test('new destination nodes also replace only the newly linked literal binding',()=>{
+test('new destination skillNodes also replace only the newly linked literal binding',()=>{
   const snapshot=sample(),view=workflow(snapshot);
-  view.nodes.push({id:'new',type:'pointer:d:1',data:{pointer:{inputBindings:{source:'Initial source',constant:'New constant'}}}});
+  view.skillNodes.push({id:'new',type:'pointer:d:1',data:{pointer:{inputBindings:{source:'Initial source',constant:'New constant'}}}});
   view.connections.push(canvasEdge('a','new'));
   const repo=repository(snapshot);apply(repo,build(snapshot,view));
-  const node=repo.get('w','g').graph.nodes.at(-1);
-  assert.deepEqual(node.inputBindings,{constant:'New constant'});
-  assert.equal(repo.get('w','g').graph.connections.at(-1).to.nodeId,node.nodeId);
+  const skillNode=repo.get('w','g').graph.skillNodes.at(-1);
+  assert.deepEqual(skillNode.inputBindings,{constant:'New constant'});
+  assert.equal(repo.get('w','g').graph.connections.at(-1).to.skillNodeId,skillNode.skillNodeId);
 });
 
 test('flow additions and unrelated edits preserve literal data bindings',()=>{
   const snapshot=sample(),view=workflow(snapshot);
   view.connections.push(canvasEdge('a','b','source','flow'));
-  view.nodes[1].data.params={request:'Updated request'};
+  view.skillNodes[1].data.params={request:'Updated request'};
   const repo=repository(snapshot);apply(repo,build(snapshot,view));
-  assert.deepEqual(repo.get('w','g').graph.nodes[1].inputBindings,snapshot.graph.nodes[1].inputBindings);
+  assert.deepEqual(repo.get('w','g').graph.skillNodes[1].inputBindings,snapshot.graph.skillNodes[1].inputBindings);
 });
 
 test('unchanged data links do not silently remove a conflicting new literal binding',()=>{
   const snapshot=sample(),view=workflow(snapshot);
-  view.nodes[1].data.pointer.inputBindings.established='Conflicting edit';
+  view.skillNodes[1].data.pointer.inputBindings.established='Conflicting edit';
   const repo=repository(snapshot);
   assert.throws(()=>apply(repo,build(snapshot,view)),error=>error.code==='AMBIGUOUS_INPUT_PRODUCERS');
   assert.deepEqual(repo.get('w','g'),snapshot);
@@ -98,11 +98,11 @@ test('two upstream sources may feed one generic port without replacing one anoth
   apply(repo,build(snapshot,view));
   const result=repo.get('w','g').graph;
   assert.equal(result.connections.length,3);
-  assert.equal(result.connections.filter(link=>link.to.nodeId==='b'&&link.to.port==='source').length,2);
-  assert.deepEqual(result.nodes[1].inputBindings,{constant:'Keep this'});
+  assert.equal(result.connections.filter(link=>link.to.skillNodeId==='b'&&link.to.port==='source').length,2);
+  assert.deepEqual(result.skillNodes[1].inputBindings,{constant:'Keep this'});
 });
 test('explicit single-producer input still rejects two connections atomically',()=>{
-  const snapshot=sample();snapshot.definitions[0].inputs[0].multiple=false;
+  const snapshot=sample();snapshot.skillDefinitions[0].inputs[0].multiple=false;
   const view=workflow(snapshot);view.connections.push(canvasEdge('a','b'),canvasEdge('other','b'));
   const repo=repository(snapshot);
   assert.throws(()=>apply(repo,build(snapshot,view)),error=>error.code==='AMBIGUOUS_INPUT_PRODUCERS');
@@ -110,21 +110,21 @@ test('explicit single-producer input still rejects two connections atomically',(
 });
 
 test('server flow and data on shared sockets survive read, edit and save',()=>{
-  const definitions=getPointerCatalog().definitions;
-  const graph={graphId:'g',revision:3,nodes:['write','organize'].map(type=>({
-    nodeId:type,definitionRef:{definitionId:'builtin:'+type,version:1},settings:{},inputBindings:{}})),
+  const skillDefinitions=getPointerCatalog().skillDefinitions;
+  const graph={graphId:'g',revision:3,skillNodes:['write','organize'].map(type=>({
+    skillNodeId:type,skillDefinitionRef:{definitionId:'builtin:'+type,version:1},settings:{},inputBindings:{}})),
     connections:[
-      {id:'control',kind:'flow',from:{nodeId:'write',port:'next'},to:{nodeId:'organize',port:'in'}},
-      {id:'value',kind:'data',from:{nodeId:'write',port:'result'},to:{nodeId:'organize',port:'in'}}
+      {id:'control',kind:'flow',from:{skillNodeId:'write',port:'next'},to:{skillNodeId:'organize',port:'in'}},
+      {id:'value',kind:'data',from:{skillNodeId:'write',port:'result'},to:{skillNodeId:'organize',port:'in'}}
     ]};
-  const snapshot={graph,definitions},projected=window.OvllPointerProjection.projectGraph(snapshot);
-  assert.deepEqual(projected.definitions.write.outputs.map(p=>p.id),['result']);
-  assert.deepEqual(projected.definitions.organize.inputs.map(p=>p.id),['in']);
+  const snapshot={graph,skillDefinitions},projected=window.OvllPointerProjection.projectGraph(snapshot);
+  assert.deepEqual(projected.skillDefinitions.write.outputs.map(p=>p.id),['result']);
+  assert.deepEqual(projected.skillDefinitions.organize.inputs.map(p=>p.id),['in']);
   assert.equal(window.OvllPointerGraphPatch.build(snapshot,projected.workflow),null);
   const view=clone(projected.workflow);
-  view.nodes[0].params.request='Change the writer request only';
+  view.skillNodes[0].params.request='Change the writer request only';
   const patch=window.OvllPointerGraphPatch.build(snapshot,view).patch;
-  assert.deepEqual(Array.from(patch.operations,op=>op.op),['node.update']);
+  assert.deepEqual(Array.from(patch.operations,op=>op.op),['skillNode.update']);
   const repo=repository(snapshot);apply(repo,patch);
   assert.deepEqual(repo.get('w','g').graph.connections,graph.connections);
 });

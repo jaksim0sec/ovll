@@ -23,11 +23,11 @@
   z-index: 1;
   pointer-events: none;
 }
-:is(#canvas-nodes,[data-ovll-canvas-nodes]) {
-  --node-width: 12.25rem;
-  --node-radius: 1.3rem;
-  --node: var(--panel);
-  --node-soft: var(--panel);
+:is(#canvas-skill-nodes,[data-ovll-canvas-skill-nodes]) {
+  --skill-node-width: 12.25rem;
+  --skill-node-radius: 1.3rem;
+  --skill-node: var(--panel);
+  --skill-node-soft: var(--panel);
   position: absolute;
   inset: 0;
   width: 100%;
@@ -36,43 +36,43 @@
   overflow: visible;
   pointer-events: none;
 }
-:is(#canvas-nodes,[data-ovll-canvas-nodes]) .vc-node {
+:is(#canvas-skill-nodes,[data-ovll-canvas-skill-nodes]) .vc-skill-node {
   pointer-events: auto;
 }
 /* =========================================================
-   NODE BASE
+   SKILL_NODE BASE
    ========================================================= */
-.vc-node {
-  --node-color: var(--accent);
-  --node-color-soft:
+.vc-skill-node {
+  --skill-node-color: var(--accent);
+  --skill-node-color-soft:
     color-mix(
       in srgb,
-      var(--node-color) 10%,
-      var(--node)
+      var(--skill-node-color) 10%,
+      var(--skill-node)
     );
-  --node-icon-color:
+  --skill-node-icon-color:
     color-mix(
       in srgb,
-      var(--node-color) 25%,
-      var(--node)
+      var(--skill-node-color) 25%,
+      var(--skill-node)
     );
-  --node-state-color:
+  --skill-node-state-color:
     color-mix(
       in srgb,
-      var(--node-color) 55%,
-      var(--node)
+      var(--skill-node-color) 55%,
+      var(--skill-node)
     );
   position: absolute;
   isolation: isolate;
-  width: var(--node-width);
+  width: var(--skill-node-width);
   min-height: 3.35rem;
   padding:
     .58rem
     .82rem;
   border: .0625rem solid var(--line);
   border-radius:
-    var(--node-radius);
-  background: var(--node);
+    var(--skill-node-radius);
+  background: var(--skill-node);
   color: var(--text);
   box-shadow: var(--shadow-soft);
   cursor: grab;
@@ -88,7 +88,7 @@
     transform .18s cubic-bezier(.22,.8,.25,1);
 }
 
-.vc-node::before {
+.vc-skill-node::before {
   content: "";
   position: absolute;
   inset: -.0625rem;
@@ -97,13 +97,13 @@
   border: .0625rem solid;
   border-color: inherit;
   border-radius: inherit;
-  background: var(--node);
+  background: var(--skill-node);
   pointer-events: none;
 }
 
-.vc-node-head,
-.vc-node-body,
-.vc-node-footer {
+.vc-skill-node-head,
+.vc-skill-node-body,
+.vc-skill-node-footer {
   position: relative;
   z-index: 2;
 }
@@ -111,7 +111,7 @@
 /* =========================================================
    HOVER
    ========================================================= */
-.vc-node:hover {
+.vc-skill-node:hover {
   border-color:
     color-mix(
       in srgb,
@@ -123,7 +123,7 @@
 /* =========================================================
    SELECTED / EXPANDED
    ========================================================= */
-.vc-node.vc-expanded {
+.vc-skill-node.vc-expanded {
   border-color:
     color-mix(
       in srgb,
@@ -133,13 +133,13 @@
   box-shadow: var(--shadow-soft);
   transform: none;
 }
-.vc-node.vc-selected {
+.vc-skill-node.vc-selected {
   border-color: var(--line-strong);
   box-shadow: var(--shadow-soft);
   transform:
     translateY(-.03rem);
 }
-.vc-node.vc-selected.vc-expanded {
+.vc-skill-node.vc-selected.vc-expanded {
   border-color: var(--line-strong);
   box-shadow: var(--shadow-soft);
   transform:
@@ -148,31 +148,31 @@
 /* =========================================================
    DRAGGING
    ========================================================= */
-.vc-node.vc-dragging {
+.vc-skill-node.vc-dragging {
   cursor: grabbing;
   transition: none !important;
   box-shadow: none;
 }
-.vc-node.vc-dragging .vc-node-body,
-.vc-node.vc-dragging .vc-node-toggle svg {
+.vc-skill-node.vc-dragging .vc-skill-node-body,
+.vc-skill-node.vc-dragging .vc-skill-node-toggle svg {
   transition: none !important;
 }
-.vc-node.vc-dragging.vc-selected {
+.vc-skill-node.vc-dragging.vc-selected {
   box-shadow:
     0 0 0 .0625rem
     color-mix(
       in srgb,
-      var(--node-color) 10%,
+      var(--skill-node-color) 10%,
       transparent
     );
 }
-.vc-node.vc-dragging.vc-expanded {
+.vc-skill-node.vc-dragging.vc-expanded {
   box-shadow: none;
 }
 /* =========================================================
    HEADER
    ========================================================= */
-.vc-node-head {
+.vc-skill-node-head {
   min-height: 1.9rem;
   display: flex;
   align-items: center;
@@ -181,7 +181,7 @@
 /* =========================================================
    ICON
    ========================================================= */
-.vc-node-icon {
+.vc-skill-node-icon {
   position: relative;
   width: 1.75rem;
   height: 1.84rem;
@@ -192,28 +192,28 @@
   border: 0;
   border-radius: 0;
   color:
-    var(--node-color);
+    var(--skill-node-color);
   background: transparent;
   transition:
     color .18s ease,
     transform .18s cubic-bezier(.22,.8,.25,1);
 }
-.vc-node-icon svg {
+.vc-skill-node-icon svg {
   width: 1.455rem;
   height: 1.455rem;
   display: block;
   max-width: none;
   /* Shared .svg-icon owns stroke; this container only owns sizing. */
 }
-.vc-node:hover .vc-node-icon,
-.vc-node.vc-selected .vc-node-icon,
-.vc-node.vc-expanded .vc-node-icon {
+.vc-skill-node:hover .vc-skill-node-icon,
+.vc-skill-node.vc-selected .vc-skill-node-icon,
+.vc-skill-node.vc-expanded .vc-skill-node-icon {
   background: transparent;
 }
 /* =========================================================
    TITLE
    ========================================================= */
-.vc-node-title {
+.vc-skill-node-title {
   min-width: 0;
   flex: 1;
   overflow: hidden;
@@ -228,13 +228,13 @@
 /* =========================================================
    ACTIONS
    ========================================================= */
-.vc-node-actions {
+.vc-skill-node-actions {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
 }
 
-.vc-node-action {
+.vc-skill-node-action {
   appearance: none;
   -webkit-appearance: none;
   width: 1.82rem;
@@ -256,18 +256,18 @@
       cubic-bezier(.22,.8,.25,1);
 }
 
-.vc-node-action:hover {
+.vc-skill-node-action:hover {
   color: var(--text);
   background: var(--soft);
 }
 
-.vc-node-action:active {
+.vc-skill-node-action:active {
   transform: scale(.9);
 }
 
-.vc-node-action:focus-visible,
-.vc-node-run:focus-visible,
-.vc-node-delete:focus-visible {
+.vc-skill-node-action:focus-visible,
+.vc-skill-node-run:focus-visible,
+.vc-skill-node-delete:focus-visible {
   outline:
     .125rem solid
     color-mix(
@@ -278,13 +278,13 @@
   outline-offset: .1rem;
 }
 
-.vc-node-action svg {
+.vc-skill-node-action svg {
   width: 1.04rem;
   height: 1.04rem;
   display: block;
 }
 
-.vc-node-footer {
+.vc-skill-node-footer {
   width: 100%;
   min-width: 0;
   display: flex;
@@ -303,15 +303,15 @@
     transform var(--motion-medium) var(--motion-ease-emphasized);
 }
 
-.vc-node:not(.vc-start-node).vc-expanded
-.vc-node-footer {
+.vc-skill-node:not(.vc-start-skill-node).vc-expanded
+.vc-skill-node-footer {
   max-height: 2.4rem;
   margin-top: .52rem;
   opacity: 1;
   transform: translateY(0);
 }
 
-.vc-node-run {
+.vc-skill-node-run {
   appearance: none;
   -webkit-appearance: none;
   min-width: 0;
@@ -326,18 +326,18 @@
   border: 0;
   outline: 0;
   border-radius: .72rem;
-  color: var(--node-color);
+  color: var(--skill-node-color);
   background:
     color-mix(
       in srgb,
-      var(--node-color) 7%,
+      var(--skill-node-color) 7%,
       transparent
     );
   box-shadow:
     inset 0 0 0 .0625rem
     color-mix(
       in srgb,
-      var(--node-color) 12%,
+      var(--skill-node-color) 12%,
       transparent
     );
   cursor: pointer;
@@ -352,7 +352,7 @@
     transform .14s ease;
 }
 
-.vc-node-run svg {
+.vc-skill-node-run svg {
   width: 1.04rem;
   height: 1.04rem;
   flex: 0 0 1.04rem;
@@ -360,36 +360,36 @@
   color: currentColor;
   opacity: 1;
 }
-.vc-node-run span,
-.vc-node-delete span {
+.vc-skill-node-run span,
+.vc-skill-node-delete span {
   display: inline-flex;
   align-items: center;
   line-height: 1;
 }
 
-.vc-node-run:hover {
-  color: var(--node-color);
+.vc-skill-node-run:hover {
+  color: var(--skill-node-color);
   background:
     color-mix(
       in srgb,
-      var(--node-color) 10%,
+      var(--skill-node-color) 10%,
       transparent
     );
   box-shadow:
     inset 0 0 0 .0625rem
     color-mix(
       in srgb,
-      var(--node-color) 15%,
+      var(--skill-node-color) 15%,
       transparent
     );
 }
 
-.vc-node-run:active {
+.vc-skill-node-run:active {
   transform: scale(.96);
 }
 
-.vc-node-run.is-disabled,
-.vc-node-run:disabled:not(.is-cancel) {
+.vc-skill-node-run.is-disabled,
+.vc-skill-node-run:disabled:not(.is-cancel) {
   color:
     color-mix(
       in srgb,
@@ -415,18 +415,18 @@
   transform: none;
 }
 
-.vc-node-run.is-disabled svg,
-.vc-node-run:disabled:not(.is-cancel) svg {
+.vc-skill-node-run.is-disabled svg,
+.vc-skill-node-run:disabled:not(.is-cancel) svg {
   color: currentColor;
   opacity: .72;
 }
 
-.vc-node-run.is-running {
+.vc-skill-node-run.is-running {
   pointer-events: none;
   opacity: .72;
 }
 
-.vc-node-run.is-cancel {
+.vc-skill-node-run.is-cancel {
   color:
     color-mix(
       in srgb,
@@ -447,20 +447,20 @@
       transparent
     );
 }
-.vc-node-run.is-cancel svg {
+.vc-skill-node-run.is-cancel svg {
   color: currentColor;
 }
 
-.vc-node-run.is-running svg {
+.vc-skill-node-run.is-running svg {
   transform-origin: center;
   animation:
-    vc-node-run-pulse
+    vc-skill-node-run-pulse
     1.05s
     ease-in-out
     infinite;
 }
 
-@keyframes vc-node-run-pulse {
+@keyframes vc-skill-node-run-pulse {
   0%,
   100% {
     opacity: .52;
@@ -477,7 +477,7 @@
 /* =========================================================
    TOGGLE
    ========================================================= */
-.vc-node-toggle {
+.vc-skill-node-toggle {
   width: 1.9rem;
   height: 1.9rem;
   margin-right: -.22rem;
@@ -489,27 +489,27 @@
     );
   background: transparent;
 }
-.vc-node.vc-expanded .vc-node-toggle {
+.vc-skill-node.vc-expanded .vc-skill-node-toggle {
   color: var(--text);
   background: var(--soft);
 }
-.vc-node-toggle svg {
+.vc-skill-node-toggle svg {
   width: 1.18rem;
   height: 1.18rem;
   transition:
     transform .32s cubic-bezier(.22,.8,.25,1);
 }
-.vc-node-toggle path {
+.vc-skill-node-toggle path {
   stroke-width: 1.68;
 }
-.vc-node.vc-expanded .vc-node-toggle svg {
+.vc-skill-node.vc-expanded .vc-skill-node-toggle svg {
   transform:
     rotate(180deg);
 }
 /* =========================================================
    BODY
    ========================================================= */
-.vc-node-body {
+.vc-skill-node-body {
   height: 0;
   overflow: hidden;
   opacity: 0;
@@ -519,7 +519,7 @@
     opacity var(--motion-medium) ease,
     transform var(--motion-medium) var(--motion-ease-emphasized);
 }
-.vc-node.vc-expanded .vc-node-body {
+.vc-skill-node.vc-expanded .vc-skill-node-body {
   opacity: 1;
   transform: translateY(0);
   margin-top: .18rem;
@@ -560,7 +560,7 @@
 
 .vc-runtime-running
 .vc-runtime-dot {
-  color: var(--node-color);
+  color: var(--skill-node-color);
   animation:
     vc-runtime-pulse
     1s
@@ -596,7 +596,7 @@
   white-space: nowrap;
 }
 
-.vc-node.vc-runtime-failed {
+.vc-skill-node.vc-runtime-failed {
   border-color:
     color-mix(
       in srgb,
@@ -645,7 +645,7 @@
     .3125rem
     .25rem
     .5625rem;
-  border: .09375rem solid color-mix(in srgb, var(--line) 90%, var(--node-state-color) 10%);
+  border: .09375rem solid color-mix(in srgb, var(--line) 90%, var(--skill-node-state-color) 10%);
   
   border-radius:
     .6875rem;
@@ -664,7 +664,7 @@
   background:
     color-mix(
       in srgb,
-      var(--node-soft) 50%,
+      var(--skill-node-soft) 50%,
       transparent
     );
 }
@@ -686,7 +686,7 @@
   border-color:
     color-mix(
       in srgb,
-      var(--node-color) 34%,
+      var(--skill-node-color) 34%,
       var(--line-strong)
     );
   background:
@@ -699,7 +699,7 @@
     inset 0 0 0 .0625rem
     color-mix(
       in srgb,
-      var(--node-color) 8%,
+      var(--skill-node-color) 8%,
       transparent
     );
 }
@@ -707,7 +707,7 @@
   background:
     color-mix(
       in srgb,
-      var(--node-soft) 97%,
+      var(--skill-node-soft) 97%,
       transparent
     );
 }
@@ -779,17 +779,17 @@
   opacity: .82;
 }
 /* =========================================================
-   START NODE
+   START SKILL_NODE
    ========================================================= */
-.vc-start-node {
-  --node-color:
+.vc-start-skill-node {
+  --skill-node-color:
     color-mix(
       in srgb,
       var(--text) 82%,
       #6b6b6b
     );
 }
-.vc-start-node .vc-node-icon {
+.vc-start-skill-node .vc-skill-node-icon {
   background: transparent;
 }
 .vc-start-badge {
@@ -799,11 +799,11 @@
     .375rem;
   border-radius: 62.4375rem;
   color:
-    var(--node-color);
+    var(--skill-node-color);
   background:
     color-mix(
       in srgb,
-      var(--node-color) 10%,
+      var(--skill-node-color) 10%,
       transparent
     );
   border: 0;
@@ -813,14 +813,14 @@
   letter-spacing: .03em;
 }
 /* =========================================================
-   FILE NODE
+   FILE SKILL_NODE
    ========================================================= */
-.vc-file-node .vc-node-head {
+.vc-file-skillNode .vc-skill-node-head {
   min-height: 1.9rem;
   gap: .28rem;
 }
 
-.vc-file-node .vc-node-icon {
+.vc-file-skillNode .vc-skill-node-icon {
   background: transparent;
 }
 
@@ -854,8 +854,8 @@
   overflow: hidden;
   border: 0;
   border-radius: 999px;
-  color: color-mix(in srgb, var(--node-color) 72%, var(--sub));
-  background: color-mix(in srgb, var(--node-color) 9%, transparent);
+  color: color-mix(in srgb, var(--skill-node-color) 72%, var(--sub));
+  background: color-mix(in srgb, var(--skill-node-color) 9%, transparent);
   font-size: .47rem;
   font-weight: 780;
   line-height: 1;
@@ -990,23 +990,23 @@
   background: var(--surface-hover);
 }
 
-.vc-file-node[data-generated="true"]
-.vc-node-icon {
-  color: var(--node-color);
+.vc-file-skillNode[data-generated="true"]
+.vc-skill-node-icon {
+  color: var(--skill-node-color);
 }
 
-.vc-file-node .vc-slot-description {
+.vc-file-skillNode .vc-slot-description {
   display: none;
 }
 
 /* =========================================================
    DELETE
    ========================================================= */
-.vc-node-delete-row {
+.vc-skill-node-delete-row {
   margin-top: .7rem;
   padding-top: 0;
 }
-.vc-node-delete {
+.vc-skill-node-delete {
   display: inline-flex;
   flex: 1 1 0;
   min-width: 0;
@@ -1042,7 +1042,7 @@
     background .16s ease,
     transform .14s ease;
 }
-.vc-node-delete:hover {
+.vc-skill-node-delete:hover {
   color: var(--text);
   background:
     color-mix(
@@ -1051,7 +1051,7 @@
       transparent
     );
 }
-.vc-node-delete svg {
+.vc-skill-node-delete svg {
   width: 1.04rem;
   height: 1.04rem;
   display: block;
@@ -1104,10 +1104,10 @@
     color-mix(
       in srgb,
       var(--text) var(--port-contrast, 18%),
-      var(--node)
+      var(--skill-node)
     );
   border-radius: 50%;
-  background: var(--node);
+  background: var(--skill-node);
   opacity: 1;
   box-shadow: none;
   transition:
@@ -1116,14 +1116,14 @@
     background .24s ease,
     box-shadow .3s ease;
 }
-.vc-node.vc-selected .vc-port-pill,
-.vc-node.vc-expanded .vc-port-pill {
+.vc-skill-node.vc-selected .vc-port-pill,
+.vc-skill-node.vc-expanded .vc-port-pill {
   transform: scale(1.025);
   border-color:
     color-mix(
       in srgb,
       var(--text) 24%,
-      var(--node)
+      var(--skill-node)
     );
 }
 .vc-port-hit:hover .vc-port-pill {
@@ -1132,13 +1132,13 @@
     color-mix(
       in srgb,
       var(--text) 38%,
-      var(--node)
+      var(--skill-node)
     );
   background:
     color-mix(
       in srgb,
       var(--text) 4%,
-      var(--node)
+      var(--skill-node)
     );
   box-shadow:
     0 0 0 .12rem
@@ -1155,20 +1155,20 @@
   border-color:
     color-mix(
       in srgb,
-      var(--node-color) 24%,
+      var(--skill-node-color) 24%,
       var(--line-strong)
     );
   background:
     color-mix(
       in srgb,
-      var(--node-color) 5%,
-      var(--node)
+      var(--skill-node-color) 5%,
+      var(--skill-node)
     );
   box-shadow:
     0 0 0 .15rem
     color-mix(
       in srgb,
-      var(--node-color) 4%,
+      var(--skill-node-color) 4%,
       transparent
     );
 }
@@ -1179,20 +1179,20 @@
   border-color:
     color-mix(
       in srgb,
-      var(--node-color) 28%,
+      var(--skill-node-color) 28%,
       var(--line-strong)
     );
   background:
     color-mix(
       in srgb,
-      var(--node-color) 6%,
-      var(--node)
+      var(--skill-node-color) 6%,
+      var(--skill-node)
     );
   box-shadow:
     0 0 0 .14rem
     color-mix(
       in srgb,
-      var(--node-color) 5%,
+      var(--skill-node-color) 5%,
       transparent
     );
 }
@@ -1222,10 +1222,10 @@
   left:
     calc(100% - .5rem);
 }
-.vc-node.vc-selected .vc-port-label {
+.vc-skill-node.vc-selected .vc-port-label {
   opacity: .75;
 }
-.vc-start-node .vc-port-hit.vc-input {
+.vc-start-skill-node .vc-port-hit.vc-input {
   display: none;
 }
 /* =========================================================
@@ -1321,35 +1321,35 @@
    ========================================================= */
 :root.dark .vc-port-pill {
   --port-contrast: 22%;
-  background: var(--node);
+  background: var(--skill-node);
 }
-:root.dark .vc-node-icon {
+:root.dark .vc-skill-node-icon {
   background: transparent;
 }
 /* =========================================================
    MOBILE
    ========================================================= */
 @media (max-width: 37.5rem) {
-  :is(#canvas-nodes,[data-ovll-canvas-nodes]) {
-    --node-width: 11.125rem;
+  :is(#canvas-skill-nodes,[data-ovll-canvas-skill-nodes]) {
+    --skill-node-width: 11.125rem;
   }
-  .vc-node {
-    width: var(--node-width);
+  .vc-skill-node {
+    width: var(--skill-node-width);
     min-height: 3rem;
     padding:
       .56rem
       .76rem;
-    border-radius: var(--node-radius);
+    border-radius: var(--skill-node-radius);
   }
-  .vc-node-title {
+  .vc-skill-node-title {
     font-size: .82rem;
   }
-  .vc-node-icon {
+  .vc-skill-node-icon {
     width: 1.704rem;
     height: 1.82rem;
     flex-basis: 1.704rem;
   }
-  .vc-node-icon svg {
+  .vc-skill-node-icon svg {
     width: 1.455rem;
     height: 1.455rem;
   }
@@ -1362,7 +1362,7 @@
       .1875rem
       .3125rem;
   }
-  .vc-image-file-node {
+  .vc-image-file-skillNode {
     width: 13.90625rem;
     height: 13.90625rem !important;
   }
@@ -1380,14 +1380,14 @@
   cursor: grabbing;
 }
 
-.vc-node.vc-entering {
+.vc-skill-node.vc-entering {
   opacity: 0;
   transform:
     translateY(.28rem)
     scale(.965);
 }
 
-.vc-node.vc-entering.vc-entered {
+.vc-skill-node.vc-entering.vc-entered {
   opacity: 1;
   transform:
     translateY(0)
@@ -1401,27 +1401,27 @@
     background .18s ease;
 }
 
-.vc-node.vc-entering.vc-selected,
-.vc-node.vc-entering.vc-selected.vc-expanded {
+.vc-skill-node.vc-entering.vc-selected,
+.vc-skill-node.vc-entering.vc-selected.vc-expanded {
   transform:
     translateY(.28rem)
     scale(.965);
 }
 
-.vc-node.vc-entering.vc-entered.vc-selected,
-.vc-node.vc-entering.vc-entered.vc-selected.vc-expanded {
+.vc-skill-node.vc-entering.vc-entered.vc-selected,
+.vc-skill-node.vc-entering.vc-entered.vc-selected.vc-expanded {
   transform:
     translateY(-.05rem)
     scale(1);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .vc-node.vc-entering,
-  .vc-node.vc-entering.vc-entered,
-  .vc-node.vc-entering.vc-selected,
-  .vc-node.vc-entering.vc-selected.vc-expanded,
-  .vc-node.vc-entering.vc-entered.vc-selected,
-  .vc-node.vc-entering.vc-entered.vc-selected.vc-expanded {
+  .vc-skill-node.vc-entering,
+  .vc-skill-node.vc-entering.vc-entered,
+  .vc-skill-node.vc-entering.vc-selected,
+  .vc-skill-node.vc-entering.vc-selected.vc-expanded,
+  .vc-skill-node.vc-entering.vc-entered.vc-selected,
+  .vc-skill-node.vc-entering.vc-entered.vc-selected.vc-expanded {
     opacity: 1;
     transform: none;
     transition: none;
@@ -1430,7 +1430,7 @@
 
 
 /* =========================================================
-   Natural request node body
+   Natural request skillNode body
    ========================================================= */
 
 .vc-request-group {
@@ -1510,20 +1510,20 @@
     right: -1.25rem;
   }
 
-  .vc-node-action {
+  .vc-skill-node-action {
     width: 2.5rem;
     height: 2.5rem;
   }
 
-  .vc-node-run,
-  .vc-node-delete {
+  .vc-skill-node-run,
+  .vc-skill-node-delete {
     min-height: 2.5rem;
     padding-inline: .55rem;
   }
 }
 
-.vc-node-run > span,
-.vc-node-delete > span {
+.vc-skill-node-run > span,
+.vc-skill-node-delete > span {
   display: inline-block;
   line-height: 1.1;
   transform: translateY(.01rem);

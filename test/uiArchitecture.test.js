@@ -319,24 +319,24 @@ test("library page owns Escape and focus lifecycle", () => {
 
 test("microcopy uses a shared readable token", () => {
   const globalCss = read("front/css/style.css");
-  const nodeCss = compact(read("front/css/skill.css"));
+  const skillNodeCss = compact(read("front/css/skill.css"));
   const libraryCss = compact(read("front/css/library.css"));
 
   assert.match(globalCss, /--font-micro:\s*\.625rem/);
-  assert.match(nodeCss, /\.vc-start-badge\s*\{[^}]*font-size:\s*var\(--font-micro\)/);
+  assert.match(skillNodeCss, /\.vc-start-badge\s*\{[^}]*font-size:\s*var\(--font-micro\)/);
   assert.match(libraryCss, /\.ovll-library-artifact-card \.astra-artifact-meta\s*\{[^}]*font-size:\s*var\(--font-micro\)/);
 });test("coarse pointers get usable action targets", () => {
-  const nodeCss = compact(read("front/css/skill.css"));
+  const skillNodeCss = compact(read("front/css/skill.css"));
   const libraryCss = compact(read("front/css/library.css"));
   const chatCss = compact(read("front/css/chat.css"));
   const uiCss = compact(read("front/css/ui.css"));
 
   assert.match(
-    nodeCss,
-    /@media\s*\(hover:\s*none\)\s*and\s*\(pointer:\s*coarse\)[^{]*\{[\s\S]*?\.vc-node-action\s*\{[^}]*width:\s*2\.5rem[^}]*height:\s*2\.5rem/
+    skillNodeCss,
+    /@media\s*\(hover:\s*none\)\s*and\s*\(pointer:\s*coarse\)[^{]*\{[\s\S]*?\.vc-skill-node-action\s*\{[^}]*width:\s*2\.5rem[^}]*height:\s*2\.5rem/
   );
   assert.match(
-    nodeCss,
+    skillNodeCss,
     /@media\s*\(hover:\s*none\)\s*and\s*\(pointer:\s*coarse\)[^{]*\{[\s\S]*?\.vc-port-hit\s*\{[^}]*width:\s*2\.5rem[^}]*min-height:\s*2\.5rem/
   );
   assert.match(
@@ -536,10 +536,10 @@ test("PDF preview loads eagerly with a normalized PDF MIME", () => {
 
 test("Pointer canvas execution persists a run and shows its result in chat",()=>{
   const app=read("front/js/app.js"),local=read("front/js/ovllPointerLocal.js");
-  assert.match(app,/async function runPointerCanvasNode/);
+  assert.match(app,/async function runPointerCanvasSkillNode/);
   assert.match(app,/addAssistantMessage\(delivery\.text,\{artifacts:delivery\.artifacts\}\)/);
-  assert.match(app,/runLocalNodes\(\{targets:\[persistedNodeId\],damMode:mode,operation/);
-  assert.match(local,/workspaceStore\.updateConversationPointerRuns/);
+  assert.match(app,/runLocalSkillNodes\(\{targets:\[persistedSkillNodeId\],damMode:mode,operation/);
+  assert.match(local,/workspaceStore\.updateConversationSkillRuns/);
   assert.doesNotMatch(app,/addUserMessage\(\s*runUserText\s*\)/);
 });
 
@@ -901,7 +901,7 @@ test("PDF client timeout remains above the server worker ceiling", () => {
   );
 });
 
-test("node definitions survive temporary server unavailability", () => {
+test("skillNode skillDefinitions survive temporary server unavailability", () => {
   const api =
     read(
       "front/js/api.js"
@@ -909,7 +909,7 @@ test("node definitions survive temporary server unavailability", () => {
 
   assert.match(
     api,
-    /ovll:node-definitions/
+    /ovll:skill-definitions/
   );
   assert.match(
     api,
@@ -1106,7 +1106,7 @@ test("planner keeps document length requirements on the upstream writer", () => 
   assert.match(core,/negations, quantities, audience, format/);
   assert.match(run,/Perform the declared intellectual task/);
   assert.match(connect,/Connect the actual existing source output by data link to builtin:createFile input/);
-  assert.match(connect,/Never fabricate a replacement upstream node/);
+  assert.match(connect,/Never fabricate a replacement upstream skillNode/);
 });
 
 test("PDFKit fallback keeps flowing text cheap and table rows anchored", () => {
@@ -1346,7 +1346,7 @@ test("runtime UI never renders raw successful model reports", () => {
 
   assert.doesNotMatch(
     app,
-    /completeRuntimeStep\(\s*event\.nodeId,\s*\{\s*detail:\s*event\.report/s
+    /completeRuntimeStep\(\s*event\.skillNodeId,\s*\{\s*detail:\s*event\.report/s
   );
   assert.match(
     canvas,
@@ -1410,7 +1410,7 @@ test("ordinary conversation uses Pointer messaging and preserves conversation me
   assert.match(app,/addAssistantMessage\(reply,\{artifacts:delivery\.artifacts\}\)/);
   assert.match(api,/local\/turn/);
   assert.match(store,/workflowUserRequest:/);
-  assert.match(store,/SCHEMA_VERSION\s*=\s*STORAGE_BRIDGE\?\.schemaVersion\|\|9/);
+  assert.match(store,/SCHEMA_VERSION\s*=\s*STORAGE_BRIDGE\?\.schemaVersion\|\|11/);
   assert.match(store,/STORAGE_BRIDGE\.write\(localStorage,state,/);
 });
 
@@ -1494,7 +1494,7 @@ test("Pointer execution uses the deterministic target and dam-mode plan",()=>{
   const plan=read("front/js/ovllPointerPlanCore.mjs");
   assert.match(local,/buildExecutionPlan\(snapshot,/);
   assert.match(local,/targets:targetIds,damMode/);
-  assert.match(app,/runLocalNodes\(\{targets,damMode:/);
+  assert.match(app,/runLocalSkillNodes\(\{targets,damMode:/);
   assert.match(plan,/buildExecutionPlan/);
 });
 
@@ -1539,7 +1539,7 @@ test("Pointer can apply a patch and execute a target in one proposal",()=>{
   const entry=read("instructions/prompts/layers/corridor.md");
   assert.match(app,/onActionStart:action=>\{if\(owns\(\)\)pointerActionStarted\(action\)/);
   assert.match(app,/['"]run\.start['"]:async/);
-  assert.match(app,/runLocalNodes\(\{targets/);
+  assert.match(app,/runLocalSkillNodes\(\{targets/);
   assert.match(entry,/Combine communication, IR construction, execution and functionization/);
 });
 test("Pointer execution scope follows targets and dam mode",()=>{
@@ -1548,14 +1548,14 @@ test("Pointer execution scope follows targets and dam mode",()=>{
   assert.match(local,/damMode='closed'/);
   assert.match(local,/targets:targetIds,damMode/);
 });
-test("Pointer node tasks receive the actual request and constraints",()=>{
+test("Pointer skillNode tasks receive the actual request and constraints",()=>{
   const local=read("front/js/ovllPointerLocal.js");
   const host=read("backend/ovllPointer/localHost.js");
   assert.match(local,/requestText:objective,taskConstraints,taskContext,signal/);
   assert.match(host,/context\.constraints=\[\.\.\.new Set\(\[\.\.\.context\.constraints,\.\.\.taskConstraints\]\)/);
   assert.match(host,/modules:\['run\.perform'\]/);
 });
-test("custom nodes use the canvas plugin pipeline and node picker catalog", () => {
+test("custom skillNodes use the canvas plugin pipeline and skillNode picker catalog", () => {
   const canvas = read("front/js/canvasSkill.js");
   const custom = read("front/js/customSkills.js");
   const app = read("front/js/app.js");
@@ -1580,19 +1580,19 @@ test("custom nodes use the canvas plugin pipeline and node picker catalog", () =
   );
   assert.doesNotMatch(
     app,
-    /CustomNodes\.expandWorkflow/
+    /CustomSkillNodes\.expandWorkflow/
   );
   assert.match(
     builder,
-    /canvas-node-builder-group/
+    /canvas-skillNode-builder-group/
   );
   assert.match(
     app,
-    /\.mountNodeBuilder\(/
+    /\.mountSkillNodeBuilder\(/
   );
   assert.match(
     css,
-    /\.canvas-node-builder-options\s*\{[^}]*display:\s*grid/
+    /\.canvas-skillNode-builder-options\s*\{[^}]*display:\s*grid/
   );
 });
 
@@ -1623,7 +1623,7 @@ test("runtime activity uses ovll naming and keeps a definite chat width", () => 
 });
 
 
-test("node ports are softly interactive and visually tucked behind the node shell", () => {
+test("skillNode ports are softly interactive and visually tucked behind the skillNode shell", () => {
   const css =
     compact(
       read("front/css/skill.css")
@@ -1631,15 +1631,15 @@ test("node ports are softly interactive and visually tucked behind the node shel
 
   assert.match(
     css,
-    /\.vc-node\s*\{[^}]*isolation:\s*isolate/
+    /\.vc-skill-node\s*\{[^}]*isolation:\s*isolate/
   );
   assert.match(
     css,
-    /\.vc-node::before\s*\{[^}]*z-index:\s*1[^}]*border-color:\s*inherit[^}]*background:\s*var\(--node\)[^}]*pointer-events:\s*none/
+    /\.vc-skill-node::before\s*\{[^}]*z-index:\s*1[^}]*border-color:\s*inherit[^}]*background:\s*var\(--skill-node\)[^}]*pointer-events:\s*none/
   );
   assert.match(
     css,
-    /\.vc-node-head\s*,\s*\.vc-node-body\s*,\s*\.vc-node-footer\s*\{[^}]*z-index:\s*2/
+    /\.vc-skill-node-head\s*,\s*\.vc-skill-node-body\s*,\s*\.vc-skill-node-footer\s*\{[^}]*z-index:\s*2/
   );
   assert.match(
     css,
@@ -1663,7 +1663,7 @@ test("node ports are softly interactive and visually tucked behind the node shel
   );
 });
 
-test("node connection handles stay hollow while title controls gain hierarchy", () => {
+test("skillNode connection handles stay hollow while title controls gain hierarchy", () => {
   const css =
     compact(
       read("front/css/skill.css")
@@ -1671,7 +1671,7 @@ test("node connection handles stay hollow while title controls gain hierarchy", 
 
   assert.match(
     css,
-    /\.vc-port-pill\s*\{[^}]*box-sizing:\s*border-box[^}]*border:[^}]*\.0625rem solid[^}]*background:\s*var\(--node\)/
+    /\.vc-port-pill\s*\{[^}]*box-sizing:\s*border-box[^}]*border:[^}]*\.0625rem solid[^}]*background:\s*var\(--skill-node\)/
   );
   assert.doesNotMatch(
     css,
@@ -1679,21 +1679,21 @@ test("node connection handles stay hollow while title controls gain hierarchy", 
   );
   assert.match(
     css,
-    /\.vc-node-icon\s*\{[^}]*width:\s*1\.75rem[^}]*flex:\s*0 0 1\.75rem/
+    /\.vc-skill-node-icon\s*\{[^}]*width:\s*1\.75rem[^}]*flex:\s*0 0 1\.75rem/
   );
   assert.match(
     css,
-    /\.vc-node-icon svg\s*\{[^}]*width:\s*1\.455rem[^}]*height:\s*1\.455rem/
+    /\.vc-skill-node-icon svg\s*\{[^}]*width:\s*1\.455rem[^}]*height:\s*1\.455rem/
   );
   assert.doesNotMatch(
     css,
-    /\.vc-node-icon svg\s*\{[^}]*stroke-width:/
+    /\.vc-skill-node-icon svg\s*\{[^}]*stroke-width:/
   );
   const icons = compact(read("front/css/style.css"));
   assert.match(icons, /svg\.svg-icon\s*\{[^}]*--svg-icon-stroke-width:\s*1\.9/);
   assert.match(
     css,
-    /\.vc-node-title\s*\{[^}]*font-weight:\s*630/
+    /\.vc-skill-node-title\s*\{[^}]*font-weight:\s*630/
   );
   assert.match(
     css,
@@ -1701,11 +1701,11 @@ test("node connection handles stay hollow while title controls gain hierarchy", 
   );
   assert.match(
     css,
-    /\.vc-node-toggle\s*\{[^}]*width:\s*1\.9rem[^}]*height:\s*1\.9rem[^}]*margin-right:\s*-\.22rem/
+    /\.vc-skill-node-toggle\s*\{[^}]*width:\s*1\.9rem[^}]*height:\s*1\.9rem[^}]*margin-right:\s*-\.22rem/
   );
   assert.match(
     css,
-    /\.vc-node-toggle svg\s*\{[^}]*width:\s*1\.18rem[^}]*height:\s*1\.18rem/
+    /\.vc-skill-node-toggle svg\s*\{[^}]*width:\s*1\.18rem[^}]*height:\s*1\.18rem/
   );
   assert.match(
     css,
@@ -1713,13 +1713,13 @@ test("node connection handles stay hollow while title controls gain hierarchy", 
   );
 });
 
-test("expanded node body remeasures natural height after parameter edits", () => {
+test("expanded skillNode body remeasures natural height after parameter edits", () => {
   const canvas =
     read("front/js/canvasSkill.js");
 
   const start =
     canvas.indexOf(
-      "listen(\n  nodesLayer,\n  'input'"
+      "listen(\n  skillNodesLayer,\n  'input'"
     );
   const end =
     canvas.indexOf(
@@ -1747,7 +1747,7 @@ test("expanded node body remeasures natural height after parameter edits", () =>
   );
   assert.ok(
     reset >= 0,
-    "parameter edits must clear the old explicit node body height"
+    "parameter edits must clear the old explicit skillNode body height"
   );
   assert.ok(
     measure > reset,

@@ -22,7 +22,7 @@
   const PreviewSandbox = global.OvllPreviewSandbox;
   const PreviewEngine = global.OvllPreviewEngine;
   const SvgLibrary = global.OvllSvgLibrary;
-  const mountCanvasNode = global.mountCanvasNode;
+  const mountCanvasSkillNode = global.mountCanvasSkillNode;
   const createWorkspace =
     global.createOvllWorkspace;
 
@@ -60,7 +60,7 @@
     !PreviewSandbox ||
     !PreviewEngine ||
     !SvgLibrary ||
-    typeof mountCanvasNode !== "function" ||
+    typeof mountCanvasSkillNode !== "function" ||
     typeof createWorkspace !== "function" ||
     !workspaceShell
   ) {
@@ -93,14 +93,14 @@
     canvas: null,
     workflow: null,
     workflowProposal: null,
-    nodeDefinitions: null,
+    skillDefinitions: null,
     conversationMemory: null,
     runtime: null,
     runtimeProjection: null,
     runtimeConnections: new Set(),
     runtimeActivity: null,
     pointerWatch: null,
-    pointerRuns: new Set(),
+    skillRuns: new Set(),
     pointerRequestRef: null,
     pointerGraphRevision: -1,
     pointerRunRefs: new Set(),
@@ -128,36 +128,36 @@
     workspaceSaveTimer: null,
     composerDraftTimer: null,
     workspaceController: null,
-    nodeBuilder: null,
+    skillNodeBuilder: null,
     messageCount: 0
   };
 
   const composerEditor=global.OvllComposer?.mount({
     form:composerForm,input:composerInput,attach:composerAttach,submit:composerSubmit,
-    // Use the live canvas plugin registry, exactly as the canvas node builder does.
-    getDefinitions:()=>state.canvas?.getNodeDefinitions?.()||state.nodeDefinitions||{},
-    allowNodeType:type=>!pointerScope()||
+    // Use the live canvas plugin registry, exactly as the canvas skillNode builder does.
+    getDefinitions:()=>state.canvas?.getSkillDefinitions?.()||state.skillDefinitions||{},
+    allowSkillNodeType:type=>!pointerScope()||
       PointerGraphPatch.supportedTypes(state.pointerGraphSnapshot).has(type),
-    getCanvasNodes:()=>state.canvas?.getWorkflow?.()?.nodes||[],
-    getSkillSnapshot:()=>state.pointerGraphSnapshot,
+    getCanvasSkillNodes:()=>state.canvas?.getWorkflow?.()?.skillNodes||[],
+    getSnapshot:()=>state.pointerGraphSnapshot,
     getFunctions:()=>global.OvllPointerFunctions?.list?.()||[]
   });
 
   const localOperations=PointerActivity.createOperations({
     getConversationId:currentConversationId,isDestroyed:()=>state.destroyed
   });
-  const presenceNodeLabel=nodeId=>{
-    const type=state.canvas?.getNode?.(nodeId)?.type;
-    return state.canvas?.getNodeDefinitions?.()?.[type]?.name||
-      state.nodeDefinitions?.[type]?.name||'노드';
+  const presenceSkillNodeLabel=skillNodeId=>{
+    const type=state.canvas?.getSkillNode?.(skillNodeId)?.type;
+    return state.canvas?.getSkillDefinitions?.()?.[type]?.name||
+      state.skillDefinitions?.[type]?.name||'노드';
   };
   const runPresence=PointerActivity.createRunPresence({presence:Presence,
-    getNodeLabel:presenceNodeLabel,
+    getSkillNodeLabel:presenceSkillNodeLabel,
     isActive:()=>!!localOperations.getCurrent()&&localOperations.isCurrent(localOperations.getCurrent())});
   const serverPresence=PointerActivity.createRunPresence({presence:Presence,
-    getNodeLabel:presenceNodeLabel,
+    getSkillNodeLabel:presenceSkillNodeLabel,
     isActive:()=>!state.destroyed&&pointerScope()?.storageMode==='postgres'});
-  const serverLiveNodes=new Map();
+  const serverLiveSkillNodes=new Map();
   const listeners = [];
 
   let conversationSwitchQueue =
@@ -396,7 +396,7 @@
           state.canvas
             ?.getWorkflow?.() ||
           {
-            nodes: [],
+            skillNodes: [],
             connections: []
           }
       };
@@ -595,7 +595,7 @@
       invalidActionFields: "행동 필드 형식 오류",
       unsupportedSemanticAction: "지원하지 않는 행동",
       invalidSelector: "노드 또는 정의 참조 오류",
-      unknownNodeAlias: "생성 노드 참조를 찾지 못함",
+      unknownSkillNodeAlias: "생성 노드 참조를 찾지 못함",
       unknownDefinitionAlias: "생성 정의 참조를 찾지 못함",
       unknownDefinition: "정의 참조를 찾지 못함",
       invalidEndpoint: "연결 포트 형식 오류",
@@ -754,9 +754,9 @@
     }
 
     const detail =
-      code === 'UNSUPPORTED_UI_NODE_TYPE'
+      code === 'UNSUPPORTED_UI_SKILL_NODE_TYPE'
         ? '현재 그래프에서 지원하지 않는 노드 종류야. 저장되지 않은 노드는 자동 실행하지 않아.'
-        : code === 'UNKNOWN_TARGET' || code === 'NODE_NOT_SAVED'
+        : code === 'UNKNOWN_TARGET' || code === 'SKILL_NODE_NOT_SAVED'
           ? '실행할 노드가 현재 저장된 그래프에 없어. 먼저 노드 구성이 저장됐는지 확인해 줘.'
         : code === 'CANVAS_RESTORING'
           ? '캔버스를 불러오는 중이야. 화면 반영이 끝난 다음 실행해 줘.'
@@ -766,7 +766,7 @@
           ? '현재 작업에서 성공한 결과를 실행한 뒤 함수로 저장해 주세요.'
         : code === 'FUNCTION_TARGET_SELECTION_REQUIRED'
           ? '저장할 결과가 여러 개입니다. 함수에 포함할 결과를 지정해 주세요.'
-        : code === 'PROMPT_CONTEXT_TOO_LARGE' || code === 'INVALID_LOCAL_NODE_INPUT'
+        : code === 'PROMPT_CONTEXT_TOO_LARGE' || code === 'INVALID_LOCAL_SKILL_NODE_INPUT'
           ? '이번 작업의 입력 범위가 한도를 넘었습니다. 자료를 나누거나 필요한 범위를 지정해 주세요.'
         : code ===
         "LOCAL_MODEL_DAILY_BUDGET"
@@ -2354,28 +2354,28 @@
           )
         : canvasState;
 
-    const nodes =
-      next?.workflow?.nodes ||
-      next?.nodes;
+    const skillNodes =
+      next?.workflow?.skillNodes ||
+      next?.skillNodes;
 
-    if (!Array.isArray(nodes)) {
+    if (!Array.isArray(skillNodes)) {
       return next;
     }
 
     await Promise.all(
-      nodes.map(
-        async node => {
+      skillNodes.map(
+        async skillNode => {
           if (
-            node?.type !==
+            skillNode?.type !==
               "file" ||
-            !node.data
+            !skillNode.data
           ) {
             return;
           }
 
           let localFileId =
             String(
-              node.data
+              skillNode.data
                 .localFileId ||
               ""
             );
@@ -2383,12 +2383,12 @@
           try {
             if (
               !localFileId &&
-              node.data.artifactId
+              skillNode.data.artifactId
             ) {
               const matched =
                 await FileStore
                   .findByOriginId?.(
-                    node.data
+                    skillNode.data
                       .artifactId
                   );
 
@@ -2401,7 +2401,7 @@
                 );
 
               if (localFileId) {
-                node.data.localFileId =
+                skillNode.data.localFileId =
                   localFileId;
               }
             }
@@ -2419,35 +2419,35 @@
               return;
             }
 
-            node.data.downloadUrl =
+            skillNode.data.downloadUrl =
               local.downloadUrl;
-            node.data.previewUrl =
+            skillNode.data.previewUrl =
               local.previewUrl;
 
             if (
               local.imagePreview
             ) {
-              node.data.imagePreview =
+              skillNode.data.imagePreview =
                 local.imagePreview;
             }
 
             if (
-              !node.data.textPreview &&
+              !skillNode.data.textPreview &&
               local.previewText
             ) {
-              node.data.textPreview =
+              skillNode.data.textPreview =
                 local.previewText;
             }
 
-            node.data.name =
-              node.data.name ||
+            skillNode.data.name =
+              skillNode.data.name ||
               local.name;
-            node.data.mime =
-              node.data.mime ||
+            skillNode.data.mime =
+              skillNode.data.mime ||
               local.mime;
-            node.data.size =
+            skillNode.data.size =
               Number(
-                node.data.size ||
+                skillNode.data.size ||
                 local.size ||
                 0
               );
@@ -3428,7 +3428,7 @@
 
     try {
       const result =
-        await runCanvasNode(
+        await runCanvasSkillNode(
           execution.pivot,
           "target",
           {
@@ -4047,16 +4047,16 @@
 
   function runtimeStepPresentation(id, options = {}) {
     const key=String(id||"");
-    const nodeId=key.startsWith("node:")?key.slice(5):key;
-    const node=state.canvas?.getNode?.(nodeId);
-    const isNode=key.startsWith("node:")||!!node;
-    const type=String(node?.type||options.nodeType||"");
-    const definition=state.canvas?.getNodeDefinitions?.()?.[type]||
-      state.nodeDefinitions?.[type];
-    const iconKey=isNode?String(definition?.iconKey||options.iconKey||"custom"):"";
-    const icon=isNode?(SvgLibrary.get(iconKey)||""):"";
-    const color=isNode?String(definition?.color||options.color||""):"";
-    return {type:type||String(options.nodeType||"node"),
+    const skillNodeId=key.startsWith("skillNode:")?key.slice("skillNode:".length):key;
+    const skillNode=state.canvas?.getSkillNode?.(skillNodeId);
+    const isSkillNode=key.startsWith("skillNode:")||!!skillNode;
+    const type=String(skillNode?.type||options.nodeType||"");
+    const definition=state.canvas?.getSkillDefinitions?.()?.[type]||
+      state.skillDefinitions?.[type];
+    const iconKey=isSkillNode?String(definition?.iconKey||options.iconKey||"custom"):"";
+    const icon=isSkillNode?(SvgLibrary.get(iconKey)||""):"";
+    const color=isSkillNode?String(definition?.color||options.color||""):"";
+    return {type:type||String(options.nodeType||"skillNode"),
       iconKey:icon?iconKey:"",icon,
       color:/^#[0-9a-f]{6}$/i.test(color)?color:""};
   }
@@ -4094,7 +4094,7 @@
             iconKey:
               String(step.dataset?.iconKey||""),
             color:
-              String(step.dataset?.nodeColor||""),
+              String(step.dataset?.skillNodeColor||""),
             label:
               String(
                 step.querySelector(
@@ -4217,10 +4217,10 @@
         String(item.id || "");
       step.dataset.nodeType =
         String(
-          item.nodeType || "node"
+          item.nodeType || "skillNode"
         );
       step.dataset.iconKey=String(item.iconKey||"");
-      step.dataset.nodeColor=String(item.color||"");
+      step.dataset.skillNodeColor=String(item.color||"");
       step.dataset.status =
         String(
           item.status || "done"
@@ -4249,7 +4249,7 @@
         presentation.color
       ) {
         step.style.setProperty(
-          "--runtime-node-color",
+          "--runtime-skillNode-color",
           presentation.color
         );
       }
@@ -4510,7 +4510,7 @@
         presentation.type;
       step.dataset.iconKey =
         presentation.iconKey;
-      step.dataset.nodeColor =
+      step.dataset.skillNodeColor =
         presentation.color;
 
       const icon =
@@ -4530,7 +4530,7 @@
         presentation.color
       ) {
         step.style.setProperty(
-          "--runtime-node-color",
+          "--runtime-skillNode-color",
           presentation.color
         );
       }
@@ -4818,10 +4818,10 @@
   function runtimeActivityText(
     event
   ) {
-    const node =
-      state.canvas?.getNode?.(
+    const skillNode =
+      state.canvas?.getSkillNode?.(
         String(
-          event?.nodeId ||
+          event?.skillNodeId ||
           ""
         )
       );
@@ -4829,12 +4829,12 @@
     const type =
       String(
         event?.state?.type ||
-        node?.type ||
+        skillNode?.type ||
         ""
       );
 
     const params =
-      node?.data?.params ||
+      skillNode?.data?.params ||
       {};
 
     const request =
@@ -4901,13 +4901,13 @@
   ) {
     const states =
       Object.values(
-        run?.nodes || {}
+        run?.skillNodes || {}
       );
 
     const failed =
       states.find(
-        node =>
-          node?.status ===
+        skillNode =>
+          skillNode?.status ===
             "FAILED"
       );
 
@@ -4939,7 +4939,7 @@
       new Set();
 
     return Object.values(
-      run?.nodes || {}
+      run?.skillNodes || {}
     )
       .map(
         state =>
@@ -4980,14 +4980,14 @@
       );
   }
 
-  function ensureArtifactFileNode(
-    sourceNodeId,
+  function ensureArtifactFileSkillNode(
+    sourceSkillNodeId,
     artifact
   ) {
     if (
       !artifact ||
       !state.canvas ||
-      typeof state.canvas.addNode !==
+      typeof state.canvas.addSkillNode !==
         "function"
     ) {
       return null;
@@ -5005,10 +5005,10 @@
     const existing =
       state.canvas
         .getWorkflow?.()
-        ?.nodes
+        ?.skillNodes
         ?.find(
-          node =>
-            node?.data
+          skillNode =>
+            skillNode?.data
               ?.artifactId ===
             artifactId
         );
@@ -5019,9 +5019,9 @@
 
     const source =
       state.canvas
-        .getNode?.(
+        .getSkillNode?.(
           String(
-            sourceNodeId ||
+            sourceSkillNodeId ||
             ""
           )
         );
@@ -5029,16 +5029,16 @@
     const generatedCount =
       state.canvas
         .getWorkflow?.()
-        ?.nodes
+        ?.skillNodes
         ?.filter(
-          node =>
-            node?.data
+          skillNode =>
+            skillNode?.data
               ?.generated ===
               true
         )
         .length || 0;
 
-    return state.canvas.addNode(
+    return state.canvas.addSkillNode(
       "file",
       {
         id:"result:"+artifactId,
@@ -5064,7 +5064,7 @@
         data: {
           generated: true,
           artifactId,
-          sourceNodeId:String(sourceNodeId||""),
+          sourceSkillNodeId:String(sourceSkillNodeId||""),
           localFileId:
             artifact.localFileId ||
             "",
@@ -5721,15 +5721,15 @@
       void startPointerEditCommit().catch(()=>{});
     },700);
   }
-  async function flushPointerCanvasEdit(nodeId){
+  async function flushPointerCanvasEdit(skillNodeId){
     if(state.pointerHydrating||state.restoringConversation)
       throw new Error('CANVAS_RESTORING');
     clearTimeout(state.pointerEditTimer);
     state.pointerEditTimer=null;
     const renamed=await (pointerEditTask||startPointerEditCommit());
-    const actualId=renamed?.[nodeId]||nodeId;
-    if(!state.pointerGraphSnapshot?.graph?.nodes?.some(node=>node.nodeId===actualId))
-      throw new Error('NODE_NOT_SAVED');
+    const actualId=renamed?.[skillNodeId]||skillNodeId;
+    if(!state.pointerGraphSnapshot?.graph?.skillNodes?.some(skillNode=>skillNode.skillNodeId===actualId))
+      throw new Error('SKILL_NODE_NOT_SAVED');
     return actualId;
   }
 
@@ -5751,9 +5751,9 @@
       if(decision?.status!=='applied'&&decision?.status!=='duplicate')
         throw Object.assign(new Error(decision?.error?.code||'PATCH_REJECTED'),
           {code:decision?.error?.code||'PATCH_REJECTED'});
-      state.pointerLocalView=PointerGraphPatch.resolvedView(local,decision.createdRefs,diff.newNodeKeys);
-      const renamed=Object.fromEntries(Object.entries(diff.newNodeKeys).map(([temporary,key])=>
-        [temporary,decision.createdRefs?.['node:'+key]]).filter(([,id])=>typeof id==='string'));
+      state.pointerLocalView=PointerGraphPatch.resolvedView(local,decision.createdRefs,diff.newSkillNodeKeys);
+      const renamed=Object.fromEntries(Object.entries(diff.newSkillNodeKeys).map(([temporary,key])=>
+        [temporary,decision.createdRefs?.['skillNode:'+key]]).filter(([,id])=>typeof id==='string'));
       await refreshPointerCanvas({force:true});
       return renamed;
     }catch(error){
@@ -5869,10 +5869,10 @@
     }
 
     const canvasAction =
-      /(?:노드|node|캔버스|canvas|워크플로우|workflow).{0,28}(?:추가|삭제|연결|끊|수정|바꿔|변경|초기화|재구성|실행|돌려|만들|생성|add|delete|remove|connect|disconnect|modify|change|reset|rebuild|run|execute)/i;
+      /(?:노드|skillNode|캔버스|canvas|워크플로우|workflow).{0,28}(?:추가|삭제|연결|끊|수정|바꿔|변경|초기화|재구성|실행|돌려|만들|생성|add|delete|remove|connect|disconnect|modify|change|reset|rebuild|run|execute)/i;
 
     const actionCanvas =
-      /(?:추가|삭제|연결|끊|수정|바꿔|변경|초기화|재구성|실행|돌려|만들|생성|add|delete|remove|connect|disconnect|modify|change|reset|rebuild|run|execute).{0,28}(?:노드|node|캔버스|canvas|워크플로우|workflow)/i;
+      /(?:추가|삭제|연결|끊|수정|바꿔|변경|초기화|재구성|실행|돌려|만들|생성|add|delete|remove|connect|disconnect|modify|change|reset|rebuild|run|execute).{0,28}(?:노드|skillNode|캔버스|canvas|워크플로우|workflow)/i;
 
     if (
       canvasAction.test(value) ||
@@ -5892,17 +5892,17 @@
       return true;
     }
 
-    const nodes =
+    const skillNodes =
       Array.isArray(
-        workflow?.nodes
+        workflow?.skillNodes
       )
-        ? workflow.nodes
+        ? workflow.skillNodes
         : [];
 
     const hasFile =
-      nodes.some(
-        node =>
-          node?.type ===
+      skillNodes.some(
+        skillNode =>
+          skillNode?.type ===
             "file"
       );
 
@@ -5972,29 +5972,29 @@
       await PointerAPI.state(scope.graphId,scope.taskRef);
     if(state.destroyed||conversation!==state.activeConversationId)return snapshot.eventCursor;
     state.pointerEventCursor=snapshot.eventCursor;
-    let localNodes=[];
+    let localSkillNodes=[];
     if(scope.storageMode==='local'){
       const rows=new Map();
-      for(const run of WorkspaceStore.getConversation(scope.conversationId)?.state.pointerRuns||[])
-        if(run.graphRef?.graphId===scope.graphId)for(const row of run.nodes||[])
-          rows.set(row.nodeId,{...row,runId:run.runId});
-      localNodes=await global.OvllPointerLocal.validateResults(snapshot.graph,[...rows.values()],
+      for(const run of WorkspaceStore.getConversation(scope.conversationId)?.state.skillRuns||[])
+        if(run.graphRef?.graphId===scope.graphId)for(const row of run.skillNodes||[])
+          rows.set(row.skillNodeId,{...row,runId:run.runId});
+      localSkillNodes=await global.OvllPointerLocal.validateResults(snapshot.graph,[...rows.values()],
         getPointerTask(scope.conversationId)?{taskContext:getPointerTask(scope.conversationId)}:{});
       if(state.destroyed||conversation!==state.activeConversationId)return snapshot.eventCursor;
     }
     if(snapshot.graph?.graph?.revision>=state.pointerGraphRevision){
       state.pointerHydrating=true;
       try{
-        const previousNodes=state.canvas.getWorkflow?.()?.nodes||[];
+        const previousSkillNodes=state.canvas.getWorkflow?.()?.skillNodes||[];
         const resultFiles=scope.storageMode==='local'?
-          global.OvllPointerProjection.resultFileNodes(snapshot.graph,localNodes,previousNodes):[];
-        for(const node of resultFiles){
-          if(!node.data.localFileId)continue;
+          global.OvllPointerProjection.resultFileSkillNodes(snapshot.graph,localSkillNodes,previousSkillNodes):[];
+        for(const skillNode of resultFiles){
+          if(!skillNode.data.localFileId)continue;
           try{
-            const local=await FileStore.hydrate(node.data.localFileId);
+            const local=await FileStore.hydrate(skillNode.data.localFileId);
             if(local?.downloadUrl){
-              node.data.downloadUrl=local.downloadUrl;
-              node.data.previewUrl=local.previewUrl||local.downloadUrl;
+              skillNode.data.downloadUrl=local.downloadUrl;
+              skillNode.data.previewUrl=local.previewUrl||local.downloadUrl;
             }
           }catch(error){console.warn('OvllPointer result file hydration failed',error);}
         }
@@ -6005,12 +6005,12 @@
         state.pointerGraphSnapshot=snapshot.graph;
         composerEditor?.reconcileDraft?.();
         state.workflow=getCurrentWorkflow();
-        renderNodeBuilderOptions();
+        renderSkillNodeBuilderOptions();
       }finally{state.pointerHydrating=false;}
     }
     if(scope.storageMode==='local'){
-      state.canvas?.clearRuntimeNodeStates?.();
-      showLocalRun({nodes:localNodes});
+      state.canvas?.clearRuntimeSkillNodeStates?.();
+      showLocalRun({skillNodes:localSkillNodes});
     }
     for(const run of snapshot.runs||[]){
       if(!run.runId)continue;
@@ -6028,26 +6028,26 @@
     state.pointerRunTargets.set(runRef,result.run.targets||[]);
     global.OvllPointerProjection.applyRunState(state.canvas,result);
     // Load the actual authorized output values, never infer file URLs from opaque refs.
-    for(const node of result.nodes||[]){
-      if(node.status!=='success'||!Array.isArray(node.outputRefs)||!node.outputRefs.length)continue;
-      const entries=await Promise.all(node.outputRefs.map(ref=>
+    for(const skillNode of result.skillNodes||[]){
+      if(skillNode.status!=='success'||!Array.isArray(skillNode.outputRefs)||!skillNode.outputRefs.length)continue;
+      const entries=await Promise.all(skillNode.outputRefs.map(ref=>
         PointerAPI.artifact(ref).catch(()=>null)));
       if(state.destroyed||conversation!==state.activeConversationId)return;
       const report=global.OvllPointerProjection.artifactPreview(entries.filter(Boolean));
-      if(report)state.canvas?.setRuntimeNodeState?.(node.nodeId,{
-        status:'SUCCESS',report,result:{report,outputRefs:node.outputRefs,
+      if(report)state.canvas?.setRuntimeSkillNodeState?.(skillNode.skillNodeId,{
+        status:'SUCCESS',report,result:{report,outputRefs:skillNode.outputRefs,
           values:Object.fromEntries(entries.filter(entry=>entry?.content&&Object.prototype.hasOwnProperty.call(entry.content,'value'))
             .map((entry,index)=>[(entry.artifact?.semanticRole||'결과')+' '+(index+1),{inline:entry.content.value}])),
           incomplete:entries.some(entry=>!entry)}
       });
     }
     if(['completed','failed','cancelled','waiting'].includes(result.run.status)){
-      if(serverLiveNodes.has(runRef)){
-        serverPresence.update({runId:runRef,nodes:result.nodes||[]});
-        serverLiveNodes.delete(runRef);
-        if(!serverLiveNodes.size)serverPresence.reset();
+      if(serverLiveSkillNodes.has(runRef)){
+        serverPresence.update({runId:runRef,skillNodes:result.skillNodes||[]});
+        serverLiveSkillNodes.delete(runRef);
+        if(!serverLiveSkillNodes.size)serverPresence.reset();
       }
-      state.pointerRuns.delete(runRef);
+      state.skillRuns.delete(runRef);
       if(state.runtimeActivity){
         const status=result.run.status;
         if(state.runtimeActivity.steps.has(runRef)){
@@ -6059,10 +6059,10 @@
         }
         setRuntimeActivity(status==='completed'?'서버 실행 완료':'실행 확인 필요',
           {id:'__finalize__'});
-        if(!state.pointerRuns.size)finishRuntimeActivity({failed:status==='failed'});
+        if(!state.skillRuns.size)finishRuntimeActivity({failed:status==='failed'});
       }
     }else {
-      state.pointerRuns.add(runRef);
+      state.skillRuns.add(runRef);
     }
   }
 
@@ -6076,33 +6076,33 @@
     }
     if(event.type==='run.queued'&&data.graphRef?.graphId===scope.graphId){
       state.pointerRunRefs.add(data.runRef);
-      state.pointerRuns.add(data.runRef);
+      state.skillRuns.add(data.runRef);
       await refreshPointerRun(data.runRef);
       return;
     }
-    if(event.type==='node.started'||event.type==='node.success'||
-      event.type==='node.failed'||event.type==='node.blocked'||event.type==='node.outcome_unknown'||
+    if(event.type==='skillNode.started'||event.type==='skillNode.success'||
+      event.type==='skillNode.failed'||event.type==='skillNode.blocked'||event.type==='skillNode.outcome_unknown'||
       event.type.startsWith('run.')){
       if(!data.runRef||!state.pointerRunRefs.has(data.runRef))return;
-      if(event.type.startsWith('node.')){
-        const nodes=serverLiveNodes.get(data.runRef)||new Map();
-        const status={'node.started':'running','node.success':'success','node.failed':'failed',
-          'node.blocked':'blocked','node.outcome_unknown':'outcome_unknown'}[event.type];
-        if(status){nodes.set(data.nodeId,{nodeId:data.nodeId,status});serverLiveNodes.set(data.runRef,nodes);
-          serverPresence.update({runId:data.runRef,nodes:[...nodes.values()]});}
+      if(event.type.startsWith('skillNode.')){
+        const skillNodes=serverLiveSkillNodes.get(data.runRef)||new Map();
+        const status={'skillNode.started':'running','skillNode.success':'success','skillNode.failed':'failed',
+          'skillNode.blocked':'blocked','skillNode.outcome_unknown':'outcome_unknown'}[event.type];
+        if(status){skillNodes.set(data.skillNodeId,{skillNodeId:data.skillNodeId,status});serverLiveSkillNodes.set(data.runRef,skillNodes);
+          serverPresence.update({runId:data.runRef,skillNodes:[...skillNodes.values()]});}
       }
-      if(event.type==='node.started'){
-        state.canvas?.setRuntimeNodeState?.(data.nodeId,{status:'RUNNING'});
-        setRuntimeActivity('노드 실행 중',{id:data.nodeId});
+      if(event.type==='skillNode.started'){
+        state.canvas?.setRuntimeSkillNodeState?.(data.skillNodeId,{status:'RUNNING'});
+        setRuntimeActivity('노드 실행 중',{id:data.skillNodeId});
       }
-      if(event.type==='node.success'){
-        state.canvas?.setRuntimeNodeState?.(data.nodeId,{status:'SUCCESS',report:'결과 저장 완료'});
-        completeRuntimeStep(data.nodeId,{text:'노드 실행 완료'});
+      if(event.type==='skillNode.success'){
+        state.canvas?.setRuntimeSkillNodeState?.(data.skillNodeId,{status:'SUCCESS',report:'결과 저장 완료'});
+        completeRuntimeStep(data.skillNodeId,{text:'노드 실행 완료'});
         await refreshPointerRun(data.runRef);
       }
-      if(['node.failed','node.blocked','node.outcome_unknown'].includes(event.type)){
-        state.canvas?.setRuntimeNodeState?.(data.nodeId,{status:'FAILED',report:data.reason||'노드 작업 실패'});
-        completeRuntimeStep(data.nodeId,{failed:true,text:'노드 작업 실패'});
+      if(['skillNode.failed','skillNode.blocked','skillNode.outcome_unknown'].includes(event.type)){
+        state.canvas?.setRuntimeSkillNodeState?.(data.skillNodeId,{status:'FAILED',report:data.reason||'노드 작업 실패'});
+        completeRuntimeStep(data.skillNodeId,{failed:true,text:'노드 작업 실패'});
       }
       if(event.type.startsWith('run.')&&event.type!=='run.queued')await refreshPointerRun(data.runRef);
     }
@@ -6139,16 +6139,16 @@
   function pointerActionStages(action){
     const key='action:'+String(action.localKey||'unknown');
     const patch=action.kind==='ir.applyPatch'?action.args?.patch:null;
-    const operations=patch?.operations||[],drafts=patch?.definitions||[],stages=[];
-    const catalog=state.pointerGraphSnapshot?.definitions||[];
+    const operations=patch?.operations||[],drafts=patch?.skillDefinitions||[],stages=[];
+    const catalog=state.pointerGraphSnapshot?.skillDefinitions||[];
     const definitionFor=ref=>ref?.localDefinitionKey?
       drafts.find(d=>d.localKey===ref.localDefinitionKey):
       catalog.find(d=>d.definitionId===ref?.definitionId&&d.version===ref?.version);
     const appearance=ref=>{
       const def=definitionFor(ref),type=ref?.definitionId?.startsWith('builtin:')?
         ref.definitionId.slice(8):'';
-      const ui=state.canvas?.getNodeDefinitions?.()?.[type]||
-        state.nodeDefinitions?.[type];
+      const ui=state.canvas?.getSkillDefinitions?.()?.[type]||
+        state.skillDefinitions?.[type];
       return {iconKey:def?.presentation?.iconKey||ui?.iconKey||'custom',
         color:def?.presentation?.color||ui?.color||''};
     };
@@ -6157,19 +6157,19 @@
     });
     if(drafts.length)stage('define','노드 정의',
       drafts.length===1?appearance({localDefinitionKey:drafts[0].localKey}):{iconKey:'custom'});
-    const added=operations.filter(x=>x.op==='node.add');
+    const added=operations.filter(x=>x.op==='skillNode.add');
     if(added.length)stage('add','노드 생성',
-      added.length===1?appearance(added[0].definitionRef):{iconKey:'nodeAdd'});
-    const updated=operations.find(x=>x.op==='node.update');
-    if(updated)stage('edit','노드 수정',{nodeId:updated.nodeId,iconKey:'pencil'});
-    const removed=operations.find(x=>x.op==='node.delete');
-    if(removed)stage('delete','노드 삭제',{nodeId:removed.nodeId,iconKey:'pencil'});
-    const changedAppearance=operations.find(x=>x.op==='definition.appearance');
+      added.length===1?appearance(added[0].skillDefinitionRef):{iconKey:'skillNodeAdd'});
+    const updated=operations.find(x=>x.op==='skillNode.update');
+    if(updated)stage('edit','노드 수정',{skillNodeId:updated.skillNodeId,iconKey:'pencil'});
+    const removed=operations.find(x=>x.op==='skillNode.delete');
+    if(removed)stage('delete','노드 삭제',{skillNodeId:removed.skillNodeId,iconKey:'pencil'});
+    const changedAppearance=operations.find(x=>x.op==='skill.appearance');
     if(changedAppearance)stage('appearance','노드 정의 수정',
-      appearance(changedAppearance.definitionRef));
-    const removedDefinition=operations.find(x=>x.op==='definition.delete');
+      appearance(changedAppearance.skillDefinitionRef));
+    const removedDefinition=operations.find(x=>x.op==='skill.delete');
     if(removedDefinition)stage('removeDefinition','노드 정의 삭제',
-      appearance(removedDefinition.definitionRef));
+      appearance(removedDefinition.skillDefinitionRef));
     if(operations.some(x=>x.op?.startsWith('link.')))
       stage('connect','노드 연결 변경',{iconKey:'canvasLayout'});
     if(!stages.length){
@@ -6202,35 +6202,35 @@
       upsertRuntimeStep(step.id,step.label+(done?' 완료':waiting?' 확인 필요':skipped?' 건너뜀':' 실패'),
         done?'done':waiting||skipped?'skipped':'failed',fact.error||'',step);
   }
-  function pointerNodeProgress(run){
+  function pointerSkillNodeProgress(run){
     runPresence.update(run);
     if(!state.runtimeActivity)return;
-    for(const entry of run.nodes||[]){
+    for(const entry of run.skillNodes||[]){
       if(entry.status==='pending')continue;
-      const node=state.canvas?.getNode?.(entry.nodeId);
-      const definition=state.canvas?.getNodeDefinitions?.()?.[node?.type];
+      const skillNode=state.canvas?.getSkillNode?.(entry.skillNodeId);
+      const definition=state.canvas?.getSkillDefinitions?.()?.[skillNode?.type];
       const name=definition?.name||'노드';
       const failed=['failed','blocked','outcome_unknown'].includes(entry.status);
       const skipped=['skipped','cancelled'].includes(entry.status);
       const done=entry.status==='success';
-      const id='node:'+entry.nodeId;
+      const id='skillNode:'+entry.skillNodeId;
       upsertRuntimeStep(id,name+(done?' 실행 완료':failed?' 실행 실패':skipped?' 실행 건너뜀':' 실행 중'),
         done?'done':failed?'failed':skipped?'skipped':'running',entry.error||'');
     }
   }
   function showLocalRun(run){
-    for(const n of run.nodes||[]){
+    for(const n of run.skillNodes||[]){
       const status={running:'RUNNING',success:n.resultCurrent===false?'STALE':'SUCCESS',stale:'STALE',failed:'FAILED',
         blocked:'FAILED',cancelled:'SKIPPED',skipped:'SKIPPED',outcome_unknown:'FAILED'}[n.status];
       if(!status)continue;
       const report=Object.entries(n.outputs?.values||{}).map(([k,v])=>k+': '+
         String(typeof v?.inline==='string'?v.inline:JSON.stringify(v?.inline)||'')).join(' · ').slice(0,350);
-      state.canvas?.setRuntimeNodeState?.(n.nodeId,{status,report:report||n.error||'',
+      state.canvas?.setRuntimeSkillNodeState?.(n.skillNodeId,{status,report:report||n.error||'',
         ...(['success','stale'].includes(n.status)?{result:{report,values:clone(n.outputs?.values||{}),outputRefs:n.outputRefs||[],provenance:n.provenance,runId:n.runId||run.runId,resultCurrent:n.resultCurrent!==false,artifact:Object.values(n.outputs?.values||{}).map(v=>v.inline).find(v=>v&&typeof v==='object'&&v.downloadUrl)}}:{})});
     }
   }
   let localRunActive=null;
-  async function runLocalNodes({targets,deliverableTargets,outputMap,requiredOutputs,damMode='closed',requestText='',snapshotOverride,
+  async function runLocalSkillNodes({targets,deliverableTargets,outputMap,requiredOutputs,damMode='closed',requestText='',snapshotOverride,
     taskConstraints=[],taskContext,cache,operation=localOperations.getCurrent()}={}){
     const scope=pointerScope();
     if(scope?.storageMode!=='local')throw new Error('LOCAL_SCOPE_UNAVAILABLE');
@@ -6240,15 +6240,15 @@
     const abort=()=>controller.abort();
     operation.signal.addEventListener('abort',abort,{once:true});
     if(operation.signal.aborted)abort();
-    const owned={conversationId:scope.conversationId,controller,nodeIds:new Set(targets),operation};
+    const owned={conversationId:scope.conversationId,controller,skillNodeIds:new Set(targets),operation};
     localRunActive=owned;
     try{
       const run=await global.OvllPointerLocal.run({conversationId:scope.conversationId,targets,deliverableTargets,outputMap,requiredOutputs,
         damMode,requestText,snapshotOverride,taskConstraints,taskContext,cache,signal:controller.signal,onProgress:run=>{
           if(localRunActive!==owned||!localOperations.isCurrent(operation))return;
-          owned.nodeIds=new Set(run.nodes.map(x=>x.nodeId));
+          owned.skillNodeIds=new Set(run.skillNodes.map(x=>x.skillNodeId));
           showLocalRun(run);
-          pointerNodeProgress(run);
+          pointerSkillNodeProgress(run);
         }});
       if(localOperations.isCurrent(operation)&&typeof refreshPointerCanvas==='function'){
         try{await refreshPointerCanvas({force:true});}
@@ -6259,7 +6259,7 @@
         }
       }
       if(localOperations.isCurrent(operation)){
-        for(const entry of run.nodes||[]){
+        for(const entry of run.skillNodes||[]){
           if(entry.status!=='success'||entry.resultCurrent!==true||
             entry.toolEffectStarted!==true||entry.effectConfirmed!==true)continue;
           for(const output of Object.values(entry.outputs?.values||{})){
@@ -6268,7 +6268,7 @@
               typeof artifact.downloadUrl==='string'&&
               /^(https?:\/\/|\/(?!\/)|blob:)/.test(artifact.downloadUrl)&&
               !/[\s()<>"']/.test(artifact.downloadUrl))
-              ensureArtifactFileNode(entry.nodeId,artifact);
+              ensureArtifactFileSkillNode(entry.skillNodeId,artifact);
           }
         }
       }
@@ -6281,16 +6281,16 @@
   function localRunPresentation(run){return global.OvllPointerLocalActions.presentation({facts:[{kind:'run.start',status:run.status,run}],runs:[run]});}
   function localRunSummary(run){return global.OvllPointerLocalActions.present({facts:[{kind:'run.start',status:run.status,run}],runs:[run]});}
   async function currentLocalRuns(snapshot,conversationId,taskContext){
-    const runs=(WorkspaceStore.getConversation(conversationId)?.state.pointerRuns||[])
+    const runs=(WorkspaceStore.getConversation(conversationId)?.state.skillRuns||[])
       .filter(run=>run.graphRef?.graphId===snapshot.graph.graphId);
     if(!runs.length)return [];
     const latest=new Map();
-    for(const run of runs)for(const row of run.nodes||[])latest.set(row.nodeId,{...row,runId:run.runId});
+    for(const run of runs)for(const row of run.skillNodes||[])latest.set(row.skillNodeId,{...row,runId:run.runId});
     const checked=await global.OvllPointerLocal.validateResults(snapshot,[...latest.values()],
       taskContext?{taskContext}:{});
-    const byId=new Map(checked.map(row=>[row.nodeId,row]));
-    return runs.map(run=>({...run,nodes:(run.nodes||[]).map(row=>{
-      const current=byId.get(row.nodeId);
+    const byId=new Map(checked.map(row=>[row.skillNodeId,row]));
+    return runs.map(run=>({...run,skillNodes:(run.skillNodes||[]).map(row=>{
+      const current=byId.get(row.skillNodeId);
       return current?.runId===run.runId?current:{...row,resultCurrent:false};
     })}));
   }
@@ -6298,11 +6298,11 @@
     return WorkspaceStore.getConversation(conversationId)?.state.pointerTask||null;
   }
   async function successfulLocalTargets(snapshot,conversationId){
-    const rows=new Map(),runs=WorkspaceStore.getConversation(conversationId)?.state.pointerRuns||[];
-    for(const run of runs)for(const row of run.nodes||[])rows.set(row.nodeId,row);
+    const rows=new Map(),runs=WorkspaceStore.getConversation(conversationId)?.state.skillRuns||[];
+    for(const run of runs)for(const row of run.skillNodes||[])rows.set(row.skillNodeId,row);
     const checked=await global.OvllPointerLocal.validateResults(snapshot,[...rows.values()],
       getPointerTask(conversationId)?{taskContext:getPointerTask(conversationId)}:{});
-    const valid=new Set(checked.filter(row=>row.status==='success'&&row.resultCurrent).map(row=>row.nodeId));
+    const valid=new Set(checked.filter(row=>row.status==='success'&&row.resultCurrent).map(row=>row.skillNodeId));
     const last=[...runs].reverse().find(run=>run.status==='completed'&&
       (run.deliverableTargets||run.targets||[]).some(id=>valid.has(id)));
     return (last?.deliverableTargets||last?.targets||[]).filter(id=>valid.has(id));
@@ -6310,7 +6310,7 @@
   async function runSavedLocalFunction(fn,bindings,selectedTask){
     const bound=global.OvllPointerFunctions.bind(fn,bindings);
     const constraints=[...new Set([...(bound.invariants||[]),...(selectedTask?.constraints||[])])];
-    return runLocalNodes({snapshotOverride:bound.snapshot,targets:bound.targets,outputMap:bound.outputMap,requiredOutputs:bound.requiredOutputs,
+    return runLocalSkillNodes({snapshotOverride:bound.snapshot,targets:bound.targets,outputMap:bound.outputMap,requiredOutputs:bound.requiredOutputs,
       taskConstraints:constraints,
       taskContext:{objective:selectedTask?.objective||fn.purpose,requestText:bound.requestText,constraints}});
   }
@@ -6351,7 +6351,7 @@
         Presence.settle();
         upsertRuntimeStep('function:save','함수 저장 중','running');
         const graph=(await global.OvllPointerLocal.state(scope.conversationId)).graph;
-        if(!graph.graph.nodes.length)throw new Error('LOCAL_FUNCTION_GRAPH_EMPTY');
+        if(!graph.graph.skillNodes.length)throw new Error('LOCAL_FUNCTION_GRAPH_EMPTY');
         const targets=await successfulLocalTargets(graph,scope.conversationId);
         if(!targets.length)throw new Error('FUNCTION_SUCCESSFUL_TARGET_REQUIRED');
         const purpose=value.startsWith('/함수저장 ')?
@@ -6424,11 +6424,11 @@
             return result;
           },
           'run.start':async(action,applied)=>{
-            const targets=action.args.targets.map(x=>x.nodeId||
-              (action.dependsOn||[]).includes(x.fromAction)&&applied.get(x.fromAction)?.createdRefs?.['node:'+x.localNodeKey]);
+            const targets=action.args.targets.map(x=>x.skillNodeId||
+              (action.dependsOn||[]).includes(x.fromAction)&&applied.get(x.fromAction)?.createdRefs?.['skillNode:'+x.localSkillNodeKey]);
             if(!targets.length||targets.some(x=>!x))throw new Error('LOCAL_TARGET_UNRESOLVED');
             acceptTask();
-            const run=await runLocalNodes({targets,damMode:action.args.damMode||'closed',
+            const run=await runLocalSkillNodes({targets,damMode:action.args.damMode||'closed',
               taskContext,taskConstraints:taskContext.constraints,cache,operation});
             return {status:run.status,run};
           },
@@ -6458,8 +6458,8 @@
       let exitRecord=contextRecord;
       if(!operation.signal.aborted&&actions.needsLanguage({facts,messages,runs})){
         const actionResults=facts.map(({run,...fact})=>({...fact,...(run?{run:{
-          status:run.status,targets:run.targets,coverage:run.coverage,storage:run.storage,validity:run.validity,nodes:(run.nodes||[]).map(n=>({
-            nodeId:n.nodeId,status:n.status,error:n.error||'',toolEffectStarted:!!n.toolEffectStarted
+          status:run.status,targets:run.targets,coverage:run.coverage,storage:run.storage,validity:run.validity,skillNodes:(run.skillNodes||[]).map(n=>({
+            skillNodeId:n.skillNodeId,status:n.status,error:n.error||'',toolEffectStarted:!!n.toolEffectStarted
           }))
         }}:{})}));
         try{
@@ -6523,7 +6523,7 @@
         ...(scope?{graphId:scope.graphId,taskRef:scope.taskRef}:{})});
       completeRuntimePhase();
       const scheduled=(result.results||[]).filter(r=>r.status==='scheduled'&&r.runRef);
-      for(const item of scheduled){state.pointerRunRefs.add(item.runRef);state.pointerRuns.add(item.runRef);
+      for(const item of scheduled){state.pointerRunRefs.add(item.runRef);state.skillRuns.add(item.runRef);
         setRuntimeActivity('서버 실행 예약됨',{id:item.runRef});}
       if(scope&&result.results?.some(r=>r.status==='applied'&&Number.isInteger(r.newRevision)))
         await refreshPointerCanvas();
@@ -6545,15 +6545,15 @@
     }finally{setBusy(false);resizeComposer();focusComposerForDesktop();}
   }
 
-  async function cancelPointerCanvasNode(nodeId){
+  async function cancelPointerCanvasSkillNode(skillNodeId){
     const scope=pointerScope();
     if(!scope)return;
     if(scope.storageMode==='local'){
       if(localRunActive?.conversationId===scope.conversationId&&
-        localRunActive.nodeIds.has(nodeId)){localRunActive.controller.abort();localOperations.cancel();}
+        localRunActive.skillNodeIds.has(skillNodeId)){localRunActive.controller.abort();localOperations.cancel();}
       return;
     }
-    const runRef=[...state.pointerRuns].find(ref=>(state.pointerRunTargets.get(ref)||[]).includes(nodeId));
+    const runRef=[...state.skillRuns].find(ref=>(state.pointerRunTargets.get(ref)||[]).includes(skillNodeId));
     if(!runRef)return;
     try{
       const response=await PointerAPI.turn({...scope,requestRef:PointerAPI.uniqueId(),actions:[
@@ -6568,7 +6568,7 @@
     }
   }
 
-  async function runPointerCanvasNode(nodeId,mode='closed'){
+  async function runPointerCanvasSkillNode(skillNodeId,mode='closed'){
     const scope=pointerScope();
     if(scope?.storageMode==='local'){
       if(localRunActive||state.busy)return;
@@ -6576,9 +6576,9 @@
       const owns=()=>localOperations.isCurrent(operation);
       setBusy(true);beginRuntimeActivity('실행 준비 중');
       try{
-        const persistedNodeId=await flushPointerCanvasEdit(nodeId);
+        const persistedSkillNodeId=await flushPointerCanvasEdit(skillNodeId);
         if(!owns())return;
-        const run=await runLocalNodes({targets:[persistedNodeId],damMode:mode,operation});
+        const run=await runLocalSkillNodes({targets:[persistedSkillNodeId],damMode:mode,operation});
         if(!owns())return;
         const delivery=localRunPresentation(run);
         addAssistantMessage(delivery.text,{artifacts:delivery.artifacts});
@@ -6593,7 +6593,7 @@
       }
       return;
     }
-    if(!scope||!scope.taskRef||!state.pointerGraphRevision||!state.canvas?.getNode?.(nodeId)){
+    if(!scope||!scope.taskRef||!state.pointerGraphRevision||!state.canvas?.getSkillNode?.(skillNodeId)){
       showErrorNotice(new Error('SERVER_RUN_SCOPE_UNAVAILABLE'),{scope:'서버 실행',fallback:'서버 작업을 확인할 수 없습니다.'});
       return;
     }
@@ -6601,12 +6601,12 @@
     try{
       beginRuntimeActivity('서버 실행 예약 중');
       const response=await PointerAPI.turn({...scope,requestRef,actions:[{
-        localKey:'run',kind:'run.start',args:{targets:[{nodeId}],damMode:mode==='open'?'open':'closed'}
+        localKey:'run',kind:'run.start',args:{targets:[{skillNodeId}],damMode:mode==='open'?'open':'closed'}
       }]});
       const run=response.results?.find(x=>x.status==='scheduled');
       if(!run?.runRef)throw new Error(response.results?.[0]?.error?.code||'RUN_NOT_SCHEDULED');
-      state.pointerRunRefs.add(run.runRef);state.pointerRuns.add(run.runRef);
-      state.pointerRunTargets.set(run.runRef,[nodeId]);
+      state.pointerRunRefs.add(run.runRef);state.skillRuns.add(run.runRef);
+      state.pointerRunTargets.set(run.runRef,[skillNodeId]);
       setRuntimeActivity('서버 실행 예약됨',{id:run.runRef});
       await refreshPointerRun(run.runRef);
     }catch(error){
@@ -6744,7 +6744,7 @@
     if (
       !file ||
       !state.canvas ||
-      typeof state.canvas.addNode !==
+      typeof state.canvas.addSkillNode !==
         "function"
     ) {
       return;
@@ -6802,7 +6802,7 @@
         file.type ||
         "application/octet-stream";
 
-      state.canvas.addNode(
+      state.canvas.addSkillNode(
         "file",
         {
           expanded: false,
@@ -6923,7 +6923,7 @@
       clearRuntimeConnections();
 
       state.canvas
-        ?.clearRuntimeNodeStates?.();
+        ?.clearRuntimeSkillNodeStates?.();
 
       beginRuntimeActivity(
         "실행 준비 중"
@@ -6961,10 +6961,10 @@
       return;
     }
 
-    if (event.type === "node:state") {
+    if (event.type === "skillNode:state") {
       state.canvas
-        ?.setRuntimeNodeState?.(
-          event.nodeId,
+        ?.setRuntimeSkillNodeState?.(
+          event.skillNodeId,
           event.state || {
             status:
               event.status,
@@ -6986,7 +6986,7 @@
           text,
           {
             id:
-              event.nodeId
+              event.skillNodeId
           }
         );
 
@@ -7014,21 +7014,21 @@
             "object" &&
           artifact.downloadUrl
         ) {
-          ensureArtifactFileNode(
-            event.nodeId,
+          ensureArtifactFileSkillNode(
+            event.skillNodeId,
             artifact
           );
         }
 
         completeRuntimeStep(
-          event.nodeId
+          event.skillNodeId
         );
 
         Presence.mascotState?.(
-          "nodeSuccess",
+          "skillNodeSuccess",
           {
-            nodeId:
-              event.nodeId
+            skillNodeId:
+              event.skillNodeId
           }
         );
       } else if (
@@ -7042,7 +7042,7 @@
           );
 
         completeRuntimeStep(
-          event.nodeId,
+          event.skillNodeId,
           {
             failed: true,
             detail:
@@ -7068,10 +7068,10 @@
         );
 
         Presence.mascotState?.(
-          "nodeError",
+          "skillNodeError",
           {
-            nodeId:
-              event.nodeId
+            skillNodeId:
+              event.skillNodeId
           }
         );
       } else if (
@@ -7079,7 +7079,7 @@
           "SKIPPED"
       ) {
         completeRuntimeStep(
-          event.nodeId,
+          event.skillNodeId,
           {
             skipped: true
           }
@@ -7093,7 +7093,7 @@
       clearRuntimeConnections();
 
       state.canvas
-        ?.selectNode?.(
+        ?.selectSkillNode?.(
           event.pivot
         );
 
@@ -7123,7 +7123,7 @@
         Presence.mascotState?.(
           "cancelled",
           {
-            nodeId:
+            skillNodeId:
               event.pivot
           }
         );
@@ -7136,7 +7136,7 @@
           ? "error"
           : "success",
         {
-          nodeId:
+          skillNodeId:
             event.pivot
         }
       );
@@ -7217,25 +7217,25 @@
   }
 
   function canvasRunUserText(
-    nodeId,
+    skillNodeId,
     workflow
   ) {
-    const node =
-      workflow?.nodes?.find(
+    const skillNode =
+      workflow?.skillNodes?.find(
         item =>
-          item?.id === nodeId
+          item?.id === skillNodeId
       ) ||
-      state.canvas?.getNode?.(
-        nodeId
+      state.canvas?.getSkillNode?.(
+        skillNodeId
       );
 
-    if(!node){
+    if(!skillNode){
       return "워크플로우 실행해줘";
     }
 
     const params =
-      node?.data?.params ||
-      node?.params ||
+      skillNode?.data?.params ||
+      skillNode?.params ||
       {};
 
     const request =
@@ -7254,22 +7254,22 @@
     }
 
     const definition =
-      state.nodeDefinitions?.[
-        node.type
+      state.skillDefinitions?.[
+        skillNode.type
       ];
 
     const subject =
       String(
         definition?.name ||
-        node?.data?.title ||
-        node?.type ||
+        skillNode?.data?.title ||
+        skillNode?.type ||
         "워크플로우"
       )
         .replace(/\s+/g," ")
         .trim();
 
     if(
-      node.type === "start" ||
+      skillNode.type === "start" ||
       !subject
     ){
       return "워크플로우 실행해줘";
@@ -7278,30 +7278,30 @@
     return subject + " 실행해줘";
   }
 
-  async function runCanvasNode(nodeId,mode='closed'){
+  async function runCanvasSkillNode(skillNodeId,mode='closed'){
     if(state.pointerMigrationError){
       showErrorNotice(state.pointerMigrationError,{scope:'작업 이관 오류',
         fallback:'저장된 작업을 안전하게 전환하지 못해 실행하지 않았어.'});
       return null;
     }
-    return runPointerCanvasNode(nodeId,mode==='spread'?'open':mode==='target'?'closed':mode);
+    return runPointerCanvasSkillNode(skillNodeId,mode==='spread'?'open':mode==='target'?'closed':mode);
   }
 
-  function handleCanvasNodeRun(payload){
-    const nodeId=String(payload?.id||'');
-    if(nodeId)void runCanvasNode(nodeId,payload?.mode||'closed');
+  function handleCanvasSkillNodeRun(payload){
+    const skillNodeId=String(payload?.id||'');
+    if(skillNodeId)void runCanvasSkillNode(skillNodeId,payload?.mode||'closed');
   }
-  function handleCanvasNodeRunCancel(payload){
-    const nodeId=String(payload?.id||'');
-    if(nodeId)void cancelPointerCanvasNode(nodeId);
+  function handleCanvasSkillNodeRunCancel(payload){
+    const skillNodeId=String(payload?.id||'');
+    if(skillNodeId)void cancelPointerCanvasSkillNode(skillNodeId);
   }
 
-  async function handleCanvasNodeResult(payload){
+  async function handleCanvasSkillNodeResult(payload){
     const conversationId=currentConversationId(),id=String(payload?.id||'');
     if(!id||state.destroyed)return;
     const runtime=payload.runtime||{},result=runtime.result||{};
     if(result.artifact){await openArtifactPreview(result.artifact);return;}
-    const stored=result.runId?WorkspaceStore.getPointerNodeOutput?.(conversationId,result.runId,id):null;
+    const stored=result.runId?WorkspaceStore.getSkillNodeOutput?.(conversationId,result.runId,id):null;
     const values=stored?.values||result.values||{};
     const entries=Object.entries(values).map(([port,value])=>{
       const output=value?.inline;
@@ -7387,7 +7387,7 @@
             );
         }
 
-        localOperations.invalidate();runPresence.reset();serverPresence.reset();serverLiveNodes.clear();
+        localOperations.invalidate();runPresence.reset();serverPresence.reset();serverLiveSkillNodes.clear();
         localRunActive?.controller.abort();
         state.workflowProposal =
           null;
@@ -7403,7 +7403,7 @@
           state.pointerMigrationError=null;
           state.pointerWatch?.();
           state.pointerWatch = null;
-          state.pointerRuns.clear();
+          state.skillRuns.clear();
           state.pointerRunRefs.clear();
           state.pointerRunTargets.clear();
           clearRuntimeConnections();
@@ -7417,7 +7417,7 @@
           dismissErrorNotice();
 
           state.canvas
-            ?.clearRuntimeNodeStates?.();
+            ?.clearRuntimeSkillNodeStates?.();
 
           chatMessages
             .replaceChildren();
@@ -7480,8 +7480,8 @@
                 ?.canvas
             );
 
-          state.pointerLocalView=pointerScope()&&Array.isArray(canvasState?.workflow?.nodes)?
-            {nodes:clone(canvasState.workflow.nodes)}:null;
+          state.pointerLocalView=pointerScope()&&Array.isArray(canvasState?.workflow?.skillNodes)?
+            {skillNodes:clone(canvasState.workflow.skillNodes)}:null;
 
           if (
             canvasState &&
@@ -7497,7 +7497,7 @@
             state.canvas
               ?.setState?.({
                 workflow: {
-                  nodes: [],
+                  skillNodes: [],
                   connections: []
                 },
                 viewport: {
@@ -7512,7 +7512,7 @@
 
           if(global.OVLL_RUNTIME?.pointerEnabled===true &&
             global.OVLL_RUNTIME?.pointerStorageMode==='local' &&
-            !conversation.state?.pointerGraph && canvasState?.workflow?.nodes?.length){
+            !conversation.state?.skillGraph && canvasState?.workflow?.skillNodes?.length){
             try{
               await global.OvllPointerLocal.migrateConversation(id,canvasState);
             }catch(error){
@@ -7712,10 +7712,10 @@
      Canvas
      ======================================================= */
   async function initializeCanvas() {
-    const canvas = await mountCanvasNode("#canvas-viewport", {
-      nodeDefinitions:
-        state.nodeDefinitions ||
-        global.nodeDefinitions ||
+    const canvas = await mountCanvasSkillNode("#canvas-viewport", {
+      skillDefinitions:
+        state.skillDefinitions ||
+        global.skillDefinitions ||
         undefined,
       refreshDefinitions: false,
       pluginContext: "workspace",
@@ -7730,21 +7730,21 @@
         canvas
       );
 
-    initializeNodeBuilder();
+    initializeSkillNodeBuilder();
 
     canvas.on("change", handleCanvasChange);
     canvas.on(
       "definitionsChange",
       ()=>{
-        renderNodeBuilderOptions();
+        renderSkillNodeBuilderOptions();
       }
     );
     canvas.on("workflowApplied", handleCanvasWorkflowApplied);
-    canvas.on("nodeRun", handleCanvasNodeRun);
-    canvas.on("nodeResult", payload=>{void handleCanvasNodeResult(payload);});
+    canvas.on("skillNodeRun", handleCanvasSkillNodeRun);
+    canvas.on("skillNodeResult", payload=>{void handleCanvasSkillNodeResult(payload);});
     canvas.on(
-      "nodeRunCancel",
-      handleCanvasNodeRunCancel
+      "skillNodeRunCancel",
+      handleCanvasSkillNodeRunCancel
     );
 
     syncWorkflow();
@@ -7755,34 +7755,34 @@
   /* =======================================================
      Canvas Node Builder
      ======================================================= */
-  function renderNodeBuilderOptions() {
-    state.nodeBuilder
+  function renderSkillNodeBuilderOptions() {
+    state.skillNodeBuilder
       ?.render?.();
   }
 
-  function setNodeBuilderOpen(
+  function setSkillNodeBuilderOpen(
     open,
     options = {}
   ) {
-    return state.nodeBuilder
+    return state.skillNodeBuilder
       ?.setOpen?.(
         open,
         options
       );
   }
 
-  function initializeNodeBuilder() {
-    if (state.nodeBuilder) {
-      renderNodeBuilderOptions();
-      return state.nodeBuilder;
+  function initializeSkillNodeBuilder() {
+    if (state.skillNodeBuilder) {
+      renderSkillNodeBuilderOptions();
+      return state.skillNodeBuilder;
     }
 
     const workspaceController =
       ensureMainWorkspace();
 
-    state.nodeBuilder =
+    state.skillNodeBuilder =
       workspaceController
-        .mountNodeBuilder({
+        .mountSkillNodeBuilder({
           navigation:
             Navigation,
           history:true,
@@ -7794,7 +7794,7 @@
             clearRuntimeConnections();
 
             state.canvas
-              ?.clearRuntimeNodeStates
+              ?.clearRuntimeSkillNodeStates
               ?.();
 
             finishRuntimeActivity({
@@ -7808,7 +7808,7 @@
           }
         });
 
-    return state.nodeBuilder;
+    return state.skillNodeBuilder;
   }
 
   /* =======================================================
@@ -7894,21 +7894,21 @@ listen(composerEditor?.element||composerInput, "keydown", handleComposerKeydown)
     });
 
     try {
-      state.nodeDefinitions =
-        await API.getNodeDefinitions();
+      state.skillDefinitions =
+        await API.getSkillDefinitions();
     } catch (error) {
       console.error(
         "Node Definition Load Error:",
         error
       );
-      state.nodeDefinitions = {};
+      state.skillDefinitions = {};
     }
 
     await initializeCanvas();
     // Local graph ownership must not wait for a cold-start readiness probe.
     void verifyLocalPointerReady();
 
-    renderNodeBuilderOptions();
+    renderSkillNodeBuilderOptions();
 
     state.ready = true;
 
@@ -7962,51 +7962,51 @@ listen(composerEditor?.element||composerInput, "keydown", handleComposerKeydown)
       return getCurrentWorkflow();
     },
 
-    runNode(
-      nodeId,
+    runSkillNode(
+      skillNodeId,
       mode = "closed"
     ) {
-      return runCanvasNode(
-        String(nodeId || ""),
+      return runCanvasSkillNode(
+        String(skillNodeId || ""),
         mode
       );
     },
 
-    runClosed(nodeId) {
-      return runCanvasNode(
-        String(nodeId || ""),
+    runClosed(skillNodeId) {
+      return runCanvasSkillNode(
+        String(skillNodeId || ""),
         "closed"
       );
     },
 
-    runOpen(nodeId) {
-      return runCanvasNode(
-        String(nodeId || ""),
+    runOpen(skillNodeId) {
+      return runCanvasSkillNode(
+        String(skillNodeId || ""),
         "open"
       );
     },
 
-    runTarget(nodeId) {
-      return runCanvasNode(
-        String(nodeId || ""),
+    runTarget(skillNodeId) {
+      return runCanvasSkillNode(
+        String(skillNodeId || ""),
         "target"
       );
     },
 
-    runSpread(nodeId) {
-      return runCanvasNode(
-        String(nodeId || ""),
+    runSpread(skillNodeId) {
+      return runCanvasSkillNode(
+        String(skillNodeId || ""),
         "spread"
       );
     },
 
     getLastRun() {
-      const runs=WorkspaceStore.getConversation(currentConversationId())?.state?.pointerRuns||[];
+      const runs=WorkspaceStore.getConversation(currentConversationId())?.state?.skillRuns||[];
       return runs[runs.length-1]||null;
     },
 
-    getNodeDefinitions() {
-      return state.nodeDefinitions ? clone(state.nodeDefinitions) : null;
+    getSkillDefinitions() {
+      return state.skillDefinitions ? clone(state.skillDefinitions) : null;
     },
 
     getConversationMemory() {
@@ -8070,13 +8070,13 @@ listen(composerEditor?.element||composerInput, "keydown", handleComposerKeydown)
       if (state.destroyed) return;
 
       localOperations.invalidate();localRunActive?.controller.abort();
-      runPresence.reset();serverPresence.reset();serverLiveNodes.clear();
+      runPresence.reset();serverPresence.reset();serverLiveSkillNodes.clear();
       state.destroyed = true;
       clearTimeout(state.pointerEditTimer);
       state.pointerEditTimer=null;
       state.pointerWatch?.();
       state.pointerWatch=null;
-      state.pointerRuns.clear();
+      state.skillRuns.clear();
       state.pointerRunRefs.clear();
       state.pointerRunTargets.clear();
 
@@ -8120,12 +8120,12 @@ listen(composerEditor?.element||composerInput, "keydown", handleComposerKeydown)
 
       state.canvas = null;
       state.runtime = null;
-      state.nodeBuilder = null;
+      state.skillNodeBuilder = null;
       state.workspaceController = null;
       global.OvllMainWorkspace = null;
       state.workflow = null;
       state.workflowProposal = null;
-      state.nodeDefinitions = null;
+      state.skillDefinitions = null;
       state.runtimeProjection = null;
       state.conversationMemory = null;
       state.ready = false;

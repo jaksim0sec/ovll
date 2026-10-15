@@ -57,7 +57,7 @@
     if (typeof value !== 'string') throw new Error('연결 endpoint가 문자열이 아닙니다.');
     const dot = value.lastIndexOf('.');
     if (dot < 1 || dot === value.length - 1) throw new Error(`잘못된 endpoint입니다: ${value}`);
-    return { node: value.slice(0, dot), port: value.slice(dot + 1) };
+    return { skillNode: value.slice(0, dot), port: value.slice(dot + 1) };
   }
   function pathFor(a, b) {
     const bend = clamp(
@@ -231,7 +231,7 @@
       let workflow =
         clone(
           input.workflow || {
-            nodes: [],
+            skillNodes: [],
             connections: []
           }
         );
@@ -352,7 +352,7 @@
         pivotId,
         visiblePivot,
         runtimeToVisible,
-        resolveVisibleNodeId(id) {
+        resolveVisibleSkillNodeId(id) {
           const key =
             String(id || '');
 
@@ -385,27 +385,27 @@
     return api;
   })();
 
-  global.mountCanvasNode = async function(target, options = {}) {
+  global.mountCanvasSkillNode = async function(target, options = {}) {
     if (typeof target === 'string') target = document.querySelector(target);
     if (!(target instanceof Element)) throw new TypeError('target must be a DOM Element or selector');
-    const previousState = target._canvasNode?.getState?.() || null;
-    target._canvasNode?.destroy?.();
-    let definitions = options.nodeDefinitions || {};
+    const previousState = target._canvasSkillNode?.getState?.() || null;
+    target._canvasSkillNode?.destroy?.();
+    let skillDefinitions = options.skillDefinitions || {};
     const pluginContext =
       String(
         options.pluginContext ||
         'workspace'
       );
-    const getFreshNodeDefinitions =
-      global.AstraAPI?.getNodeDefinitions;
+    const getFreshSkillDefinitions =
+      global.AstraAPI?.getSkillDefinitions;
     const canRefreshDefinitions =
       options.refreshDefinitions !== false &&
-      typeof getFreshNodeDefinitions === 'function' &&
+      typeof getFreshSkillDefinitions === 'function' &&
       global.navigator?.onLine !== false;
 
     if (canRefreshDefinitions) {
       try {
-        const freshDefinitions = await getFreshNodeDefinitions.call(
+        const freshDefinitions = await getFreshSkillDefinitions.call(
           global.AstraAPI,
           { force: true }
         );
@@ -415,13 +415,13 @@
           typeof freshDefinitions === 'object' &&
           !Array.isArray(freshDefinitions)
         ) {
-          definitions =
-            freshDefinitions.nodes ||
+          skillDefinitions =
+            freshDefinitions.skillDefinitions ||
             freshDefinitions;
         }
       } catch (error) {
         console.warn(
-          'Node definitions unavailable; continuing with cached UI state.',
+          'Node skillDefinitions unavailable; continuing with cached UI state.',
           error
         );
       }
@@ -432,8 +432,8 @@
     if (!viewport) throw new Error('canvas viewport가 없습니다.');
     const world = viewport.querySelector('#canvas-world,[data-canvas-world]');
     const connectionSvg = viewport.querySelector('#canvas-connections,[data-canvas-connections]');
-    const nodesLayer = viewport.querySelector('#canvas-nodes,[data-canvas-nodes]');
-    if (!world || !connectionSvg || !nodesLayer) {
+    const skillNodesLayer = viewport.querySelector('#canvas-skill-nodes,[data-canvas-skill-nodes]');
+    if (!world || !connectionSvg || !skillNodesLayer) {
       throw new Error('Canvas DOM 구조가 올바르지 않습니다.');
     }
     let connectionLayer = connectionSvg.querySelector('.vc-connection-layer');
@@ -449,13 +449,13 @@
       connectionSvg.appendChild(dragLayer);
     }
     const state = {
-      nodes: [],
+      skillNodes: [],
       connections: [],
-      selectedNode: null,
+      selectedSkillNode: null,
       scale: 1,
       offset: { x: 0, y: 0 },
       pointers: new Map(),
-      nodeDrag: null,
+      skillNodeDrag: null,
       canvasPan: null,
       pinch: null,
       connectionDrag: null,
@@ -463,10 +463,10 @@
       destroyed: false,
       connectionFrame: null,
       panMotionFrame: null,
-      lastNodeDragEndAt: 0,
-      enteringNodes: new Set(),
+      lastSkillNodeDragEndAt: 0,
+      enteringSkillNodes: new Set(),
       runtimeConnections: new Set(),
-      runtimeNodes: new Map(),
+      runtimeSkillNodes: new Map(),
       runLocked: false,
       runPivot: null,
       portTap: {
@@ -477,11 +477,11 @@
         new Set()
     };
     let baseDefinitions =
-      definitions &&
-      typeof definitions ===
+      skillDefinitions &&
+      typeof skillDefinitions ===
         'object' &&
-      !Array.isArray(definitions)
-        ? definitions
+      !Array.isArray(skillDefinitions)
+        ? skillDefinitions
         : {};
 
     const registry =
@@ -585,7 +585,7 @@
           state.destroyed ||
           !state.interactionEnabled ||
           state.pointers.size ||
-          state.nodeDrag ||
+          state.skillNodeDrag ||
           state.connectionDrag ||
           state.pinch
         ) {
@@ -730,13 +730,13 @@
       ) {
         emit(
           'definitionsChange',
-          getNodeDefinitions()
+          getSkillDefinitions()
         );
       }
 
       return registry;
     }
-    function setNodeDefinitions(nextDefinitions = {}) {
+    function setSkillDefinitions(nextDefinitions = {}) {
       const source =
         nextDefinitions &&
         typeof nextDefinitions === 'object' &&
@@ -751,12 +751,12 @@
 
       return api;
     }
-    function getNodeDefinitions() {
+    function getSkillDefinitions() {
       return Object.fromEntries(
         registry.entries()
       );
     }
-    function getBaseNodeDefinitions() {
+    function getBaseSkillDefinitions() {
       return {
         ...baseDefinitions
       };
@@ -784,10 +784,10 @@
               : 'spread',
           context:
             pluginContext,
-          definitions:
-            getNodeDefinitions(),
+          skillDefinitions:
+            getSkillDefinitions(),
           baseDefinitions:
-            getBaseNodeDefinitions()
+            getBaseSkillDefinitions()
         });
     }
 
@@ -812,15 +812,15 @@
     listeners.push(
       stopPluginUpdates
     );
-    function getNode(id) {
-      return state.nodes.find(node => node.id === id) || null;
+    function getSkillNode(id) {
+      return state.skillNodes.find(skillNode => skillNode.id === id) || null;
     }
-    function getNodeElement(id) {
-      return [...nodesLayer.querySelectorAll('.vc-node')].find(
-        element => element.dataset.nodeId === String(id)
+    function getSkillNodeElement(id) {
+      return [...skillNodesLayer.querySelectorAll('.vc-skill-node')].find(
+        element => element.dataset.skillNodeId === String(id)
       ) || null;
     }
-    function normalizeNode(input) {
+    function normalizeSkillNode(input) {
       return {
         id: String(
           input?.id ||
@@ -834,7 +834,7 @@
       };
     }
     function legacyRequestValue(
-      node,
+      skillNode,
       values
     ) {
       if (
@@ -855,7 +855,7 @@
             .filter(Boolean)
             .join(" · ");
 
-      switch (node.type) {
+      switch (skillNode.type) {
         case "research":
           return text(
             values.topic,
@@ -910,10 +910,10 @@
       }
     }
 
-    function renderSlotContent(node, definition) {
+    function renderSlotContent(skillNode, definition) {
       const out = [];
       const values =
-        node.data?.params ||
+        skillNode.data?.params ||
         {};
 
       const visibleParams =
@@ -936,7 +936,7 @@
         const value =
           isRequest
             ? legacyRequestValue(
-                node,
+                skillNode,
                 values
               )
             : (
@@ -984,9 +984,9 @@
         `);
       }
 
-      if (node.type === 'file') {
-        const mime = node.data?.mime || '알 수 없는 형식';
-        const size = Number(node.data?.size || 0);
+      if (skillNode.type === 'file') {
+        const mime = skillNode.data?.mime || '알 수 없는 형식';
+        const size = Number(skillNode.data?.size || 0);
         const text = size < 1024
           ? `${size} B`
           : size < 1048576
@@ -994,15 +994,15 @@
             : `${(size / 1048576).toFixed(1)} MB`;
         const downloadUrl =
           String(
-            node.data
+            skillNode.data
               ?.downloadUrl ||
             ""
           );
         const previewText =
           String(
-            node.data
+            skillNode.data
               ?.textPreview ||
-            node.data
+            skillNode.data
               ?.previewText ||
             ""
           )
@@ -1010,7 +1010,7 @@
             .slice(0, 900);
         const imagePreview =
           String(
-            node.data
+            skillNode.data
               ?.imagePreview ||
             ""
           );
@@ -1045,7 +1045,7 @@
                   <a
                     class="vc-file-download"
                     href="${escapeHtml(downloadUrl)}"
-                    download="${escapeHtml(node.data?.name || 'result')}"
+                    download="${escapeHtml(skillNode.data?.name || 'result')}"
                   >
                     <span>다운로드</span>
                     <svg viewBox="0 0 18 18" fill="none" aria-hidden="true">
@@ -1250,14 +1250,14 @@
       `;
     }
 
-    function renderPorts(node, ports, direction) {
+    function renderPorts(skillNode, ports, direction) {
       const cls = direction === 'input' ? 'vc-input' : 'vc-output';
       return (ports || []).map(port => `
         <div
           class="vc-port-hit ${cls}"
           data-port-dir="${direction}"
           data-port-id="${escapeHtml(port.id)}"
-          data-node-id="${escapeHtml(node.id)}"
+          data-skill-node-id="${escapeHtml(skillNode.id)}"
         >
           <span class="vc-port-anchor">
             <span class="vc-port-pill"></span>
@@ -1266,50 +1266,50 @@
         </div>
       `).join('');
     }
-    function observeNode(element) {
-      if (!element || !nodeResizeObserver) return;
-      try { nodeResizeObserver.observe(element); } catch {}
+    function observeSkillNode(element) {
+      if (!element || !skillNodeResizeObserver) return;
+      try { skillNodeResizeObserver.observe(element); } catch {}
     }
-    const nodeResizeObserver = new ResizeObserver(entries => {
+    const skillNodeResizeObserver = new ResizeObserver(entries => {
       if (state.destroyed) return;
       for (const entry of entries) {
-        const node = getNode(entry.target?.dataset?.nodeId);
-        if (!node) continue;
-        positionPorts(entry.target, getDefinition(node.type));
+        const skillNode = getSkillNode(entry.target?.dataset?.skillNodeId);
+        if (!skillNode) continue;
+        positionPorts(entry.target, getDefinition(skillNode.type));
       }
       scheduleConnectionRender();
     });
-    observers.push(() => nodeResizeObserver.disconnect());
-    function nodeReadyForExecution(
-      node,
+    observers.push(() => skillNodeResizeObserver.disconnect());
+    function skillNodeReadyForExecution(
+      skillNode,
       options = {}
     ) {
-      if (!node) {
+      if (!skillNode) {
         return false;
       }
 
-      if (String(node.type||'').startsWith('pointer:')) return true;
+      if (String(skillNode.type||'').startsWith('pointer:')) return true;
 
-      if (node.type === 'start') {
+      if (skillNode.type === 'start') {
         return true;
       }
 
-      if (node.type === 'file') {
+      if (skillNode.type === 'file') {
         return !!(
-          node.data?.generated ||
-          node.data?.source === 'upload' ||
-          node.data?.fileId ||
+          skillNode.data?.generated ||
+          skillNode.data?.source === 'upload' ||
+          skillNode.data?.fileId ||
           (
-            typeof node.data?.name ===
+            typeof skillNode.data?.name ===
               'string' &&
-            node.data.name.trim()
+            skillNode.data.name.trim()
           )
         );
       }
 
       const hasParams =
         Object.values(
-          node.data?.params || {}
+          skillNode.data?.params || {}
         ).some(value =>
           String(value ?? '').trim()
         );
@@ -1321,11 +1321,11 @@
     }
 
     function runScopeReady(
-      nodeId,
+      skillNodeId,
       mode = 'closed'
     ) {
       const startId =
-        String(nodeId || '');
+        String(skillNodeId || '');
 
       if (!startId) {
         return false;
@@ -1354,22 +1354,22 @@
           of state.connections
         ) {
           if (
-            connection.to.node ===
+            connection.to.skillNode ===
               current
           ) {
             queue.push(
-              connection.from.node
+              connection.from.skillNode
             );
           }
 
           if (
             executionMode ===
               'spread' &&
-            connection.from.node ===
+            connection.from.skillNode ===
               current
           ) {
             queue.push(
-              connection.to.node
+              connection.to.skillNode
             );
           }
         }
@@ -1379,16 +1379,16 @@
         const hasIncoming =
           state.connections.some(
             connection =>
-              connection.to.node ===
+              connection.to.skillNode ===
                 id &&
               scope.has(
-                connection.from.node
+                connection.from.skillNode
               )
           );
 
         if (
-          !nodeReadyForExecution(
-            getNode(id),
+          !skillNodeReadyForExecution(
+            getSkillNode(id),
             {
               hasIncoming
             }
@@ -1404,33 +1404,33 @@
     function syncRunButtonStates() {
       for (
         const element
-        of nodesLayer.querySelectorAll(
-          '.vc-node'
+        of skillNodesLayer.querySelectorAll(
+          '.vc-skill-node'
         )
       ) {
-        const node =
-          getNode(
-            element.dataset.nodeId
+        const skillNode =
+          getSkillNode(
+            element.dataset.skillNodeId
           );
 
         const button =
           element.querySelector(
-            '.vc-node-run'
+            '.vc-skill-node-run'
           );
 
-        if (!node || !button) {
+        if (!skillNode || !button) {
           continue;
         }
 
         const cancelling =
           state.runLocked &&
-          state.runPivot === node.id;
+          state.runPivot === skillNode.id;
 
         const disabled =
           !cancelling &&
           (
             state.runLocked ||
-            !runScopeReady(node.id)
+            !runScopeReady(skillNode.id)
           );
 
         button.disabled =
@@ -1448,62 +1448,62 @@
       }
     }
 
-    function renderNodes() {
-      nodesLayer.textContent = '';
-      for (const node of state.nodes) {
-        const definition = getDefinition(node.type);
+    function renderSkillNodes() {
+      skillNodesLayer.textContent = '';
+      for (const skillNode of state.skillNodes) {
+        const definition = getDefinition(skillNode.type);
         if (!definition) continue;
         const element = document.createElement('div');
         const runtimeState =
-          state.runtimeNodes.get(node.id) || null;
-        const classes = ['vc-node'];
+          state.runtimeSkillNodes.get(skillNode.id) || null;
+        const classes = ['vc-skill-node'];
 
         if (
-          state.enteringNodes.has(
-            node.id
+          state.enteringSkillNodes.has(
+            skillNode.id
           )
         ) {
           classes.push(
             'vc-entering'
           );
         }
-        if (node.type === 'file') classes.push('vc-file-node');
-        if (node.id === state.selectedNode) classes.push('vc-selected');
-        if (node.expanded) classes.push('vc-expanded');
+        if (skillNode.type === 'file') classes.push('vc-file-skillNode');
+        if (skillNode.id === state.selectedSkillNode) classes.push('vc-selected');
+        if (skillNode.expanded) classes.push('vc-expanded');
         if (runtimeState?.status) {
           classes.push(
             `vc-runtime-${String(runtimeState.status).toLowerCase()}`
           );
         }
         element.className = classes.join(' ');
-        element.dataset.nodeId = node.id;
+        element.dataset.skillNodeId = skillNode.id;
         if (
-          node.type === 'file' &&
-          node.data?.generated
+          skillNode.type === 'file' &&
+          skillNode.data?.generated
         ) {
           element.dataset.generated =
             'true';
         }
-        element.style.left = `${node.x}px`;
-        element.style.top = `${node.y}px`;
-        element.style.setProperty('--node-color', definition.color);
-        const fileName = node.type === 'file'
-          ? node.data?.name || '이름 없는 파일'
+        element.style.left = `${skillNode.x}px`;
+        element.style.top = `${skillNode.y}px`;
+        element.style.setProperty('--skill-node-color', definition.color);
+        const fileName = skillNode.type === 'file'
+          ? skillNode.data?.name || '이름 없는 파일'
           : definition.name;
         const extension =
-          node.type === 'file' && fileName.includes('.')
+          skillNode.type === 'file' && fileName.includes('.')
             ? fileName.split('.').pop().toUpperCase()
             : 'FILE';
-        const nodeIcon =
-          node.type === 'file' &&
-          node.data?.generated
+        const skillNodeIcon =
+          skillNode.type === 'file' &&
+          skillNode.data?.generated
             ? icons.fileResult
             : global.OvllSvgLibrary?.get?.(definition.iconKey) || definition.icon || '';
         element.innerHTML = `
-          <div class="vc-node-head">
-            <span class="vc-node-icon">${nodeIcon}</span>
+          <div class="vc-skill-node-head">
+            <span class="vc-skill-node-icon">${skillNodeIcon}</span>
             ${
-              node.type === 'file'
+              skillNode.type === 'file'
                 ? `
                   <span class="vc-file-title-wrap">
                     <span
@@ -1518,49 +1518,49 @@
                   </span>
                 `
                 : `
-                  <span class="vc-node-title">
+                  <span class="vc-skill-node-title">
                     ${escapeHtml(definition.name)}
                   </span>
                 `
             }
-            <div class="vc-node-actions">
+            <div class="vc-skill-node-actions">
               <button
                 type="button"
-                class="vc-node-action vc-node-toggle"
+                class="vc-skill-node-action vc-skill-node-toggle"
                 data-action="toggle"
-                aria-expanded="${String(!!node.expanded)}"
-                aria-label="상세 내용 ${node.expanded ? '닫기' : '열기'}"
+                aria-expanded="${String(!!skillNode.expanded)}"
+                aria-label="상세 내용 ${skillNode.expanded ? '닫기' : '열기'}"
               >
                 ${icons.toggle}
               </button>
             </div>
           </div>
-          <div class="vc-node-body">
-            ${renderSlotContent(node, definition)}
+          <div class="vc-skill-node-body">
+            ${renderSlotContent(skillNode, definition)}
             ${renderRuntimeState(runtimeState)}
           </div>
-          <div class="vc-node-footer">
+          <div class="vc-skill-node-footer">
             ${
-              node.type === 'file' &&
-              node.data?.generated
+              skillNode.type === 'file' &&
+              skillNode.data?.generated
                 ? ''
                 : `
                   <button
                     type="button"
-                    class="vc-node-run${state.runLocked && state.runPivot === node.id ? ' is-cancel' : state.runLocked || runtimeState?.status === 'RUNNING' ? ' is-running' : ''}${!state.runLocked && !runScopeReady(node.id) ? ' is-disabled' : ''}"
-                    data-action="${state.runLocked && state.runPivot === node.id ? 'cancel-run' : 'run'}"
-                    aria-label="${state.runLocked && state.runPivot === node.id ? '실행 중단' : !runScopeReady(node.id) ? '실행할 내용 필요' : '이 노드부터 실행'}"
-                    aria-disabled="${state.runLocked && state.runPivot !== node.id || !state.runLocked && !runScopeReady(node.id) ? 'true' : 'false'}"
-                    ${state.runLocked && state.runPivot !== node.id || !state.runLocked && !runScopeReady(node.id) ? 'disabled' : ''}
+                    class="vc-skill-node-run${state.runLocked && state.runPivot === skillNode.id ? ' is-cancel' : state.runLocked || runtimeState?.status === 'RUNNING' ? ' is-running' : ''}${!state.runLocked && !runScopeReady(skillNode.id) ? ' is-disabled' : ''}"
+                    data-action="${state.runLocked && state.runPivot === skillNode.id ? 'cancel-run' : 'run'}"
+                    aria-label="${state.runLocked && state.runPivot === skillNode.id ? '실행 중단' : !runScopeReady(skillNode.id) ? '실행할 내용 필요' : '이 노드부터 실행'}"
+                    aria-disabled="${state.runLocked && state.runPivot !== skillNode.id || !state.runLocked && !runScopeReady(skillNode.id) ? 'true' : 'false'}"
+                    ${state.runLocked && state.runPivot !== skillNode.id || !state.runLocked && !runScopeReady(skillNode.id) ? 'disabled' : ''}
                   >
-                    ${state.runLocked && state.runPivot === node.id ? icons.stop : icons.run}
-                    <span>${state.runLocked && state.runPivot === node.id ? '중단하기' : '실행하기'}</span>
+                    ${state.runLocked && state.runPivot === skillNode.id ? icons.stop : icons.run}
+                    <span>${state.runLocked && state.runPivot === skillNode.id ? '중단하기' : '실행하기'}</span>
                   </button>
                 `
             }
             <button
               type="button"
-              class="vc-node-delete"
+              class="vc-skill-node-delete"
               data-action="delete"
               aria-label="노드 삭제"
             >
@@ -1568,20 +1568,20 @@
               <span>삭제하기</span>
             </button>
           </div>
-          ${renderPorts(node, definition.inputs, 'input')}
-          ${renderPorts(node, definition.outputs, 'output')}
+          ${renderPorts(skillNode, definition.inputs, 'input')}
+          ${renderPorts(skillNode, definition.outputs, 'output')}
         `;
         // Apply the same icon stroke contract as composer mentions and
-        // the add-node palette without rewriting server-provided SVG markup.
-        element.querySelector('.vc-node-icon svg')?.classList.add('svg-icon');
-        nodesLayer.appendChild(element);
-        observeNode(element);
-        setNodeExpanded(node, node.expanded, true);
+        // the add-skillNode palette without rewriting server-provided SVG markup.
+        element.querySelector('.vc-skill-node-icon svg')?.classList.add('svg-icon');
+        skillNodesLayer.appendChild(element);
+        observeSkillNode(element);
+        setSkillNodeExpanded(skillNode, skillNode.expanded, true);
         positionPorts(element, definition);
 
         if (
-          state.enteringNodes.has(
-            node.id
+          state.enteringSkillNodes.has(
+            skillNode.id
           )
         ) {
           requestAnimationFrame(
@@ -1598,8 +1598,8 @@
 
               setTimeout(
                 () => {
-                  state.enteringNodes.delete(
-                    node.id
+                  state.enteringSkillNodes.delete(
+                    skillNode.id
                   );
 
                   element.classList.remove(
@@ -1631,19 +1631,19 @@
       place('.vc-port-hit.vc-input', definition.inputs || []);
       place('.vc-port-hit.vc-output', definition.outputs || []);
     }
-    function getPortElement(nodeId, portId, direction) {
-      return [...nodesLayer.querySelectorAll('.vc-port-hit')].find(
+    function getPortElement(skillNodeId, portId, direction) {
+      return [...skillNodesLayer.querySelectorAll('.vc-port-hit')].find(
         element =>
-          element.dataset.nodeId === String(nodeId) &&
+          element.dataset.skillNodeId === String(skillNodeId) &&
           element.dataset.portId === String(portId) &&
           element.dataset.portDir === direction
       ) || null;
     }
-    function portPoint(nodeId, portId, direction) {
-      const node = getNode(nodeId);
-      const element = getNodeElement(nodeId);
-      const definition = getDefinition(node?.type);
-      if (!node || !element || !definition) return null;
+    function portPoint(skillNodeId, portId, direction) {
+      const skillNode = getSkillNode(skillNodeId);
+      const element = getSkillNodeElement(skillNodeId);
+      const definition = getDefinition(skillNode?.type);
+      if (!skillNode || !element || !definition) return null;
       const ports =
         direction === 'input'
           ? definition.inputs || []
@@ -1652,11 +1652,11 @@
         port => String(port.id) === String(portId)
       );
       if (index < 0) return null;
-      const portElement = getPortElement(nodeId, portId, direction);
+      const portElement = getPortElement(skillNodeId, portId, direction);
       if (!portElement) return null;
 
       /*
-       * Connections live inside the same transformed world as the nodes.
+       * Connections live inside the same transformed world as the skillNodes.
        * Keep their endpoints in world/layout coordinates too. Reading
        * getBoundingClientRect() here mixes transient visual-viewport/page
        * transforms into the connection geometry while the mobile keyboard
@@ -1677,17 +1677,17 @@
       };
     }
     function markConnectedPorts() {
-      nodesLayer
+      skillNodesLayer
         .querySelectorAll('.vc-port-pill.vc-connected')
         .forEach(element => element.classList.remove('vc-connected'));
       for (const connection of state.connections) {
         getPortElement(
-          connection.from.node,
+          connection.from.skillNode,
           connection.from.port,
           'output'
         )?.querySelector('.vc-port-pill')?.classList.add('vc-connected');
         getPortElement(
-          connection.to.node,
+          connection.to.skillNode,
           connection.to.port,
           'input'
         )?.querySelector('.vc-port-pill')?.classList.add('vc-connected');
@@ -1704,12 +1704,12 @@
       const activeIds = new Set();
       for (const connection of state.connections) {
         const from = portPoint(
-          connection.from.node,
+          connection.from.skillNode,
           connection.from.port,
           'output'
         );
         const to = portPoint(
-          connection.to.node,
+          connection.to.skillNode,
           connection.to.port,
           'input'
         );
@@ -1726,8 +1726,8 @@
         }
         path.setAttribute('d', pathFor(from, to));
         const active =
-          state.selectedNode === connection.from.node ||
-          state.selectedNode === connection.to.node;
+          state.selectedSkillNode === connection.from.skillNode ||
+          state.selectedSkillNode === connection.to.skillNode;
         const runtimeActive =
           state.runtimeConnections.has(
             String(connection.id)
@@ -1778,7 +1778,7 @@
         ) {
           const from =
             portPoint(
-              anchor.node,
+              anchor.skillNode,
               anchor.port,
               'output'
             );
@@ -1843,7 +1843,7 @@
 
       const to =
         portPoint(
-          drag.anchor.node,
+          drag.anchor.skillNode,
           drag.anchor.port,
           'input'
         );
@@ -1912,20 +1912,20 @@
       });
     }
     function centerWorkflow() {
-      if (!state.nodes.length) return;
+      if (!state.skillNodes.length) return;
       const rect = viewport.getBoundingClientRect();
       let minX = Infinity;
       let minY = Infinity;
       let maxX = -Infinity;
       let maxY = -Infinity;
-      for (const node of state.nodes) {
-        const element = getNodeElement(node.id);
+      for (const skillNode of state.skillNodes) {
+        const element = getSkillNodeElement(skillNode.id);
         const width = element?.offsetWidth || 190;
         const height = element?.offsetHeight || 74;
-        minX = Math.min(minX, node.x);
-        minY = Math.min(minY, node.y);
-        maxX = Math.max(maxX, node.x + width);
-        maxY = Math.max(maxY, node.y + height);
+        minX = Math.min(minX, skillNode.x);
+        minY = Math.min(minY, skillNode.y);
+        maxX = Math.max(maxX, skillNode.x + width);
+        maxY = Math.max(maxY, skillNode.y + height);
       }
       state.offset.x =
         rect.width / 2 -
@@ -1937,21 +1937,21 @@
       renderTransform();
       renderConnections();
     }
-    function setNodeExpanded(node, expanded, immediate = false) {
-      const element = getNodeElement(node.id);
+    function setSkillNodeExpanded(skillNode, expanded, immediate = false) {
+      const element = getSkillNodeElement(skillNode.id);
       if (!element) return;
-      const body = element.querySelector('.vc-node-body');
-      const toggle = element.querySelector('.vc-node-toggle');
-      node.expanded = !!expanded;
-      element.classList.toggle('vc-expanded', node.expanded);
-      emit('nodeExpand', {
-        id: node.id,
-        expanded: node.expanded
+      const body = element.querySelector('.vc-skill-node-body');
+      const toggle = element.querySelector('.vc-skill-node-toggle');
+      skillNode.expanded = !!expanded;
+      element.classList.toggle('vc-expanded', skillNode.expanded);
+      emit('skillNodeExpand', {
+        id: skillNode.id,
+        expanded: skillNode.expanded
       });
-      toggle?.setAttribute('aria-expanded', String(node.expanded));
+      toggle?.setAttribute('aria-expanded', String(skillNode.expanded));
       toggle?.setAttribute(
         'aria-label',
-        `상세 내용 ${node.expanded ? '닫기' : '열기'}`
+        `상세 내용 ${skillNode.expanded ? '닫기' : '열기'}`
       );
       if (!body) {
         scheduleConnectionRender();
@@ -1959,16 +1959,16 @@
       }
       if (immediate) {
         body.style.transition = 'none';
-        body.style.height = node.expanded ? 'auto' : '0px';
-        positionPorts(element, getDefinition(node.type));
+        body.style.height = skillNode.expanded ? 'auto' : '0px';
+        positionPorts(element, getDefinition(skillNode.type));
         requestAnimationFrame(() => {
           body.style.transition = '';
-          positionPorts(element, getDefinition(node.type));
+          positionPorts(element, getDefinition(skillNode.type));
           renderConnections();
         });
         return;
       }
-      if (node.expanded) {
+      if (skillNode.expanded) {
         body.style.height = '0px';
         requestAnimationFrame(() => {
           if (!body) return;
@@ -1993,7 +1993,7 @@
         positionPorts(
           element,
           getDefinition(
-            getNode(element.dataset.nodeId)?.type
+            getSkillNode(element.dataset.skillNodeId)?.type
           )
         );
         renderConnections();
@@ -2006,30 +2006,30 @@
       }
       frame = requestAnimationFrame(tick);
     }
-    function selectNode(id) {
-      if (id !== null && !getNode(id)) id = null;
-      state.selectedNode = id;
-      nodesLayer
-        .querySelectorAll('.vc-node')
+    function selectSkillNode(id) {
+      if (id !== null && !getSkillNode(id)) id = null;
+      state.selectedSkillNode = id;
+      skillNodesLayer
+        .querySelectorAll('.vc-skill-node')
         .forEach(element =>
           element.classList.toggle(
             'vc-selected',
-            element.dataset.nodeId === id
+            element.dataset.skillNodeId === id
           )
         );
       renderConnections();
       emit('select', id);
     }
-    function toggleNodeExpanded(id) {
-      const node = getNode(id);
-      if (!node) return;
-      setNodeExpanded(node, !node.expanded);
-      selectNode(id);
+    function toggleSkillNodeExpanded(id) {
+      const skillNode = getSkillNode(id);
+      if (!skillNode) return;
+      setSkillNodeExpanded(skillNode, !skillNode.expanded);
+      selectSkillNode(id);
       emit('change', getWorkflow());
     }
-    function portDef(nodeId, portId, direction) {
+    function portDef(skillNodeId, portId, direction) {
       const definition = getDefinition(
-        getNode(nodeId)?.type
+        getSkillNode(skillNodeId)?.type
       );
       if (!definition) return null;
       const ports =
@@ -2062,12 +2062,12 @@
       if (fromId === toId) return true;
       const graph = new Map();
       for (const connection of state.connections) {
-        if (!graph.has(connection.from.node)) {
-          graph.set(connection.from.node, []);
+        if (!graph.has(connection.from.skillNode)) {
+          graph.set(connection.from.skillNode, []);
         }
         graph
-          .get(connection.from.node)
-          .push(connection.to.node);
+          .get(connection.from.skillNode)
+          .push(connection.to.skillNode);
       }
       const stack = [toId];
       const seen = new Set();
@@ -2083,25 +2083,25 @@
       return false;
     }
     function connectionValid(
-      fromNodeId,
+      fromSkillNodeId,
       fromPortId,
-      toNodeId,
+      toSkillNodeId,
       toPortId
     ) {
       const errors = [];
-      const source = getNode(fromNodeId);
-      const target = getNode(toNodeId);
+      const source = getSkillNode(fromSkillNodeId);
+      const target = getSkillNode(toSkillNodeId);
       const output = portDef(
-        fromNodeId,
+        fromSkillNodeId,
         fromPortId,
         'output'
       );
       const input = portDef(
-        toNodeId,
+        toSkillNodeId,
         toPortId,
         'input'
       );
-      if (fromNodeId === toNodeId) {
+      if (fromSkillNodeId === toSkillNodeId) {
         errors.push({
           code: 'SELF_CONNECTION',
           message: '노드는 자기 자신에게 연결할 수 없습니다.'
@@ -2109,14 +2109,14 @@
       }
       if (!source) {
         errors.push({
-          code: 'MISSING_SOURCE_NODE',
-          message: `출발 노드 ${fromNodeId}가 존재하지 않습니다.`
+          code: 'MISSING_SOURCE_SKILL_NODE',
+          message: `출발 노드 ${fromSkillNodeId}가 존재하지 않습니다.`
         });
       }
       if (!target) {
         errors.push({
-          code: 'MISSING_TARGET_NODE',
-          message: `도착 노드 ${toNodeId}가 존재하지 않습니다.`
+          code: 'MISSING_TARGET_SKILL_NODE',
+          message: `도착 노드 ${toSkillNodeId}가 존재하지 않습니다.`
         });
       }
       if (!output) {
@@ -2138,7 +2138,7 @@
         !input.multiple &&
         state.connections.some(
           connection =>
-            connection.to.node === toNodeId &&
+            connection.to.skillNode === toSkillNodeId &&
             connection.to.port === toPortId
         )
       ) {
@@ -2153,7 +2153,7 @@
           message: `${output.type} → ${input.type} 타입을 연결할 수 없습니다.`
         });
       }
-      if (wouldCycle(fromNodeId, toNodeId)) {
+      if (wouldCycle(fromSkillNodeId, toSkillNodeId)) {
         errors.push({
           code: 'CYCLE',
           message: '이 연결은 순환 구조(Cycle)를 만듭니다.'
@@ -2166,9 +2166,9 @@
     }
     function canConnect(specification) {
       const result = connectionValid(
-        specification.from.node,
+        specification.from.skillNode,
         specification.from.port,
-        specification.to.node,
+        specification.to.skillNode,
         specification.to.port
       );
       emit('validate', result);
@@ -2189,20 +2189,20 @@
     }
     function sameConnection(a, b) {
       return (
-        a.from.node === b.from.node &&
+        a.from.skillNode === b.from.skillNode &&
         a.from.port === b.from.port &&
-        a.to.node === b.to.node &&
+        a.to.skillNode === b.to.skillNode &&
         a.to.port === b.to.port
       );
     }
     function connect(from, to, options = {}) {
       const specification = {
         from: {
-          node: String(from.node),
+          skillNode: String(from.skillNode),
           port: String(from.port)
         },
         to: {
-          node: String(to.node),
+          skillNode: String(to.skillNode),
           port: String(to.port)
         }
       };
@@ -2249,11 +2249,11 @@
     ) {
       const specification = {
         from: {
-          node: String(from.node),
+          skillNode: String(from.skillNode),
           port: String(from.port)
         },
         to: {
-          node: String(to.node),
+          skillNode: String(to.skillNode),
           port: String(to.port)
         }
       };
@@ -2320,14 +2320,14 @@
             connection =>
               direction === 'input'
                 ? (
-                    connection.to.node ===
-                      endpointValue.node &&
+                    connection.to.skillNode ===
+                      endpointValue.skillNode &&
                     connection.to.port ===
                       endpointValue.port
                   )
                 : (
-                    connection.from.node ===
-                      endpointValue.node &&
+                    connection.from.skillNode ===
+                      endpointValue.skillNode &&
                     connection.from.port ===
                       endpointValue.port
                   )
@@ -2406,7 +2406,7 @@
       const key =
         [
           direction,
-          endpointValue.node,
+          endpointValue.skillNode,
           endpointValue.port
         ].join(':');
 
@@ -2437,42 +2437,42 @@
       const errors = [];
       const warnings = [];
       const ids = new Set();
-      for (const node of state.nodes) {
-        if (ids.has(node.id)) {
+      for (const skillNode of state.skillNodes) {
+        if (ids.has(skillNode.id)) {
           errors.push({
-            code: 'DUPLICATE_NODE_ID',
-            message: `노드 ID ${node.id}가 중복됩니다.`
+            code: 'DUPLICATE_SKILL_NODE_ID',
+            message: `노드 ID ${skillNode.id}가 중복됩니다.`
           });
         }
-        ids.add(node.id);
-        if (!registry.has(node.type)) {
+        ids.add(skillNode.id);
+        if (!registry.has(skillNode.type)) {
           errors.push({
-            code: 'UNKNOWN_NODE_TYPE',
-            message: `노드 타입 ${node.type}이 등록되어 있지 않습니다.`
+            code: 'UNKNOWN_SKILL_NODE_TYPE',
+            message: `노드 타입 ${skillNode.type}이 등록되어 있지 않습니다.`
           });
         }
       }
       const graph = new Map();
       for (const connection of state.connections) {
         const output = portDef(
-          connection.from.node,
+          connection.from.skillNode,
           connection.from.port,
           'output'
         );
         const input = portDef(
-          connection.to.node,
+          connection.to.skillNode,
           connection.to.port,
           'input'
         );
-        if (!getNode(connection.from.node)) {
+        if (!getSkillNode(connection.from.skillNode)) {
           errors.push({
-            code: 'MISSING_SOURCE_NODE',
+            code: 'MISSING_SOURCE_SKILL_NODE',
             message: `연결 ${connection.id}의 출발 노드가 없습니다.`
           });
         }
-        if (!getNode(connection.to.node)) {
+        if (!getSkillNode(connection.to.skillNode)) {
           errors.push({
-            code: 'MISSING_TARGET_NODE',
+            code: 'MISSING_TARGET_SKILL_NODE',
             message: `연결 ${connection.id}의 도착 노드가 없습니다.`
           });
         }
@@ -2498,12 +2498,12 @@
             message: `${output.type} → ${input.type} 타입이 호환되지 않습니다.`
           });
         }
-        if (!graph.has(connection.from.node)) {
-          graph.set(connection.from.node, []);
+        if (!graph.has(connection.from.skillNode)) {
+          graph.set(connection.from.skillNode, []);
         }
         graph
-          .get(connection.from.node)
-          .push(connection.to.node);
+          .get(connection.from.skillNode)
+          .push(connection.to.skillNode);
       }
       const visiting = new Set();
       const visited = new Set();
@@ -2518,10 +2518,10 @@
         visited.add(id);
         return false;
       }
-      for (const node of state.nodes) {
+      for (const skillNode of state.skillNodes) {
         if (
-          !visited.has(node.id) &&
-          dfs(node.id)
+          !visited.has(skillNode.id) &&
+          dfs(skillNode.id)
         ) {
           errors.push({
             code: 'CYCLE',
@@ -2532,16 +2532,16 @@
       }
       const connected = new Set();
       for (const connection of state.connections) {
-        connected.add(connection.from.node);
-        connected.add(connection.to.node);
+        connected.add(connection.from.skillNode);
+        connected.add(connection.to.skillNode);
       }
-      for (const node of state.nodes) {
-        if (!connected.has(node.id)) {
+      for (const skillNode of state.skillNodes) {
+        if (!connected.has(skillNode.id)) {
           warnings.push({
-            code: 'ISOLATED_NODE',
-            node: node.id,
+            code: 'ISOLATED_SKILL_NODE',
+            skillNode: skillNode.id,
             message:
-              `노드 '${getDefinition(node.type)?.name || node.type}'가 연결되지 않았습니다.`
+              `노드 '${getDefinition(skillNode.type)?.name || skillNode.type}'가 연결되지 않았습니다.`
           });
         }
       }
@@ -2555,40 +2555,40 @@
     }
     function getWorkflow() {
       return {
-        nodes: clone(state.nodes),
+        skillNodes: clone(state.skillNodes),
         connections: clone(state.connections)
       };
     }
     function getWorkflowIR() {
       return {
-        nodes: state.nodes.map(node => {
+        skillNodes: state.skillNodes.map(skillNode => {
           const item = {
-            id: node.id,
-            type: node.type,
-            params: clone(node.data?.params || {})
+            id: skillNode.id,
+            type: skillNode.type,
+            params: clone(skillNode.data?.params || {})
           };
 
-          if (node.type === 'file') {
+          if (skillNode.type === 'file') {
             item.file = {
               source:
-                node.data?.generated
+                skillNode.data?.generated
                   ? 'generated'
                   : 'upload',
               name:
                 String(
-                  node.data?.name ||
+                  skillNode.data?.name ||
                   '파일'
                 ).slice(0, 240),
               mime:
                 String(
-                  node.data?.mime ||
+                  skillNode.data?.mime ||
                   'application/octet-stream'
                 ).slice(0, 160),
               size:
                 Math.max(
                   0,
                   Number(
-                    node.data?.size ||
+                    skillNode.data?.size ||
                     0
                   ) || 0
                 ),
@@ -2596,24 +2596,24 @@
                 Math.max(
                   0,
                   Number(
-                    node.data?.lastModified ||
+                    skillNode.data?.lastModified ||
                     0
                   ) || 0
                 )
             };
 
             if (
-              typeof node.data?.textPreview ===
+              typeof skillNode.data?.textPreview ===
                 'string' &&
-              node.data.textPreview
+              skillNode.data.textPreview
             ) {
               item.file.textPreview =
-                node.data.textPreview.slice(
+                skillNode.data.textPreview.slice(
                   0,
                   12000
                 );
               item.file.textTruncated =
-                node.data?.textTruncated ===
+                skillNode.data?.textTruncated ===
                   true;
             }
           }
@@ -2626,8 +2626,8 @@
               connection.data?.kind !== 'data'
           )
           .map(connection => [
-            `${connection.from.node}.${connection.from.port}`,
-            `${connection.to.node}.${connection.to.port}`
+            `${connection.from.skillNode}.${connection.from.port}`,
+            `${connection.to.skillNode}.${connection.to.port}`
           ]),
         data: state.connections
           .filter(
@@ -2635,8 +2635,8 @@
               connection.data?.kind === 'data'
           )
           .map(connection => [
-            `${connection.from.node}.${connection.from.port}`,
-            `${connection.to.node}.${connection.to.port}`
+            `${connection.from.skillNode}.${connection.from.port}`,
+            `${connection.to.skillNode}.${connection.to.port}`
           ])
       };
     }
@@ -2665,11 +2665,11 @@
     }
     function setState(saved = {}) {
       const workflow = saved.workflow || saved;
-      state.nodes =
-        Array.isArray(workflow?.nodes)
-          ? workflow.nodes
-              .map(normalizeNode)
-              .filter(node => registry.has(node.type))
+      state.skillNodes =
+        Array.isArray(workflow?.skillNodes)
+          ? workflow.skillNodes
+              .map(normalizeSkillNode)
+              .filter(skillNode => registry.has(skillNode.type))
           : [];
       state.connections =
         Array.isArray(workflow?.connections)
@@ -2685,11 +2685,11 @@
             `c-${Math.random().toString(36).slice(2, 8)}`
           ),
           from: {
-            node: String(connection.from?.node || ''),
+            skillNode: String(connection.from?.skillNode || ''),
             port: String(connection.from?.port || '')
           },
           to: {
-            node: String(connection.to?.node || ''),
+            skillNode: String(connection.to?.skillNode || ''),
             port: String(connection.to?.port || '')
           },
           ...(connection.data
@@ -2698,8 +2698,8 @@
         }))
         .filter(
           connection =>
-            getNode(connection.from.node) &&
-            getNode(connection.to.node)
+            getSkillNode(connection.from.skillNode) &&
+            getSkillNode(connection.to.skillNode)
         );
       if (saved.viewport) {
         state.scale = clamp(
@@ -2712,7 +2712,7 @@
           y: Number(saved.viewport?.offset?.y) || 0
         };
       }
-      state.selectedNode = null;
+      state.selectedSkillNode = null;
       render();
       emit('change', getWorkflow());
       return api;
@@ -2721,56 +2721,56 @@
   if (
     !spec ||
     typeof spec !== 'object' ||
-    !Array.isArray(spec.nodes)
+    !Array.isArray(spec.skillNodes)
   ) {
     throw new Error('workflow spec가 올바르지 않습니다.');
   }
 
-  const previousNodes = new Map(
-    state.nodes.map(node => [node.id, node])
+  const previousSkillNodes = new Map(
+    state.skillNodes.map(skillNode => [skillNode.id, skillNode])
   );
 
-  const previousNodeCount = previousNodes.size;
+  const previousSkillNodeCount = previousSkillNodes.size;
 
-  const seenNodeIds = new Set();
+  const seenSkillNodeIds = new Set();
 
-  const nextNodes = spec.nodes.map((node, index) => {
+  const nextSkillNodes = spec.skillNodes.map((skillNode, index) => {
     if (
-      !node ||
-      typeof node !== 'object' ||
-      Array.isArray(node)
+      !skillNode ||
+      typeof skillNode !== 'object' ||
+      Array.isArray(skillNode)
     ) {
       throw new Error(`잘못된 노드입니다: ${index}`);
     }
 
     if (
-      typeof node.id !== 'string' ||
-      !node.id.trim()
+      typeof skillNode.id !== 'string' ||
+      !skillNode.id.trim()
     ) {
       throw new Error(`노드 ID가 올바르지 않습니다: ${index}`);
     }
 
-    const id = node.id.trim();
+    const id = skillNode.id.trim();
 
-    if (seenNodeIds.has(id)) {
+    if (seenSkillNodeIds.has(id)) {
       throw new Error(`중복된 노드 ID: ${id}`);
     }
 
-    seenNodeIds.add(id);
+    seenSkillNodeIds.add(id);
 
     if (
-      typeof node.type !== 'string' ||
-      !registry.has(node.type)
+      typeof skillNode.type !== 'string' ||
+      !registry.has(skillNode.type)
     ) {
-      throw new Error(`존재하지 않는 노드 타입: ${node.type}`);
+      throw new Error(`존재하지 않는 노드 타입: ${skillNode.type}`);
     }
 
     const previous =
-      previousNodes.get(id);
+      previousSkillNodes.get(id);
 
     const hasPosition =
-      Number.isFinite(Number(node.x)) &&
-      Number.isFinite(Number(node.y));
+      Number.isFinite(Number(skillNode.x)) &&
+      Number.isFinite(Number(skillNode.y));
 
     const previousData =
       previous?.data &&
@@ -2779,33 +2779,33 @@
         : {};
 
     const incomingData =
-      node.data &&
-      typeof node.data === 'object'
-        ? clone(node.data)
+      skillNode.data &&
+      typeof skillNode.data === 'object'
+        ? clone(skillNode.data)
         : {};
 
     const params =
-      node.params &&
-      typeof node.params === 'object' &&
-      !Array.isArray(node.params)
-        ? clone(node.params)
+      skillNode.params &&
+      typeof skillNode.params === 'object' &&
+      !Array.isArray(skillNode.params)
+        ? clone(skillNode.params)
         : previousData.params &&
           typeof previousData.params === 'object'
           ? clone(previousData.params)
           : {};
 
-    return normalizeNode({
+    return normalizeSkillNode({
       id,
-      type: node.type,
+      type: skillNode.type,
       x: hasPosition
-        ? Number(node.x)
+        ? Number(skillNode.x)
         : previous?.x ?? 0,
       y: hasPosition
-        ? Number(node.y)
+        ? Number(skillNode.y)
         : previous?.y ?? 0,
       expanded:
-        node.expanded !== undefined
-          ? !!node.expanded
+        skillNode.expanded !== undefined
+          ? !!skillNode.expanded
           : previous?.expanded ??
             (options.expanded ?? true),
       data: {
@@ -2816,8 +2816,8 @@
     });
   });
 
-  const nextNodeMap = new Map(
-    nextNodes.map(node => [node.id, node])
+  const nextSkillNodeMap = new Map(
+    nextSkillNodes.map(skillNode => [skillNode.id, skillNode])
   );
 
   function buildConnections(edges, kind) {
@@ -2852,41 +2852,41 @@
       const to =
         endpoint(edge[1]);
 
-      const fromNode =
-        nextNodeMap.get(from.node);
+      const fromSkillNode =
+        nextSkillNodeMap.get(from.skillNode);
 
-      const toNode =
-        nextNodeMap.get(to.node);
+      const toSkillNode =
+        nextSkillNodeMap.get(to.skillNode);
 
-      if (!fromNode) {
+      if (!fromSkillNode) {
         throw new Error(
-          `${kind}: 출발 노드가 없습니다: ${from.node}`
+          `${kind}: 출발 노드가 없습니다: ${from.skillNode}`
         );
       }
 
-      if (!toNode) {
+      if (!toSkillNode) {
         throw new Error(
-          `${kind}: 도착 노드가 없습니다: ${to.node}`
+          `${kind}: 도착 노드가 없습니다: ${to.skillNode}`
         );
       }
 
       const output =
-        (getDefinition(fromNode.type)?.outputs || [])
+        (getDefinition(fromSkillNode.type)?.outputs || [])
           .find(port => String(port.id) === String(from.port));
 
       const input =
-        (getDefinition(toNode.type)?.inputs || [])
+        (getDefinition(toSkillNode.type)?.inputs || [])
           .find(port => String(port.id) === String(to.port));
 
       if (!output) {
         throw new Error(
-          `${kind}: ${fromNode.type}.${from.port}는 존재하지 않는 출력 포트입니다.`
+          `${kind}: ${fromSkillNode.type}.${from.port}는 존재하지 않는 출력 포트입니다.`
         );
       }
 
       if (!input) {
         throw new Error(
-          `${kind}: ${toNode.type}.${to.port}는 존재하지 않는 입력 포트입니다.`
+          `${kind}: ${toSkillNode.type}.${to.port}는 존재하지 않는 입력 포트입니다.`
         );
       }
 
@@ -2930,8 +2930,8 @@
     return spec.connections
       .filter(connection => (connection?.data?.kind === 'data' ? 'data' : 'flow') === kind)
       .map(connection => [
-        `${connection.from?.node}.${connection.from?.port}`,
-        `${connection.to?.node}.${connection.to?.port}`
+        `${connection.from?.skillNode}.${connection.from?.port}`,
+        `${connection.to?.skillNode}.${connection.to?.port}`
       ]);
   };
   const connections = [
@@ -2949,8 +2949,8 @@
   // matched by both endpoints and channel; layout-only IR preserves prior IDs.
   const connectionKey = connection => JSON.stringify([
     connection.data?.kind === 'data' ? 'data' : 'flow',
-    connection.from?.node, connection.from?.port,
-    connection.to?.node, connection.to?.port
+    connection.from?.skillNode, connection.from?.port,
+    connection.to?.skillNode, connection.to?.port
   ]);
   const connectionMetadata = new Map(
     state.connections.map(connection => [connectionKey(connection), connection])
@@ -2969,12 +2969,12 @@
     if (metadata.data) connection.data = clone(metadata.data);
   }
 
-  const sharedNodeCount =
-    nextNodes.reduce(
-      (count, node) =>
+  const sharedSkillNodeCount =
+    nextSkillNodes.reduce(
+      (count, skillNode) =>
         count +
         (
-          previousNodes.has(node.id)
+          previousSkillNodes.has(skillNode.id)
             ? 1
             : 0
         ),
@@ -2982,32 +2982,32 @@
     );
 
   const isNewWorkflow =
-    previousNodeCount === 0 ||
+    previousSkillNodeCount === 0 ||
     (
-      nextNodes.length > 0 &&
-      sharedNodeCount === 0
+      nextSkillNodes.length > 0 &&
+      sharedSkillNodeCount === 0
     );
 
-  state.nodes =
-    nextNodes;
+  state.skillNodes =
+    nextSkillNodes;
 
   state.connections =
     connections;
 
-  state.selectedNode = null;
+  state.selectedSkillNode = null;
 
   render();
 
   const GAP_X = 60;
   const DEFAULT_Y = 0;
 
-  const nodeInfo = new Map();
+  const skillNodeInfo = new Map();
 
-  for (const node of state.nodes) {
+  for (const skillNode of state.skillNodes) {
     const element =
-      getNodeElement(node.id);
+      getSkillNodeElement(skillNode.id);
 
-    nodeInfo.set(node.id, {
+    skillNodeInfo.set(skillNode.id, {
       width: Math.max(
         190,
         element?.offsetWidth || 190
@@ -3031,14 +3031,14 @@
   const outgoing =
     new Map();
 
-  for (const node of state.nodes) {
+  for (const skillNode of state.skillNodes) {
     incoming.set(
-      node.id,
+      skillNode.id,
       []
     );
 
     outgoing.set(
-      node.id,
+      skillNode.id,
       []
     );
   }
@@ -3047,10 +3047,10 @@
     const connection of flowConnections
   ) {
     const from =
-      connection.from.node;
+      connection.from.skillNode;
 
     const to =
-      connection.to.node;
+      connection.to.skillNode;
 
     if (
       !incoming.has(to) ||
@@ -3080,11 +3080,11 @@
     }
   }
 
-  const nodeOrder =
+  const skillNodeOrder =
     new Map(
-      state.nodes.map(
-        (node, index) => [
-          node.id,
+      state.skillNodes.map(
+        (skillNode, index) => [
+          skillNode.id,
           index
         ]
       )
@@ -3095,13 +3095,13 @@
    * layout 옵션을 지정하면 모든 노드를 명시적으로 다시 배치한다.
    */
   const nodesNeedingPosition =
-    state.nodes.filter(
-      node => {
+    state.skillNodes.filter(
+      skillNode => {
         const source =
-          spec.nodes.find(
+          spec.skillNodes.find(
             item =>
               String(item.id) ===
-              node.id
+              skillNode.id
           );
 
         const hasExplicitPosition =
@@ -3114,7 +3114,7 @@
 
         return options.layout === true || (
           !hasExplicitPosition &&
-          !previousNodes.has(node.id)
+          !previousSkillNodes.has(skillNode.id)
         );
       }
     );
@@ -3132,11 +3132,11 @@
     ) {
       const GAP_X = 60;
       const GAP_Y = 36;
-      const nodeOrder =
+      const skillNodeOrder =
         new Map(
-          state.nodes.map(
-            (node, index) => [
-              node.id,
+          state.skillNodes.map(
+            (skillNode, index) => [
+              skillNode.id,
               index
             ]
           )
@@ -3146,14 +3146,14 @@
         const incoming = new Map();
         const outgoing = new Map();
 
-        for (const node of state.nodes) {
-          incoming.set(node.id, []);
-          outgoing.set(node.id, []);
+        for (const skillNode of state.skillNodes) {
+          incoming.set(skillNode.id, []);
+          outgoing.set(skillNode.id, []);
         }
 
         for (const connection of edges) {
-          const from = connection.from.node;
-          const to = connection.to.node;
+          const from = connection.from.skillNode;
+          const to = connection.to.skillNode;
 
           if (
             from === to ||
@@ -3185,25 +3185,25 @@
       function topologicalSort(graph) {
         const indegree = new Map();
 
-        for (const node of state.nodes) {
+        for (const skillNode of state.skillNodes) {
           indegree.set(
-            node.id,
-            graph.incoming.get(node.id)?.length || 0
+            skillNode.id,
+            graph.incoming.get(skillNode.id)?.length || 0
           );
         }
 
         const queue =
-          state.nodes
+          state.skillNodes
             .filter(
-              node =>
-                (indegree.get(node.id) || 0) === 0
+              skillNode =>
+                (indegree.get(skillNode.id) || 0) === 0
             )
             .sort(
               (a, b) =>
-                nodeOrder.get(a.id) -
-                nodeOrder.get(b.id)
+                skillNodeOrder.get(a.id) -
+                skillNodeOrder.get(b.id)
             )
-            .map(node => node.id);
+            .map(skillNode => skillNode.id);
 
         const order = [];
 
@@ -3216,8 +3216,8 @@
               .slice()
               .sort(
                 (a, b) =>
-                  nodeOrder.get(a) -
-                  nodeOrder.get(b)
+                  skillNodeOrder.get(a) -
+                  skillNodeOrder.get(b)
               );
 
           for (const childId of children) {
@@ -3230,8 +3230,8 @@
               queue.push(childId);
               queue.sort(
                 (a, b) =>
-                  nodeOrder.get(a) -
-                  nodeOrder.get(b)
+                  skillNodeOrder.get(a) -
+                  skillNodeOrder.get(b)
               );
             }
           }
@@ -3256,7 +3256,7 @@
        */
       if (
         topologicalOrder.length !==
-        state.nodes.length
+        state.skillNodes.length
       ) {
         layoutGraph =
           buildLayoutGraph(
@@ -3272,21 +3272,21 @@
       const orderedIds =
         new Set(topologicalOrder);
 
-      for (const node of state.nodes) {
-        if (!orderedIds.has(node.id)) {
-          topologicalOrder.push(node.id);
+      for (const skillNode of state.skillNodes) {
+        if (!orderedIds.has(skillNode.id)) {
+          topologicalOrder.push(skillNode.id);
         }
       }
 
       const layers =
         new Map();
 
-      for (const nodeId of topologicalOrder) {
+      for (const skillNodeId of topologicalOrder) {
         let layer = 0;
 
         for (
           const parentId
-            of layoutGraph.incoming.get(nodeId) || []
+            of layoutGraph.incoming.get(skillNodeId) || []
         ) {
           layer =
             Math.max(
@@ -3296,30 +3296,30 @@
         }
 
         layers.set(
-          nodeId,
+          skillNodeId,
           layer
         );
       }
 
-      const layerNodes =
+      const layerSkillNodes =
         new Map();
 
-      for (const nodeId of topologicalOrder) {
+      for (const skillNodeId of topologicalOrder) {
         const layer =
-          layers.get(nodeId) || 0;
+          layers.get(skillNodeId) || 0;
 
-        if (!layerNodes.has(layer)) {
-          layerNodes.set(layer, []);
+        if (!layerSkillNodes.has(layer)) {
+          layerSkillNodes.set(layer, []);
         }
 
-        layerNodes
+        layerSkillNodes
           .get(layer)
-          .push(nodeId);
+          .push(skillNodeId);
       }
 
       const maxLayer =
         Math.max(
-          ...layerNodes.keys(),
+          ...layerSkillNodes.keys(),
           0
         );
 
@@ -3334,14 +3334,14 @@
         layer++
       ) {
         const ids =
-          layerNodes.get(layer) || [];
+          layerSkillNodes.get(layer) || [];
 
         const maxWidth =
           Math.max(
             190,
             ...ids.map(
               id =>
-                nodeInfo.get(id)?.width || 190
+                skillNodeInfo.get(id)?.width || 190
             )
           );
 
@@ -3364,14 +3364,14 @@
         layer++
       ) {
         const ids =
-          layerNodes.get(layer) || [];
+          layerSkillNodes.get(layer) || [];
 
         ids.sort(
           (a, b) => {
             if (layer === 0) {
               return (
-                nodeOrder.get(a) -
-                nodeOrder.get(b)
+                skillNodeOrder.get(a) -
+                skillNodeOrder.get(b)
               );
             }
 
@@ -3406,17 +3406,17 @@
             }
 
             return (
-              nodeOrder.get(a) -
-              nodeOrder.get(b)
+              skillNodeOrder.get(a) -
+              skillNodeOrder.get(b)
             );
           }
         );
 
         const totalHeight =
           ids.reduce(
-            (sum, nodeId) =>
+            (sum, skillNodeId) =>
               sum +
-              (nodeInfo.get(nodeId)?.height || 74),
+              (skillNodeInfo.get(skillNodeId)?.height || 74),
             0
           ) +
           Math.max(
@@ -3428,25 +3428,25 @@
           baseY -
           totalHeight / 2;
 
-        for (const nodeId of ids) {
-          const node =
-            nextNodeMap.get(nodeId);
+        for (const skillNodeId of ids) {
+          const skillNode =
+            nextSkillNodeMap.get(skillNodeId);
 
-          if (!node) {
+          if (!skillNode) {
             continue;
           }
 
           const height =
-            nodeInfo.get(nodeId)?.height || 74;
+            skillNodeInfo.get(skillNodeId)?.height || 74;
 
-          node.x =
+          skillNode.x =
             layerX.get(layer) || 0;
 
-          node.y =
+          skillNode.y =
             y;
 
           centerY.set(
-            nodeId,
+            skillNodeId,
             y + height / 2
           );
 
@@ -3456,62 +3456,62 @@
         }
       }
     } else {
-      const nodeOrder =
+      const skillNodeOrder =
         new Map(
-          state.nodes.map(
-            (node, index) => [
-              node.id,
+          state.skillNodes.map(
+            (skillNode, index) => [
+              skillNode.id,
               index
             ]
           )
         );
 
       topologicalOrder =
-        state.nodes.map(
-          node => node.id
+        state.skillNodes.map(
+          skillNode => skillNode.id
         );
 
       const positioned =
         new Set(
-          state.nodes
+          state.skillNodes
             .filter(
-              node =>
-                previousNodes.has(node.id) ||
+              skillNode =>
+                previousSkillNodes.has(skillNode.id) ||
                 !nodesNeedingPosition.some(
                   target =>
-                    target.id === node.id
+                    target.id === skillNode.id
                 )
             )
             .map(
-              node =>
-                node.id
+              skillNode =>
+                skillNode.id
             )
         );
 
       let maxX = 0;
 
       for (
-        const node of state.nodes
+        const skillNode of state.skillNodes
       ) {
-        if (!positioned.has(node.id)) {
+        if (!positioned.has(skillNode.id)) {
           continue;
         }
 
         const info =
-          nodeInfo.get(node.id);
+          skillNodeInfo.get(skillNode.id);
 
         maxX =
           Math.max(
             maxX,
-            node.x +
+            skillNode.x +
               (
                 info?.width ||
                 190
               )
           );
 
-        if (Number.isFinite(node.y)) {
-          baseY = node.y;
+        if (Number.isFinite(skillNode.y)) {
+          baseY = skillNode.y;
         }
       }
 
@@ -3520,31 +3520,31 @@
       }
 
       for (
-        const nodeId of topologicalOrder
+        const skillNodeId of topologicalOrder
       ) {
-        const node =
-          nextNodeMap.get(nodeId);
+        const skillNode =
+          nextSkillNodeMap.get(skillNodeId);
 
-        if (!node) {
+        if (!skillNode) {
           continue;
         }
 
         if (
           !nodesNeedingPosition.some(
             target =>
-              target.id === nodeId
+              target.id === skillNodeId
           )
         ) {
           continue;
         }
 
         const info =
-          nodeInfo.get(nodeId);
+          skillNodeInfo.get(skillNodeId);
 
-        node.x =
+        skillNode.x =
           maxX;
 
-        node.y =
+        skillNode.y =
           baseY;
 
         maxX +=
@@ -3554,7 +3554,7 @@
           ) +
           GAP_X;
 
-        positioned.add(nodeId);
+        positioned.add(skillNodeId);
       }
     }
 
@@ -3562,10 +3562,10 @@
   }
 
   for (
-    const node of state.nodes
+    const skillNode of state.skillNodes
   ) {
     const element =
-      getNodeElement(node.id);
+      getSkillNodeElement(skillNode.id);
 
     if (!element) {
       continue;
@@ -3573,7 +3573,7 @@
 
     positionPorts(
       element,
-      getDefinition(node.type)
+      getDefinition(skillNode.type)
     );
   }
 
@@ -3605,7 +3605,7 @@
 
   return getWorkflow();
 }
-    function findNewNodePosition(ignoreNodeId = null) {
+    function findNewSkillNodePosition(ignoreSkillNodeId = null) {
       const rect = viewport.getBoundingClientRect();
       const center = screenToWorld(
         rect.left + rect.width / 2,
@@ -3631,12 +3631,12 @@
           height / 2 +
           dy;
         const occupied =
-          state.nodes.some(
-            node =>
-              node.id !== ignoreNodeId &&
-              Math.abs(node.x - x) <
+          state.skillNodes.some(
+            skillNode =>
+              skillNode.id !== ignoreSkillNodeId &&
+              Math.abs(skillNode.x - x) <
                 width + gap &&
-              Math.abs(node.y - y) <
+              Math.abs(skillNode.y - y) <
                 height + gap
           );
         if (!occupied) {
@@ -3648,7 +3648,7 @@
         y: center.y - height / 2
       };
     }
-    function addNode(type, data = {}) {
+    function addSkillNode(type, data = {}) {
       if (!registry.has(type)) {
         throw new Error(
           `존재하지 않는 노드 타입: ${type}`
@@ -3661,8 +3661,8 @@
               x: Number(data.x),
               y: Number(data.y)
             }
-          : findNewNodePosition();
-      const node = normalizeNode({
+          : findNewSkillNodePosition();
+      const skillNode = normalizeSkillNode({
         id:
           data.id ||
           `n-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
@@ -3675,26 +3675,26 @@
             : true,
         data: data.data || {}
       });
-      state.nodes.push(node);
-      state.selectedNode = node.id;
+      state.skillNodes.push(skillNode);
+      state.selectedSkillNode = skillNode.id;
 
       if (
         !global.matchMedia?.(
           '(prefers-reduced-motion: reduce)'
         ).matches
       ) {
-        state.enteringNodes.add(
-          node.id
+        state.enteringSkillNodes.add(
+          skillNode.id
         );
       }
 
       render();
-      emit('nodeAdd', clone(node));
+      emit('skillNodeAdd', clone(skillNode));
       emit(
         'change',
         getWorkflow()
       );
-      return node;
+      return skillNode;
     }
     let layoutAnimationFrame = null;
 
@@ -3726,11 +3726,11 @@
       emit('layoutStart');
 
       const startPositions = new Map(
-        state.nodes.map(node => [
-          node.id,
+        state.skillNodes.map(skillNode => [
+          skillNode.id,
           {
-            x: node.x,
-            y: node.y
+            x: skillNode.x,
+            y: skillNode.y
           }
         ])
       );
@@ -3749,11 +3749,11 @@
       );
 
       const targetPositions = new Map(
-        state.nodes.map(node => [
-          node.id,
+        state.skillNodes.map(skillNode => [
+          skillNode.id,
           {
-            x: node.x,
-            y: node.y
+            x: skillNode.x,
+            y: skillNode.y
           }
         ])
       );
@@ -3763,14 +3763,14 @@
         y: state.offset.y
       };
 
-      for (const node of state.nodes) {
+      for (const skillNode of state.skillNodes) {
         const start =
-          startPositions.get(node.id);
+          startPositions.get(skillNode.id);
 
         if (!start) continue;
 
-        node.x = start.x;
-        node.y = start.y;
+        skillNode.x = start.x;
+        skillNode.y = start.y;
       }
 
       state.offset.x = startOffset.x;
@@ -3810,34 +3810,34 @@
         const eased =
           spring(progress);
 
-        for (const node of state.nodes) {
+        for (const skillNode of state.skillNodes) {
           const start =
-            startPositions.get(node.id);
+            startPositions.get(skillNode.id);
 
           const target =
-            targetPositions.get(node.id);
+            targetPositions.get(skillNode.id);
 
           if (!start || !target) continue;
 
-          node.x =
+          skillNode.x =
             start.x +
             (target.x - start.x) *
             eased;
 
-          node.y =
+          skillNode.y =
             start.y +
             (target.y - start.y) *
             eased;
 
           const element =
-            getNodeElement(node.id);
+            getSkillNodeElement(skillNode.id);
 
           if (element) {
             element.style.left =
-              `${node.x}px`;
+              `${skillNode.x}px`;
 
             element.style.top =
-              `${node.y}px`;
+              `${skillNode.y}px`;
           }
         }
 
@@ -3862,14 +3862,14 @@
 
         layoutAnimationFrame = null;
 
-        for (const node of state.nodes) {
+        for (const skillNode of state.skillNodes) {
           const target =
-            targetPositions.get(node.id);
+            targetPositions.get(skillNode.id);
 
           if (!target) continue;
 
-          node.x = target.x;
-          node.y = target.y;
+          skillNode.x = target.x;
+          skillNode.y = target.y;
         }
 
         state.offset.x = targetOffset.x;
@@ -3885,35 +3885,35 @@
 
       return api;
     }
-    function removeNode(id) {
-      const node = getNode(id);
-      if (!node) {
+    function removeSkillNode(id) {
+      const skillNode = getSkillNode(id);
+      if (!skillNode) {
         return false;
       }
-      state.nodes =
-        state.nodes.filter(
+      state.skillNodes =
+        state.skillNodes.filter(
           item => item.id !== id
         );
       const removed =
         state.connections.filter(
           connection =>
-            connection.from.node === id ||
-            connection.to.node === id
+            connection.from.skillNode === id ||
+            connection.to.skillNode === id
         );
       state.connections =
         state.connections.filter(
           connection =>
-            connection.from.node !== id &&
-            connection.to.node !== id
+            connection.from.skillNode !== id &&
+            connection.to.skillNode !== id
         );
       for (const connection of removed) {
         removeConnectionElement(connection.id);
       }
-      if (state.selectedNode === id) {
-        state.selectedNode = null;
+      if (state.selectedSkillNode === id) {
+        state.selectedSkillNode = null;
       }
       render();
-      emit('nodeRemove', clone(node));
+      emit('skillNodeRemove', clone(skillNode));
       emit(
         'change',
         getWorkflow()
@@ -3925,7 +3925,7 @@
       if (!state.interactionEnabled) {
         stopPanMotion();
         state.pointers.clear();
-        state.nodeDrag = null;
+        state.skillNodeDrag = null;
         state.canvasPan = null;
         state.pinch = null;
         cancelConnectionDrag();
@@ -3936,7 +3936,7 @@
       );
       return api;
     }
-    function beginConnectionDrag(event, port, node) {
+    function beginConnectionDrag(event, port, skillNode) {
       const direction =
         port.dataset.portDir;
 
@@ -3948,7 +3948,7 @@
       }
 
       const anchor = {
-        node: node.id,
+        skillNode: skillNode.id,
         port: port.dataset.portId
       };
 
@@ -4007,7 +4007,7 @@
           null;
       }
 
-      nodesLayer
+      skillNodesLayer
         .querySelectorAll(
           '.vc-port-pickup-hover, .vc-port-picked'
         )
@@ -4071,7 +4071,7 @@
       direction
     ) {
       return [
-        ...nodesLayer
+        ...skillNodesLayer
           .querySelectorAll(
             '.vc-port-hit'
           )
@@ -4081,8 +4081,8 @@
             .portDir ===
             direction &&
           element.dataset
-            .nodeId ===
-            endpointValue.node &&
+            .skillNodeId ===
+            endpointValue.skillNode &&
           element.dataset
             .portId ===
             endpointValue.port
@@ -4096,7 +4096,7 @@
       return !!(
         a &&
         b &&
-        a.node === b.node &&
+        a.skillNode === b.skillNode &&
         a.port === b.port
       );
     }
@@ -4297,9 +4297,9 @@
       direction
     ) {
       const tolerance = 20;
-      for (const node of state.nodes) {
+      for (const skillNode of state.skillNodes) {
         const definition = getDefinition(
-          node.type
+          skillNode.type
         );
         if (!definition) continue;
         const ports =
@@ -4307,7 +4307,7 @@
             ? definition.inputs || []
             : definition.outputs || [];
         const element =
-          getNodeElement(node.id);
+          getSkillNodeElement(skillNode.id);
         if (!element) continue;
         const height =
           Math.max(
@@ -4330,10 +4330,10 @@
             height;
           const centerX =
             direction === 'input'
-              ? node.x
-              : node.x + width;
+              ? skillNode.x
+              : skillNode.x + width;
           const centerY =
-            node.y + y;
+            skillNode.y + y;
           if (
             Math.abs(
               worldPoint.x - centerX
@@ -4343,7 +4343,7 @@
             ) <= tolerance
           ) {
             return {
-              node: node.id,
+              skillNode: skillNode.id,
               port: String(
                 ports[index].id
               )
@@ -4479,7 +4479,7 @@
       return connected;
     }
     listen(
-      nodesLayer,
+      skillNodesLayer,
       'pointerdown',
       event => {
         if (
@@ -4498,7 +4498,7 @@
         ) {
           /*
            * Node actions must keep native pointer/click semantics.
-           * Letting pointerdown bubble into the viewport starts a node drag
+           * Letting pointerdown bubble into the viewport starts a skillNode drag
            * and captures the mouse pointer, which can swallow the desktop
            * click before the delegated action handler receives it.
            */
@@ -4508,7 +4508,7 @@
       { passive: false }
     );
     listen(
-      nodesLayer,
+      skillNodesLayer,
       'click',
       event => {
         if (
@@ -4527,7 +4527,7 @@
         if (!action) {
           const element =
             event.target.closest(
-              '.vc-node'
+              '.vc-skill-node'
             );
 
           if (!element) {
@@ -4536,26 +4536,26 @@
 
           if (
             performance.now() -
-              state.lastNodeDragEndAt <
+              state.lastSkillNodeDragEndAt <
             180
           ) {
             return;
           }
 
-          const node =
-            getNode(
-              element.dataset.nodeId
+          const skillNode =
+            getSkillNode(
+              element.dataset.skillNodeId
             );
 
-          if (!node) {
+          if (!skillNode) {
             return;
           }
 
           emit(
-            'nodeClick',
+            'skillNodeClick',
             {
-              id: node.id,
-              node: clone(node)
+              id: skillNode.id,
+              skillNode: clone(skillNode)
             }
           );
 
@@ -4563,20 +4563,20 @@
         }
 
         const element =
-          action.closest('.vc-node');
+          action.closest('.vc-skill-node');
         if (!element) return;
         event.preventDefault();
         event.stopPropagation();
-        const node =
-          getNode(
-            element.dataset.nodeId
+        const skillNode =
+          getSkillNode(
+            element.dataset.skillNodeId
           );
-        if (!node) return;
+        if (!skillNode) return;
         if (action.dataset.action === 'runtime-result') {
-          const runtime = state.runtimeNodes.get(node.id);
-          if (runtime) emit('nodeResult', {
-            id: node.id,
-            node: clone(node),
+          const runtime = state.runtimeSkillNodes.get(skillNode.id);
+          if (runtime) emit('skillNodeResult', {
+            id: skillNode.id,
+            skillNode: clone(skillNode),
             runtime: clone(runtime)
           });
           return;
@@ -4586,10 +4586,10 @@
           'cancel-run'
         ) {
           emit(
-            'nodeRunCancel',
+            'skillNodeRunCancel',
             {
-              id: node.id,
-              node: clone(node)
+              id: skillNode.id,
+              skillNode: clone(skillNode)
             }
           );
           return;
@@ -4602,16 +4602,16 @@
           if (
             state.runLocked ||
             action.disabled ||
-            !runScopeReady(node.id)
+            !runScopeReady(skillNode.id)
           ) {
             return;
           }
 
           emit(
-            'nodeRun',
+            'skillNodeRun',
             {
-              id: node.id,
-              node: clone(node),
+              id: skillNode.id,
+              skillNode: clone(skillNode),
               mode: 'target'
             }
           );
@@ -4621,8 +4621,8 @@
           action.dataset.action ===
           'toggle'
         ) {
-          toggleNodeExpanded(
-            node.id
+          toggleSkillNodeExpanded(
+            skillNode.id
           );
           return;
         }
@@ -4630,12 +4630,12 @@
           action.dataset.action ===
           'delete'
         ) {
-          removeNode(node.id);
+          removeSkillNode(skillNode.id);
         }
       }
     );
     listen(
-  nodesLayer,
+  skillNodesLayer,
   'input',
   event => {
     const input =
@@ -4646,21 +4646,21 @@
     if (!input) return;
 
     const element =
-      input.closest('.vc-node');
+      input.closest('.vc-skill-node');
 
     if (!element) return;
 
-    const node =
-      getNode(
-        element.dataset.nodeId
+    const skillNode =
+      getSkillNode(
+        element.dataset.skillNodeId
       );
 
-    if (!node) return;
+    if (!skillNode) return;
 
-    node.data ||= {};
-    node.data.params ||= {};
+    skillNode.data ||= {};
+    skillNode.data.params ||= {};
 
-    node.data.params[
+    skillNode.data.params[
       input.dataset.paramId
     ] = input.value;
 
@@ -4671,7 +4671,7 @@
     ) {
       const definition =
         getDefinition(
-          node.type
+          skillNode.type
         );
 
       for (
@@ -4681,18 +4681,18 @@
         if (
           param?.legacy === true
         ) {
-          delete node.data.params[
+          delete skillNode.data.params[
             String(param.id)
           ];
         }
       }
     }
 
-    if (node.expanded) {
+    if (skillNode.expanded) {
       requestAnimationFrame(() => {
         const body =
           element.querySelector(
-            '.vc-node-body'
+            '.vc-skill-node-body'
           );
 
         if (!body) return;
@@ -4705,7 +4705,7 @@
 
         positionPorts(
           element,
-          getDefinition(node.type)
+          getDefinition(skillNode.type)
         );
 
         renderConnections();
@@ -4714,8 +4714,8 @@
 
     syncRunButtonStates();
 
-    emit('nodeEdit', {
-      id: node.id,
+    emit('skillNodeEdit', {
+      id: skillNode.id,
       param: input.dataset.paramId,
       value: input.value
     });
@@ -4781,8 +4781,8 @@
           state.pointers.size >= 2
         ) {
           cancelConnectionDrag();
-          if (state.nodeDrag) {
-            finishNodeDrag();
+          if (state.skillNodeDrag) {
+            finishSkillNodeDrag();
           }
           state.canvasPan = null;
           const [a, b] =
@@ -4811,43 +4811,43 @@
         if (port) {
           event.preventDefault();
           event.stopPropagation();
-          const node =
-            getNode(
-              port.dataset.nodeId
+          const skillNode =
+            getSkillNode(
+              port.dataset.skillNodeId
             );
-          if (!node) return;
+          if (!skillNode) return;
           beginConnectionDrag(
             event,
             port,
-            node
+            skillNode
           );
           return;
         }
-        const nodeElement =
+        const skillNodeElement =
           event.target.closest(
-            '.vc-node'
+            '.vc-skill-node'
           );
-        if (nodeElement) {
+        if (skillNodeElement) {
           event.preventDefault();
           event.stopPropagation();
-          const node =
-            getNode(
-              nodeElement.dataset.nodeId
+          const skillNode =
+            getSkillNode(
+              skillNodeElement.dataset.skillNodeId
             );
-          if (!node) return;
-          selectNode(node.id);
-          state.nodeDrag = {
+          if (!skillNode) return;
+          selectSkillNode(skillNode.id);
+          state.skillNodeDrag = {
             pointerId: event.pointerId,
-            node,
+            skillNode,
             startX: event.clientX,
             startY: event.clientY,
-            nodeX: node.x,
-            nodeY: node.y,
+            skillNodeX: skillNode.x,
+            skillNodeY: skillNode.y,
             moved: false,
-            wasExpanded: !!node.expanded,
+            wasExpanded: !!skillNode.expanded,
             collapseOnDrag:
               !!event.target.closest(
-                '.vc-node-head'
+                '.vc-skill-node-head'
               ),
             collapsedForDrag: false
           };
@@ -4858,7 +4858,7 @@
           } catch {}
           return;
         }
-        selectNode(null);
+        selectSkillNode(null);
         state.canvasPan = {
           pointerId: event.pointerId,
           startX: event.clientX,
@@ -4905,8 +4905,8 @@
         if (
           state.pointers.size >= 2
         ) {
-          if (state.nodeDrag) {
-            finishNodeDrag();
+          if (state.skillNodeDrag) {
+            finishSkillNodeDrag();
           }
           cancelConnectionDrag();
           state.canvasPan = null;
@@ -5037,11 +5037,11 @@
           return;
         }
         if (
-          state.nodeDrag?.pointerId ===
+          state.skillNodeDrag?.pointerId ===
           event.pointerId
         ) {
           const drag =
-            state.nodeDrag;
+            state.skillNodeDrag;
           const dx =
             event.clientX -
             drag.startX;
@@ -5054,15 +5054,15 @@
           ) {
             drag.moved = true;
             const element =
-              getNodeElement(
-                drag.node.id
+              getSkillNodeElement(
+                drag.skillNode.id
               );
             if (element) {
               element.classList.add(
                 'vc-dragging'
               );
-              emit('nodeDragStart', {
-                id: drag.node.id,
+              emit('skillNodeDragStart', {
+                id: drag.skillNode.id,
                 x: event.clientX,
                 y: event.clientY
               });
@@ -5070,8 +5070,8 @@
                 drag.wasExpanded &&
                 drag.collapseOnDrag
               ) {
-                setNodeExpanded(
-                  drag.node,
+                setSkillNodeExpanded(
+                  drag.skillNode,
                   false,
                   true
                 );
@@ -5084,36 +5084,36 @@
             return;
           }
           event.preventDefault();
-          drag.node.x =
-            drag.nodeX +
+          drag.skillNode.x =
+            drag.skillNodeX +
             dx /
               state.scale;
-          drag.node.y =
-            drag.nodeY +
+          drag.skillNode.y =
+            drag.skillNodeY +
             dy /
               state.scale;
           const element =
-            getNodeElement(
-              drag.node.id
+            getSkillNodeElement(
+              drag.skillNode.id
             );
           if (element) {
             element.style.left =
-              `${drag.node.x}px`;
+              `${drag.skillNode.x}px`;
             element.style.top =
-              `${drag.node.y}px`;
+              `${drag.skillNode.y}px`;
             positionPorts(
               element,
               getDefinition(
-                drag.node.type
+                drag.skillNode.type
               )
             );
           }
-          emit('nodeDragMove', {
-            id: drag.node.id,
+          emit('skillNodeDragMove', {
+            id: drag.skillNode.id,
             x: event.clientX,
             y: event.clientY,
-            nodeX: drag.node.x,
-            nodeY: drag.node.y
+            skillNodeX: drag.skillNode.x,
+            skillNodeY: drag.skillNode.y
           });
           scheduleConnectionRender();
           return;
@@ -5199,13 +5199,13 @@
       },
       { passive: false }
     );
-    function finishNodeDrag() {
+    function finishSkillNodeDrag() {
       const drag =
-        state.nodeDrag;
+        state.skillNodeDrag;
       if (!drag) return;
       const element =
-        getNodeElement(
-          drag.node.id
+        getSkillNodeElement(
+          drag.skillNode.id
         );
       if (element) {
         element.classList.remove(
@@ -5215,22 +5215,22 @@
           drag.wasExpanded &&
           drag.collapsedForDrag
         ) {
-          setNodeExpanded(
-            drag.node,
+          setSkillNodeExpanded(
+            drag.skillNode,
             true
           );
         }
       }
       if (drag.moved) {
-        state.lastNodeDragEndAt =
+        state.lastSkillNodeDragEndAt =
           performance.now();
       }
 
-      state.nodeDrag = null;
+      state.skillNodeDrag = null;
       renderConnections();
-      emit('nodeDragEnd', {
-        id: drag.node.id,
-        node: clone(drag.node)
+      emit('skillNodeDragEnd', {
+        id: drag.skillNode.id,
+        skillNode: clone(drag.skillNode)
       });
       emit(
         'change',
@@ -5278,10 +5278,10 @@
         }
       }
       if (
-        state.nodeDrag?.pointerId ===
+        state.skillNodeDrag?.pointerId ===
         event.pointerId
       ) {
-        finishNodeDrag();
+        finishSkillNodeDrag();
       }
       state.pointers.delete(
         event.pointerId
@@ -5379,16 +5379,16 @@
         if (state.destroyed) {
           return;
         }
-        for (const node of state.nodes) {
+        for (const skillNode of state.skillNodes) {
           const element =
-            getNodeElement(
-              node.id
+            getSkillNodeElement(
+              skillNode.id
             );
           if (element) {
             positionPorts(
               element,
               getDefinition(
-                node.type
+                skillNode.type
               )
             );
           }
@@ -5404,12 +5404,12 @@
     );
     function render() {
       renderTransform();
-      renderNodes();
+      renderSkillNodes();
       renderConnections();
     }
     const api = {
       root: viewport,
-      getNode,
+      getSkillNode,
       getWorkflow,
       getWorkflowIR,
       getState: () => ({
@@ -5423,14 +5423,14 @@
       }),
       setState,
       applyWorkflowIR,
-      addNode,
-      removeNode,
+      addSkillNode,
+      removeSkillNode,
       connect,
       disconnect,
       canConnect,
       validate,
-      selectNode,
-      toggleNodeExpanded,
+      selectSkillNode,
+      toggleSkillNodeExpanded,
       setInteractionEnabled,
       setRunLocked(
         locked,
@@ -5458,7 +5458,7 @@
         state.runPivot =
           nextPivot;
 
-        renderNodes();
+        renderSkillNodes();
 
         return api;
       },
@@ -5472,54 +5472,54 @@
         renderConnections();
         return api;
       },
-      setRuntimeNodeState(id, runtimeState) {
-        const nodeId = String(id || '');
-        if (!nodeId || !getNode(nodeId)) {
+      setRuntimeSkillNodeState(id, runtimeState) {
+        const skillNodeId = String(id || '');
+        if (!skillNodeId || !getSkillNode(skillNodeId)) {
           return api;
         }
         if (
           !runtimeState ||
           typeof runtimeState !== 'object'
         ) {
-          state.runtimeNodes.delete(nodeId);
+          state.runtimeSkillNodes.delete(skillNodeId);
         } else {
-          state.runtimeNodes.set(
-            nodeId,
+          state.runtimeSkillNodes.set(
+            skillNodeId,
             clone(runtimeState)
           );
         }
-        renderNodes();
+        renderSkillNodes();
         return api;
       },
-      clearRuntimeNodeStates() {
-        state.runtimeNodes.clear();
-        renderNodes();
+      clearRuntimeSkillNodeStates() {
+        state.runtimeSkillNodes.clear();
+        renderSkillNodes();
         return api;
       },
-      showRuntimeNode(id) {
-        const node =
-          getNode(String(id || ''));
-        if (!node) {
+      showRuntimeSkillNode(id) {
+        const skillNode =
+          getSkillNode(String(id || ''));
+        if (!skillNode) {
           return api;
         }
-        if (!node.expanded) {
-          setNodeExpanded(
-            node,
+        if (!skillNode.expanded) {
+          setSkillNodeExpanded(
+            skillNode,
             true
           );
         }
-        selectNode(node.id);
+        selectSkillNode(skillNode.id);
         return api;
       },
       isInteractionEnabled:
         () =>
           state.interactionEnabled,
-      getNodeDefinition:
+      getSkillDefinition:
         type =>
           getDefinition(type),
-      getNodeDefinitions,
-      getBaseNodeDefinitions,
-      setNodeDefinitions,
+      getSkillDefinitions,
+      getBaseSkillDefinitions,
+      setSkillDefinitions,
       prepareRuntime,
       pluginContext,
       center() {
@@ -5579,13 +5579,13 @@
           .clear();
 
         state.pointers.clear();
-        state.nodeDrag = null;
+        state.skillNodeDrag = null;
         state.canvasPan = null;
         state.pinch = null;
         state.connectionDrag = null;
-        state.enteringNodes.clear();
+        state.enteringSkillNodes.clear();
         state.runtimeConnections.clear();
-        state.runtimeNodes.clear();
+        state.runtimeSkillNodes.clear();
         connectionElements
           .forEach(
             element =>
@@ -5594,29 +5594,29 @@
         connectionElements.clear();
         connectionLayer.textContent = '';
         dragLayer.textContent = '';
-        nodesLayer.textContent = '';
+        skillNodesLayer.textContent = '';
         events.clear();
         if (
-          target._canvasNode ===
+          target._canvasSkillNode ===
           api
         ) {
-          target._canvasNode = null;
+          target._canvasSkillNode = null;
         }
         if (
-          viewport._canvasNode ===
+          viewport._canvasSkillNode ===
           api
         ) {
-          viewport._canvasNode = null;
+          viewport._canvasSkillNode = null;
         }
       }
     };
-    target._canvasNode = api;
-    viewport._canvasNode = api;
+    target._canvasSkillNode = api;
+    viewport._canvasSkillNode = api;
     const initialState =
       options.initialWorkflow ||
       previousState ||
       {
-        nodes: [],
+        skillNodes: [],
         connections: []
       };
     setState(initialState);
@@ -5651,7 +5651,7 @@
     render();
     return api;
   };
-  global.getMountedCanvasNode =
+  global.getMountedCanvasSkillNode =
     function(target) {
       if (typeof target === 'string') {
         target =
@@ -5660,7 +5660,7 @@
           );
       }
       return (
-        target?._canvasNode ||
+        target?._canvasSkillNode ||
         null
       );
     };

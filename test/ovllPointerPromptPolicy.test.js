@@ -8,14 +8,14 @@ const read=name=>readFileSync(new URL('../instructions/'+name,import.meta.url),'
 
 test('entry differentiates chat, reuse, dynamic definition, edit-only and explicit execution',()=>{
  const entry=read('prompts/layers/corridor.md');
- for(const term of ['Answer','Reuse','Define','Edit','Execute','new kind of node',
+ for(const term of ['Answer','Reuse','Define','Edit','Execute','new kind of skillNode',
    'necessary internal structuring','explicit no-run','executionIntent:"requested"'])
    assert.ok(entry.toLowerCase().includes(term.toLowerCase()),term);
  assert.doesNotMatch(entry,/Japanese vocabulary|일본어 단어장/);
 });
 test('definition guidance does not propose unsolicited graph structure',()=>{
  const d=read('prompts/micro/ir/define.md');
- assert.match(d,/builtin writing node/);
+ assert.match(d,/builtin writing skillNode/);
  assert.match(d,/created definition alias/);
  assert.doesNotMatch(d,/For an ordinary task without authorization for new workflow structure, propose/);
 });
@@ -23,7 +23,7 @@ test('assembled rule owners preserve data flow, real file effects and atomic cos
  const x=['core.md','layers/ir.md','micro/ir/patch.md','micro/ir/connect.md']
   .map(path=>read('prompts/'+path)).join('\n');
  for(const term of ['multiple:false','file.read_local','artifact.create',
-    'definition.appearance','definition.delete','Active-run adoption is unavailable','ActionResults'])
+    'skill.appearance','skill.delete','Active-run adoption is unavailable','ActionResults'])
     assert.ok(x.includes(term),term);
 });
 test('canonical action example still roundtrips wire and passes the frozen schema',()=>{
@@ -35,7 +35,7 @@ test('composer preserves the full action repertoire without incident-specific ca
  const registry=JSON.parse(read('registry.json'));
  assert.match(registry.assemblyVersion,/^\d+\.\d+\.\d+$/);
  const context={requestRef:'r1',objective:'Summarize notes',constraints:['Preserve sources'],
-   capabilities:[],outputContract:'NodeOutput',requestText:'Summarize these notes',
+   capabilities:[],outputContract:'SkillNodeOutput',requestText:'Summarize these notes',
    materials:[{ref:'source1',kind:'text',source:'user_input',content:'Actual source text',
      truncated:false,provenanceRefs:['user:r1']}]};
  const out=createPromptComposer().assemble({context,moduleIds:[
@@ -46,6 +46,6 @@ test('composer preserves the full action repertoire without incident-specific ca
     assert.ok(out.moduleIds.includes(id),id);
  const txt=out.messages.map(m=>m.content).join('\n');
  assert.match(txt,/dynamic/i);
- assert.match(txt,/new kind of node/);
+ assert.match(txt,/new kind of skillNode/);
  assert.doesNotMatch(txt,/Japanese vocabulary|일본어 단어장/);
 });

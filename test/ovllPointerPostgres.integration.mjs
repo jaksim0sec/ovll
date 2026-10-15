@@ -14,8 +14,8 @@ const newStore=(extra={})=>new PostgresPointerStore({pool,validateTurn:valid,...
 const ident=(prefix='x')=>prefix+'_'+randomUUID().replaceAll('-','').slice(0,18);
 const definition=(key='d',kind='model_task')=>({localKey:key,purpose:'Summarize source evidence',instruction:'Produce a useful summary',executorKind:kind,
   inputs:[],outputs:[{name:'result',role:'user result',representation:'text'}],...(kind==='tool_task'?{requiredCapabilities:['file.write']}: {})});
-const patch=(graphId,rev=0,defs=[definition()],ops=[{op:'node.add',localNodeKey:'n',definitionRef:{localDefinitionKey:'d'}}])=>
-  ({graphId,expectedGraphRevision:rev,definitions:defs,operations:ops});
+const patch=(graphId,rev=0,defs=[definition()],ops=[{op:'skillNode.add',localSkillNodeKey:'n',skillDefinitionRef:{localDefinitionKey:'d'}}])=>
+  ({graphId,expectedGraphRevision:rev,skillDefinitions:defs,operations:ops});
 const action=(key,kind,args,dependsOn=[])=>({localKey:key,kind,args,dependsOn});
 async function setup() {
   const store=newStore(),workspaceRef=ident('ws'),actorRef=ident('actor'),scope={workspaceRef,actorRef},graphId=ident('g'),taskId=ident('task');
@@ -24,7 +24,7 @@ async function setup() {
   await store.createTask(scope,{taskId,requestRef:ident('req'),objective:'Summarize documents'});
   return {store,scope,graphId,taskId,callScope:(requestRef=ident('request'))=>({...scope,graphId,taskRef:taskId,requestRef})};
 }
-before(async()=>{for(const name of ['001_initial.sql','002_node_evidence.sql','003_lifecycle.sql'])await pool.query(await readFile(new URL('../backend/ovllPointer/sql/'+name,import.meta.url),'utf8'));});
+before(async()=>{for(const name of ['001_initial.sql','002_node_evidence.sql','003_lifecycle.sql','004_skill_terminology.sql'])await pool.query(await readFile(new URL('../backend/ovllPointer/sql/'+name,import.meta.url),'utf8'));});
 after(async()=>{await pool.end();});
 
 test('durable graph and immutable revision survive store recreation',async()=>{
@@ -33,14 +33,14 @@ test('durable graph and immutable revision survive store recreation',async()=>{
   assert.equal(out.results[0].status,'applied');
   const fresh=newStore();
   assert.equal((await fresh.readGraph(scope,graphId)).graph.revision,1);
-  assert.equal((await fresh.readGraph(scope,graphId,0)).definitions.length,0);
-  assert.equal((await fresh.readGraph(scope,graphId,1)).graph.nodes.length,1);
+  assert.equal((await fresh.readGraph(scope,graphId,0)).skillDefinitions.length,0);
+  assert.equal((await fresh.readGraph(scope,graphId,1)).graph.skillNodes.length,1);
 });
 test('atomic patch failure and optimistic revision conflict are fail closed',async()=>{
   const {store,scope,graphId,callScope}=await setup();
   const invalid=patch(graphId,0,[definition()],[
-    {op:'node.add',localNodeKey:'n',definitionRef:{localDefinitionKey:'d'}},
-    {op:'node.delete',nodeId:'missing'}
+    {op:'skillNode.add',localSkillNodeKey:'n',skillDefinitionRef:{localDefinitionKey:'d'}},
+    {op:'skillNode.delete',skillNodeId:'missing'}
   ]);
   assert.equal((await store.submit({actions:[action('p','ir.applyPatch',{patch:invalid})]},callScope())).results[0].status,'rejected');
   assert.equal((await store.readGraph(scope,graphId)).graph.revision,0);
@@ -75,7 +75,7 @@ test('patch and dependent run create durable queue, not fake completion',async()
   const {store,graphId,taskId,scope,callScope}=await setup();
   const reply=await store.submit({actions:[
     action('patch','ir.applyPatch',{patch:patch(graphId)}),
-    action('run','run.start',{targets:[{fromAction:'patch',localNodeKey:'n'}]},['patch'])
+    action('run','run.start',{targets:[{fromAction:'patch',localSkillNodeKey:'n'}]},['patch'])
   ]},callScope());
   assert.deepEqual(reply.results.map(r=>r.status),['applied','scheduled']);
   const run=await store.inspectRun(scope,reply.results[1].runRef);
@@ -89,7 +89,7 @@ test('leases fence stale workers, completion requires independent verification',
   const {store,scope,graphId,callScope}=await setup();
   const r=await store.submit({actions:[
     action('patch','ir.applyPatch',{patch:patch(graphId)}),
-    action('run','run.start',{targets:[{fromAction:'patch',localNodeKey:'n'}]},['patch'])
+    action('run','run.start',{targets:[{fromAction:'patch',localSkillNodeKey:'n'}]},['patch'])
   ]},callScope());
   const runRef=r.results[1].runRef;
   const job=await store.claimRun({workerRef:ident('worker'),workspaceRef:scope.workspaceRef});
@@ -105,7 +105,7 @@ test('external-effect lease expiry marks outcome unknown without replay',async()
   const {store,scope,graphId,callScope}=await setup();
   const r=await store.submit({actions:[
     action('patch','ir.applyPatch',{patch:patch(graphId,0,[definition('d','tool_task')])}),
-    action('run','run.start',{targets:[{fromAction:'patch',localNodeKey:'n'}]},['patch'])
+    action('run','run.start',{targets:[{fromAction:'patch',localSkillNodeKey:'n'}]},['patch'])
   ]},callScope());
   const runRef=r.results[1].runRef;
   const claimed=await store.claimRun({workerRef:ident('worker'),workspaceRef:scope.workspaceRef});
@@ -147,7 +147,7 @@ test('lease renewal fences the old token and cancellation is durable',async()=>{
   const {store,scope,graphId,callScope}=await setup();
   const r=await store.submit({actions:[
     action('patch','ir.applyPatch',{patch:patch(graphId)}),
-    action('run','run.start',{targets:[{fromAction:'patch',localNodeKey:'n'}]},['patch'])
+    action('run','run.start',{targets:[{fromAction:'patch',localSkillNodeKey:'n'}]},['patch'])
   ]},callScope());
   const runRef=r.results[1].runRef;
   const job=await store.claimRun({workerRef:ident('worker'),workspaceRef:scope.workspaceRef});
@@ -162,7 +162,7 @@ test('worker uses trusted callback and records failures without completing Task'
   const {store,scope,graphId,taskId,callScope}=await setup();
   const r=await store.submit({actions:[
     action('patch','ir.applyPatch',{patch:patch(graphId)}),
-    action('run','run.start',{targets:[{fromAction:'patch',localNodeKey:'n'}]},['patch'])
+    action('run','run.start',{targets:[{fromAction:'patch',localSkillNodeKey:'n'}]},['patch'])
   ]},callScope());
   const worker=createRunWorker({store,workerRef:ident('worker'),executeRun:async(job)=>{
     assert.equal(job.run.graphRef.revision,1);
@@ -178,7 +178,7 @@ test('worker refuses to manufacture successful Run when evidence gate missing',a
   const {store,scope,graphId,callScope}=await setup();
   await store.submit({actions:[
     action('patch','ir.applyPatch',{patch:patch(graphId)}),
-    action('run','run.start',{targets:[{fromAction:'patch',localNodeKey:'n'}]},['patch'])
+    action('run','run.start',{targets:[{fromAction:'patch',localSkillNodeKey:'n'}]},['patch'])
   ]},callScope());
   const worker=createRunWorker({store,workerRef:ident('worker'),executeRun:async()=>({status:'completed',evidenceRefs:['fake']})});
   await assert.rejects(worker.workOnce({workspaceRef:scope.workspaceRef}),e=>e.code==='RUN_VERIFICATION_UNAVAILABLE');
@@ -188,7 +188,7 @@ test('unsharded worker claims a queued Run using the DB-selected tenant',async()
   const {store,graphId,callScope}=await setup();
   await store.submit({actions:[
     action('patch','ir.applyPatch',{patch:patch(graphId)}),
-    action('run','run.start',{targets:[{fromAction:'patch',localNodeKey:'n'}]},['patch'])
+    action('run','run.start',{targets:[{fromAction:'patch',localSkillNodeKey:'n'}]},['patch'])
   ]},callScope());
   const job=await newStore().claimRun({workerRef:ident('global_worker')});
   assert.equal(typeof job?.workspaceRef,'string');

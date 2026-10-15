@@ -141,7 +141,7 @@
       font-weight:650;
     }
 
-    .nodes {
+    .skillNodes {
       min-width:0;
       overflow:hidden;
       color:#8f918a;
@@ -362,9 +362,9 @@
             item.diagnostics || {};
           const u =
             item.usage || {};
-          const nodes =
-            Array.isArray(item.nodeTypes)
-              ? item.nodeTypes.join(" · ")
+          const skillNodes =
+            Array.isArray(item.skillNodeTypes)
+              ? item.skillNodeTypes.join(" · ")
               : "";
 
           return `
@@ -372,7 +372,7 @@
               <div class="top">
                 <span class="state"></span>
                 <span class="kind">${esc(item.kind)}</span>
-                <span class="nodes">${esc(nodes || item.code || "")}</span>
+                <span class="skillNodes">${esc(skillNodes || item.code || "")}</span>
                 <time>${esc(new Date(item.at).toLocaleTimeString())}</time>
               </div>
               <div class="metrics">

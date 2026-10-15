@@ -2,8 +2,8 @@
 "use strict";
 
 const STORAGE_BRIDGE = global.OvllSkillStorageRuntime||null;
-const STORAGE_KEY = STORAGE_BRIDGE?.storageKey||"ovll:workspace:v1";
-const SCHEMA_VERSION = STORAGE_BRIDGE?.schemaVersion||9;
+const STORAGE_KEY = STORAGE_BRIDGE?.storageKey||"ovll:workspace:skill:v3";
+const SCHEMA_VERSION = STORAGE_BRIDGE?.schemaVersion||11;
 const events = new Map();
 
 function clone(value){
@@ -34,7 +34,7 @@ function emptyMemory(){
 function emptyCanvas(){
   return {
     workflow:{
-      nodes:[],
+      skillNodes:[],
       connections:[]
     },
     viewport:{
@@ -63,21 +63,21 @@ function normalizeCanvas(value){
 
   if(
     Array.isArray(
-      workflow?.nodes
+      workflow?.skillNodes
     )
   ){
-    workflow.nodes =
-      workflow.nodes.map(
-        node => {
+    workflow.skillNodes =
+      workflow.skillNodes.map(
+        skillNode => {
           if(
-            !node ||
-            typeof node !== "object"
+            !skillNode ||
+            typeof skillNode !== "object"
           ){
-            return node;
+            return skillNode;
           }
 
           const next =
-            clone(node);
+            clone(skillNode);
 
           if(
             next.type === "file" &&
@@ -141,8 +141,8 @@ function emptyConversationState(){
     composerDraftParts:null,
     lastUserRequest:"",
     workflowUserRequest:"",
-    pointerGraph:null,
-    pointerRuns:[],
+    skillGraph:null,
+    skillRuns:[],
     pointerTask:null,
     pointerQuestion:null
   };
@@ -382,17 +382,18 @@ function normalizeMessage(value){
 }
 
 function normalizePointerGraph(value){
+  if(value&&(Object.hasOwn(value,"definitions")||Object.hasOwn(value.graph||{},"nodes")||Object.hasOwn(value.graph||{},"skills")))return null;
   if(value == null)return null;
   if(!value?.graph || typeof value.graph.graphId!=="string" ||
     !Number.isInteger(value.graph.revision) ||
-    !Array.isArray(value.graph.nodes) ||
+    !Array.isArray(value.graph.skillNodes) ||
     !Array.isArray(value.graph.connections) ||
-    !Array.isArray(value.definitions) ||
+    !Array.isArray(value.skillDefinitions) ||
     JSON.stringify(value).length>600000)return null;
   return clone(value);
 }
 
-// Reusable Pointer definitions belong to the workspace, not to a chat instance.
+// Reusable Pointer skillDefinitions belong to the workspace, not to a chat instance.
 function collectPointerDefinitions(...sources){
   const map=new Map();
   for(const source of sources){
@@ -409,13 +410,13 @@ function collectPointerDefinitions(...sources){
 }
 
 // Collapse obsolete appearance-only versions without touching semantic revisions.
-function foldCosmeticDefinitions(conversations,definitions){
+function foldCosmeticDefinitions(conversations,skillDefinitions){
   const key=ref=>ref?.definitionId+':'+ref?.version;
-  const all=new Map(definitions.map(def=>[key(def),def]));
+  const all=new Map(skillDefinitions.map(def=>[key(def),def]));
   const semantic=def=>JSON.stringify(Object.fromEntries(Object.entries(def)
     .filter(([name])=>!['version','presentation','cosmeticBaseVersion'].includes(name))));
   const aliases=new Map(),latest=new Map();
-  for(const def of definitions){
+  for(const def of skillDefinitions){
     const baseVersion=def.cosmeticBaseVersion,base=all.get(def.definitionId+':'+baseVersion);
     if(!Number.isInteger(baseVersion)||baseVersion<1||baseVersion>=def.version||
       !base||semantic(base)!==semantic(def))continue;
@@ -423,37 +424,37 @@ function foldCosmeticDefinitions(conversations,definitions){
     aliases.set(from,to);
     if(!latest.has(to)||def.version>latest.get(to).version)latest.set(to,def);
   }
-  if(!aliases.size)return definitions;
+  if(!aliases.size)return skillDefinitions;
   for(const [baseKey,alias] of latest){
     const base=all.get(baseKey);
     all.set(baseKey,{...base,presentation:clone(alias.presentation||base.presentation)});
   }
   for(const conversation of conversations){
-    const snapshot=conversation.state.pointerGraph;
+    const snapshot=conversation.state.skillGraph;
     if(!snapshot)continue;
-    for(const node of snapshot.graph.nodes){
-      const canonical=aliases.get(key(node.definitionRef));
+    for(const skillNode of snapshot.graph.skillNodes){
+      const canonical=aliases.get(key(skillNode.skillDefinitionRef));
       if(!canonical)continue;
       const base=all.get(canonical);
-      node.definitionRef={definitionId:base.definitionId,version:base.version};
+      skillNode.skillDefinitionRef={definitionId:base.definitionId,version:base.version};
     }
-    const kept=snapshot.definitions.filter(def=>!aliases.has(key(def))).map(def=>{
+    const kept=snapshot.skillDefinitions.filter(def=>!aliases.has(key(def))).map(def=>{
       const current=all.get(key(def));
       return current&&latest.has(key(def))?clone(current):def;
     });
-    for(const node of snapshot.graph.nodes){
-      if(kept.some(def=>key(def)===key(node.definitionRef)))continue;
-      const base=all.get(key(node.definitionRef));
+    for(const skillNode of snapshot.graph.skillNodes){
+      if(kept.some(def=>key(def)===key(skillNode.skillDefinitionRef)))continue;
+      const base=all.get(key(skillNode.skillDefinitionRef));
       if(base)kept.push(clone(base));
     }
-    snapshot.definitions=kept;
+    snapshot.skillDefinitions=kept;
   }
   return [...all.entries()].filter(([entry])=>!aliases.has(entry)).map(([,def])=>def);
 }
 function normalizePointerRuns(value){
   if(!Array.isArray(value))return [];
   return value.slice(-12).filter(x=>x&&typeof x.runId==='string'&&
-    typeof x.status==='string'&&Array.isArray(x.nodes)&&x.nodes.length<=64&&
+    typeof x.status==='string'&&Array.isArray(x.skillNodes)&&x.skillNodes.length<=64&&
     JSON.stringify(x).length<=2000000).map(clone);
 }
 
@@ -560,8 +561,8 @@ function normalizeConversationState(value){
         source.workflowUserRequest ||
         ""
       ).slice(0,12000),
-    pointerGraph:normalizePointerGraph(source.pointerGraph ?? source.vnextGraph),
-    pointerRuns:normalizePointerRuns(source.pointerRuns ?? source.vnextRuns),
+    skillGraph:normalizePointerGraph(source.skillGraph ?? source.vnextGraph),
+    skillRuns:normalizePointerRuns(source.skillRuns ?? source.vnextRuns),
     pointerTask:normalizePointerTask(source.pointerTask),
     pointerContext:normalizePointerContext(source.pointerContext),
     pointerQuestion:normalizePointerQuestion(source.pointerQuestion)
@@ -641,7 +642,7 @@ function createDefaultState(){
     sections:[section],
     conversations:[conversation],
     contextBundles:[context],
-    pointerDefinitions:[]
+    skillDefinitions:[]
   };
 }
 
@@ -806,8 +807,8 @@ function normalizeState(raw){
       ? requestedActive
       : conversations[0].id;
 
-  const pointerDefinitions=foldCosmeticDefinitions(conversations,collectPointerDefinitions(
-    source.pointerDefinitions,...conversations.map(c=>c.state.pointerGraph?.definitions)
+  const skillDefinitions=foldCosmeticDefinitions(conversations,collectPointerDefinitions(
+    source.skillDefinitions,...conversations.map(c=>c.state.skillGraph?.skillDefinitions)
   ));
 
   const time = now();
@@ -842,7 +843,7 @@ function normalizeState(raw){
     sections,
     conversations,
     contextBundles,
-    pointerDefinitions
+    skillDefinitions
   };
 }
 
@@ -1403,18 +1404,18 @@ function updateConversationState(
     return null;
   }
 
-  const preservedGraph=conversation.state?.pointerGraph || null;
-  const preservedRuns=conversation.state?.pointerRuns || [];
+  const preservedGraph=conversation.state?.skillGraph || null;
+  const preservedRuns=conversation.state?.skillRuns || [];
   const preservedTask=conversation.state?.pointerTask||null;
   const preservedQuestion=conversation.state?.pointerQuestion||null;
   conversation.state =
     normalizeConversationState(
       nextState
     );
-  if(!Object.prototype.hasOwnProperty.call(nextState||{},"pointerGraph"))
-    conversation.state.pointerGraph=preservedGraph;
-  if(!Object.prototype.hasOwnProperty.call(nextState||{},"pointerRuns"))
-    conversation.state.pointerRuns=preservedRuns;
+  if(!Object.prototype.hasOwnProperty.call(nextState||{},"skillGraph"))
+    conversation.state.skillGraph=preservedGraph;
+  if(!Object.prototype.hasOwnProperty.call(nextState||{},"skillRuns"))
+    conversation.state.skillRuns=preservedRuns;
   if(!Object.prototype.hasOwnProperty.call(nextState||{},"pointerTask"))conversation.state.pointerTask=preservedTask;
   if(!Object.prototype.hasOwnProperty.call(nextState||{},"pointerQuestion"))conversation.state.pointerQuestion=preservedQuestion;
 
@@ -1446,7 +1447,7 @@ function updateConversationState(
   return clone(conversation);
 }
 
-function updateConversationPointerGraph(conversationId,snapshot,{deletedDefinitions=[],appearanceRefs=[]}={}){
+function updateConversationSkillGraph(conversationId,snapshot,{deletedDefinitions=[],appearanceRefs=[]}={}){
   const conversation=getConversation(conversationId);
   if(!conversation)throw new Error("CONVERSATION_NOT_FOUND");
   const next=normalizePointerGraph(snapshot);
@@ -1458,7 +1459,7 @@ function updateConversationPointerGraph(conversationId,snapshot,{deletedDefiniti
   for(const ref of appearanceRefs){
     if(typeof ref?.definitionId!=='string'||ref.definitionId.startsWith('builtin:')||
       !Number.isInteger(ref.version)||ref.version<1)throw new Error("INVALID_DEFINITION_APPEARANCE");
-    const def=next?.definitions.find(d=>key(d)===key(ref));
+    const def=next?.skillDefinitions.find(d=>key(d)===key(ref));
     if(!def?.presentation)throw new Error("INVALID_DEFINITION_APPEARANCE");
     appearance.set(key(ref),clone(def.presentation));
   }
@@ -1471,83 +1472,53 @@ function updateConversationPointerGraph(conversationId,snapshot,{deletedDefiniti
     remove.add(ref.definitionId+':'+ref.version);
   }
   for(const record of state.conversations){
-    const graph=record===conversation?next?.graph:record.state.pointerGraph?.graph;
-    if((graph?.nodes||[]).some(node=>remove.has(key(node.definitionRef))))
+    const graph=record===conversation?next?.graph:record.state.skillGraph?.graph;
+    if((graph?.skillNodes||[]).some(skillNode=>remove.has(key(skillNode.skillDefinitionRef))))
       throw new Error('DEFINITION_IN_USE_OTHER_CONVERSATION');
   }
-  const previous=conversation.state.pointerGraph;
-  const previousDefinitions=state.pointerDefinitions;
+  const previous=conversation.state.skillGraph;
+  const previousDefinitions=state.skillDefinitions;
   const changed=new Map();
   try{
-    conversation.state.pointerGraph=next;
+    conversation.state.skillGraph=next;
     for(const record of state.conversations){
-      const saved=record.state.pointerGraph;
+      const saved=record.state.skillGraph;
       if(!saved||record===conversation||
-        !saved.definitions.some(def=>remove.has(key(def))||appearance.has(key(def))))continue;
+        !saved.skillDefinitions.some(def=>remove.has(key(def))||appearance.has(key(def))))continue;
       changed.set(record,saved);
-      record.state.pointerGraph={...saved,definitions:saved.definitions
+      record.state.skillGraph={...saved,skillDefinitions:saved.skillDefinitions
         .filter(def=>!remove.has(key(def)))
         .map(def=>appearance.has(key(def))?
           {...def,presentation:clone(appearance.get(key(def)))}:def)};
     }
-    state.pointerDefinitions=collectPointerDefinitions(
-      (previousDefinitions||[]).filter(def=>!remove.has(key(def))),next?.definitions
+    state.skillDefinitions=collectPointerDefinitions(
+      (previousDefinitions||[]).filter(def=>!remove.has(key(def))),next?.skillDefinitions
     ).map(def=>appearance.has(key(def))?
       {...def,presentation:clone(appearance.get(key(def)))}:def);
     if(!persist("conversation:pointer-graph")){const error=new Error(storageStatus.error||"LOCAL_GRAPH_SAVE_FAILED");error.code=storageStatus.error||"LOCAL_GRAPH_SAVE_FAILED";throw error;}
   }catch(error){
-    conversation.state.pointerGraph=previous;
-    for(const [record,saved] of changed)record.state.pointerGraph=saved;
-    state.pointerDefinitions=previousDefinitions;
+    conversation.state.skillGraph=previous;
+    for(const [record,saved] of changed)record.state.skillGraph=saved;
+    state.skillDefinitions=previousDefinitions;
     throw error;
   }
-  return clone(conversation.state.pointerGraph);
+  return clone(conversation.state.skillGraph);
 }
 
-function getPointerDefinitions(){
-  return clone(state.pointerDefinitions||[]);
-}
-function skillBridge(){
-  if(!STORAGE_BRIDGE)throw new Error('SKILL_RUNTIME_UNAVAILABLE');
-  return STORAGE_BRIDGE;
-}
-// V2-facing workspace API. Legacy state remains private to existing execution
-// consumers until the run scheduler has also migrated.
-function getSkillSnapshot(){
-  return skillBridge().canonicalWorkspace(getSnapshot());
-}
-function getSkillConversation(conversationId){
-  return getSkillSnapshot().conversations.find(c=>c.id===conversationId)||null;
-}
-function getActiveSkillConversation(){
-  return getSkillConversation(state.workspace.activeConversationId);
-}
 function getSkillDefinitions(){
-  return clone(state.pointerDefinitions||[]);
-}
-function updateConversationSkillGraph(conversationId,snapshot,options){
-  const bridge=skillBridge();
-  const legacy=bridge.runtimeSkillGraph(snapshot);
-  return bridge.canonicalSkillGraph(
-    updateConversationPointerGraph(conversationId,legacy,options));
+  return clone(state.skillDefinitions||[]);
 }
 function updateConversationSkillRuns(conversationId,runs){
-  const bridge=skillBridge();
-  return bridge.canonicalSkillRuns(
-    updateConversationPointerRuns(conversationId,bridge.runtimeSkillRuns(runs)));
-}
-
-function updateConversationPointerRuns(conversationId,runs){
   const conversation=getConversation(conversationId);
   if(!conversation)throw new Error("CONVERSATION_NOT_FOUND");
   if(Array.isArray(runs)&&runs.slice(-12).some(run=>JSON.stringify(run).length>2000000))throw new Error("LOCAL_RUN_BUDGET_EXCEEDED");
   const next=normalizePointerRuns(runs);
   if(!Array.isArray(runs)||next.length!==Math.min(runs.length,12))
     throw new Error("INVALID_LOCAL_RUNS");
-  const previous=conversation.state.pointerRuns;
-  conversation.state.pointerRuns=next;
+  const previous=conversation.state.skillRuns;
+  conversation.state.skillRuns=next;
   if(!persist("conversation:pointer-runs")){
-    conversation.state.pointerRuns=previous;
+    conversation.state.skillRuns=previous;
     const error=new Error(storageStatus.error||"LOCAL_RUN_SAVE_FAILED");error.code=storageStatus.error||"LOCAL_RUN_SAVE_FAILED";throw error;
   }
   return clone(next);
@@ -1579,22 +1550,14 @@ function updateConversationPointerContext(conversationId,context){
   return clone(conversation.state.pointerContext);
 }
 
-function getPointerRun(conversationId,runId){
-  return clone((getConversation(conversationId)?.state?.pointerRuns||[]).find(run=>run.runId===runId)||null);
-}
-function getPointerNodeOutput(conversationId,runId,nodeId,port){
-  const run=getPointerRun(conversationId,runId),node=run?.nodes.find(n=>n.nodeId===nodeId);
-  if(!node)return null;
-  return clone(port===undefined?node.outputs||null:node.outputs?.values?.[port]||null);
-}
 function getSkillRun(conversationId,runId){
-  const run=getPointerRun(conversationId,runId);
-  return run?skillBridge().canonicalSkillRuns([run])[0]:null;
+  return clone((getConversation(conversationId)?.state?.skillRuns||[]).find(run=>run.runId===runId)||null);
 }
-function getSkillOutput(conversationId,runId,skillId,port){
-  return getPointerNodeOutput(conversationId,runId,skillId,port);
+function getSkillNodeOutput(conversationId,runId,skillNodeId,port){
+  const run=getSkillRun(conversationId,runId),skillNode=run?.skillNodes.find(n=>n.skillNodeId===skillNodeId);
+  if(!skillNode)return null;
+  return clone(port===undefined?skillNode.outputs||null:skillNode.outputs?.values?.[port]||null);
 }
-
 function updateConversationDraft(
   conversationId,
   draft,
@@ -1791,7 +1754,7 @@ function search(
 
 function exportJSON(){
   return JSON.stringify(
-    STORAGE_BRIDGE?STORAGE_BRIDGE.canonicalWorkspace(getSnapshot()):getSnapshot(),
+    getSnapshot(),
     null,
     2
   );
@@ -1807,8 +1770,7 @@ function importJSON(
 
   state =
     normalizeState(
-      STORAGE_BRIDGE&&parsed?.schemaVersion===10
-        ? STORAGE_BRIDGE.runtimeWorkspace(parsed) : parsed
+      STORAGE_BRIDGE ? STORAGE_BRIDGE.importWorkspace(parsed) : parsed
     );
 
   persist(
@@ -1835,9 +1797,6 @@ const api = {
   storageKey:
     STORAGE_KEY,
   getSnapshot,
-  getSkillSnapshot,
-  getSkillConversation,
-  getActiveSkillConversation,
   getSection,
   getConversation,
   getActiveConversation,
@@ -1855,20 +1814,15 @@ const api = {
   moveConversation,
   assignContextBundle,
   updateConversationState,
-  updateConversationPointerGraph,
   updateConversationSkillGraph,
-  getPointerDefinitions,
   getSkillDefinitions,
-  updateConversationPointerRuns,
   updateConversationSkillRuns,
   updateConversationPointerTask,
   updateConversationPointerContext,
   updateConversationPointerQuestion,
   getStorageStatus,
-  getPointerRun,
-  getPointerNodeOutput,
   getSkillRun,
-  getSkillOutput,
+  getSkillNodeOutput,
   reloadStorage,
   updateConversationDraft,
   deleteConversation,

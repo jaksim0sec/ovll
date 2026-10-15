@@ -4,7 +4,7 @@ import {segmentSkillReferences,serializeSkillReference} from './ovllSkillReferen
 // resolve() must use a verified in-scope catalog before any chip is rendered.
 const kinds=Object.freeze({
   'skill-definition':'정의된 스킬',
-  'skill-canvas':'캔버스 스킬',
+  'skill-canvas':'스킬노드',
   function:'저장 함수'
 });
 function appendText(doc,container,text){

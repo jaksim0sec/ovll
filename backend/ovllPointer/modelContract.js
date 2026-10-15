@@ -1,15 +1,13 @@
 import {iconSvg} from './skillCatalog.js';
 import {ACTION_PLAN_CONTRACT,SEMANTIC_ACTION_FIELDS} from './actionCompiler.js';
-import {SKILL_ACTION_PLAN_CONTRACT,SKILL_SEMANTIC_ACTION_FIELDS,legacySemanticKind,skillSemanticKind}
-  from './skillActionContract.js';
 export function canonicalTurnExample(){
   return {executionIntent:'requested',actions:[
     {localKey:'p',kind:'ir.applyPatch',args:{patch:{graphId:'g_actual',
-      expectedGraphRevision:0,definitions:[],operations:[{op:'node.add',
-      localNodeKey:'n',definitionRef:{definitionId:'builtin:write',version:1},
+      expectedGraphRevision:0,skillDefinitions:[],operations:[{op:'skillNode.add',
+      localSkillNodeKey:'n',skillDefinitionRef:{definitionId:'builtin:write',version:1},
       settings:{request:'Write the requested report'}}]}}},
     {localKey:'r',kind:'run.start',dependsOn:['p'],
-      args:{targets:[{fromAction:'p',localNodeKey:'n'}],damMode:'closed'}}]};
+      args:{targets:[{fromAction:'p',localSkillNodeKey:'n'}],damMode:'closed'}}]};
 }
 export function toWireTurnExample(turn=canonicalTurnExample()){
   return {executionIntent:turn.executionIntent??null,message:turn.message??null,
@@ -17,23 +15,23 @@ export function toWireTurnExample(turn=canonicalTurnExample()){
     needs:(turn.needs||[]).map(n=>({kind:n.kind,selectorJson:JSON.stringify(n.selector),purpose:n.purpose}))};
 }
 export function canonicalTurnExamples(){
- const empty={graph:{graphId:'g_actual',revision:0,nodes:[],connections:[]},definitions:[]};
- const writer={...empty,graph:{...empty.graph,nodes:[{nodeId:'existing-write',
-  definitionRef:{definitionId:'builtin:write',version:1},settings:{request:'Write a report'},inputBindings:{}}]}};
+ const empty={graph:{graphId:'g_actual',revision:0,skillNodes:[],connections:[]},skillDefinitions:[]};
+ const writer={...empty,graph:{...empty.graph,skillNodes:[{skillNodeId:'existing-write',
+  skillDefinitionRef:{definitionId:'builtin:write',version:1},settings:{request:'Write a report'},inputBindings:{}}]}};
  return [
   {id:'chat',requestText:'Explain reusable workflows in one sentence.',snapshot:empty,
    turn:{message:'A reusable workflow preserves a useful procedure so it can work with new inputs.'}},
   {id:'edit-only',requestText:'Shorten the existing writer request. Do not run it.',snapshot:writer,
    turn:{actions:[{localKey:'p',kind:'ir.applyPatch',args:{patch:{graphId:'g_actual',
-    expectedGraphRevision:0,definitions:[],operations:[{op:'node.update',nodeId:'existing-write',
+    expectedGraphRevision:0,skillDefinitions:[],operations:[{op:'skillNode.update',skillNodeId:'existing-write',
      settings:{request:'Write a short report'}}]}}}]}},
-  {id:'new-kind',requestText:'Create a new kind of node for source reliability. Do not run it.',snapshot:empty,
+  {id:'new-kind',requestText:'Create a new kind of skillNode for source reliability. Do not run it.',snapshot:empty,
    turn:{actions:[{localKey:'p',kind:'ir.applyPatch',args:{patch:{graphId:'g_actual',expectedGraphRevision:0,
-    definitions:[{localKey:'d',purpose:'Assess source reliability',executorKind:'model_task',
+    skillDefinitions:[{localKey:'d',purpose:'Assess source reliability',executorKind:'model_task',
      instruction:'Assess supplied evidence, source reliability and limitations.',
      inputs:[{name:'in',role:'evidence',representation:'json',required:false}],
      outputs:[{name:'result',role:'assessment',representation:'json'}]}],
-    operations:[{op:'node.add',localNodeKey:'n',definitionRef:{localDefinitionKey:'d'}}]}}}]}},
+    operations:[{op:'skillNode.add',localSkillNodeKey:'n',skillDefinitionRef:{localDefinitionKey:'d'}}]}}}]}},
   {id:'compose-run',requestText:'Add a writer and run it to produce a report.',snapshot:empty,
    turn:canonicalTurnExample()}
  ];
@@ -41,9 +39,9 @@ export function canonicalTurnExamples(){
 export function semanticTurnExamples(){
  return [
   {id:'chat',plan:{contract:ACTION_PLAN_CONTRACT,message:'A reusable workflow preserves useful work for fresh inputs.'}},
-  {id:'edit-only',plan:{contract:ACTION_PLAN_CONTRACT,actions:[{action:'node.update',target:{kind:'existing',nodeId:'existing-write'},request:'Write a short report'}]}},
-  {id:'new-kind',plan:{contract:ACTION_PLAN_CONTRACT,actions:[{action:'node.define',alias:'review',purpose:'Assess source reliability',instruction:'Assess supplied evidence, source reliability and limitations.',createInstance:true}]}},
-  {id:'compose-run',plan:{contract:ACTION_PLAN_CONTRACT,executionIntent:'requested',actions:[{action:'node.add',alias:'report',definition:{kind:'builtin',type:'write'},request:'Write the requested report'},{action:'execute',target:{kind:'created',alias:'report'},damMode:'closed'}]}}
+  {id:'edit-only',plan:{contract:ACTION_PLAN_CONTRACT,actions:[{action:'skillNode.update',target:{kind:'existing',skillNodeId:'existing-write'},request:'Write a short report'}]}},
+  {id:'new-kind',plan:{contract:ACTION_PLAN_CONTRACT,actions:[{action:'skill.define',alias:'review',purpose:'Assess source reliability',instruction:'Assess supplied evidence, source reliability and limitations.',createInstance:true}]}},
+  {id:'compose-run',plan:{contract:ACTION_PLAN_CONTRACT,executionIntent:'requested',actions:[{action:'skillNode.add',alias:'report',definition:{kind:'builtin',type:'write'},request:'Write the requested report'},{action:'execute',target:{kind:'created',alias:'report'},damMode:'closed'}]}}
  ];
 }
 export function toWireActionPlan(plan){
@@ -52,8 +50,8 @@ export function toWireActionPlan(plan){
   needs:(plan.needs||[]).map(({selector,...need})=>({...need,selectorJson:JSON.stringify(selector)}))};
 }
 const ACTION_DETAIL_MODULES=Object.freeze({
- 'action.nodes':['node.add','node.update','node.delete'],
- 'action.definitions':['node.define','definition.revise','definition.appearance','definition.delete'],
+ 'action.skill-nodes':['skillNode.add','skillNode.update','skillNode.delete'],
+ 'action.skills':['skill.define','skill.revise','skill.appearance','skill.delete'],
  'action.links':['link.add','link.remove'],
  'action.execution':['execute'],
  'action.functions':['function.save']
@@ -61,7 +59,7 @@ const ACTION_DETAIL_MODULES=Object.freeze({
 export function actionModulesForKinds(kinds=[]){
  const selected=new Set();
  for(const kind of kinds){
-  const translated=legacySemanticKind(kind);
+  const translated=kind;
   if(!Object.hasOwn(SEMANTIC_ACTION_FIELDS,translated))throw Error('UNKNOWN_SEMANTIC_ACTION');
   for(const [id,members] of Object.entries(ACTION_DETAIL_MODULES))
     if(members.includes(translated))selected.add(id);
@@ -77,7 +75,7 @@ export function selectionOutputIssues(value){
  if(!Array.isArray(value.actionKinds)||value.actionKinds.length>16||
     new Set(value.actionKinds).size!==value.actionKinds.length||
     value.actionKinds.some(k=>typeof k!=='string'||
-      !Object.hasOwn(SEMANTIC_ACTION_FIELDS,legacySemanticKind(k))))
+      !Object.hasOwn(SEMANTIC_ACTION_FIELDS,k)))
   return error('/actionKinds','invalidSelectedActions');
  if(value.needs!==undefined&&(!Array.isArray(value.needs)||value.needs.length>32))
   return error('/needs','invalidSelectionNeeds');
@@ -90,78 +88,18 @@ export function selectionOutputIssues(value){
   return error('/message','answerRequiresMessage');
  return [];
 }
-function skillModelContract(nodeContext,{wire=false,selectedModules=[],selection=false,workshop=false}={}){
- if(nodeContext)return localModelContract(nodeContext,{wire,selectedModules,selection,workshop});
- if(selection)return [
-  '# CORRIDOR SELECTION — choose Skill actions, never write action payloads',
-  'Return JSON decision:"answer"|"read"|"work", actionKinds:[], message:null, needs:[], taskContext:null unless work.',
-  'Work selects only these semantic kinds: '+Object.keys(SKILL_SEMANTIC_ACTION_FIELDS).join(', ')+'.',
-  'answer returns a complete message, read requests needed evidence, work returns chosen actionKinds and taskContext:{objective,constraints}.',
-  'The host injects exact Skill action contracts before WORKSHOP. No invented execution results or keyword-only intent classifier.'
- ].join('\n');
- const selected=new Set(selectedModules),has=id=>selected.has(id);
- const out=[
-  '# WORKSHOP — Skill v2 semantic action plan',
-  '# OUTPUT — '+SKILL_ACTION_PLAN_CONTRACT,
-  wire?'Return {contract:"action-plan.v2",executionIntent:"requested"|null,message:string|null,actions:[],needs:[]}. Each action is {action,payloadJson:JSON.stringify(semanticFields)}. Keep required null and empty wire fields.':
-       'Return contract:"action-plan.v2" with actions:[{action,...semanticFields}], or needs, or a direct message.',
-  'For a direct answer include the required EXIT context records. With actions/needs EXIT fields are null.',
-  'For actions include taskContext:{objective,constraints:[string]}; for needs/direct answer use taskContext:null.',
-  'Each need uses a grounded {kind,selector,purpose}; wire mode uses selectorJson.',
-  'Only provided semantic contracts exist. Never supply internal GraphPatch fields, make up IDs or claim effects.'
- ];
- if(workshop)out.push('Use selected actions only; request additional action kinds through the host if required.');
- else out.push('Ask for the selected action contract before preparing an unfamiliar action.');
- if(selected.size){
-  out.push('# SELECTED SKILL ACTION CONTRACTS');
-  for(const [moduleId,kinds] of Object.entries(ACTION_DETAIL_MODULES)){
-   if(!has(moduleId))continue;
-   // Keep the module boundary visible: contract injection is auditable.
-   out.push('## '+moduleId);
-   for(const legacy of kinds){
-    const name=skillSemanticKind(legacy),fields=SKILL_SEMANTIC_ACTION_FIELDS[name];
-    if(fields)out.push(name+': '+fields.join(', ')+'.');
-   }
-  }
-  out.push('Skill selector: {kind:"existing",skillId:actual_id} or {kind:"created",alias:declared_alias}. Definition selector: {kind:"builtin",type:"write"}, {kind:"existing",definitionId,version?} or {kind:"created",alias}.');
- }
- if(has('action.nodes'))out.push(
-  'skill.add requires alias, definition and optional request/settings/inputs. skill.update merges requested settings and optional inputs. skill.delete requires a target; removeIncidentLinks:true authorizes exact incident link removal only.'
- );
- if(has('action.definitions'))out.push(
-  'skill.define requires alias, purpose and instruction; optional createInstance:true. skill.revise selects exact supersedes version. skill.appearance edits only custom presentation. skill.definition.delete removes only exact unused custom versions.',
-  'presentation supports name, color and iconKey. Allowed icon keys: '+Object.keys(iconSvg).join(', ')+'. Unknown icons use custom.'
- );
- if(has('action.links'))out.push(
-  'link.add uses from/to:{skill:SkillSelector,port:declared_port}; kind:data transfers values, kind:flow orders execution. link.remove uses existing linkId. Never invent ports.'
- );
- if(has('action.execution'))out.push(
-  'execute requires one target or targets:[SkillSelector], never both. damMode closed ends at targets; open follows downstream flow. Function targets use {kind:"function",ref:id}. executionIntent:"requested" requires current authorization.'
- );
- if(has('action.functions'))out.push(
-  'function.save retains separate Function assets. Graph inputMap/outputMap entries are {skill:SkillSelector,port} or {skillId,port}. Preserve invariants, exact inputs and outputs.'
- );
- if(has('action.nodes')&&has('action.execution'))
-  out.push('Example: '+JSON.stringify({contract:SKILL_ACTION_PLAN_CONTRACT,
-    executionIntent:'requested',actions:[
-     {action:'skill.add',alias:'writer',definition:{kind:'builtin',type:'write'},request:'Write a report'},
-     {action:'execute',target:{kind:'created',alias:'writer'},damMode:'closed'}
-    ]}));
- return out.join('\n');
-}
-export function localModelContract(nodeContext,{wire=false,selectedModules=[],selection=false,workshop=false,skillV2=false}={}){
- if(skillV2)return skillModelContract(nodeContext,{wire,selectedModules,selection,workshop});
+export function localModelContract(skillNodeContext,{wire=false,selectedModules=[],selection=false,workshop=false}={}){
  if(selection)return [
   '# CORRIDOR SELECTION — decide the action kinds; do not write action payloads',
   'Return JSON with decision:"answer"|"read"|"work", actionKinds:[], message:null, needs:[], taskContext:null unless work.',
   'answer: return a complete direct message with actionKinds:[] and needs:[]; include EXIT context records.',
   'read: request actual missing task evidence through needs with actionKinds:[] and no message.',
-  'work: select necessary semantic action kinds, including graph edits, dynamic definitions, execution and function saving if authorized; include taskContext:{objective,constraints}. Return no action payload, message or needs.',
+  'work: select necessary semantic action kinds, including graph edits, dynamic skillDefinitions, execution and function saving if authorized; include taskContext:{objective,constraints}. Return no action payload, message or needs.',
   'Available kinds: '+Object.keys(SEMANTIC_ACTION_FIELDS).join(', ')+'.',
   wire?'Encode each need selector in selectorJson:JSON.stringify(selector).':'Use needs items {kind,selector,purpose}.',
   'The server supplies exact contracts to WORKSHOP after you choose. Never classify user intent with a keyword dictionary.'
  ].join('\n');
- if(nodeContext)return [
+ if(skillNodeContext)return [
   'Return one JSON ModelTurn containing ONLY outputs: {"outputs":{"status":"produced","values":{"result":{"inline":"answer"}}}}.',
   'Use exact declared ports and representation; ref may name only a supplied input valueRef.',
   'An exclusive branch produces exactly one branch port.',
@@ -173,8 +111,8 @@ export function localModelContract(nodeContext,{wire=false,selectedModules=[],se
  const out=[
   '# WORKSHOP — server-supplied action contracts required before proposing actions',
   '# OUTPUT — ActionPlan '+ACTION_PLAN_CONTRACT,
-  wire?'Return contract:"action-plan.v1", executionIntent:"requested"|null, message:string|null, actions:[], needs:[]. Each action is {"action":string,"payloadJson":JSON.stringify(semanticFields)}. Keep required null/empty wire fields.':
-   'Return contract:"action-plan.v1" with needed message, actions, needs and executionIntent. Each action is {action,...semanticFields}.',
+  wire?'Return contract:"action-plan.v3", executionIntent:"requested"|null, message:string|null, actions:[], needs:[]. Each action is {"action":string,"payloadJson":JSON.stringify(semanticFields)}. Keep required null/empty wire fields.':
+   'Return contract:"action-plan.v3" with needed message, actions, needs and executionIntent. Each action is {action,...semanticFields}.',
   'For a final direct answer return requestDigest, responseDigest, updated sessionContext and valid explicit constraints. Preserve exact prior conditions unless current user explicitly supersedes them; list exact old strings in supersededConstraints, otherwise []. With needs/actions EXIT fields are null.',
   'For actions return taskContext:{objective, constraints:[string]} containing applicable conditions; for needs/direct answers return taskContext:null.',
   wire?'Each need is {kind,selectorJson:JSON.stringify(selector),purpose}.':'Each need is {kind,selector,purpose}.',
@@ -192,31 +130,31 @@ export function localModelContract(nodeContext,{wire=false,selectedModules=[],se
  if(!details.length)return out.join('\n');
  out.push('# SELECTED ACTION CONTRACTS');
  for(const [id,names] of details)out.push('## '+id,...names.map(name=>name+': '+SEMANTIC_ACTION_FIELDS[name].join(', ')+'.'));
- out.push('Node selector: {kind:"existing",nodeId:actual_id} or {kind:"created",alias:declared_alias}. Definition selector: {kind:"builtin",type:"write"} or {kind:"existing",definitionId,version?} or {kind:"created",alias}. Declare aliases before use.');
- if(has('action.nodes'))out.push(
-  'node.add requires alias, definition and optional request/settings/inputs; node.update merges requested settings and replaces inputs only if given. node.delete requires a target; removeIncidentLinks:true authorizes removing incident links only.'
+ out.push('Node selector: {kind:"existing",skillNodeId:actual_id} or {kind:"created",alias:declared_alias}. Definition selector: {kind:"builtin",type:"write"} or {kind:"existing",definitionId,version?} or {kind:"created",alias}. Declare aliases before use.');
+ if(has('action.skill-nodes'))out.push(
+  'skillNode.add requires alias, definition and optional request/settings/inputs; skillNode.update merges requested settings and replaces inputs only if given. skillNode.delete requires a target; removeIncidentLinks:true authorizes removing incident links only.'
  );
- if(has('action.definitions'))out.push(
-  'node.define requires alias, purpose and instruction; createInstance:true creates an instance. Ordinary model_task may omit executorKind and ports using flexible JSON in/result defaults. Explicit ports require name, role, representation; preserve required/multiple.',
-  'tool_task requires capabilities and explicit IO; subgraph requires procedureRef. definition.revise requires alias, exact supersedes selector and complete new contract; definition.appearance changes only requested metadata of custom definitions; builtins are read-only. definition.delete removes only exact unused custom versions.',
+ if(has('action.skills'))out.push(
+  'skill.define requires alias, purpose and instruction; createInstance:true creates an instance. Ordinary model_task may omit executorKind and ports using flexible JSON in/result defaults. Explicit ports require name, role, representation; preserve required/multiple.',
+  'tool_task requires capabilities and explicit IO; subgraph requires procedureRef. skill.revise requires alias, exact supersedes selector and complete new contract; skill.appearance changes only requested metadata of custom skillDefinitions; builtins are read-only. skill.delete removes only exact unused custom versions.',
   'presentation contains name, iconKey, color (#RRGGBB). Icon keys: '+Object.keys(iconSvg).join(', ')+'. Unknown icons use custom.'
  );
  if(has('action.links'))out.push(
-  'link.add uses kind:data|flow and from/to:{node:NodeSelector,port:exact_port}. Data transfers values and creates upstream dependency; flow orders execution. Avoid synthetic data ports for sequencing. link.remove requires actual linkId.'
+  'link.add uses kind:data|flow and from/to:{skillNode:SkillNodeSelector,port:exact_port}. Data transfers values and creates upstream dependency; flow orders execution. Avoid synthetic data ports for sequencing. link.remove requires actual linkId.'
  );
  if(has('action.execution'))out.push(
-  'execute requires target OR targets:[NodeSelector], never both. Default damMode:closed ends at targets; open also follows downstream flow. Function execute uses target:{kind:"function",ref:actual_function_id}, inputs:{named:fresh_value}. Read full contracts before binding.',
+  'execute requires target OR targets:[SkillNodeSelector], never both. Default damMode:closed ends at targets; open also follows downstream flow. Function execute uses target:{kind:"function",ref:actual_function_id}, inputs:{named:fresh_value}. Read full contracts before binding.',
   'executionIntent:"requested" only for current authorized execution/computed deliverable, never from history or edits.'
  );
  if(has('action.functions'))out.push(
   'function.save requires function:{purpose,inputs,outputs,invariants,procedure,inputMap?,outputMap?}. Procedure is {kind:"model_task",instruction} or {kind:"graph"}. Host supplies graph reference.',
-  'Graph inputMap/outputMap use {node:NodeSelector,port} or {nodeId,port}, matching representations. Preserve enduring rules, parameterize example inputs; saving is a draft, not verified execution.'
+  'Graph inputMap/outputMap use {skillNode:SkillNodeSelector,port} or {skillNodeId,port}, matching representations. Preserve enduring rules, parameterize example inputs; saving is a draft, not verified execution.'
  );
  out.push('Put related graph edits together before execute/save/question; host applies ordered dependencies. Never claim unverified success.');
  const examples=semanticTurnExamples().filter(e=>
-  e.id==='edit-only'&&has('action.nodes')||
-  e.id==='new-kind'&&has('action.definitions')||
-  e.id==='compose-run'&&has('action.nodes')&&has('action.execution'));
+  e.id==='edit-only'&&has('action.skill-nodes')||
+  e.id==='new-kind'&&has('action.skills')||
+  e.id==='compose-run'&&has('action.skill-nodes')&&has('action.execution'));
  if(examples.length)out.push('# SELECTED EXAMPLES',...examples.map(e=>e.id+': '+JSON.stringify(wire?toWireActionPlan(e.plan):e.plan)));
  return out.join('\n');
 }
@@ -243,9 +181,9 @@ export function splitContextOutput(value){
   Buffer.byteLength(JSON.stringify({requestDigest,responseDigest,sessionContext,constraints,supersededConstraints}),'utf8')<=24000;
  return {domain,contextRecord:valid?{requestDigest,responseDigest,sessionContext,constraints,...(retired.length?{supersededConstraints:retired}:{})}:null,taskContext:taskValid?taskContext:null,taskIssues:taskValid?[]:[{path:'/taskContext',rule:'invalidTaskContext'}]};
 }
-export function phaseWireContract(phase,nodeContext,{skillV2=false}={}){
- const kinds=skillV2?Object.keys(SKILL_SEMANTIC_ACTION_FIELDS):Object.keys(SEMANTIC_ACTION_FIELDS);
- const planContract=skillV2?SKILL_ACTION_PLAN_CONTRACT:ACTION_PLAN_CONTRACT;
+export function phaseWireContract(phase,skillNodeContext,{}={}){
+ const kinds=Object.keys(SEMANTIC_ACTION_FIELDS);
+ const planContract=ACTION_PLAN_CONTRACT;
  let schema,guidance;
  if(phase==='selection'){
   schema=object({decision:{type:'string',enum:['answer','read','work']},
@@ -255,23 +193,23 @@ export function phaseWireContract(phase,nodeContext,{skillV2=false}={}){
   guidance='Corridor selection: decision answer/read/work, actionKinds only for work; no action payloads. Needs use selectorJson. Answer returns EXIT records; work returns taskContext. The server supplies work contracts.';
  }else if(phase==='response'){
   schema=object({message:string,...contextFields});guidance='Response phase: return message grounded in ActionResults plus requestDigest, responseDigest, updated sessionContext (about two sentences) and valid explicit constraints. Keep exact previous conditions; supersededConstraints lists exact previous conditions replaced by an explicit current-user instruction, otherwise []. No actions, needs or outputs. Preserve exact facts and meaning without a fixed vocabulary.';
- }else if(phase==='node'){
-  const ports=nodeContext.outputPorts.map(p=>p.name);
+ }else if(phase==='skillNode'){
+  const ports=skillNodeContext.outputPorts.map(p=>p.name);
   schema=object({status:{type:'string',enum:['produced','blocked']},values:{type:'array',items:object({port:{type:'string',enum:ports},valueJson:nullable(string),ref:nullable(string)})},reason:nullable(string)});
   guidance='Node wire phase: return {status:"produced"|"blocked",values:[{port:exact_declared_port,valueJson:JSON.stringify(actual_value),ref:null}],reason:null}. For a supplied valueRef use ref and valueJson:null. Blocked uses values:[] and a specific reason. Do not duplicate ports. No actions or message.';
  }else{
   schema=object({contract:{type:'string',enum:[planContract]},executionIntent:nullable({type:'string',enum:['requested']}),message:nullable(string),actions:{type:'array',items:object({action:{type:'string',enum:kinds},payloadJson:string})},needs:{type:'array',items:object({kind:string,selectorJson:string,purpose:string})},taskContext:nullable(object({objective:string,constraints:{type:'array',items:string}})),...contextFields});
   guidance='Turn wire phase: use the provider wire envelope described in OUTPUT. For a final direct answer include requestDigest, responseDigest, updated sessionContext, valid explicit constraints and supersededConstraints (exact prior strings only when explicitly overridden; otherwise []). With needs/actions use null context fields. Required null/empty fields are stripped by the decoder; semantic payloads and need selectors remain JSON strings; never return internal action args.';
  }
- return {name:phase==='turn'?(skillV2?'ovll_turn_action_plan_v2':'ovll_turn_action_plan_v1'):'ovll_'+phase,schema,guidance};
+ return {name:phase==='turn'?'ovll_turn_action_plan_v3':'ovll_'+phase,schema,guidance};
 }
 export function decodePhaseOutput(value,phase){
  if(!value||typeof value!=='object'||Array.isArray(value))return value;
  const {_meta:ignored,...domain}=value;
- if(phase==='node'&&typeof domain.status==='string'&&Array.isArray(domain.values)){
-  if(Object.keys(domain).some(k=>!['status','values','reason'].includes(k))||!Object.hasOwn(domain,'reason'))throw Error('INVALID_NODE_WIRE_FIELDS');
+ if(phase==='skillNode'&&typeof domain.status==='string'&&Array.isArray(domain.values)){
+  if(Object.keys(domain).some(k=>!['status','values','reason'].includes(k))||!Object.hasOwn(domain,'reason'))throw Error('INVALID_SKILL_NODE_WIRE_FIELDS');
   const values={};for(const item of domain.values){
-   if(!item||Object.keys(item).some(k=>!['port','valueJson','ref'].includes(k))||typeof item.port!=='string'||!Object.hasOwn(item,'valueJson')||!Object.hasOwn(item,'ref')||item.valueJson===null&&item.ref===null||item.valueJson!==null&&typeof item.valueJson!=='string'||item.ref!==null&&typeof item.ref!=='string')throw Error('INVALID_NODE_WIRE_VALUE');
+   if(!item||Object.keys(item).some(k=>!['port','valueJson','ref'].includes(k))||typeof item.port!=='string'||!Object.hasOwn(item,'valueJson')||!Object.hasOwn(item,'ref')||item.valueJson===null&&item.ref===null||item.valueJson!==null&&typeof item.valueJson!=='string'||item.ref!==null&&typeof item.ref!=='string')throw Error('INVALID_SKILL_NODE_WIRE_VALUE');
    if(Object.hasOwn(values,item.port))throw Error('DUPLICATE_OUTPUT_PORT');
    if(item.valueJson!==null&&item.ref!==null)throw Error('AMBIGUOUS_OUTPUT_VALUE');
    values[item.port]=item.ref!==null?{ref:item.ref}:{inline:JSON.parse(item.valueJson)};
@@ -288,7 +226,7 @@ export function decodePhaseOutput(value,phase){
  }
  if(phase==='turn'){
   if(Object.hasOwn(domain,'contract')){
-   if(![ACTION_PLAN_CONTRACT,SKILL_ACTION_PLAN_CONTRACT].includes(domain.contract))
+   if(![ACTION_PLAN_CONTRACT].includes(domain.contract))
     throw Error('UNKNOWN_ACTION_PLAN_CONTRACT');
    if(Array.isArray(domain.actions))domain.actions=domain.actions.map(item=>{
     if(!Object.hasOwn(item,'payloadJson'))return item;
@@ -315,7 +253,7 @@ export function decodePhaseOutput(value,phase){
 }
 export function phaseOutputIssues(turn,phase){
  if(phase==='response'&&(typeof turn?.message!=='string'||!turn.message.trim()||turn.actions||turn.needs||turn.outputs))return [{path:'/',rule:'responseMessageOnly'}];
- if(phase==='node'&&(!turn?.outputs||turn.actions||turn.needs||turn.message))return [{path:'/',rule:'nodeOutputsOnly'}];
+ if(phase==='skillNode'&&(!turn?.outputs||turn.actions||turn.needs||turn.message))return [{path:'/',rule:'skillNodeOutputsOnly'}];
  if(phase==='turn'&&(turn?.outputs||turn?.needs?.length&&turn?.actions?.length))return [{path:'/',rule:'turnActionsOrNeeds'}];
  if(phase==='turn'&&turn?.actions?.some(a=>['run.start','function.run','run.retry'].includes(a.kind))&&turn.executionIntent!=='requested')
    return [{path:'/executionIntent',rule:'explicitExecutionRequired'}];

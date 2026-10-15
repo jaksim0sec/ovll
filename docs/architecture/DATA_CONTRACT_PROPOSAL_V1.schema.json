@@ -134,7 +134,7 @@
           "$ref": "#/$defs/GraphRef"
         },
         "presentation": {
-          "$ref": "#/$defs/NodePresentation"
+          "$ref": "#/$defs/SkillNodePresentation"
         }
       },
       "required": [
@@ -222,33 +222,33 @@
         }
       ]
     },
-    "PatchNodeRef": {
+    "PatchSkillNodeRef": {
       "oneOf": [
         {
           "type": "object",
           "properties": {
-            "nodeId": {
+            "skillNodeId": {
               "type": "string",
               "minLength": 1,
               "maxLength": 160
             }
           },
           "required": [
-            "nodeId"
+            "skillNodeId"
           ],
           "additionalProperties": false
         },
         {
           "type": "object",
           "properties": {
-            "localNodeKey": {
+            "localSkillNodeKey": {
               "type": "string",
               "minLength": 1,
               "maxLength": 160
             }
           },
           "required": [
-            "localNodeKey"
+            "localSkillNodeKey"
           ],
           "additionalProperties": false
         }
@@ -257,8 +257,8 @@
     "Endpoint": {
       "type": "object",
       "properties": {
-        "node": {
-          "$ref": "#/$defs/PatchNodeRef"
+        "skillNode": {
+          "$ref": "#/$defs/PatchSkillNodeRef"
         },
         "port": {
           "type": "string",
@@ -267,7 +267,7 @@
         }
       },
       "required": [
-        "node",
+        "skillNode",
         "port"
       ],
       "additionalProperties": false
@@ -290,7 +290,7 @@
         "from": {
           "type": "object",
           "properties": {
-            "nodeId": {
+            "skillNodeId": {
               "type": "string",
               "minLength": 1,
               "maxLength": 160
@@ -302,7 +302,7 @@
             }
           },
           "required": [
-            "nodeId",
+            "skillNodeId",
             "port"
           ],
           "additionalProperties": false
@@ -310,7 +310,7 @@
         "to": {
           "type": "object",
           "properties": {
-            "nodeId": {
+            "skillNodeId": {
               "type": "string",
               "minLength": 1,
               "maxLength": 160
@@ -322,7 +322,7 @@
             }
           },
           "required": [
-            "nodeId",
+            "skillNodeId",
             "port"
           ],
           "additionalProperties": false
@@ -336,15 +336,15 @@
       ],
       "additionalProperties": false
     },
-    "NodeInstance": {
+    "SkillNodeInstance": {
       "type": "object",
       "properties": {
-        "nodeId": {
+        "skillNodeId": {
           "type": "string",
           "minLength": 1,
           "maxLength": 160
         },
-        "definitionRef": {
+        "skillDefinitionRef": {
           "$ref": "#/$defs/DefinitionRef"
         },
         "inputBindings": {
@@ -357,8 +357,8 @@
         }
       },
       "required": [
-        "nodeId",
-        "definitionRef"
+        "skillNodeId",
+        "skillDefinitionRef"
       ],
       "additionalProperties": false
     },
@@ -368,14 +368,14 @@
           "type": "object",
           "properties": {
             "op": {
-              "const": "node.add"
+              "const": "skillNode.add"
             },
-            "localNodeKey": {
+            "localSkillNodeKey": {
               "type": "string",
               "minLength": 1,
               "maxLength": 160
             },
-            "definitionRef": {
+            "skillDefinitionRef": {
               "$ref": "#/$defs/DraftDefinitionRef"
             },
             "settings": {
@@ -389,8 +389,8 @@
           },
           "required": [
             "op",
-            "localNodeKey",
-            "definitionRef"
+            "localSkillNodeKey",
+            "skillDefinitionRef"
           ],
           "additionalProperties": false
         },
@@ -398,14 +398,14 @@
           "type": "object",
           "properties": {
             "op": {
-              "const": "node.update"
+              "const": "skillNode.update"
             },
-            "nodeId": {
+            "skillNodeId": {
               "type": "string",
               "minLength": 1,
               "maxLength": 160
             },
-            "definitionRef": {
+            "skillDefinitionRef": {
               "$ref": "#/$defs/DraftDefinitionRef"
             },
             "settings": {
@@ -419,7 +419,7 @@
           },
           "required": [
             "op",
-            "nodeId"
+            "skillNodeId"
           ],
           "additionalProperties": false
         },
@@ -427,9 +427,9 @@
           "type": "object",
           "properties": {
             "op": {
-              "const": "node.delete"
+              "const": "skillNode.delete"
             },
-            "nodeId": {
+            "skillNodeId": {
               "type": "string",
               "minLength": 1,
               "maxLength": 160
@@ -437,7 +437,7 @@
           },
           "required": [
             "op",
-            "nodeId"
+            "skillNodeId"
           ],
           "additionalProperties": false
         },
@@ -445,15 +445,15 @@
           "type": "object",
           "properties": {
             "op": {
-              "const": "definition.appearance"
+              "const": "skill.appearance"
             },
-            "definitionRef": {
+            "skillDefinitionRef": {
               "$ref": "#/$defs/DefinitionRef"
             },
             "presentation": {
               "allOf": [
                 {
-                  "$ref": "#/$defs/NodePresentation"
+                  "$ref": "#/$defs/SkillNodePresentation"
                 },
                 {
                   "minProperties": 1
@@ -463,7 +463,7 @@
           },
           "required": [
             "op",
-            "definitionRef",
+            "skillDefinitionRef",
             "presentation"
           ],
           "additionalProperties": false
@@ -472,15 +472,15 @@
           "type": "object",
           "properties": {
             "op": {
-              "const": "definition.delete"
+              "const": "skill.delete"
             },
-            "definitionRef": {
+            "skillDefinitionRef": {
               "$ref": "#/$defs/DefinitionRef"
             }
           },
           "required": [
             "op",
-            "definitionRef"
+            "skillDefinitionRef"
           ],
           "additionalProperties": false
         },
@@ -545,7 +545,7 @@
           "type": "integer",
           "minimum": 0
         },
-        "definitions": {
+        "skillDefinitions": {
           "type": "array",
           "items": {
             "$ref": "#/$defs/DefinitionDraft"
@@ -586,7 +586,7 @@
       "required": [
         "graphId",
         "expectedGraphRevision",
-        "definitions",
+        "skillDefinitions",
         "operations"
       ],
       "additionalProperties": false,
@@ -611,19 +611,19 @@
         }
       ]
     },
-    "NodeTarget": {
+    "SkillNodeTarget": {
       "oneOf": [
         {
           "type": "object",
           "properties": {
-            "nodeId": {
+            "skillNodeId": {
               "type": "string",
               "minLength": 1,
               "maxLength": 160
             }
           },
           "required": [
-            "nodeId"
+            "skillNodeId"
           ],
           "additionalProperties": false
         },
@@ -635,7 +635,7 @@
               "minLength": 1,
               "maxLength": 160
             },
-            "localNodeKey": {
+            "localSkillNodeKey": {
               "type": "string",
               "minLength": 1,
               "maxLength": 160
@@ -643,7 +643,7 @@
           },
           "required": [
             "fromAction",
-            "localNodeKey"
+            "localSkillNodeKey"
           ],
           "additionalProperties": false
         }
@@ -729,7 +729,7 @@
           "additionalProperties": {
             "type": "object",
             "properties": {
-              "nodeId": {
+              "skillNodeId": {
                 "type": "string",
                 "minLength": 1,
                 "maxLength": 160
@@ -748,7 +748,7 @@
               }
             },
             "required": [
-              "nodeId",
+              "skillNodeId",
               "port"
             ],
             "additionalProperties": false
@@ -760,7 +760,7 @@
           "additionalProperties": {
             "type": "object",
             "properties": {
-              "nodeId": {
+              "skillNodeId": {
                 "type": "string",
                 "minLength": 1,
                 "maxLength": 160
@@ -772,7 +772,7 @@
               }
             },
             "required": [
-              "nodeId",
+              "skillNodeId",
               "port"
             ],
             "additionalProperties": false
@@ -877,7 +877,7 @@
       ],
       "additionalProperties": false
     },
-    "NodeValue": {
+    "SkillNodeValue": {
       "oneOf": [
         {
           "type": "object",
@@ -905,7 +905,7 @@
         }
       ]
     },
-    "NodeOutput": {
+    "SkillNodeOutput": {
       "type": "object",
       "properties": {
         "status": {
@@ -918,7 +918,7 @@
         "values": {
           "type": "object",
           "additionalProperties": {
-            "$ref": "#/$defs/NodeValue"
+            "$ref": "#/$defs/SkillNodeValue"
           },
           "maxProperties": 64
         },
@@ -1064,7 +1064,7 @@
                   "targets": {
                     "type": "array",
                     "items": {
-                      "$ref": "#/$defs/NodeTarget"
+                      "$ref": "#/$defs/SkillNodeTarget"
                     },
                     "minItems": 1,
                     "maxItems": 512
@@ -1183,7 +1183,7 @@
                     "minLength": 1,
                     "maxLength": 160
                   },
-                  "nodeId": {
+                  "skillNodeId": {
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 160
@@ -1196,7 +1196,7 @@
                 },
                 "required": [
                   "runRef",
-                  "nodeId"
+                  "skillNodeId"
                 ],
                 "additionalProperties": false
               }
@@ -1371,7 +1371,7 @@
           "maxItems": 512
         },
         "outputs": {
-          "$ref": "#/$defs/NodeOutput"
+          "$ref": "#/$defs/SkillNodeOutput"
         },
         "needs": {
           "type": "array",
@@ -1543,7 +1543,7 @@
                   "targets": {
                     "type": "array",
                     "items": {
-                      "$ref": "#/$defs/NodeTarget"
+                      "$ref": "#/$defs/SkillNodeTarget"
                     },
                     "minItems": 1,
                     "maxItems": 512
@@ -1662,7 +1662,7 @@
                     "minLength": 1,
                     "maxLength": 160
                   },
-                  "nodeId": {
+                  "skillNodeId": {
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 160
@@ -1675,7 +1675,7 @@
                 },
                 "required": [
                   "runRef",
-                  "nodeId"
+                  "skillNodeId"
                 ],
                 "additionalProperties": false
               }
@@ -2028,10 +2028,10 @@
           "type": "integer",
           "minimum": 0
         },
-        "nodes": {
+        "skillNodes": {
           "type": "array",
           "items": {
-            "$ref": "#/$defs/NodeInstance"
+            "$ref": "#/$defs/SkillNodeInstance"
           },
           "minItems": 0,
           "maxItems": 512
@@ -2048,7 +2048,7 @@
       "required": [
         "graphId",
         "revision",
-        "nodes",
+        "skillNodes",
         "connections"
       ],
       "additionalProperties": false
@@ -2235,7 +2235,7 @@
           "minLength": 1,
           "maxLength": 160
         },
-        "nodeId": {
+        "skillNodeId": {
           "type": "string",
           "minLength": 1,
           "maxLength": 160
@@ -2244,7 +2244,7 @@
           "type": "integer",
           "minimum": 0
         },
-        "definitionRef": {
+        "skillDefinitionRef": {
           "$ref": "#/$defs/DefinitionRef"
         },
         "inputRefs": {
@@ -2287,9 +2287,9 @@
       "required": [
         "attemptId",
         "runRef",
-        "nodeId",
+        "skillNodeId",
         "generation",
-        "definitionRef",
+        "skillDefinitionRef",
         "inputRefs",
         "fingerprint",
         "status"
@@ -2590,7 +2590,7 @@
           "additionalProperties": {
             "type": "object",
             "properties": {
-              "nodeId": {
+              "skillNodeId": {
                 "type": "string",
                 "minLength": 1,
                 "maxLength": 160
@@ -2602,7 +2602,7 @@
               }
             },
             "required": [
-              "nodeId",
+              "skillNodeId",
               "port"
             ],
             "additionalProperties": false
@@ -2755,7 +2755,7 @@
       ],
       "additionalProperties": false
     },
-    "NodeDefinitionVersion": {
+    "SkillDefinitionVersion": {
       "type": "object",
       "properties": {
         "definitionId": {
@@ -2819,7 +2819,7 @@
           "$ref": "#/$defs/GraphRef"
         },
         "presentation": {
-          "$ref": "#/$defs/NodePresentation"
+          "$ref": "#/$defs/SkillNodePresentation"
         }
       },
       "required": [
@@ -2881,7 +2881,7 @@
         }
       ]
     },
-    "NodePresentation": {
+    "SkillNodePresentation": {
       "type": "object",
       "properties": {
         "name": {

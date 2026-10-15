@@ -1,0 +1,130 @@
+{
+  "schemaVersion": 9,
+  "storageRevision": 2,
+  "pointerDefinitions": [
+    {
+      "definitionId": "d_words",
+      "version": 1,
+      "purpose": "Words",
+      "instruction": "Review words",
+      "executorKind": "model_task",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "result",
+          "role": "Words",
+          "representation": "text"
+        }
+      ]
+    }
+  ],
+  "conversations": [
+    {
+      "id": "chat_saved",
+      "state": {
+        "canvas": {
+          "workflow": {
+            "nodes": [
+              {
+                "id": "n_saved",
+                "type": "write",
+                "x": 2,
+                "y": 3,
+                "data": {
+                  "payload": {
+                    "nodeId": "opaque"
+                  }
+                }
+              }
+            ],
+            "connections": []
+          }
+        },
+        "pointerGraph": {
+          "graph": {
+            "graphId": "g_saved",
+            "revision": 1,
+            "nodes": [
+              {
+                "nodeId": "n_saved",
+                "definitionRef": {
+                  "definitionId": "d_words",
+                  "version": 1
+                },
+                "settings": {
+                  "request": "Words",
+                  "payload": {
+                    "nodeId": "opaque",
+                    "skills": [
+                      "opaque"
+                    ]
+                  }
+                },
+                "inputBindings": {}
+              }
+            ],
+            "connections": []
+          },
+          "definitions": [
+            {
+              "definitionId": "d_words",
+              "version": 1,
+              "purpose": "Words",
+              "instruction": "Review words",
+              "executorKind": "model_task",
+              "inputs": [],
+              "outputs": [
+                {
+                  "name": "result",
+                  "role": "Words",
+                  "representation": "text"
+                }
+              ]
+            }
+          ]
+        },
+        "pointerRuns": [
+          {
+            "runId": "r_saved",
+            "nodes": [
+              {
+                "nodeId": "n_saved",
+                "status": "success",
+                "outputs": {
+                  "status": "produced",
+                  "values": {
+                    "result": {
+                      "inline": "猫"
+                    }
+                  }
+                },
+                "semanticContext": {
+                  "requestText": "Words",
+                  "taskContext": {
+                    "objective": "Words",
+                    "constraints": []
+                  },
+                  "executorIdentity": "local-v1"
+                },
+                "semanticFingerprint": "4582f9b5ab2585a8e16753e34b0f9049568500b426d7bd97ee01843944c984e7"
+              }
+            ],
+            "targets": [
+              "n_saved"
+            ]
+          }
+        ],
+        "composerDraftParts": [
+          {
+            "type": "skill-reference",
+            "reference": {
+              "kind": "skill-canvas",
+              "graphId": "g_saved",
+              "skillId": "n_saved"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

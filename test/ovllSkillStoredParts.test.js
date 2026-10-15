@@ -5,7 +5,7 @@ import {readFileSync} from 'node:fs';
 import * as references from '../front/js/ovllSkillReferences.mjs';
 
 const source=readFileSync(new URL('../front/js/workspaceStore.js',import.meta.url),'utf8');
-const reference={kind:'skill-canvas',graphId:'graph_1',skillId:'n_existing'};
+const reference={kind:'skill-canvas',graphId:'graph_1',skillNodeId:'n_existing'};
 function store(existing){
  const data=new Map(existing??[]);
  const localStorage={

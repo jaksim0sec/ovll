@@ -10,7 +10,7 @@ test('configured local Pointer never falls back to legacy because a readiness pr
   const begin=app.indexOf('function pointerScope(){');
   const end=app.indexOf('  async function refreshPointerCanvas',begin);
   assert.ok(begin>=0&&end>begin);
-  let conversation={state:{pointerGraph:{graph:{graphId:'g_c1'}}}};
+  let conversation={state:{skillGraph:{graph:{graphId:'g_c1'}}}};
   const window={OVLL_RUNTIME:{pointerEnabled:true,pointerStorageMode:'local'},
     OvllPointerProjection:{},OvllPointerLocal:{graphId:id=>'g_'+id}};
   const state={pointerLocalReady:false};
@@ -19,32 +19,32 @@ test('configured local Pointer never falls back to legacy because a readiness pr
     app.slice(begin,end)+'\nreturn pointerScope;');
   const scope=()=>get(window,state,store,()=>'c1',{})();
   assert.equal(scope().graphId,'g_c1');
-  conversation={state:{canvas:{workflow:{nodes:[]}}}};
+  conversation={state:{canvas:{workflow:{skillNodes:[]}}}};
   assert.equal(scope().storageMode,'local');
-  conversation={state:{canvas:{workflow:{nodes:[{id:'legacy',type:'write'}]}}}};
+  conversation={state:{canvas:{workflow:{skillNodes:[{id:'legacy',type:'write'}]}}}};
   assert.equal(scope().storageMode,'local','legacy graph remains Pointer-owned during migration');
-  conversation={state:{pointerGraph:{graph:{graphId:'g_c1'}},canvas:{workflow:{nodes:[{type:'pointer:d_custom:1'}]}}}};
+  conversation={state:{skillGraph:{graph:{graphId:'g_c1'}},canvas:{workflow:{skillNodes:[{type:'pointer:d_custom:1'}]}}}};
   assert.equal(scope().storageMode,'local');
   window.OVLL_RUNTIME.pointerEnabled=false;
   assert.equal(scope(),null);
 });
 
-test('a saved dynamic node loads without the remote catalog',async()=>{
-  const saved={graph:{graphId:'g_c1',revision:1,nodes:[{
-    nodeId:'n1',definitionRef:{definitionId:'d_vocab',version:1},settings:{request:'일본어 단어장'}
-  }],connections:[]},definitions:[{definitionId:'d_vocab',version:1,purpose:'단어장',
+test('a saved dynamic skillNode loads without the remote catalog',async()=>{
+  const saved={graph:{graphId:'g_c1',revision:1,skillNodes:[{
+    skillNodeId:'n1',skillDefinitionRef:{definitionId:'d_vocab',version:1},settings:{request:'일본어 단어장'}
+  }],connections:[]},skillDefinitions:[{definitionId:'d_vocab',version:1,purpose:'단어장',
     executorKind:'model_task',instruction:'일본어 어휘',inputs:[],
     outputs:[{name:'result',representation:'text'}]}]};
-  const store={getConversation:id=>id==='c1'?{state:{pointerGraph:saved}}:null,
-    updateConversationPointerGraph(){},updateConversationPointerRuns(){}};
+  const store={getConversation:id=>id==='c1'?{state:{skillGraph:saved}}:null,
+    updateConversationSkillGraph(){},updateConversationSkillRuns(){}};
   const window={OvllWorkspaceStore:store};
   vm.runInNewContext(read('front/js/ovllPointerLocal.js'),{window,console});
   const local=window.createOvllPointerLocal({workspaceStore:store,
     loadCore:()=>import('../front/js/ovllPointerGraphCore.mjs'),
     loadCatalog:async()=>{throw new Error('OFFLINE_CATALOG');}});
   const result=await local.state('c1');
-  assert.equal(result.graph.graph.nodes[0].nodeId,'n1');
-  assert.equal(result.graph.definitions[0].definitionId,'d_vocab');
+  assert.equal(result.graph.graph.skillNodes[0].skillNodeId,'n1');
+  assert.equal(result.graph.skillDefinitions[0].definitionId,'d_vocab');
 });
 
 test('Pointer coordinator reports actual action start, completion and dependent skip',async()=>{
@@ -64,10 +64,10 @@ test('Pointer coordinator reports actual action start, completion and dependent 
     ['start','new'],['result','new','failed'],['result','run','skipped']]));
 });
 
-test('Pointer user-facing steps track action boundaries, real nodes, and lifecycle',()=>{
+test('Pointer user-facing steps track action boundaries, real skillNodes, and lifecycle',()=>{
   assert.match(app,/onActionStart:action=>\{if\(owns\(\)\)pointerActionStarted\(action\)/);
   assert.match(app,/onActionResult:\(action,fact\)=>\{if\(owns\(\)\)pointerActionResult\(action,fact\)/);
-  assert.match(app,/pointerNodeProgress\(run\)/);
+  assert.match(app,/pointerSkillNodeProgress\(run\)/);
   assert.match(app,/function completeRuntimePhase\(status="done"\)/);
   assert.match(app,/function startRuntimePhase\(text,doneText="확인 완료"\)/);
   assert.match(app,/if\(step\?\.dataset\.status==="running"\)upsertRuntimeStep\(id,/);
@@ -77,7 +77,7 @@ test('Pointer user-facing steps track action boundaries, real nodes, and lifecyc
   const entry=read('instructions/prompts/layers/corridor.md');
   const define=read('instructions/prompts/micro/ir/define.md');
   const contract=read('backend/ovllPointer/modelContract.js');
-  assert.match(entry,/new kind of node/);
-  assert.match(define,/builtin writing node/);
-  assert.match(contract,/definitionRef/);
+  assert.match(entry,/new kind of skillNode/);
+  assert.match(define,/builtin writing skillNode/);
+  assert.match(contract,/skillDefinitionRef/);
 });

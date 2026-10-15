@@ -101,7 +101,7 @@ export class PostgresPointerStore {
     checkId(graphId);
     return transaction(this.#pool, async c => {
       await member(c,scope,true);
-      const state={graph:{graphId,revision:0,nodes:[],connections:[]},definitions:[]};
+      const state={graph:{graphId,revision:0,skillNodes:[],connections:[]},skillDefinitions:[]};
       await c.query('INSERT INTO ov_graphs(workspace_id,graph_id,revision,snapshot) VALUES($1,$2,0,$3::jsonb)',[scope.workspaceRef,graphId,JSON.stringify(state)]);
       await c.query('INSERT INTO ov_graph_revisions(workspace_id,graph_id,revision,snapshot) VALUES($1,$2,0,$3::jsonb)',[scope.workspaceRef,graphId,JSON.stringify(state)]);
       await event(c,scope.workspaceRef,'graph.created',{graphId,revision:0});
@@ -187,10 +187,10 @@ export class PostgresPointerStore {
             const depPatches=(action.dependsOn||[]).map(k=>done.get(k)).filter(x=>x?.newRevision!==undefined);
             if (depPatches.length && depPatches.some(x=>x.newRevision!==graph.graph.revision)) deny('STALE_DEPENDENT_GRAPH',409);
             const targets=(action.args?.targets||[]).map(t=>{
-              if (t.nodeId) return t.nodeId;
+              if (t.skillNodeId) return t.skillNodeId;
               if (!action.dependsOn?.includes(t.fromAction)) deny('MISSING_TARGET_DEPENDENCY');
               const dep=done.get(t.fromAction);
-              return dep?.createdRefs?.['node:'+t.localNodeKey] || deny('UNRESOLVED_TARGET');
+              return dep?.createdRefs?.['skillNode:'+t.localSkillNodeKey] || deny('UNRESOLVED_TARGET');
             });
             if (!targets.length || targets.length>512) deny('INVALID_TARGETS');
             const mode=action.args?.damMode||'closed';
@@ -198,9 +198,9 @@ export class PostgresPointerStore {
             const runId='r_'+randomUUID();
             const spec={runId,taskRef:scope.taskRef,graphRef:{graphId:scope.graphId,revision:graph.graph.revision},
               planEpoch:0,targets,damMode:mode,status:'queued',executionOwner:'server'};
-            const externalEffect=selected.some(nodeId=>{
-              const node=graph.graph.nodes.find(n=>n.nodeId===nodeId);
-              const definition=graph.definitions.find(d=>d.definitionId===node?.definitionRef.definitionId&&d.version===node?.definitionRef.version);
+            const externalEffect=selected.some(skillNodeId=>{
+              const skillNode=graph.graph.skillNodes.find(n=>n.skillNodeId===skillNodeId);
+              const definition=graph.skillDefinitions.find(d=>d.definitionId===skillNode?.skillDefinitionRef.definitionId&&d.version===skillNode?.skillDefinitionRef.version);
               return definition?.executorKind==='tool_task'; // unknown tool side effects are fail-closed
             });
             await c.query('INSERT INTO ov_runs(workspace_id,run_id,task_id,graph_id,graph_revision,status,snapshot,requester_ref) VALUES($1,$2,$3,$4,$5,$6,$7::jsonb,$8)',
@@ -382,12 +382,12 @@ export class PostgresPointerStore {
         [scope.workspaceRef,runRef]);
       if(!run.rows.length)deny('RUN_NOT_FOUND',404);
       const row=run.rows[0];
-      const attempts=await c.query(`SELECT DISTINCT ON (node_id)
-        node_id,status,attempt_id,output_refs,result,generation
+      const attempts=await c.query(`SELECT DISTINCT ON (skill_node_id)
+        skill_node_id,status,attempt_id,output_refs,result,generation
         FROM ov_attempts WHERE workspace_id=$1 AND run_id=$2 AND plan_epoch=$3
-        ORDER BY node_id,generation DESC`,[scope.workspaceRef,runRef,row.plan_epoch]);
+        ORDER BY skill_node_id,generation DESC`,[scope.workspaceRef,runRef,row.plan_epoch]);
       return {run:{...row.snapshot,status:row.status},
-        nodes:attempts.rows.map(a=>({nodeId:a.node_id,status:a.status,
+        skillNodes:attempts.rows.map(a=>({skillNodeId:a.skill_node_id,status:a.status,
           attemptRef:a.attempt_id,outputRefs:a.output_refs||[],
           ...(a.result?.reason?{reason:a.result.reason}:{}),
           ...(a.result?.code?{code:a.result.code}:{})}))};

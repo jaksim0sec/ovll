@@ -9,7 +9,7 @@ import {createPointerRuntime} from '../backend/ovllPointer/runtime.js';
 if(!process.env.POINTER_TEST_DATABASE_URL)throw new Error('Isolated PostgreSQL integration database required');
 const pool=new Pool({connectionString:process.env.POINTER_TEST_DATABASE_URL,max:8});
 const id=s=>s+'_'+randomUUID().replaceAll('-','').slice(0,18);
-before(async()=>{for(const name of ['001_initial.sql','002_node_evidence.sql','003_lifecycle.sql'])
+before(async()=>{for(const name of ['001_initial.sql','002_node_evidence.sql','003_lifecycle.sql','004_skill_terminology.sql'])
   await pool.query(await readFile(new URL('../backend/ovllPointer/sql/'+name,import.meta.url),'utf8'));});
 after(async()=>pool.end());
 test('HTTP natural request -> vendor-neutral gateway -> durable Patch/Run -> replayable event',async()=>{
@@ -22,15 +22,15 @@ test('HTTP natural request -> vendor-neutral gateway -> durable Patch/Run -> rep
     const data=JSON.parse(messages.at(-1).content);
     if(data.context.requestText==='hello')return {text:JSON.stringify({message:'hello back'})};
     const patch={graphId,expectedGraphRevision:0,
-      definitions:[{localKey:'d',purpose:'Summarize',instruction:'Produce an accurate summary',
+      skillDefinitions:[{localKey:'d',purpose:'Summarize',instruction:'Produce an accurate summary',
         executorKind:'model_task',inputs:[],outputs:[{name:'result',role:'result',representation:'text'}]}],
-      operations:[{op:'node.add',localNodeKey:'n',definitionRef:{localDefinitionKey:'d'}}]};
+      operations:[{op:'skillNode.add',localSkillNodeKey:'n',skillDefinitionRef:{localDefinitionKey:'d'}}]};
     return {text:JSON.stringify({actions:[
       {localKey:'p',kind:'ir.applyPatch',args:{patch}},
-      {localKey:'r',kind:'run.start',args:{targets:[{fromAction:'p',localNodeKey:'n'}]},dependsOn:['p']}
+      {localKey:'r',kind:'run.start',args:{targets:[{fromAction:'p',localSkillNodeKey:'n'}]},dependsOn:['p']}
     ]})};
   }},{json:true});
-  const runtime=createPointerRuntime({pool,executeNode:async()=>({status:'blocked',reason:'Host executor not configured'}),
+  const runtime=createPointerRuntime({pool,executeSkillNode:async()=>({status:'blocked',reason:'Host executor not configured'}),
     workerRef:id('worker'),authenticate:async req=>req.get('x-user')===actorRef?scope:null,
     verifyMutation:async req=>req.get('x-csrf')==='ok',modelGateway:gateway,
     prepareTurnContext:async({scope:s,requestText})=>({requestRef:s.requestRef,

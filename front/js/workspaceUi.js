@@ -1124,25 +1124,25 @@
       return true;
     }
 
-    let node =
+    let skillNode =
       target;
 
     while (
-      node &&
-      node !== chatPage
+      skillNode &&
+      skillNode !== chatPage
     ) {
       if (
-        node instanceof
+        skillNode instanceof
           HTMLElement
       ) {
         const style =
           global.getComputedStyle(
-            node
+            skillNode
           );
 
         if (
-          node.scrollWidth >
-            node.clientWidth + 2 &&
+          skillNode.scrollWidth >
+            skillNode.clientWidth + 2 &&
           (
             style.overflowX ===
               "auto" ||
@@ -1154,8 +1154,8 @@
         }
       }
 
-      node =
-        node.parentElement;
+      skillNode =
+        skillNode.parentElement;
     }
 
     return false;

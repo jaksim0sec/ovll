@@ -20,17 +20,17 @@ test('source comparison saves once and reuses with new materials without graph r
   instruction:'Compare both source-backed outputs',executorKind:'model_task',
   inputs:[{name:'in',role:'Evidence items',representation:'text',multiple:true,required:true}],
   outputs:[{name:'result',role:'Comparison',representation:'text'}]};
- const snapshot={graph:{graphId:'g_compare',revision:1,nodes:[
-   {nodeId:'a',definitionRef:{definitionId:'d_extract',version:1},
+ const snapshot={graph:{graphId:'g_compare',revision:1,skillNodes:[
+   {skillNodeId:'a',skillDefinitionRef:{definitionId:'d_extract',version:1},
     settings:{request:'Analyze first source'},inputBindings:{in:'Saved old A'}},
-   {nodeId:'b',definitionRef:{definitionId:'d_extract',version:1},
+   {skillNodeId:'b',skillDefinitionRef:{definitionId:'d_extract',version:1},
     settings:{request:'Analyze second source'},inputBindings:{in:'Saved old B'}},
-   {nodeId:'compare',definitionRef:{definitionId:'d_compare',version:1},
+   {skillNodeId:'compare',skillDefinitionRef:{definitionId:'d_compare',version:1},
     settings:{request:'Compare claims without dropping provenance'},inputBindings:{}}
   ],connections:[
-   {id:'a-to-compare',kind:'data',from:{nodeId:'a',port:'result'},to:{nodeId:'compare',port:'in'}},
-   {id:'b-to-compare',kind:'data',from:{nodeId:'b',port:'result'},to:{nodeId:'compare',port:'in'}}
-  ]},definitions:[defA,defB]};
+   {id:'a-to-compare',kind:'data',from:{skillNodeId:'a',port:'result'},to:{skillNodeId:'compare',port:'in'}},
+   {id:'b-to-compare',kind:'data',from:{skillNodeId:'b',port:'result'},to:{skillNodeId:'compare',port:'in'}}
+  ]},skillDefinitions:[defA,defB]};
  const f=window.OvllPointerFunctions;
  const fn=f.save({purpose:'Reusable two-source comparison',snapshot,targets:['compare'],
   invariants:['Keep the source of each claim']});
@@ -39,28 +39,28 @@ test('source comparison saves once and reuses with new materials without graph r
  vm.runInNewContext(read('ovllPointerFunctions.js'),{window});
  const revived=window.OvllPointerFunctions.get(fn.id);
  assert.ok(revived,'saved procedure survives reopening');
- const state={pointerGraph:snapshot,pointerRuns:[]};
+ const state={skillGraph:snapshot,skillRuns:[]};
  const workspaceStore={getConversation:()=>({state}),
-  updateConversationPointerRuns:(_id,runs)=>{state.pointerRuns=runs},
-  getPointerDefinitions:()=>[],updateConversationPointerGraph:()=>{}};
+  updateConversationSkillRuns:(_id,runs)=>{state.skillRuns=runs},
+  getSkillDefinitions:()=>[],updateConversationSkillGraph:()=>{}};
  window.OvllWorkspaceStore=workspaceStore;
  vm.runInNewContext(read('ovllPointerLocal.js'),{window,console});
  const local=window.createOvllPointerLocal({workspaceStore,
   loadCore:async()=>graphCore,loadPlan:async()=>planCore,
-  loadResults:async()=>resultCore,loadCatalog:async()=>({definitions:[defA,defB]})});
+  loadResults:async()=>resultCore,loadCatalog:async()=>({skillDefinitions:[defA,defB]})});
  const app=read('app.js'),start=app.indexOf('async function runSavedLocalFunction(fn,bindings'),
   end=app.indexOf('  async function runLocalPrompt(',start);
  assert.ok(start>=0&&end>start,'production replay entry point');
  const calls=[];
- const replay=new Function('global','runLocalNodes',app.slice(start,end)+
+ const replay=new Function('global','runLocalSkillNodes',app.slice(start,end)+
   ';return runSavedLocalFunction')(window,async args=>local.run({...args,
-    conversationId:'compare-workspace',executeNode:async step=>{
-     const node=step.snapshot.graph.nodes.find(n=>n.nodeId===step.nodeId);
+    conversationId:'compare-workspace',executeSkillNode:async step=>{
+     const skillNode=step.snapshot.graph.skillNodes.find(n=>n.skillNodeId===step.skillNodeId);
      const incoming=Array.from(step.inputArtifacts,x=>x.value);
-     calls.push({nodeId:step.nodeId,request:step.requestText,incoming});
-     const value=step.nodeId==='compare'?
+     calls.push({skillNodeId:step.skillNodeId,request:step.requestText,incoming});
+     const value=step.skillNodeId==='compare'?
        'Comparison: '+incoming.join(' / '):
-       'Evidence '+step.nodeId+': '+node.inputBindings.in;
+       'Evidence '+step.skillNodeId+': '+skillNode.inputBindings.in;
      return {status:'success',outputs:{status:'produced',values:{result:{inline:value}}}};
     }}));
  const results=[];
@@ -71,16 +71,16 @@ test('source comparison saves once and reuses with new materials without graph r
   const run=await replay(revived,bindings);
   assert.equal(run.status,'completed');
   const attempts=calls.slice(startCall);
-  assert.deepEqual(attempts.map(x=>x.nodeId),['a','b','compare']);
+  assert.deepEqual(attempts.map(x=>x.skillNodeId),['a','b','compare']);
   assert.deepEqual(attempts.map(x=>x.request),
     ['Analyze first source','Analyze second source','Compare claims without dropping provenance']);
   assert.deepEqual(attempts[2].incoming,['Evidence a: '+first,'Evidence b: '+second]);
-  const report=run.nodes.find(x=>x.nodeId==='compare')?.outputs?.values?.result?.inline;
+  const report=run.skillNodes.find(x=>x.skillNodeId==='compare')?.outputs?.values?.result?.inline;
   assert.equal(report,'Comparison: Evidence a: '+first+' / Evidence b: '+second);
   results.push(report);
  }
  assert.equal(new Set(results).size,3,'each new source pair gets its own results');
- assert.equal(f.get(fn.id).snapshot.graph.nodes[0].inputBindings.in,'Saved old A');
- assert.equal(f.get(fn.id).snapshot.graph.nodes[1].inputBindings.in,'Saved old B');
+ assert.equal(f.get(fn.id).snapshot.graph.skillNodes[0].inputBindings.in,'Saved old A');
+ assert.equal(f.get(fn.id).snapshot.graph.skillNodes[1].inputBindings.in,'Saved old B');
  assert.equal(revived.verificationStatus,'draft','successful mock execution is not model quality verification');
 });

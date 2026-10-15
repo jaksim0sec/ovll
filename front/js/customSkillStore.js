@@ -1,8 +1,8 @@
 (function(global){
 "use strict";
 
-const STORAGE_KEY="ovll:custom-nodes:v1";
-const SCHEMA_VERSION=2;
+const STORAGE_KEY="ovll:custom-skills:v2";
+const SCHEMA_VERSION=3;
 const listeners=new Set();
 
 function clone(value){
@@ -50,23 +50,23 @@ function normalizeWorkflow(value){
       :{};
 
   return {
-    nodes:
-      Array.isArray(source.nodes)
-        ?source.nodes
-          .filter(node=>
-            node&&
-            typeof node==="object"
+    skillNodes:
+      Array.isArray(source.skillNodes)
+        ?source.skillNodes
+          .filter(skillNode=>
+            skillNode&&
+            typeof skillNode==="object"
           )
-          .map(node=>({
-            id:String(node.id||""),
-            type:String(node.type||""),
-            x:Number(node.x)||0,
-            y:Number(node.y)||0,
+          .map(skillNode=>({
+            id:String(skillNode.id||""),
+            type:String(skillNode.type||""),
+            x:Number(skillNode.x)||0,
+            y:Number(skillNode.y)||0,
             expanded:
-              node.expanded===true,
-            data:clone(node.data||{})
+              skillNode.expanded===true,
+            data:clone(skillNode.data||{})
           }))
-          .filter(node=>node.id&&node.type)
+          .filter(skillNode=>skillNode.id&&skillNode.type)
         :[],
     connections:
       Array.isArray(source.connections)
@@ -78,19 +78,19 @@ function normalizeWorkflow(value){
           .map(connection=>({
             id:String(connection.id||""),
             from:{
-              node:String(connection.from?.node||""),
+              skillNode:String(connection.from?.skillNode||""),
               port:String(connection.from?.port||"")
             },
             to:{
-              node:String(connection.to?.node||""),
+              skillNode:String(connection.to?.skillNode||""),
               port:String(connection.to?.port||"")
             },
             data:clone(connection.data||{})
           }))
           .filter(connection=>
-            connection.from.node&&
+            connection.from.skillNode&&
             connection.from.port&&
-            connection.to.node&&
+            connection.to.skillNode&&
             connection.to.port
           )
         :[]
@@ -106,16 +106,16 @@ function normalizeBoundary(value){
       :{};
 
   return {
-    entryNodeIds:
-      Array.isArray(source.entryNodeIds)
+    entrySkillNodeIds:
+      Array.isArray(source.entrySkillNodeIds)
         ?[...new Set(
-          source.entryNodeIds
+          source.entrySkillNodeIds
             .map(String)
             .filter(Boolean)
         )]
         :[],
-    exitNodeId:
-      String(source.exitNodeId||"")
+    exitSkillNodeId:
+      String(source.exitSkillNodeId||"")
   };
 }
 
@@ -190,10 +190,10 @@ function normalizeRecord(value){
   return {
     id:cleanId(source.id),
     name:
-      String(source.name||"새 커스텀 노드")
+      String(source.name||"새 커스텀 스킬")
         .trim()
         .slice(0,50)||
-      "새 커스텀 노드",
+      "새 커스텀 스킬",
     description:
       String(source.description||"")
         .trim()
@@ -252,14 +252,19 @@ function emptyEnvelope(){
 
 function readEnvelope(){
   try{
-    const raw=
+    let raw=
       global.localStorage
         ?.getItem(
           STORAGE_KEY
         );
 
     if(!raw){
-      return emptyEnvelope();
+      const old=global.localStorage?.getItem('ovll:custom-nodes:v1');
+      if(!old)return emptyEnvelope();
+      const migrate=global.OvllSkillStorageRuntime?.migrateCustomSkills;
+      if(typeof migrate!=='function')throw new Error('SKILL_IMPORT_UNAVAILABLE');
+      raw=JSON.stringify(migrate(JSON.parse(old)));
+      global.localStorage?.setItem(STORAGE_KEY,raw);
     }
 
     const parsed=
@@ -276,7 +281,7 @@ function readEnvelope(){
     };
   }catch(error){
     console.warn(
-      "ovll custom node storage read failed:",
+      "ovll custom skillNode storage read failed:",
       error
     );
 
@@ -308,7 +313,7 @@ function emit(detail={}){
       listener(payload);
     }catch(error){
       console.warn(
-        "ovll custom node listener failed:",
+        "ovll custom skillNode listener failed:",
         error
       );
     }
@@ -317,7 +322,7 @@ function emit(detail={}){
   try{
     global.dispatchEvent(
       new CustomEvent(
-        "ovll:custom-nodes-changed",
+        "ovll:custom-skills-changed",
         {
           detail:payload
         }
@@ -479,10 +484,12 @@ function exportJSON(){
 }
 
 function importJSON(value){
-  const parsed=
-    typeof value==="string"
-      ?JSON.parse(value)
-      :value;
+  let parsed=typeof value==="string"?JSON.parse(value):value;
+  if(parsed?.schemaVersion!==SCHEMA_VERSION){
+    const migrate=global.OvllSkillStorageRuntime?.migrateCustomSkills;
+    if(typeof migrate!=='function')throw new Error('SKILL_IMPORT_UNAVAILABLE');
+    parsed=migrate(parsed);
+  }
 
   const records=
     Array.isArray(parsed?.records)
@@ -503,7 +510,7 @@ function importJSON(value){
   return list();
 }
 
-global.OvllCustomNodeStore=
+global.OvllCustomSkillStore=
   Object.freeze({
     schemaVersion:
       SCHEMA_VERSION,

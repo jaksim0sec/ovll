@@ -48,23 +48,23 @@ const state={
 };
 
 function listen(
-  node,
+  skillNode,
   type,
   handler,
   options
 ){
-  if(!node){
+  if(!skillNode){
     return;
   }
 
-  node.addEventListener(
+  skillNode.addEventListener(
     type,
     handler,
     options
   );
 
   listeners.push(
-    ()=>node.removeEventListener(
+    ()=>skillNode.removeEventListener(
       type,
       handler,
       options

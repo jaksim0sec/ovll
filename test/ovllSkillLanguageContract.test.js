@@ -7,12 +7,12 @@ function snapshot(){
  return {skillDefinitions:[
   {definitionId:'custom:review',version:1,name:'자료 분석',purpose:'Review',
    instruction:'Read supplied input',inputs:[],outputs:[]}
- ],graph:{graphId:'g1',revision:1,skills:[{
-  skillId:'legacy_n1',skillDefinitionRef:{definitionId:'custom:review',version:1},settings:{}
+ ],graph:{graphId:'g1',revision:1,skillNodes:[{
+  skillNodeId:'legacy_n1',skillDefinitionRef:{definitionId:'custom:review',version:1},settings:{}
  }],connections:[]}};
 }
 const definition={kind:'skill-definition',definitionId:'custom:review',version:1};
-const canvas={kind:'skill-canvas',graphId:'g1',skillId:'legacy_n1'};
+const canvas={kind:'skill-canvas',graphId:'g1',skillNodeId:'legacy_n1'};
 const fun={kind:'function',functionId:'f1',version:1};
 const refs=[definition,canvas,fun].map(serializeSkillReference);
 
@@ -20,7 +20,7 @@ test('server expands only registered Skill references using identity and token',
  const result=formatSkillPrompt('사용 '+refs[0]+' 와 '+refs[1],{snapshot:snapshot()});
  assert.deepEqual(result.issues,[]);
  assert.match(result.requestText,/정의된 스킬 "자료 분석"/);
- assert.match(result.requestText,/캔버스 스킬 #legacy_n1/);
+ assert.match(result.requestText,/스킬노드 #legacy_n1/);
  assert.ok(result.requestText.includes(refs[0]));
  assert.ok(result.requestText.includes(refs[1]));
 });
@@ -42,7 +42,7 @@ test('forged external allowlist cannot grant Skill permission',()=>{
 });
 
 test('foreign-graph instance cannot be expanded even if Skill ID matches',()=>{
- const foreign=serializeSkillReference({kind:'skill-canvas',graphId:'another',skillId:'legacy_n1'});
+ const foreign=serializeSkillReference({kind:'skill-canvas',graphId:'another',skillNodeId:'legacy_n1'});
  const result=formatSkillPrompt(foreign,{snapshot:snapshot()});
  assert.equal(result.requestText,foreign);
  assert.equal(result.issues[0].code,'SKILL_REFERENCE_UNAVAILABLE');
@@ -62,7 +62,7 @@ test('normal chat and escaped literal text are passed through unchanged',()=>{
 });
 
 test('future or contradictory Skill graphs fail rather than trusting client metadata',()=>{
- const mixed=snapshot();mixed.graph.nodes=mixed.graph.skills;
+ const mixed=snapshot();mixed.graph.nodes=mixed.graph.skillNodes;
  assert.throws(()=>formatSkillPrompt(refs[0],{snapshot:mixed}));
 });
 
@@ -70,5 +70,5 @@ test('no model calls or network for deterministic prompt expansion',()=>{
  const source=snapshot(),raw=refs[1];
  const first=formatSkillPrompt(raw,{snapshot:source});
  assert.deepEqual(first,formatSkillPrompt(raw,{snapshot:source}));
- assert.equal(source.graph.skills[0].skillId,'legacy_n1');
+ assert.equal(source.graph.skillNodes[0].skillNodeId,'legacy_n1');
 });

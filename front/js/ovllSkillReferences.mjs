@@ -57,9 +57,9 @@ export function serializeSkillReference(reference){
       value=OPEN+'skill-def:'+encodeId(reference.definitionId)+versionText(reference)+CLOSE;
       break;
     case 'skill-canvas':
-      exactKeys(reference,['kind','graphId','skillId']);
-      if(!own(reference,'skillId'))fail('INVALID_SKILL_REFERENCE_FIELDS');
-      value=OPEN+'skill-canvas:'+encodeId(reference.graphId)+':'+encodeId(reference.skillId)+CLOSE;
+      exactKeys(reference,['kind','graphId','skillNodeId']);
+      if(!own(reference,'skillNodeId'))fail('INVALID_SKILL_REFERENCE_FIELDS');
+      value=OPEN+'skill-canvas:'+encodeId(reference.graphId)+':'+encodeId(reference.skillNodeId)+CLOSE;
       break;
     case 'function':
       exactKeys(reference,['kind','functionId','version']);
@@ -84,9 +84,9 @@ export function parseSkillReference(token){
   if(!kind)return null;
   let reference=null;
   if(kind==='skill-canvas'&&pieces.length===2){
-    const graphId=decodeId(pieces[0]),skillId=decodeId(pieces[1]);
-    if(graphId===null||skillId===null)return null;
-    reference={kind:'skill-canvas',graphId,skillId};
+    const graphId=decodeId(pieces[0]),skillNodeId=decodeId(pieces[1]);
+    if(graphId===null||skillNodeId===null)return null;
+    reference={kind:'skill-canvas',graphId,skillNodeId};
   }else if((kind==='skill-def'||kind==='function')&&
     pieces.length>=1&&pieces.length<=2){
     const id=decodeId(pieces[0]);

@@ -21,7 +21,7 @@
               "scope": "current",
               "depth": "semantic"
             },
-            "purpose": "Explain node connections"
+            "purpose": "Explain skillNode connections"
           }
         ]
       }
@@ -38,7 +38,7 @@
             "args": {
               "patch": {
                 "expectedGraphRevision": 7,
-                "definitions": [
+                "skillDefinitions": [
                   {
                     "localKey": "def_compare",
                     "purpose": "Compare conflicting evidence",
@@ -62,9 +62,9 @@
                 ],
                 "operations": [
                   {
-                    "op": "node.add",
-                    "localNodeKey": "tmp_compare",
-                    "definitionRef": {
+                    "op": "skillNode.add",
+                    "localSkillNodeKey": "tmp_compare",
+                    "skillDefinitionRef": {
                       "localDefinitionKey": "def_compare"
                     }
                   },
@@ -73,14 +73,14 @@
                     "localLinkKey": "tmp_link",
                     "kind": "data",
                     "from": {
-                      "node": {
-                        "nodeId": "source1"
+                      "skillNode": {
+                        "skillNodeId": "source1"
                       },
                       "port": "result"
                     },
                     "to": {
-                      "node": {
-                        "localNodeKey": "tmp_compare"
+                      "skillNode": {
+                        "localSkillNodeKey": "tmp_compare"
                       },
                       "port": "evidence"
                     }
@@ -101,7 +101,7 @@
               "targets": [
                 {
                   "fromAction": "p1",
-                  "localNodeKey": "tmp_compare"
+                  "localSkillNodeKey": "tmp_compare"
                 }
               ],
               "damMode": "closed"
@@ -111,7 +111,7 @@
       }
     },
     {
-      "name": "node result output",
+      "name": "skillNode result output",
       "target": "ModelTurn",
       "valid": true,
       "data": {
@@ -126,7 +126,7 @@
       }
     },
     {
-      "name": "blocked node",
+      "name": "blocked skillNode",
       "target": "ModelTurn",
       "valid": true,
       "data": {
@@ -226,7 +226,7 @@
             "args": {
               "patch": {
                 "expectedGraphRevision": 7,
-                "definitions": [
+                "skillDefinitions": [
                   {
                     "localKey": "def_compare",
                     "purpose": "Compare conflicting evidence",
@@ -244,9 +244,9 @@
                 ],
                 "operations": [
                   {
-                    "op": "node.add",
-                    "localNodeKey": "tmp_compare",
-                    "definitionRef": {
+                    "op": "skillNode.add",
+                    "localSkillNodeKey": "tmp_compare",
+                    "skillDefinitionRef": {
                       "localDefinitionKey": "def_compare"
                     }
                   },
@@ -255,14 +255,14 @@
                     "localLinkKey": "tmp_link",
                     "kind": "data",
                     "from": {
-                      "node": {
-                        "nodeId": "source1"
+                      "skillNode": {
+                        "skillNodeId": "source1"
                       },
                       "port": "result"
                     },
                     "to": {
-                      "node": {
-                        "localNodeKey": "tmp_compare"
+                      "skillNode": {
+                        "localSkillNodeKey": "tmp_compare"
                       },
                       "port": "evidence"
                     }
@@ -302,7 +302,7 @@
             "args": {
               "patch": {
                 "expectedGraphRevision": 7,
-                "definitions": [
+                "skillDefinitions": [
                   {
                     "localKey": "def_compare",
                     "purpose": "Compare conflicting evidence",
@@ -326,9 +326,9 @@
                 ],
                 "operations": [
                   {
-                    "op": "node.add",
-                    "localNodeKey": "tmp_compare",
-                    "definitionRef": {
+                    "op": "skillNode.add",
+                    "localSkillNodeKey": "tmp_compare",
+                    "skillDefinitionRef": {
                       "localDefinitionKey": "def_compare"
                     }
                   },
@@ -337,14 +337,14 @@
                     "localLinkKey": "tmp_link",
                     "kind": "data",
                     "from": {
-                      "node": {
-                        "nodeId": "source1"
+                      "skillNode": {
+                        "skillNodeId": "source1"
                       },
                       "port": "result"
                     },
                     "to": {
-                      "node": {
-                        "localNodeKey": "tmp_compare"
+                      "skillNode": {
+                        "localSkillNodeKey": "tmp_compare"
                       },
                       "port": "evidence"
                     }
@@ -370,7 +370,7 @@
             "args": {
               "targets": [
                 {
-                  "nodeId": "n1"
+                  "skillNodeId": "n1"
                 }
               ]
             },
@@ -392,7 +392,7 @@
         "args": {
           "targets": [
             {
-              "nodeId": "n1"
+              "skillNodeId": "n1"
             }
           ]
         }
@@ -410,7 +410,7 @@
         "args": {
           "targets": [
             {
-              "nodeId": "n1"
+              "skillNodeId": "n1"
             }
           ]
         }
@@ -455,10 +455,10 @@
       "data": {
         "graphId": "g_1",
         "revision": 8,
-        "nodes": [
+        "skillNodes": [
           {
-            "nodeId": "n1",
-            "definitionRef": {
+            "skillNodeId": "n1",
+            "skillDefinitionRef": {
               "definitionId": "compare",
               "version": 1
             }
@@ -504,9 +504,9 @@
             "kind": "graph",
             "source": "server_state",
             "content": {
-              "nodes": [
+              "skillNodes": [
                 {
-                  "nodeId": "n1",
+                  "skillNodeId": "n1",
                   "purpose": "compare sources"
                 }
               ]
@@ -593,7 +593,7 @@
             "args": {
               "patch": {
                 "expectedGraphRevision": 8,
-                "definitions": [],
+                "skillDefinitions": [],
                 "operations": [],
                 "adoption": "active_run",
                 "expectedPlanEpoch": 2,
@@ -616,11 +616,11 @@
             "args": {
               "patch": {
                 "expectedGraphRevision": 8,
-                "definitions": [],
+                "skillDefinitions": [],
                 "operations": [
                   {
-                    "op": "node.delete",
-                    "nodeId": "old"
+                    "op": "skillNode.delete",
+                    "skillNodeId": "old"
                   }
                 ],
                 "adoption": "active_run",
@@ -655,7 +655,7 @@
             "args": {
               "targets": [
                 {
-                  "nodeId": "n1"
+                  "skillNodeId": "n1"
                 }
               ]
             }
@@ -664,7 +664,7 @@
       }
     },
     {
-      "name": "needs cannot publish partial node output",
+      "name": "needs cannot publish partial skillNode output",
       "target": "ModelTurn",
       "valid": false,
       "data": {
@@ -694,7 +694,7 @@
       "valid": false,
       "data": {
         "expectedGraphRevision": 7,
-        "definitions": [],
+        "skillDefinitions": [],
         "operations": []
       }
     },
@@ -705,18 +705,18 @@
       "data": {
         "graphId": "graph_12",
         "expectedGraphRevision": 7,
-        "definitions": [],
+        "skillDefinitions": [],
         "operations": [
           {
-            "op": "node.delete",
-            "nodeId": "n1"
+            "op": "skillNode.delete",
+            "skillNodeId": "n1"
           }
         ]
       }
     },
     {
       "name": "tool_task definition version requires declared capabilities",
-      "target": "NodeDefinitionVersion",
+      "target": "SkillDefinitionVersion",
       "valid": false,
       "data": {
         "definitionId": "def1",
@@ -736,7 +736,7 @@
     },
     {
       "name": "tool_task definition version with capabilities",
-      "target": "NodeDefinitionVersion",
+      "target": "SkillDefinitionVersion",
       "valid": true,
       "data": {
         "definitionId": "def1",
@@ -759,7 +759,7 @@
     },
     {
       "name": "subgraph definition must reference implementation",
-      "target": "NodeDefinitionVersion",
+      "target": "SkillDefinitionVersion",
       "valid": false,
       "data": {
         "definitionId": "def1",

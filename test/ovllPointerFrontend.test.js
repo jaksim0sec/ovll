@@ -32,7 +32,7 @@ test('state and action routes use JSON, scoped graph and no direct AI authority'
   const x=client([{graph:{graph:{revision:3}},eventCursor:8,runs:[]},{results:[{status:'scheduled',runRef:'r1'}]}]);
   const snapshot=await x.OvllPointerApi.state('g1','t1');
   assert.equal(snapshot.eventCursor,8);
-  await x.OvllPointerApi.turn({graphId:'g1',taskRef:'t1',actions:[{kind:'run.start',localKey:'run',args:{targets:[{nodeId:'n1'}]}}]});
+  await x.OvllPointerApi.turn({graphId:'g1',taskRef:'t1',actions:[{kind:'run.start',localKey:'run',args:{targets:[{skillNodeId:'n1'}]}}]});
   assert.match(x.calls[0].url,/state\?graphId=g1&taskRef=t1/);
   assert.match(x.calls[1].url,/turns$/);
 });

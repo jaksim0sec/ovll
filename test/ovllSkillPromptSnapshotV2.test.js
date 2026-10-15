@@ -2,10 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createLocalPointerHost} from '../backend/ovllPointer/localHost.js';
 const graph=()=>({
- graph:{graphId:'g',revision:1,nodes:[{
-  nodeId:'n_preserved',definitionRef:{definitionId:'builtin:write',version:1},
+ graph:{graphId:'g',revision:1,skillNodes:[{
+  skillNodeId:'n_preserved',skillDefinitionRef:{definitionId:'builtin:write',version:1},
   settings:{request:'Write'},inputBindings:{}
- }],connections:[]},definitions:[]
+ }],connections:[]},skillDefinitions:[]
 });
 test('model corridor sees canonical Skill v2 graph without legacy domain names',async()=>{
  const calls=[];
@@ -19,10 +19,10 @@ test('model corridor sees canonical Skill v2 graph without legacy domain names',
  assert.equal(calls.length,1);
  const content=JSON.parse(calls[0].messages.find(m=>m.role==='user').content).context;
  const view=content.materials[0].content;
- assert.equal(view.graph.skills[0].skillId,'n_preserved');
+ assert.equal(view.graph.skillNodes[0].skillNodeId,'n_preserved');
  assert.equal('nodes' in view.graph,false);
  assert.equal('definitions' in view,false);
  assert.ok(Array.isArray(view.skillDefinitions));
- assert.ok(content.capabilities.includes('skill.add'));
+ assert.ok(content.capabilities.includes('skillNode.add'));
  assert.ok(!content.capabilities.includes('node.add'));
 });

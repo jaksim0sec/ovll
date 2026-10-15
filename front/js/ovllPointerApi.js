@@ -45,15 +45,12 @@
   const localReady=({signal}={})=>request('local/ready',{signal});
   const localTurn=({snapshot,requestRef=uniqueId(),requestText,history,extraContext,taskContext,additionalContext,signal})=>
     request('local/turn',{method:'POST',body:{snapshot,requestRef,requestText,history,extraContext,taskContext,additionalContext},signal});
-  const localCompile=({plan,snapshot,createdNodeIds,requestRef=uniqueId(),requestText,taskContext,extraContext,signal})=>
-    request('local/compile',{method:'POST',body:{plan,snapshot,createdNodeIds,requestRef,requestText,taskContext,extraContext},signal});
+  const localCompile=({plan,snapshot,createdSkillNodeIds,requestRef=uniqueId(),requestText,taskContext,extraContext,signal})=>
+    request('local/compile',{method:'POST',body:{plan,snapshot,createdSkillNodeIds,requestRef,requestText,taskContext,extraContext},signal});
   const localResponse=({snapshot,requestRef=uniqueId(),requestText,actionResults,history,taskContext,additionalContext,signal})=>
     request('local/response',{method:'POST',body:{snapshot,requestRef,requestText,actionResults,history,taskContext,additionalContext},signal});
-  const localSkill=({snapshot,requestRef=uniqueId(),requestText,skillId,inputArtifacts,taskConstraints,taskContext,signal})=>
-    request('local/skill',{method:'POST',
-      body:{snapshot,requestRef,requestText,skillId,inputArtifacts,taskConstraints,taskContext},signal});
-  const localNode=({snapshot,requestRef=uniqueId(),requestText,nodeId,inputArtifacts,taskConstraints,taskContext,signal})=>
-    request('local/node',{method:'POST',body:{snapshot,requestRef,requestText,nodeId,inputArtifacts,taskConstraints,taskContext},signal});
+  const localSkillNode=({snapshot,requestRef=uniqueId(),requestText,skillNodeId,inputArtifacts,taskConstraints,taskContext,signal})=>
+    request('local/skill-node',{method:'POST',body:{snapshot,requestRef,requestText,skillNodeId,inputArtifacts,taskConstraints,taskContext},signal});
   const run=id=>request('runs/'+encodeURIComponent(id));
   const task=id=>request('tasks/'+encodeURIComponent(id));
   const artifact=id=>request('artifacts/'+encodeURIComponent(id));
@@ -103,5 +100,5 @@
     const poll=global.setInterval(()=>{void replay().then(connect);},3000);
     return ()=>{closed=true;global.clearInterval(poll);stream?.close();stream=null;};
   }
-  global.OvllPointerApi=Object.freeze({request,submit,turn,events,state,runState,graph,run,task,artifact,watch,uniqueId,localCatalog,localReady,localTurn,localCompile,localSkill,localNode,localResponse});
+  global.OvllPointerApi=Object.freeze({request,submit,turn,events,state,runState,graph,run,task,artifact,watch,uniqueId,localCatalog,localReady,localTurn,localCompile,localSkillNode,localResponse});
 })(window);

@@ -43,24 +43,24 @@ async function execute(actions,handlers,{isActive=()=>true,onActionStart,onActio
 function uncommittedMutationClaim(message){
   const text=String(message||'');
   return /(잠시.{0,10}기다|기다려.{0,10}주|(?:삭제|제거|수정|변경|적용|반영|구성|실행|처리|생성|지우)(?:하겠|할게|하도록|했|됐|했습니다|해드리겠)|패치를.{0,16}(?:만들|구성)|완료(?:했|됐|되었|되었습니다)|(?:파일|PDF|보고서|작업).{0,32}(?:준비(?:됐|되었|되었습니다)|생성(?:됐|되었|되었습니다)|완성(?:됐|했)))/i.test(text)||
-    /\b(?:file|pdf|report|workflow|task|node)\b.{0,64}\b(?:ready|created|generated|completed|saved|executed)\b|\b(?:created|generated|completed|saved|executed)\b.{0,40}\b(?:file|pdf|report|workflow|task|node)\b/i.test(text);
+    /\b(?:file|pdf|report|workflow|task|skillNode)\b.{0,64}\b(?:ready|created|generated|completed|saved|executed)\b|\b(?:created|generated|completed|saved|executed)\b.{0,40}\b(?:file|pdf|report|workflow|task|skillNode)\b/i.test(text);
 }
 function resultIndex({snapshot,runs=[]}={}){
-  const visible=new Set((snapshot?.graph?.nodes||[]).map(n=>n.nodeId)),latest=new Map();
+  const visible=new Set((snapshot?.graph?.skillNodes||[]).map(n=>n.skillNodeId)),latest=new Map();
   for(const run of runs){
     if(run.graphRef?.graphId!==snapshot?.graph?.graphId)continue;
-    for(const node of run.nodes||[])if(visible.has(node.nodeId))latest.set(node.nodeId,{run,node});
+    for(const skillNode of run.skillNodes||[])if(visible.has(skillNode.skillNodeId))latest.set(skillNode.skillNodeId,{run,skillNode});
   }
   const items=[];let bytes=0;
-  for(const {run,node} of latest.values()){
-    const outputs=Object.entries(node.outputs?.values||{}).slice(0,8).map(([port,value])=>{
+  for(const {run,skillNode} of latest.values()){
+    const outputs=Object.entries(skillNode.outputs?.values||{}).slice(0,8).map(([port,value])=>{
       const raw=JSON.stringify(value.inline??null),preview=raw.slice(0,400);
-      return {port,ref:'local:'+run.runId+':'+node.nodeId+':'+port,preview,truncated:raw.length>preview.length};
+      return {port,ref:'local:'+run.runId+':'+skillNode.skillNodeId+':'+port,preview,truncated:raw.length>preview.length};
     });
-    const item={nodeId:node.nodeId,runId:run.runId,status:node.status,
-      resultCurrent:node.status==='success'&&node.resultCurrent===true,outputs,
-      outputsTotal:Object.keys(node.outputs?.values||{}).length,
-      ...(node.error?{error:String(node.error).slice(0,160)}:{})};
+    const item={skillNodeId:skillNode.skillNodeId,runId:run.runId,status:skillNode.status,
+      resultCurrent:skillNode.status==='success'&&skillNode.resultCurrent===true,outputs,
+      outputsTotal:Object.keys(skillNode.outputs?.values||{}).length,
+      ...(skillNode.error?{error:String(skillNode.error).slice(0,160)}:{})};
     const size=Array.from(JSON.stringify(item)).reduce((n,c)=>{const p=c.codePointAt(0);return n+(p>65535?4:p>2047?3:p>127?2:1);},0);
     if(bytes+size>11000)continue;
     items.push(item);bytes+=size;
@@ -113,16 +113,16 @@ async function coordinate({getContext,request,requestCompile,handlers,isActive=(
       if(!results.length||results.some(r=>!succeeded(r))||!isActive())break;
       try{
         if(typeof requestCompile!=='function')throw Error('LOCAL_COMPILE_UNAVAILABLE');
-        const createdNodeIds=Object.create(null);
+        const createdSkillNodeIds=Object.create(null);
         for(const [alias,target] of Object.entries(continuation.aliasTargets||{})){
           const producer=results.find(r=>r.localKey===target.fromAction&&r.status==='applied');
-          const nodeId=producer?.createdRefs?.['node:'+target.localNodeKey];
-          if(!nodeId)throw Error('LOCAL_TARGET_UNRESOLVED');
-          createdNodeIds[alias]=nodeId;
+          const skillNodeId=producer?.createdRefs?.['skillNode:'+target.localSkillNodeKey];
+          if(!skillNodeId)throw Error('LOCAL_TARGET_UNRESOLVED');
+          createdSkillNodeIds[alias]=skillNodeId;
         }
         const current=await getContext();
         onPhase?.('compile');
-        const compiled=await requestCompile({plan:continuation.plan,snapshot:current.snapshot,createdNodeIds,
+        const compiled=await requestCompile({plan:continuation.plan,snapshot:current.snapshot,createdSkillNodeIds,
           taskContext:current.taskContext,extraContext:{savedFunctions:functionIndex(current.savedFunctions||[]),reads}});
         if(compiled._meta?.continuation)throw Error('LOCAL_COMPILE_CONTINUATION_LIMIT');
         const remaining=await execute(compiled.actions||[],handlers,{isActive,onActionStart,onActionResult});
@@ -136,7 +136,7 @@ async function coordinate({getContext,request,requestCompile,handlers,isActive=(
         if(step<2){
           correction='The last response promised a graph change but proposed no actions. '+
             'No work has been scheduled or applied. If the requested operation is supported, '+
-            'return an action-plan.v1 with the needed semantic actions, exact selectors and declared aliases; '+
+            'return an action-plan.v3 with the needed semantic actions, exact selectors and declared aliases; '+
             'otherwise explain the blocker without claiming progress or asking the user to wait.';
           continue;
         }
@@ -159,7 +159,7 @@ async function coordinate({getContext,request,requestCompile,handlers,isActive=(
       break;
     }
     const recoverable=results.some(r=>r.status==='waiting'||r.status==='failed'&&!r.run&&!['function.run','run.start'].includes(r.kind))&&
-      !runs.some(run=>run.nodes.some(n=>n.toolEffectStarted));
+      !runs.some(run=>run.skillNodes.some(n=>n.toolEffectStarted));
     if(continuation||!recoverable&&proposal.incomplete!==true)break;
   }
   return {facts,messages,runs,checkpoint,contextRecord,pendingCovered:pendingRefs.length>0&&pendingRefs.every(ref=>covered.has(ref))};
@@ -171,9 +171,9 @@ function runEvidence(run){
   return {runId:run.runId||'',status:run.status,graphRef:run.graphRef,targets:run.targets,
     ...(run.outputMap?{outputMap:run.outputMap,requiredOutputs:run.requiredOutputs,functionOutputRefs:run.functionOutputRefs,
       deliveryError:run.deliveryError}:{}),
-    deliverableTargets:run.deliverableTargets,coverage:run.coverage,nodes:(run.nodes||[]).map(n=>{
-      const row={nodeId:n.nodeId,status:n.status,error:n.error||'',reused:n.reused===true,
-        outputRefs:n.outputRefs||Object.keys(n.outputs?.values||{}).map(port=>'local:'+run.runId+':'+n.nodeId+':'+port),
+    deliverableTargets:run.deliverableTargets,coverage:run.coverage,skillNodes:(run.skillNodes||[]).map(n=>{
+      const row={skillNodeId:n.skillNodeId,status:n.status,error:n.error||'',reused:n.reused===true,
+        outputRefs:n.outputRefs||Object.keys(n.outputs?.values||{}).map(port=>'local:'+run.runId+':'+n.skillNodeId+':'+port),
         provenance:n.provenance,execution:n.execution};
       if(n.outputs){const size=JSON.stringify(n.outputs).length;
         if(size<=budget){row.outputs=n.outputs;budget-=size;}
@@ -186,9 +186,9 @@ async function readNeedsAsync(needs,context={}, {readSource=global.OvllPointerLo
   for(let index=0;index<reads.length;index++){
     const need=needs[index],ref=need.selector?.ref;
     if(!['value','artifact'].includes(need.kind)||!ref?.startsWith('file:'))continue;
-    const node=context.snapshot?.graph?.nodes?.find(n=>'file:'+n.nodeId===ref);
-    if(!node?.settings?.file||typeof readSource!=='function')continue;
-    let source;try{source=await readSource(node.settings.file,{maxBytes:Math.max(1,Math.min(need.selector?.depth==='full'?24000:6000,Math.floor((remaining-1500)/2)))});}
+    const skillNode=context.snapshot?.graph?.skillNodes?.find(n=>'file:'+n.skillNodeId===ref);
+    if(!skillNode?.settings?.file||typeof readSource!=='function')continue;
+    let source;try{source=await readSource(skillNode.settings.file,{maxBytes:Math.max(1,Math.min(need.selector?.depth==='full'?24000:6000,Math.floor((remaining-1500)/2)))});}
     catch(error){source={status:'blocked',reason:error?.code||error?.message||'LOCAL_FILE_READ_FAILED'};}
     const rawValue=source?.value,available=source?.status==='success';
     const {textPreview,...value}=rawValue||{};
@@ -207,19 +207,19 @@ function readNeeds(needs,{snapshot,history=[],runs=[],savedFunctions=[]}={}){
     const selector=need.selector||{},ref=selector.ref,limit=Math.min(selector.limit||10,20);
     let content;
     if(need.kind==='graph'&&selector.scope!=='ref'||need.kind==='graph'&&ref===snapshot?.graph?.graphId)content=snapshot?.graph;
-    else if(need.kind==='definition')content=(snapshot?.definitions||[]).filter(d=>selector.scope!=='ref'||d.definitionId===ref);
+    else if(need.kind==='definition')content=(snapshot?.skillDefinitions||[]).filter(d=>selector.scope!=='ref'||d.definitionId===ref);
     else if(need.kind==='history'&&selector.scope==='current')content=history;
     else if(need.kind==='history'&&selector.scope==='ref'&&/^history:[0-9]+$/.test(ref||''))content=history[Number(ref.slice(8))];
     else if(need.kind==='run')content=runs.filter(r=>selector.scope!=='ref'||r.runId===ref);
     else if(need.kind==='contract')content=savedFunctions.filter(fn=>selector.scope!=='ref'||fn.id===ref).map(({presentation,createdAt,...contract})=>contract);
     else if(['value','artifact'].includes(need.kind)&&selector.scope==='ref'){
-      for(const node of snapshot?.graph?.nodes||[]){
-        if(ref==='file:'+node.nodeId)content=node.settings?.file;
-        for(const [port,value] of Object.entries(node.inputBindings||{}))if(ref==='binding:'+node.nodeId+':'+port)content=value;
-        for(const [key,value] of Object.entries(node.settings||{}))if(ref==='setting:'+node.nodeId+':'+key)content=value;
+      for(const skillNode of snapshot?.graph?.skillNodes||[]){
+        if(ref==='file:'+skillNode.skillNodeId)content=skillNode.settings?.file;
+        for(const [port,value] of Object.entries(skillNode.inputBindings||{}))if(ref==='binding:'+skillNode.skillNodeId+':'+port)content=value;
+        for(const [key,value] of Object.entries(skillNode.settings||{}))if(ref==='setting:'+skillNode.skillNodeId+':'+key)content=value;
       }
-      for(const run of runs)for(const node of run.nodes||[])for(const [port,value] of Object.entries(node.outputs?.values||{}))
-        if(ref==='local:'+run.runId+':'+node.nodeId+':'+port)content=value.inline;
+      for(const run of runs)for(const skillNode of run.skillNodes||[])for(const [port,value] of Object.entries(skillNode.outputs?.values||{}))
+        if(ref==='local:'+run.runId+':'+skillNode.skillNodeId+':'+port)content=value.inline;
     }
     const available=content!==undefined&&(!Array.isArray(content)||content.length>0);
     const limited=Array.isArray(content)?need.kind==='history'?content.slice(-limit):content.slice(0,limit):content;
@@ -259,12 +259,12 @@ function formatDeliveredValue(value,depth=0){
   }).filter(Boolean).join('\n\n');
 }
 function deliveryContent(run){
-  const success=(run.nodes||[]).filter(n=>n.status==='success'&&n.resultCurrent!==false);
+  const success=(run.skillNodes||[]).filter(n=>n.status==='success'&&n.resultCurrent!==false);
   const delivery=run.deliverableTargets||run.targets||[];
-  const selected=success.filter(n=>delivery.includes(n.nodeId));
+  const selected=success.filter(n=>delivery.includes(n.skillNodeId));
   const artifacts=[];
   const text=selected.flatMap(n=>(run.outputMap!==undefined?
-    Object.entries(run.outputMap).filter(([,target])=>target.nodeId===n.nodeId)
+    Object.entries(run.outputMap).filter(([,target])=>target.skillNodeId===n.skillNodeId)
       .map(([name,target])=>[name,n.outputs?.values?.[target.port]]):
     Object.entries(n.outputs?.values||{})).filter(([,value])=>value!==undefined).map(([name,v])=>{
     const value=v.inline;
@@ -277,7 +277,7 @@ function deliveryContent(run){
       return String(value.name||'파일');
     }
     const content=formatDeliveredValue(value);
-    const target=run.outputMap?.[name],publicLabel=target&&name!==target.nodeId+':'+target.port;
+    const target=run.outputMap?.[name],publicLabel=target&&name!==target.skillNodeId+':'+target.port;
     return content===undefined?undefined:publicLabel?name+': '+content:content;
   })).filter(Boolean).join('\n\n');
   return {text,artifacts};
@@ -312,7 +312,7 @@ function presentation({facts=[],messages=[],runs=[]}={}){
     }
   }
   for(const {run,id} of targets.values()){
-    append(deliveryContent({...run,targets:[id],deliverableTargets:[id],nodes:(run.nodes||[]).filter(n=>n.nodeId===id)}));
+    append(deliveryContent({...run,targets:[id],deliverableTargets:[id],skillNodes:(run.skillNodes||[]).filter(n=>n.skillNodeId===id)}));
   }
   if(!parts.length)for(const run of runs.filter(r=>r.status!=='completed')){
     append(deliveryContent(run));
@@ -322,7 +322,7 @@ function presentation({facts=[],messages=[],runs=[]}={}){
     if(fact.question){if(!parts.includes(fact.question))parts.push(fact.question);continue;}
     if(fact.run){
       if(fact.run.status!=='completed')parts.push(fact.run.status==='cancelled'?'실행을 중단했어.':fact.run.status==='skipped'?'선택한 작업은 비활성 분기에 있어 실행하지 않았어.':
-        blocker(fact.run.deliveryError||fact.run.nodes.find(n=>n.error)?.error)||'실행을 확인해야 해.');
+        blocker(fact.run.deliveryError||fact.run.skillNodes.find(n=>n.error)?.error)||'실행을 확인해야 해.');
     }else if(['failed','rejected','skipped','cancelled'].includes(fact.status))parts.push(blocker(fact.error));
     else if(fact.status==='saved')parts.push('함수 초안을 저장했어: '+fact.purpose);
     else if(fact.status==='applied'&&!runs.length)parts.push(partialMutation?
@@ -340,7 +340,7 @@ function runNotices(runs=[]){
     if(run.coverage?.sourceTruncated)parts.push('원문 일부만 읽은 결과야. 누락 범위를 확인해줘.');
     if(run.coverage?.outputTruncated)parts.push('내보낸 파일에 내용 일부가 생략됐어. 생략 범위를 확인해줘.');
     if(run.storage?.status==='failed')parts.push('실행 결과를 저장하지 못했어: '+blocker(run.storage.error));
-    if((run.nodes||[]).some(node=>Object.values(node.outputs?.values||{}).some(v=>v.inline?.availability?.localSaveError)))
+    if((run.skillNodes||[]).some(skillNode=>Object.values(skillNode.outputs?.values||{}).some(v=>v.inline?.availability?.localSaveError)))
       parts.push('결과 파일을 이 기기에 저장하지 못했어. 다운로드 링크의 만료를 확인해줘.');
   }
   return [...new Set(parts.filter(Boolean))];

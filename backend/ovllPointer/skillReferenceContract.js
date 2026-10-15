@@ -6,7 +6,7 @@ import {assertCanonicalSkillSnapshot} from '../../front/js/ovllSkillCodec.mjs';
 function readable(ref,label,token){
   if(ref.kind==='skill-definition')return '정의된 스킬 "'+label+'" (definitionId='+ref.definitionId+
     (ref.version===undefined?'':', version='+ref.version)+', reference='+token+')';
-  if(ref.kind==='skill-canvas')return '캔버스 스킬 #'+ref.skillId+' "'+label+
+  if(ref.kind==='skill-canvas')return '스킬노드 #'+ref.skillNodeId+' "'+label+
     '" (graphId='+ref.graphId+', reference='+token+')';
   return '저장 함수 "'+label+'" (functionId='+ref.functionId+
     (ref.version===undefined?'':', version='+ref.version)+', reference='+token+')';

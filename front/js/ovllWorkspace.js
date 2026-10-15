@@ -29,7 +29,7 @@ function createShell(host,options={}){
         <div data-ovll-canvas-viewport data-canvas-viewport>
           <div data-ovll-canvas-world data-canvas-world>
             <svg data-ovll-canvas-connections data-canvas-connections aria-hidden="true"></svg>
-            <div data-ovll-canvas-nodes data-canvas-nodes></div>
+            <div data-ovll-canvas-skill-nodes data-canvas-skill-nodes></div>
           </div>
         </div>
       </section>
@@ -163,7 +163,7 @@ function createOvllWorkspace(host,options={}){
   let canvas=null;
   let mascot=null;
   let mascotUiCleanup=null;
-  let nodeBuilder=null;
+  let skillNodeBuilder=null;
   let destroyed=false;
 
   const composerEditor=global.OvllComposer?.mount({
@@ -172,9 +172,9 @@ function createOvllWorkspace(host,options={}){
     attach:elements.composerAttach,
     submit:elements.composerSubmit,
     styleRoot:options.composerStyleRoot||shell,
-    getDefinitions:()=>canvas?.getNodeDefinitions?.()||global.nodeDefinitions||{},
-    getCanvasNodes:()=>canvas?.getWorkflow?.()?.nodes||[],
-    getSkillSnapshot:()=>options.getSkillSnapshot?.()||null,
+    getDefinitions:()=>canvas?.getSkillDefinitions?.()||global.skillDefinitions||{},
+    getCanvasSkillNodes:()=>canvas?.getWorkflow?.()?.skillNodes||[],
+    getSnapshot:()=>options.getSnapshot?.()||null,
     getFunctions:()=>global.OvllPointerFunctions?.list?.()||[]
   });
 
@@ -576,7 +576,7 @@ function createOvllWorkspace(host,options={}){
   function bindCanvas(nextCanvas,bindOptions={}){
     canvas=nextCanvas||null;
     ui.bindCanvas(canvas);
-    nodeBuilder?.setCanvas(canvas);
+    skillNodeBuilder?.setCanvas(canvas);
 
     if(
       canvas&&
@@ -592,7 +592,7 @@ function createOvllWorkspace(host,options={}){
   }
 
   async function mountCanvas(mountOptions={}){
-    const mount=options.mountCanvas||global.mountCanvasNode;
+    const mount=options.mountCanvas||global.mountCanvasSkillNode;
 
     if(typeof mount!=="function"){
       throw new Error("Canvas mount 함수가 없습니다.");
@@ -620,14 +620,14 @@ function createOvllWorkspace(host,options={}){
     return mounted;
   }
 
-  function mountNodeBuilder(builderOptions={}){
-    if(nodeBuilder) return nodeBuilder;
+  function mountSkillNodeBuilder(builderOptions={}){
+    if(skillNodeBuilder) return skillNodeBuilder;
 
-    if(typeof global.createCanvasNodeBuilder!=="function"){
+    if(typeof global.createCanvasSkillNodeBuilder!=="function"){
       return null;
     }
 
-    nodeBuilder=global.createCanvasNodeBuilder({
+    skillNodeBuilder=global.createCanvasSkillNodeBuilder({
       document,
       host:elements.canvasPage,
       canvas,
@@ -640,7 +640,7 @@ function createOvllWorkspace(host,options={}){
       eventRoot:builderOptions.eventRoot||document
     });
 
-    return nodeBuilder;
+    return skillNodeBuilder;
   }
 
   const api={
@@ -657,7 +657,7 @@ function createOvllWorkspace(host,options={}){
     bindComposer,
     bindCanvas,
     mountCanvas,
-    mountNodeBuilder,
+    mountSkillNodeBuilder,
     attachMascot,
     setBusy,
     isBusy(){
@@ -673,8 +673,8 @@ function createOvllWorkspace(host,options={}){
       if(destroyed) return;
       destroyed=true;
 
-      nodeBuilder?.destroy?.();
-      nodeBuilder=null;
+      skillNodeBuilder?.destroy?.();
+      skillNodeBuilder=null;
 
       mascotUiCleanup?.();
       mascotUiCleanup=null;

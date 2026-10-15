@@ -9,66 +9,66 @@ import { createPointerApp } from '../backend/ovllPointer/http.js';
 
 const def = (k, inputs = [], outputs = [{ name: 'out', role: 'data', representation: 'text' }], extra = {}) =>
   ({ localKey: k, purpose: 'Node ' + k, executorKind: 'model_task', instruction: 'Perform ' + k, inputs, outputs, ...extra });
-const node = (k, defKey = 'd') => ({ op: 'node.add', localNodeKey: k, definitionRef: { localDefinitionKey: defKey } });
-const link = (k, a, b, kind = 'flow') => ({ op: 'link.add', localLinkKey: k, kind, from: { node: { localNodeKey: a }, port: 'out' }, to: { node: { localNodeKey: b }, port: 'in' } });
+const skillNode = (k, defKey = 'd') => ({ op: 'skillNode.add', localSkillNodeKey: k, skillDefinitionRef: { localDefinitionKey: defKey } });
+const link = (k, a, b, kind = 'flow') => ({ op: 'link.add', localLinkKey: k, kind, from: { skillNode: { localSkillNodeKey: a }, port: 'out' }, to: { skillNode: { localSkillNodeKey: b }, port: 'in' } });
 function repo() { const r = new MemoryGraphRepository(); r.create('w', 'g'); return r; }
-function patch(r, definitions, operations, revision = 0) {
-  return r.apply('w', { graphId: 'g', expectedGraphRevision: revision, definitions, operations });
+function patch(r, skillDefinitions, operations, revision = 0) {
+  return r.apply('w', { graphId: 'g', expectedGraphRevision: revision, skillDefinitions, operations });
 }
 const failCode = (fn, expected) => assert.throws(fn, e => e instanceof KernelError && e.code === expected);
 
-test('graph revision 0 exists and patch adds an arbitrary semantic node definition', () => {
+test('graph revision 0 exists and patch adds an arbitrary semantic skillNode definition', () => {
   const r = repo();
-  const result = patch(r, [def('d')], [node('n')]);
+  const result = patch(r, [def('d')], [skillNode('n')]);
   assert.equal(result.graphRef.revision, 1);
-  assert.equal(r.get('w', 'g').graph.nodes.length, 1);
-  assert.equal(r.getRevision('w', 'g', 0).definitions.length, 0);
-  assert.equal(r.getRevision('w', 'g', 1).definitions.length, 1);
+  assert.equal(r.get('w', 'g').graph.skillNodes.length, 1);
+  assert.equal(r.getRevision('w', 'g', 0).skillDefinitions.length, 0);
+  assert.equal(r.getRevision('w', 'g', 1).skillDefinitions.length, 1);
 });
-test('failed patch is atomic and cannot apply partial nodes', () => {
+test('failed patch is atomic and cannot apply partial skillNodes', () => {
   const r = repo();
-  failCode(() => patch(r, [def('d')], [node('n'), { op:'node.delete', nodeId:'missing' }]), 'UNKNOWN_NODE');
-  assert.equal(r.get('w','g').graph.nodes.length,0);
-  assert.equal(r.get('w','g').definitions.length,0);
+  failCode(() => patch(r, [def('d')], [skillNode('n'), { op:'skillNode.delete', skillNodeId:'missing' }]), 'UNKNOWN_SKILL_NODE');
+  assert.equal(r.get('w','g').graph.skillNodes.length,0);
+  assert.equal(r.get('w','g').skillDefinitions.length,0);
 });
 test('stale revision never overwrites latest graph', () => {
   const r = repo();
-  patch(r,[def('d')],[node('n')]);
-  failCode(() => patch(r,[],[{op:'node.delete',nodeId:'any'}],0),'STALE_REVISION');
+  patch(r,[def('d')],[skillNode('n')]);
+  failCode(() => patch(r,[],[{op:'skillNode.delete',skillNodeId:'any'}],0),'STALE_REVISION');
   assert.equal(r.get('w','g').graph.revision,1);
 });
 test('graph cannot be changed by an active Run without plan adoption protocol', () => {
   const r = repo();
-  failCode(() => r.apply('w',{graphId:'g',expectedGraphRevision:0,adoption:'active_run',definitions:[def('d')],operations:[]}), 'ACTIVE_RUN_ADOPTION_PENDING');
+  failCode(() => r.apply('w',{graphId:'g',expectedGraphRevision:0,adoption:'active_run',skillDefinitions:[def('d')],operations:[]}), 'ACTIVE_RUN_ADOPTION_PENDING');
 });
-test('tool-task definitions require real capability references', () => {
+test('tool-task skillDefinitions require real capability references', () => {
   const r = repo();
   failCode(() => patch(r,[def('d',[],undefined,{executorKind:'tool_task'})],[]),'CAPABILITY_REQUIRED');
 });
 test('definition versions preserve original immutable version', () => {
   const r = repo();
   const first = patch(r,[def('d')],[]);
-  const ref = r.get('w','g').definitions[0];
+  const ref = r.get('w','g').skillDefinitions[0];
   patch(r,[def('next',[],undefined,{supersedes:{definitionId:ref.definitionId,version:1}})],[],1);
-  const defs = r.get('w','g').definitions;
+  const defs = r.get('w','g').skillDefinitions;
   assert.deepEqual(defs.map(x=>x.version),[1,2]);
-  assert.equal(r.getRevision('w','g',1).definitions.length,1);
+  assert.equal(r.getRevision('w','g',1).skillDefinitions.length,1);
 });
 test('data connections check semantic ports, not UI geometry', () => {
   const r=repo(), inputs=[{name:'in',role:'data',representation:'number'}];
-  failCode(() => patch(r,[def('a'),def('b',inputs)],[node('a','a'),node('b','b'),link('one','a','b','data')]),'PORT_MISMATCH');
+  failCode(() => patch(r,[def('a'),def('b',inputs)],[skillNode('a','a'),skillNode('b','b'),link('one','a','b','data')]),'PORT_MISMATCH');
   assert.equal(r.get('w','g').graph.revision,0);
 });
 test('flow/data cycles are rejected before commit', () => {
   const r = repo();
-  failCode(() => patch(r,[def('d')],[node('a'),node('b'),link('ab','a','b'),link('ba','b','a')]),'GRAPH_CYCLE');
+  failCode(() => patch(r,[def('d')],[skillNode('a'),skillNode('b'),link('ab','a','b'),link('ba','b','a')]),'GRAPH_CYCLE');
 });
 test('closed and open dam never fan out through a parent sibling', () => {
   const r = repo();
   patch(r,[def('d',[{name:'in',representation:'text'}])],
-    [node('root'),node('pivot'),node('sibling'),node('child'),node('evidence'),link('rp','root','pivot'),link('rs','root','sibling'),link('pc','pivot','child'),link('ec','evidence','child','data')]);
+    [skillNode('root'),skillNode('pivot'),skillNode('sibling'),skillNode('child'),skillNode('evidence'),link('rp','root','pivot'),link('rs','root','sibling'),link('pc','pivot','child'),link('ec','evidence','child','data')]);
   const graph=r.get('w','g').graph;
-  const byKey=graph.nodes.map((n,i)=>n.nodeId);
+  const byKey=graph.skillNodes.map((n,i)=>n.skillNodeId);
   const closed=new Set(computeScope(graph,[byKey[1]],'closed'));
   const open=new Set(computeScope(graph,[byKey[1]],'open'));
   assert.deepEqual(closed,new Set([byKey[0],byKey[1]]));
@@ -82,37 +82,37 @@ test('kernel requires trustworthy authorization and schema validators', () => {
 });
 test('kernel rejects ambiguous needs plus mutation before changing state', async () => {
   const r=repo();
-  await assert.rejects(()=>kernel(r).submit({needs:[{kind:'graph'}],actions:[{localKey:'x',kind:'ir.applyPatch',args:{patch:{graphId:'g',expectedGraphRevision:0,definitions:[],operations:[]}}}]},scope),e=>e.code==='NEEDS_ACTION_BARRIER');
+  await assert.rejects(()=>kernel(r).submit({needs:[{kind:'graph'}],actions:[{localKey:'x',kind:'ir.applyPatch',args:{patch:{graphId:'g',expectedGraphRevision:0,skillDefinitions:[],operations:[]}}}]},scope),e=>e.code==='NEEDS_ACTION_BARRIER');
   assert.equal(r.get('w','g').graph.revision,0);
 });
 test('unauthorized actions never modify graph', async () => {
   const r=repo();
   const k=kernel(r,{authorize:async()=>false});
-  const response=await k.submit(turn({graphId:'g',expectedGraphRevision:0,definitions:[def('d')],operations:[]}),scope);
+  const response=await k.submit(turn({graphId:'g',expectedGraphRevision:0,skillDefinitions:[def('d')],operations:[]}),scope);
   assert.equal(response.results[0].error.code,'FORBIDDEN');
   assert.equal(r.get('w','g').graph.revision,0);
 });
 test('idempotent mutation is applied once and repeated as duplicate', async () => {
   const r=repo();const k=kernel(r);
-  const data=turn({graphId:'g',expectedGraphRevision:0,definitions:[def('d')],operations:[]});
+  const data=turn({graphId:'g',expectedGraphRevision:0,skillDefinitions:[def('d')],operations:[]});
   const a=await k.submit(data,scope), b=await k.submit(data,scope);
   assert.equal(a.results[0].status,'applied');
   assert.equal(b.results[0].status,'duplicate');
   assert.equal(r.get('w','g').graph.revision,1);
 });
 test('run request cannot claim scheduled without durable queue', async () => {
-  const r=repo();patch(r,[def('d')],[node('a')]);
-  const n=r.get('w','g').graph.nodes[0].nodeId;
-  const result=await kernel(r).submit({actions:[{localKey:'run',kind:'run.start',args:{targets:[{nodeId:n}]}}]},scope);
+  const r=repo();patch(r,[def('d')],[skillNode('a')]);
+  const n=r.get('w','g').graph.skillNodes[0].skillNodeId;
+  const result=await kernel(r).submit({actions:[{localKey:'run',kind:'run.start',args:{targets:[{skillNodeId:n}]}}]},scope);
   assert.equal(result.results[0].status,'rejected');
   assert.equal(result.results[0].error.code,'DURABLE_QUEUE_REQUIRED');
 });
-test('new patch node targets resolve from confirmed references only', async () => {
+test('new patch skillNode targets resolve from confirmed references only', async () => {
   const r=repo();
   const k=kernel(r,{scheduleRun:async()=>({durable:true,runRef:'r_1'})});
   const out=await k.submit({actions:[
-    {localKey:'p',kind:'ir.applyPatch',args:{patch:{graphId:'g',expectedGraphRevision:0,definitions:[def('d')],operations:[node('n')]}}},
-    {localKey:'run',kind:'run.start',dependsOn:['p'],args:{targets:[{fromAction:'p',localNodeKey:'n'}]}}
+    {localKey:'p',kind:'ir.applyPatch',args:{patch:{graphId:'g',expectedGraphRevision:0,skillDefinitions:[def('d')],operations:[skillNode('n')]}}},
+    {localKey:'run',kind:'run.start',dependsOn:['p'],args:{targets:[{fromAction:'p',localSkillNodeKey:'n'}]}}
   ]},scope);
   assert.deepEqual(out.results.map(x=>x.status),['applied','scheduled']);
   assert.equal(out.results[1].runRef,'r_1');

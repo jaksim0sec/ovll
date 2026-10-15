@@ -1,8 +1,8 @@
 import {iconSvg} from './skillCatalog.js';
 import {PATCH_OPERATION_CONTRACTS,PATCH_OPERATION_KINDS} from './validation.js';
 // Converts only unambiguous, non-semantic ModelTurn omissions into the wire contract.
-// Draft node keys are local graph-patch handles, not persistent identities.
-// This module never invents nodes, links, definitions, run targets or effects.
+// Draft skillNode keys are local graph-patch handles, not persistent identities.
+// This module never invents skillNodes, links, skillDefinitions, run targets or effects.
 const isKey=value=>typeof value==='string'&&/^[a-zA-Z0-9_.:-]{1,160}$/.test(value);
 const isObject=value=>value!==null&&typeof value==='object'&&!Array.isArray(value);
 const normalizePresentation=value=>{
@@ -27,23 +27,23 @@ function normalizeDefinition(d){
 }
 // Bind a missing definition handle only to a single, explicit same-patch reference.
 function restoreDefinitionHandle(patch){
-  if(!Array.isArray(patch.definitions)||!Array.isArray(patch.operations))return null;
-  const drafts=patch.definitions;
+  if(!Array.isArray(patch.skillDefinitions)||!Array.isArray(patch.operations))return null;
+  const drafts=patch.skillDefinitions;
   const missing=drafts.map((d,i)=>isObject(d)&&d.localKey===undefined?i:-1).filter(i=>i>=0);
   if(missing.length!==1||drafts.some(d=>!isObject(d)||d.localKey!==undefined&&!isKey(d.localKey)))return null;
   const named=drafts.map(d=>d.localKey).filter(isKey);
   if(new Set(named).size!==named.length)return null;
   const referenced=new Set();
   for(const op of patch.operations){
-    if(op?.op!=='node.add'&&op?.op!=='node.update')continue;
-    const ref=op.definitionRef;
+    if(op?.op!=='skillNode.add'&&op?.op!=='skillNode.update')continue;
+    const ref=op.skillDefinitionRef;
     if(!isObject(ref)||!Object.hasOwn(ref,'localDefinitionKey'))continue;
     if(Object.keys(ref).length!==1||!isKey(ref.localDefinitionKey))return null;
     if(!named.includes(ref.localDefinitionKey))referenced.add(ref.localDefinitionKey);
   }
   if(referenced.size!==1)return null;
   const key=referenced.values().next().value,index=missing[0];
-  return {index,patch:{...patch,definitions:drafts.map((d,i)=>
+  return {index,patch:{...patch,skillDefinitions:drafts.map((d,i)=>
     i===index?{...d,localKey:key}:d)}};
 }
 
@@ -55,26 +55,26 @@ function localRefs(patch,actionKey,actions){
   for(const op of patch.operations||[]){
     if(op?.op!=='link.add')continue;
     for(const endpoint of [op.from,op.to]){
-      if(isKey(endpoint?.node?.localNodeKey))refs.push(endpoint.node.localNodeKey);
+      if(isKey(endpoint?.skillNode?.localSkillNodeKey))refs.push(endpoint.skillNode.localSkillNodeKey);
     }
   }
   for(const action of actions){
     if(action?.kind!=='run.start'||!(action.dependsOn||[]).includes(actionKey))continue;
     for(const target of action.args?.targets||[]){
-      if(target?.fromAction===actionKey&&isKey(target.localNodeKey))
-        refs.push(target.localNodeKey);
+      if(target?.fromAction===actionKey&&isKey(target.localSkillNodeKey))
+        refs.push(target.localSkillNodeKey);
     }
   }
   return refs;
 }
 function allocateKeys(patch,actionKey,actions){
   if(!Array.isArray(patch.operations))return patch;
-  const adds=patch.operations.filter(op=>op?.op==='node.add');
-  const unnamed=adds.filter(op=>op.localNodeKey===undefined);
+  const adds=patch.operations.filter(op=>op?.op==='skillNode.add');
+  const unnamed=adds.filter(op=>op.localSkillNodeKey===undefined);
   if(!unnamed.length)return patch;
-  // Never turn an invalid/unknown explicit key into a different node.
-  if(adds.some(op=>op.localNodeKey!==undefined&&!isKey(op.localNodeKey)))return patch;
-  const used=new Set(adds.map(op=>op.localNodeKey).filter(isKey));
+  // Never turn an invalid/unknown explicit key into a different skillNode.
+  if(adds.some(op=>op.localSkillNodeKey!==undefined&&!isKey(op.localSkillNodeKey)))return patch;
+  const used=new Set(adds.map(op=>op.localSkillNodeKey).filter(isKey));
   if(used.size!==adds.length-unnamed.length)return patch;
   const dangling=[...new Set(localRefs(patch,actionKey,actions).filter(key=>!used.has(key)))];
   // Several unresolved references cannot be attributed to unnamed operations.
@@ -92,14 +92,14 @@ function allocateKeys(patch,actionKey,actions){
     assigned.set(op,key);
   }
   return {...patch,operations:patch.operations.map(op=>assigned.has(op)?
-    {...op,localNodeKey:assigned.get(op)}:op)};
+    {...op,localSkillNodeKey:assigned.get(op)}:op)};
 }
 
-const GRAPH_PATCH_FIELDS=new Set(['graphId','expectedGraphRevision','definitions','operations','adoption','expectedPlanEpoch','runRef']);
+const GRAPH_PATCH_FIELDS=new Set(['graphId','expectedGraphRevision','skillDefinitions','operations','adoption','expectedPlanEpoch','runRef']);
 function flatGraphPatch(a){
   return isObject(a)&&Object.keys(a).every(k=>GRAPH_PATCH_FIELDS.has(k))&&
     typeof a.graphId==='string'&&Number.isInteger(a.expectedGraphRevision)&&
-    (Array.isArray(a.operations)||Array.isArray(a.definitions));
+    (Array.isArray(a.operations)||Array.isArray(a.skillDefinitions));
 }
 export function modelTurnShape(value){
   if(!isObject(value))return {kind:'other'};
@@ -112,13 +112,13 @@ export function modelTurnShape(value){
       const args=a?.args,patch=isObject(args?.patch)?args.patch:flatGraphPatch(args)?args:null;
       return {kind:['ir.applyPatch','run.start','function.run','function.save','run.retry','run.cancel','run.revise','question.ask','task.complete'].includes(a?.kind)?a.kind:'unknown',
         action:fields(a,['localKey','kind','args','argsJson','dependsOn']),
-        args:fields(args,['patch','graphId','expectedGraphRevision','definitions','operations','targets','damMode','functionRef','inputBindings']),
-        ...(patch?{patch:fields(patch,['graphId','expectedGraphRevision','definitions','operations','adoption','expectedPlanEpoch','runRef']),
-          definitions:Array.isArray(patch.definitions)?patch.definitions.slice(0,6).map(d=>fields(d,['localKey','purpose','instruction','executorKind','inputs','outputs','presentation','supersedes'])):[],
+        args:fields(args,['patch','graphId','expectedGraphRevision','skillDefinitions','operations','targets','damMode','functionRef','inputBindings']),
+        ...(patch?{patch:fields(patch,['graphId','expectedGraphRevision','skillDefinitions','operations','adoption','expectedPlanEpoch','runRef']),
+          skillDefinitions:Array.isArray(patch.skillDefinitions)?patch.skillDefinitions.slice(0,6).map(d=>fields(d,['localKey','purpose','instruction','executorKind','inputs','outputs','presentation','supersedes'])):[],
           operations:Array.isArray(patch.operations)?patch.operations.slice(0,10).map(op=>({kind:Object.hasOwn(PATCH_OPERATION_CONTRACTS,op?.op)?op.op:'unknown',
-            fields:fields(op,['op','localNodeKey','localLinkKey','kind','definitionRef','settings','from','to','presentation','inputBindings','nodeRef'])})):[]
+            fields:fields(op,['op','localSkillNodeKey','localLinkKey','kind','skillDefinitionRef','settings','from','to','presentation','inputBindings','skillNodeRef'])})):[]
         }:{}),
-        targets:Array.isArray(args?.targets)?args.targets.slice(0,8).map(t=>fields(t,['nodeId','fromAction','localNodeKey'])):[],
+        targets:Array.isArray(args?.targets)?args.targets.slice(0,8).map(t=>fields(t,['skillNodeId','fromAction','localSkillNodeKey'])):[],
         dependsOnCount:Array.isArray(a?.dependsOn)?a.dependsOn.length:0};
     }):[]};
 }
@@ -143,24 +143,24 @@ export function normalizeModelTurn(value,{normalizations=[]}={}){
     const source=patchOf(updated);
     if(!source)return updated;
     let patch={...source};
-    if(Array.isArray(patch.definitions))
-      patch.definitions=patch.definitions.map(normalizeDefinition);
+    if(Array.isArray(patch.skillDefinitions))
+      patch.skillDefinitions=patch.skillDefinitions.map(normalizeDefinition);
     const restored=restoreDefinitionHandle(patch);
     if(restored){patch=restored.patch;normalizations.push('definitionKey@'+index+':'+restored.index);}
     if(Array.isArray(patch.operations))patch.operations=patch.operations.map(op=>
-      op?.op==='definition.appearance'&&op.presentation!==undefined?
+      op?.op==='skill.appearance'&&op.presentation!==undefined?
         {...op,presentation:normalizePresentation(op.presentation)}:op);
-    if(Array.isArray(patch.operations)&&patch.definitions===undefined)patch.definitions=[];
-    if(Array.isArray(patch.definitions)&&patch.operations===undefined)patch.operations=[];
+    if(Array.isArray(patch.operations)&&patch.skillDefinitions===undefined)patch.skillDefinitions=[];
+    if(Array.isArray(patch.skillDefinitions)&&patch.operations===undefined)patch.operations=[];
     // A model may express a cosmetic-only revision as a partial definition.
     // Convert that unambiguous case without inventing execution or semantic edits.
-    if(patch.definitions?.length===1&&Array.isArray(patch.operations)&&!patch.operations.length){
-      const d=patch.definitions[0];
+    if(patch.skillDefinitions?.length===1&&Array.isArray(patch.operations)&&!patch.operations.length){
+      const d=patch.skillDefinitions[0];
       if(isObject(d)&&isKey(d.localKey)&&isObject(d.supersedes)&&
         isObject(d.presentation)&&Object.keys(d.presentation).length&&
         Object.keys(d).every(k=>['localKey','supersedes','presentation'].includes(k))){
-        patch={...patch,definitions:[],operations:[{
-          op:'definition.appearance',definitionRef:d.supersedes,presentation:d.presentation
+        patch={...patch,skillDefinitions:[],operations:[{
+          op:'skill.appearance',skillDefinitionRef:d.supersedes,presentation:d.presentation
         }]};
       }
     }
@@ -197,19 +197,19 @@ export function normalizeModelTurn(value,{normalizations=[]}={}){
     const deps=Array.isArray(action.dependsOn)?[...action.dependsOn]:[];
     let targetFixed=false,depFixed=false;
     const targets=action.args.targets.map(target=>{
-      if(!isObject(target)||!isKey(target.fromAction)||target.nodeId!==undefined)return target;
-      const added=patches.get(target.fromAction)?.operations?.filter(op=>op?.op==='node.add');
-      if(added?.length!==1||!isKey(added[0].localNodeKey))return target;
-      const key=added[0].localNodeKey;
-      if(target.localNodeKey!==undefined&&target.localNodeKey!==key)return target;
+      if(!isObject(target)||!isKey(target.fromAction)||target.skillNodeId!==undefined)return target;
+      const added=patches.get(target.fromAction)?.operations?.filter(op=>op?.op==='skillNode.add');
+      if(added?.length!==1||!isKey(added[0].localSkillNodeKey))return target;
+      const key=added[0].localSkillNodeKey;
+      if(target.localSkillNodeKey!==undefined&&target.localSkillNodeKey!==key)return target;
       if(!deps.includes(target.fromAction)){
         if(!canDepend(target.fromAction,action.localKey))return target;
         deps.push(target.fromAction);
         depFixed=true;
       }
-      if(target.localNodeKey!==undefined)return target;
+      if(target.localSkillNodeKey!==undefined)return target;
       targetFixed=true;
-      return {...target,localNodeKey:key};
+      return {...target,localSkillNodeKey:key};
     });
     if(targetFixed)normalizations.push('targetKey@'+index);
     if(depFixed)normalizations.push('dependsOn@'+index);
@@ -232,10 +232,10 @@ export function diagnoseModelTurn(value,issues=[]){
   for(const [i,action] of (Array.isArray(value?.actions)?value.actions:[]).entries()){
     const base='/actions/'+i+'/args/';
     const patch=patchOf(action);
-    if(patch&&Array.isArray(patch.definitions)){
+    if(patch&&Array.isArray(patch.skillDefinitions)){
       const used=new Set();
-      for(const [j,def] of patch.definitions.entries()){
-        const prefix=base+'patch/definitions/'+j+'/';
+      for(const [j,def] of patch.skillDefinitions.entries()){
+        const prefix=base+'patch/skillDefinitions/'+j+'/';
         if(!isObject(def))continue;
         if(def.localKey===undefined)
           detected.push({path:prefix+'localKey',rule:'required',missing:'localKey'});
@@ -264,36 +264,36 @@ export function diagnoseModelTurn(value,issues=[]){
           detected.push({path:prefix+name,rule:'required',missing:name});
         for(const name of Object.keys(op))if(!contract.fields.includes(name))
           detected.push({path:prefix+name,rule:'additionalProperties'});
-        if(op?.op==='node.add'&&!isKey(op.localNodeKey))
-          detected.push(op.localNodeKey===undefined?
-            {path:prefix+'localNodeKey',rule:'required',missing:'localNodeKey'}:
-            {path:prefix+'localNodeKey',rule:'invalid'});
+        if(op?.op==='skillNode.add'&&!isKey(op.localSkillNodeKey))
+          detected.push(op.localSkillNodeKey===undefined?
+            {path:prefix+'localSkillNodeKey',rule:'required',missing:'localSkillNodeKey'}:
+            {path:prefix+'localSkillNodeKey',rule:'invalid'});
         if(op?.op==='link.add'){
           for(const side of ['from','to']){
-            const node=op[side]?.node;
-            if(isObject(node)&&!isKey(node.nodeId)&&!isKey(node.localNodeKey))
-              detected.push({path:prefix+side+'/node',rule:'oneOf'});
+            const skillNode=op[side]?.skillNode;
+            if(isObject(skillNode)&&!isKey(skillNode.skillNodeId)&&!isKey(skillNode.localSkillNodeKey))
+              detected.push({path:prefix+side+'/skillNode',rule:'oneOf'});
           }
         }
       }
     }
     if(action?.kind==='run.start'&&Array.isArray(action.args?.targets)){
       for(const [j,target] of action.args.targets.entries()){
-        if(isObject(target)&&isKey(target.fromAction)&&!isKey(target.localNodeKey))
-          detected.push(target.localNodeKey===undefined?
-            {path:base+'targets/'+j+'/localNodeKey',rule:'required',missing:'localNodeKey'}:
-            {path:base+'targets/'+j+'/localNodeKey',rule:'invalid'});
+        if(isObject(target)&&isKey(target.fromAction)&&!isKey(target.localSkillNodeKey))
+          detected.push(target.localSkillNodeKey===undefined?
+            {path:base+'targets/'+j+'/localSkillNodeKey',rule:'required',missing:'localSkillNodeKey'}:
+            {path:base+'targets/'+j+'/localSkillNodeKey',rule:'invalid'});
       }
     }
   }
   if(detected.length)return detected.slice(0,4);
   const trustworthy=issues.filter(e=>e&&
-    !['localNodeKey','nodeId'].includes(e.missing)&&e.rule!=='oneOf');
+    !['localSkillNodeKey','skillNodeId'].includes(e.missing)&&e.rule!=='oneOf');
   return trustworthy.length?trustworthy.slice(0,4):
     [{path:'/',rule:'schemaMismatch'}];
 }
 
-// Repair-only hints: never infer which of several nodes should execute.
+// Repair-only hints: never infer which of several skillNodes should execute.
 // Return identifiers from a single same-turn producing patch; no user content.
 export function repairTargetHints(turn,issues=[]){
   if(!Array.isArray(turn?.actions)||!Array.isArray(issues))return [];
@@ -302,22 +302,22 @@ export function repairTargetHints(turn,issues=[]){
     counts.set(action.localKey,(counts.get(action.localKey)||0)+1);
   const hints=[];
   for(const issue of issues){
-    if(issue?.missing!=='localNodeKey')continue;
-    const match=/^\/actions\/(\d+)\/args\/targets\/(\d+)\/localNodeKey$/.exec(issue.path);
+    if(issue?.missing!=='localSkillNodeKey')continue;
+    const match=/^\/actions\/(\d+)\/args\/targets\/(\d+)\/localSkillNodeKey$/.exec(issue.path);
     if(!match)continue;
     const index=Number(match[1]),targetIndex=Number(match[2]);
     const action=actions[index],target=action?.args?.targets?.[targetIndex];
-    if(action?.kind!=='run.start'||!isObject(target)||target.nodeId!==undefined||
-      target.localNodeKey!==undefined||!isKey(target.fromAction)||
+    if(action?.kind!=='run.start'||!isObject(target)||target.skillNodeId!==undefined||
+      target.localSkillNodeKey!==undefined||!isKey(target.fromAction)||
       counts.get(target.fromAction)!==1)continue;
     const producer=actions.find(a=>a?.localKey===target.fromAction);
     const operations=patchOf(producer)?.operations;
     if(!Array.isArray(operations))continue;
-    const adds=operations.filter(op=>op?.op==='node.add');
+    const adds=operations.filter(op=>op?.op==='skillNode.add');
     if(adds.length<2||adds.length>8)continue;
-    const keys=adds.map(op=>op.localNodeKey);
+    const keys=adds.map(op=>op.localSkillNodeKey);
     if(!keys.every(isKey)||new Set(keys).size!==keys.length)continue;
-    hints.push({path:issue.path,fromAction:target.fromAction,allowedLocalNodeKeys:keys});
+    hints.push({path:issue.path,fromAction:target.fromAction,allowedLocalSkillNodeKeys:keys});
     if(hints.length===4)break;
   }
   return hints;

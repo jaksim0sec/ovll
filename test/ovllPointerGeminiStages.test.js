@@ -3,17 +3,17 @@ import assert from 'node:assert/strict';
 import {createConfiguredLocalPointerHost} from '../backend/ovllPointer/localHost.js';
 import {MemoryGraphRepository} from '../backend/ovllPointer/graph.js';
 
-test('Gemini uses one selected provider for entry, node execution and final language',async()=>{
+test('Gemini uses one selected provider for entry, skillNode execution and final language',async()=>{
   const repository=new MemoryGraphRepository();
   repository.create('local','g_gemini');
   const empty=repository.get('local','g_gemini');
   repository.apply('local',{graphId:'g_gemini',expectedGraphRevision:0,
-    definitions:[{localKey:'writer',purpose:'Write summary',instruction:'Write a summary',
+    skillDefinitions:[{localKey:'writer',purpose:'Write summary',instruction:'Write a summary',
       executorKind:'model_task',inputs:[],outputs:[{name:'result',representation:'text'}]}],
-    operations:[{op:'node.add',localNodeKey:'n',
-      definitionRef:{localDefinitionKey:'writer'}}]});
+    operations:[{op:'skillNode.add',localSkillNodeKey:'n',
+      skillDefinitionRef:{localDefinitionKey:'writer'}}]});
   const graph=repository.get('local','g_gemini');
-  const nodeId=graph.graph.nodes[0].nodeId;
+  const skillNodeId=graph.graph.skillNodes[0].skillNodeId;
   const messages=[
     '{"message":"안녕하세요"}',
     '{"outputs":{"status":"produced","values":{"result":{"inline":"요약 결과"}}}}',
@@ -31,9 +31,9 @@ test('Gemini uses one selected provider for entry, node execution and final lang
   }});
   const first=await host.turn({snapshot:empty,requestRef:'r_turn',requestText:'안녕'});
   assert.equal(first.message,'안녕하세요');
-  const node=await host.node({snapshot:graph,requestRef:'r_node',requestText:'요약',nodeId});
-  assert.equal(node.status,'success');
-  assert.equal(node.outputs.values.result.inline,'요약 결과');
+  const skillNode=await host.skillNode({snapshot:graph,requestRef:'r_node',requestText:'요약',skillNodeId});
+  assert.equal(skillNode.status,'success');
+  assert.equal(skillNode.outputs.values.result.inline,'요약 결과');
   const final=await host.response({snapshot:graph,requestRef:'r_final',requestText:'요약',
     actionResults:[{kind:'run.start',status:'failed',error:'INPUT_REQUIRED'}]});
   assert.match(final.message,/입력을/);

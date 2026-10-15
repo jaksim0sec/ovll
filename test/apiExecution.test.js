@@ -14,20 +14,20 @@ function loadApi(fetchImpl){
     {window,fetch,localStorage,AbortController,setTimeout,clearTimeout,console});
   return {api:window.AstraAPI,calls};
 }
-test('the frontend API exposes only active node catalog and artifact operations',()=>{
+test('the frontend API exposes only active skillNode catalog and artifact operations',()=>{
   const {api}=loadApi(async()=>({ok:true,json:async()=>({ok:true})}));
-  assert.equal(typeof api.getNodeDefinitions,'function');
+  assert.equal(typeof api.getSkillDefinitions,'function');
   assert.equal(typeof api.createArtifact,'function');
   for(const retired of ['chat','planWorkflow','executeGroup','finalizeRun','execute'])
     assert.equal(api[retired],undefined,retired);
 });
-test('node catalog uses server icon authority and retains data shape',async()=>{
+test('skillNode catalog uses server icon authority and retains data shape',async()=>{
   const {api,calls}=loadApi(async()=>({ok:true,json:async()=>({
-    ok:true,nodes:{write:{name:'작성하기'}},iconSvg:{pen:'<svg></svg>'}
+    ok:true,skillDefinitions:{write:{name:'작성하기'}},iconSvg:{pen:'<svg></svg>'}
   })}));
-  const nodes=await api.getNodeDefinitions();
-  assert.equal(nodes.write.name,'작성하기');
-  assert.match(calls[0].url,/\/api\/node-definitions$/);
+  const skillNodes=await api.getSkillDefinitions();
+  assert.equal(skillNodes.write.name,'작성하기');
+  assert.match(calls[0].url,/\/api\/skill-definitions$/);
 });
 test('artifact creation preserves requested format, page target and absolute download link',async()=>{
   const {api,calls}=loadApi(async()=>({ok:true,json:async()=>({

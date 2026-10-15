@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {createSkillReferenceChip,renderSkillReferenceText,renderSkillReferenceParts} from '../front/js/ovllSkillReferenceView.mjs';
 import {serializeSkillReference} from '../front/js/ovllSkillReferences.mjs';
 
-class FakeNode {
+class FakeSkillNode {
   constructor(doc,tag,text=''){
     this.ownerDocument=doc;this.tag=tag;this._text=text;this.children=[];
     this.attrs={};this.style={setProperty:(key,value)=>{this.styles[key]=value}};
@@ -18,8 +18,8 @@ class FakeNode {
   querySelector(){return null}
 }
 class FakeDocument {
-  createElement(tag){return new FakeNode(this,tag)}
-  createTextNode(text){return new FakeNode(this,'#text',String(text))}
+  createElement(tag){return new FakeSkillNode(this,tag)}
+  createTextNode(text){return new FakeSkillNode(this,'#text',String(text))}
 }
 const doc=new FakeDocument();
 const make=()=>doc.createElement('p');

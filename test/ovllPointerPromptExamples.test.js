@@ -21,8 +21,8 @@ test('complete teaching examples cover explanation, edit without run, new defini
    if(action.kind==='ir.applyPatch')resolved.set(action.localKey,repo.apply('example',action.args.patch));
    if(action.kind==='run.start')for(const target of action.args.targets){
     assert.ok(action.dependsOn.includes(target.fromAction));
-    const nodeId=resolved.get(target.fromAction).createdRefs['node:'+target.localNodeKey];
-    assert.ok(repo.get('example',snapshot.graph.graphId).graph.nodes.some(n=>n.nodeId===nodeId));
+    const skillNodeId=resolved.get(target.fromAction).createdRefs['skillNode:'+target.localSkillNodeKey];
+    assert.ok(repo.get('example',snapshot.graph.graphId).graph.skillNodes.some(n=>n.skillNodeId===skillNodeId));
    }
   }
   for(const wire of [false,true]){
@@ -31,11 +31,11 @@ test('complete teaching examples cover explanation, edit without run, new defini
     gateway:{capabilities:()=>({structuredOutput:wire}),complete:async request=>{
      calls.push(request);return {text:JSON.stringify(wire?contracts.toWireTurnExample(example.turn):example.turn)};
     }}});
-   const output=await host.turn({snapshot:example.snapshot,requestRef:'example_'+example.id,requestText:example.requestText,extraContext:{selectedModules:['action.nodes','action.definitions','action.execution']}});
+   const output=await host.turn({snapshot:example.snapshot,requestRef:'example_'+example.id,requestText:example.requestText,extraContext:{selectedModules:['action.skill-nodes','action.skills','action.execution']}});
    assert.deepEqual(splitModelMetadata(output).domain,example.turn);
    assert.equal(calls.length,1,'valid examples need no repair');
    assert.ok(calls[0].messages.some(m=>m.content.includes('CORRIDOR SELECTION')));
-   const workshop=contracts.localModelContract(undefined,{wire,selectedModules:['action.nodes','action.definitions','action.execution']});
+   const workshop=contracts.localModelContract(undefined,{wire,selectedModules:['action.skill-nodes','action.skills','action.execution']});
    for(const taught of contracts.semanticTurnExamples().filter(e=>e.id!=='chat')){
     const json=JSON.stringify(wire?contracts.toWireActionPlan(taught.plan):taught.plan);
     assert.ok(workshop.includes(json),'selected '+(wire?'wire':'canonical')+' teaching example '+taught.id);
@@ -45,6 +45,6 @@ test('complete teaching examples cover explanation, edit without run, new defini
  const noRun=examples.filter(e=>e.id!=='compose-run');
  for(const e of noRun){assert.equal(e.turn.executionIntent,undefined);assert.ok(!(e.turn.actions||[]).some(a=>a.kind==='run.start'));}
  const fresh=examples.find(e=>e.id==='new-kind').turn.actions[0].args.patch;
- assert.equal(fresh.definitions.length,1);
- assert.equal(fresh.operations[0].definitionRef.localDefinitionKey,fresh.definitions[0].localKey);
+ assert.equal(fresh.skillDefinitions.length,1);
+ assert.equal(fresh.operations[0].skillDefinitionRef.localDefinitionKey,fresh.skillDefinitions[0].localKey);
 });

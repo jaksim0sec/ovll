@@ -7,7 +7,7 @@ import {
 
 const e=code=>err=>err instanceof SkillReferenceSyntaxError&&err.code===code;
 const def=(definitionId,version)=>({kind:'skill-definition',definitionId,...(version===undefined?{}:{version})});
-const canvas=(graphId,skillId)=>({kind:'skill-canvas',graphId,skillId});
+const canvas=(graphId,skillNodeId)=>({kind:'skill-canvas',graphId,skillNodeId});
 
 test('canonical ref tokens have distinct definition and graph-scoped instance identities',()=>{
  assert.equal(serializeSkillReference(def('builtin:review',1)),
@@ -23,7 +23,7 @@ test('canonical ref tokens have distinct definition and graph-scoped instance id
 });
 
 test('roundtrip Unicode names and reserved percent-encoding safely',()=>{
- const all=[def('한글:!()* %/[]',2),canvas('g:📎','skill:☃'),{kind:'function',functionId:"fn<'\">",version:3}];
+ const all=[def('한글:!()* %/[]',2),canvas('g:📎','skillNode:☃'),{kind:'function',functionId:"fn<'\">",version:3}];
  for(const ref of all) {
    const token=serializeSkillReference(ref);
    assert.deepEqual(parseSkillReference(token),ref);
@@ -50,7 +50,7 @@ test('non-canonical encoded IDs, malformed versions and ambiguous delimiters rej
 test('serializer refuses invalid IDs and unknown kind without inventing references',()=>{
  assert.throws(()=>serializeSkillReference(def('',1)),e('INVALID_SKILL_REFERENCE_ID'));
  assert.throws(()=>serializeSkillReference(canvas('g','\n')),e('INVALID_SKILL_REFERENCE_ID'));
- assert.throws(()=>serializeSkillReference({kind:'unknown',skillId:'s'}),e('INVALID_SKILL_REFERENCE_KIND'));
+ assert.throws(()=>serializeSkillReference({kind:'unknown',skillNodeId:'s'}),e('INVALID_SKILL_REFERENCE_KIND'));
  assert.throws(()=>serializeSkillReference(def('x',0)),e('INVALID_SKILL_REFERENCE_VERSION'));
  assert.throws(()=>serializeSkillReference(def('x',1.5)),e('INVALID_SKILL_REFERENCE_VERSION'));
  assert.throws(()=>serializeSkillReference(def('x'.repeat(161),1)),e('INVALID_SKILL_REFERENCE_ID'));
@@ -91,8 +91,8 @@ test('token scanning does not change arbitrary source text',()=>{
 });
 
 test('serializer rejects injected presentation and execution metadata on references',()=>{
- assert.throws(()=>serializeSkillReference({kind:'skill-canvas',graphId:'g',skillId:'s',label:'spoof'}),e('INVALID_SKILL_REFERENCE_FIELDS'));
+ assert.throws(()=>serializeSkillReference({kind:'skill-canvas',graphId:'g',skillNodeId:'s',label:'spoof'}),e('INVALID_SKILL_REFERENCE_FIELDS'));
  assert.throws(()=>serializeSkillReference({kind:'skill-definition',definitionId:'custom:a',version:1,admin:true}),e('INVALID_SKILL_REFERENCE_FIELDS'));
  assert.throws(()=>serializeSkillReference({kind:'function',functionId:'f',iconKey:'unknown'}),e('INVALID_SKILL_REFERENCE_FIELDS'));
- assert.equal(serializeSkillReference({kind:'skill-canvas',graphId:'g',skillId:'s'}),'⟦ovll:ref:v1:skill-canvas:g:s⟧');
+ assert.equal(serializeSkillReference({kind:'skill-canvas',graphId:'g',skillNodeId:'s'}),'⟦ovll:ref:v1:skill-canvas:g:s⟧');
 });

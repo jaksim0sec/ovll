@@ -2,13 +2,13 @@
 "use strict";
 
 const Store=
-  global.OvllCustomNodeStore;
+  global.OvllCustomSkillStore;
 
 const CanvasPlugins=
   global.OvllCanvasPlugins;
 
 const PLUGIN_ID=
-  "custom-nodes";
+  "custom-skills";
 
 if(!Store){
   return;
@@ -45,7 +45,7 @@ function definitionFor(record){
   return {
     name:
       record.name||
-      "커스텀 노드",
+      "커스텀 스킬",
     desc:
       record.description||
       "저장한 흐름을 하나의 노드로 실행합니다.",
@@ -79,7 +79,7 @@ function definitionFor(record){
         accepts:["any"]
       }
     ],
-    customNodeId:
+    customSkillId:
       record.id,
     catalog:{
       group:"custom",
@@ -101,10 +101,10 @@ function pluginDefinitions(
     return {};
   }
 
-  const definitions={};
+  const skillDefinitions={};
 
   for(const record of Store.list()){
-    definitions[
+    skillDefinitions[
       typeForRecord(
         record.id
       )
@@ -112,7 +112,7 @@ function pluginDefinitions(
       definitionFor(record);
   }
 
-  return definitions;
+  return skillDefinitions;
 }
 
 function mergeDefinitions(base){
@@ -125,15 +125,15 @@ function mergeDefinitions(base){
 }
 
 function adjacency(workflow){
-  const nodes=
-    Array.isArray(workflow?.nodes)
-      ?workflow.nodes
+  const skillNodes=
+    Array.isArray(workflow?.skillNodes)
+      ?workflow.skillNodes
       :[];
 
   const ids=
     new Set(
-      nodes.map(node=>
-        String(node.id)
+      skillNodes.map(skillNode=>
+        String(skillNode.id)
       )
     );
 
@@ -157,13 +157,13 @@ function adjacency(workflow){
   ){
     const from=
       String(
-        connection?.from?.node||
+        connection?.from?.skillNode||
         ""
       );
 
     const to=
       String(
-        connection?.to?.node||
+        connection?.to?.skillNode||
         ""
       );
 
@@ -192,7 +192,7 @@ function deriveBoundary(workflow){
   const graph=
     adjacency(workflow);
 
-  const entryNodeIds=
+  const entrySkillNodeIds=
     [...graph.ids]
       .filter(id=>
         (
@@ -201,7 +201,7 @@ function deriveBoundary(workflow){
         ).length===0
       );
 
-  const exitNodeIds=
+  const exitSkillNodeIds=
     [...graph.ids]
       .filter(id=>
         (
@@ -211,11 +211,11 @@ function deriveBoundary(workflow){
       );
 
   return {
-    entryNodeIds,
-    exitNodeIds,
-    exitNodeId:
-      exitNodeIds.length===1
-        ?exitNodeIds[0]
+    entrySkillNodeIds,
+    exitSkillNodeIds,
+    exitSkillNodeId:
+      exitSkillNodeIds.length===1
+        ?exitSkillNodeIds[0]
         :""
   };
 }
@@ -230,7 +230,7 @@ function ensureAcyclic(
   function visit(id){
     if(visiting.has(id)){
       throw new Error(
-        "커스텀 노드 안에는 순환 연결을 만들 수 없어"
+        "커스텀 스킬 안에는 순환 연결을 만들 수 없어"
       );
     }
 
@@ -247,7 +247,7 @@ function ensureAcyclic(
     ){
       visit(
         String(
-          connection.to.node
+          connection.to.skillNode
         )
       );
     }
@@ -263,12 +263,12 @@ function ensureAcyclic(
 
 function validateWorkflow(
   workflow,
-  definitions={}
+  skillDefinitions={}
 ){
   const source={
-    nodes:
-      Array.isArray(workflow?.nodes)
-        ?workflow.nodes
+    skillNodes:
+      Array.isArray(workflow?.skillNodes)
+        ?workflow.skillNodes
         :[],
     connections:
       Array.isArray(workflow?.connections)
@@ -276,15 +276,15 @@ function validateWorkflow(
         :[]
   };
 
-  if(!source.nodes.length){
+  if(!source.skillNodes.length){
     throw new Error(
       "안에 노드를 하나 이상 넣어야 해"
     );
   }
 
-  for(const node of source.nodes){
+  for(const skillNode of source.skillNodes){
     const type=
-      String(node?.type||"");
+      String(skillNode?.type||"");
 
     if(
       !type||
@@ -293,11 +293,11 @@ function validateWorkflow(
       isCustomType(type)
     ){
       throw new Error(
-        "이 노드는 커스텀 노드 안에 넣을 수 없어"
+        "이 노드는 커스텀 스킬 안에 넣을 수 없어"
       );
     }
 
-    if(!definitions[type]){
+    if(!skillDefinitions[type]){
       throw new Error(
         `알 수 없는 노드 타입이 있어: ${type}`
       );
@@ -316,7 +316,7 @@ function validateWorkflow(
     deriveBoundary(source);
 
   if(
-    boundary.entryNodeIds.length!==1
+    boundary.entrySkillNodeIds.length!==1
   ){
     throw new Error(
       "시작되는 첫 노드는 하나만 남겨줘"
@@ -324,22 +324,22 @@ function validateWorkflow(
   }
 
   if(
-    boundary.exitNodeIds.length!==1
+    boundary.exitSkillNodeIds.length!==1
   ){
     throw new Error(
       "결과로 끝나는 마지막 노드는 하나만 남겨줘"
     );
   }
 
-  const exitNode=
-    source.nodes.find(node=>
-      String(node.id)===
-      String(boundary.exitNodeId)
+  const exitSkillNode=
+    source.skillNodes.find(skillNode=>
+      String(skillNode.id)===
+      String(boundary.exitSkillNodeId)
     );
 
   const exitDefinition=
-    definitions?.[
-      String(exitNode?.type||"")
+    skillDefinitions?.[
+      String(exitSkillNode?.type||"")
     ];
 
   if(
@@ -356,22 +356,22 @@ function validateWorkflow(
   return {
     workflow:clone(source),
     boundary:{
-      entryNodeIds:
-        boundary.entryNodeIds,
-      exitNodeId:
-        boundary.exitNodeId
+      entrySkillNodeIds:
+        boundary.entrySkillNodeIds,
+      exitSkillNodeId:
+        boundary.exitSkillNodeId
     }
   };
 }
 
 function portFor(
-  definitions,
-  node,
+  skillDefinitions,
+  skillNode,
   direction
 ){
   const definition=
-    definitions?.[
-      String(node?.type||"")
+    skillDefinitions?.[
+      String(skillNode?.type||"")
     ];
 
   const ports=
@@ -397,39 +397,39 @@ function expandWorkflow(
   const workflow=
     clone(
       inputWorkflow||{
-        nodes:[],
+        skillNodes:[],
         connections:[]
       }
     );
 
-  const definitions=
-    options.definitions||{};
+  const skillDefinitions=
+    options.skillDefinitions||{};
 
   const mode=
     options.mode==="target"
       ?"target"
       :"spread";
 
-  const runtimeNodes=[];
+  const runtimeSkillNodes=[];
   const internalConnections=[];
   const boundaryByVisible=
     new Map();
 
-  const visibleByRuntimeNode={};
-  const runtimeNodesByVisible={};
-  const exitRuntimeNodeByVisible={};
+  const visibleByRuntimeSkillNode={};
+  const runtimeSkillNodesByVisible={};
+  const exitRuntimeSkillNodeByVisible={};
 
-  for(const node of workflow.nodes||[]){
-    if(!isCustomType(node.type)){
-      runtimeNodes.push(
-        clone(node)
+  for(const skillNode of workflow.skillNodes||[]){
+    if(!isCustomType(skillNode.type)){
+      runtimeSkillNodes.push(
+        clone(skillNode)
       );
       continue;
     }
 
     const recordId=
       recordIdFromType(
-        node.type
+        skillNode.type
       );
 
     const record=
@@ -437,25 +437,25 @@ function expandWorkflow(
 
     if(!record){
       throw new Error(
-        `저장된 커스텀 노드를 찾을 수 없어: ${recordId}`
+        `저장된 커스텀 스킬를 찾을 수 없어: ${recordId}`
       );
     }
 
     const validated=
       validateWorkflow(
         record.workflow,
-        definitions
+        skillDefinitions
       );
 
     const prefix=
-      String(node.id)+"~";
+      String(skillNode.id)+"~";
 
     const idMap=
       new Map();
 
     for(
       const inner of
-      validated.workflow.nodes
+      validated.workflow.skillNodes
     ){
       const runtimeId=
         prefix+
@@ -466,19 +466,19 @@ function expandWorkflow(
         runtimeId
       );
 
-      visibleByRuntimeNode[
+      visibleByRuntimeSkillNode[
         runtimeId
       ]=
-        String(node.id);
+        String(skillNode.id);
 
-      runtimeNodes.push({
+      runtimeSkillNodes.push({
         ...clone(inner),
         id:runtimeId
       });
     }
 
-    runtimeNodesByVisible[
-      String(node.id)
+    runtimeSkillNodesByVisible[
+      String(skillNode.id)
     ]=
       [...idMap.values()];
 
@@ -493,9 +493,9 @@ function expandWorkflow(
           String(
             connection.id||
             [
-              connection.from.node,
+              connection.from.skillNode,
               connection.from.port,
-              connection.to.node,
+              connection.to.skillNode,
               connection.to.port
             ].join("-")
           ),
@@ -503,10 +503,10 @@ function expandWorkflow(
           ...clone(
             connection.from
           ),
-          node:
+          skillNode:
             idMap.get(
               String(
-                connection.from.node
+                connection.from.skillNode
               )
             )
         },
@@ -514,10 +514,10 @@ function expandWorkflow(
           ...clone(
             connection.to
           ),
-          node:
+          skillNode:
             idMap.get(
               String(
-                connection.to.node
+                connection.to.skillNode
               )
             )
         }
@@ -526,10 +526,10 @@ function expandWorkflow(
 
     const entryTargets=
       validated.boundary
-        .entryNodeIds
+        .entrySkillNodeIds
         .map(entryId=>{
           const inner=
-            validated.workflow.nodes
+            validated.workflow.skillNodes
               .find(item=>
                 String(item.id)===
                 String(entryId)
@@ -537,7 +537,7 @@ function expandWorkflow(
 
           const port=
             portFor(
-              definitions,
+              skillDefinitions,
               inner,
               "input"
             );
@@ -547,7 +547,7 @@ function expandWorkflow(
           }
 
           return {
-            node:
+            skillNode:
               idMap.get(
                 String(entryId)
               ),
@@ -557,42 +557,42 @@ function expandWorkflow(
         .filter(Boolean);
 
     const exitInner=
-      validated.workflow.nodes
+      validated.workflow.skillNodes
         .find(item=>
           String(item.id)===
           String(
             validated.boundary
-              .exitNodeId
+              .exitSkillNodeId
           )
         );
 
     const exitPort=
       portFor(
-        definitions,
+        skillDefinitions,
         exitInner,
         "output"
       );
 
-    const exitNode=
+    const exitSkillNode=
       idMap.get(
         String(
           validated.boundary
-            .exitNodeId
+            .exitSkillNodeId
         )
       );
 
-    exitRuntimeNodeByVisible[
-      String(node.id)
+    exitRuntimeSkillNodeByVisible[
+      String(skillNode.id)
     ]=
-      exitNode;
+      exitSkillNode;
 
     boundaryByVisible.set(
-      String(node.id),
+      String(skillNode.id),
       {
         entryTargets,
         entryFallback:
           validated.boundary
-            .entryNodeIds
+            .entrySkillNodeIds
             .map(id=>
               idMap.get(String(id))
             )
@@ -600,7 +600,7 @@ function expandWorkflow(
         exitSource:
           exitPort
             ?{
-              node:exitNode,
+              skillNode:exitSkillNode,
               port:exitPort
             }
             :null
@@ -618,13 +618,13 @@ function expandWorkflow(
   ){
     const fromVisible=
       String(
-        connection.from?.node||
+        connection.from?.skillNode||
         ""
       );
 
     const toVisible=
       String(
-        connection.to?.node||
+        connection.to?.skillNode||
         ""
       );
 
@@ -667,7 +667,7 @@ function expandWorkflow(
       !sources.length
     ){
       throw new Error(
-        "커스텀 노드의 마지막 노드에 출력 포트가 없어"
+        "커스텀 스킬의 마지막 노드에 출력 포트가 없어"
       );
     }
 
@@ -721,8 +721,8 @@ function expandWorkflow(
       runtimePivot=
         pivotBoundary
           .exitSource
-          ?.node||
-        exitRuntimeNodeByVisible[
+          ?.skillNode||
+        exitRuntimeSkillNodeByVisible[
           visiblePivot
         ]||
         pivotBoundary
@@ -731,7 +731,7 @@ function expandWorkflow(
       runtimePivot=
         pivotBoundary
           .entryFallback[0]||
-        exitRuntimeNodeByVisible[
+        exitRuntimeSkillNodeByVisible[
           visiblePivot
         ];
     }
@@ -739,16 +739,16 @@ function expandWorkflow(
 
   return {
     workflow:{
-      nodes:runtimeNodes,
+      skillNodes:runtimeSkillNodes,
       connections:
         runtimeConnections
     },
     pivotId:
       runtimePivot,
     visiblePivot,
-    visibleByRuntimeNode,
-    runtimeNodesByVisible,
-    exitRuntimeNodeByVisible,
+    visibleByRuntimeSkillNode,
+    runtimeSkillNodesByVisible,
+    exitRuntimeSkillNodeByVisible,
     visibleEdgeIds:
       new Set(
         (workflow.connections||[])
@@ -766,19 +766,19 @@ function expandWorkflow(
 function createRuntimeProjection(
   expansion
 ){
-  const visibleByRuntimeNode=
+  const visibleByRuntimeSkillNode=
     expansion
-      ?.visibleByRuntimeNode||
+      ?.visibleByRuntimeSkillNode||
     {};
 
-  const runtimeNodesByVisible=
+  const runtimeSkillNodesByVisible=
     expansion
-      ?.runtimeNodesByVisible||
+      ?.runtimeSkillNodesByVisible||
     {};
 
-  const exitRuntimeNodeByVisible=
+  const exitRuntimeSkillNodeByVisible=
     expansion
-      ?.exitRuntimeNodeByVisible||
+      ?.exitRuntimeSkillNodeByVisible||
     {};
 
   const visibleEdgeIds=
@@ -792,15 +792,15 @@ function createRuntimeProjection(
   const lastVisibleStatus=
     new Map();
 
-  function projectNode(event){
+  function projectSkillNode(event){
     const runtimeId=
       String(
-        event.nodeId||
+        event.skillNodeId||
         ""
       );
 
     const visibleId=
-      visibleByRuntimeNode[
+      visibleByRuntimeSkillNode[
         runtimeId
       ];
 
@@ -837,7 +837,7 @@ function createRuntimeProjection(
     );
 
     const members=
-      runtimeNodesByVisible[
+      runtimeSkillNodesByVisible[
         visibleId
       ]||[];
 
@@ -894,7 +894,7 @@ function createRuntimeProjection(
     );
 
     const exitRuntimeId=
-      exitRuntimeNodeByVisible[
+      exitRuntimeSkillNodeByVisible[
         visibleId
       ];
 
@@ -905,7 +905,7 @@ function createRuntimeProjection(
 
     return [{
       ...clone(event),
-      nodeId:visibleId,
+      skillNodeId:visibleId,
       status:nextStatus,
       state:{
         ...clone(
@@ -927,8 +927,8 @@ function createRuntimeProjection(
       return [];
     }
 
-    if(event.type==="node:state"){
-      return projectNode(event);
+    if(event.type==="skillNode:state"){
+      return projectSkillNode(event);
     }
 
     if(event.type==="edge:state"){
@@ -971,18 +971,18 @@ function preparePluginRuntime(
 ){
   const workflow=
     input.workflow||{
-      nodes:[],
+      skillNodes:[],
       connections:[]
     };
 
   const hasCustom=
     Array.isArray(
-      workflow.nodes
+      workflow.skillNodes
     )&&
-    workflow.nodes.some(
-      node=>
+    workflow.skillNodes.some(
+      skillNode=>
         isCustomType(
-          node?.type
+          skillNode?.type
         )
     );
 
@@ -997,9 +997,9 @@ function preparePluginRuntime(
       {
         mode:
           input.mode,
-        definitions:
+        skillDefinitions:
           input.baseDefinitions||
-          input.definitions||
+          input.skillDefinitions||
           {}
       }
     );
@@ -1016,7 +1016,7 @@ function preparePluginRuntime(
       expansion.pivotId,
     runtimeToVisible:
       expansion
-        .visibleByRuntimeNode,
+        .visibleByRuntimeSkillNode,
     projectEvent:
       event=>
         projection.project(
@@ -1048,7 +1048,7 @@ if(CanvasPlugins){
   );
 }
 
-global.OvllCustomNodes=
+global.OvllCustomSkills=
   Object.freeze({
     pluginId:
       PLUGIN_ID,

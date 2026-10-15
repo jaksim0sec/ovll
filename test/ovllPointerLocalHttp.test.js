@@ -8,8 +8,8 @@ test('compiler-only API produces canonical commands without creating or charging
  const server=await new Promise(resolve=>{const listener=app.listen(0,'127.0.0.1',()=>resolve(listener));});
  try{
   const response=await fetch('http://127.0.0.1:'+server.address().port+'/api/pointer/local/compile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-   snapshot:{graph:{graphId:'g',revision:0,nodes:[],connections:[]},definitions:[]},requestRef:'compile',requestText:'Add a writing node',
-   plan:{contract:'action-plan.v1',actions:[{action:'node.add',alias:'writer',definition:{kind:'builtin',type:'write'}}]}
+   snapshot:{graph:{graphId:'g',revision:0,skillNodes:[],connections:[]},skillDefinitions:[]},requestRef:'compile',requestText:'Add a writing skillNode',
+   plan:{contract:'action-plan.v3',actions:[{action:'skillNode.add',alias:'writer',definition:{kind:'builtin',type:'write'}}]}
   })});
   assert.equal(response.status,200);const body=await response.json();
   assert.equal(body.actions[0].kind,'ir.applyPatch');assert.equal(body._meta.providerCalls,0);assert.equal(calls,0);

@@ -927,10 +927,10 @@
 }
 
 /* =========================================================
-   CANVAS NODE BUILDER
+   CANVAS SKILL_NODE BUILDER
    ========================================================= */
 
-:is(#canvas-node-builder,[data-canvas-node-builder]) {
+:is(#canvas-skillNode-builder,[data-canvas-skillNode-builder]) {
   position: absolute;
   z-index: calc(var(--layer-composer) + 1);
   left: max(max(.625rem, var(--safe-left)), calc((100% - var(--content-rail)) / 2));
@@ -943,16 +943,16 @@
   pointer-events: none;
 }
 
-.canvas-node-builder-actions {
+.canvas-skillNode-builder-actions {
   display: flex;
   align-items: center;
   gap: .4rem;
   pointer-events: none;
 }
 
-:is(#canvas-node-builder-layout,[data-canvas-node-builder-layout]),
-:is(#canvas-node-builder-reset,[data-canvas-node-builder-reset]),
-:is(#canvas-node-builder-toggle,[data-canvas-node-builder-toggle]) {
+:is(#canvas-skillNode-builder-layout,[data-canvas-skillNode-builder-layout]),
+:is(#canvas-skillNode-builder-reset,[data-canvas-skillNode-builder-reset]),
+:is(#canvas-skillNode-builder-toggle,[data-canvas-skillNode-builder-toggle]) {
   min-width: 0;
   height: 2.625rem;
   padding: 0 .875rem;
@@ -975,20 +975,20 @@
   transition: background .18s ease, border-color .18s ease, transform .16s ease;
 }
 
-:is(#canvas-node-builder-layout,[data-canvas-node-builder-layout]):hover,
-:is(#canvas-node-builder-reset,[data-canvas-node-builder-reset]):hover,
-:is(#canvas-node-builder-toggle,[data-canvas-node-builder-toggle]):hover {
+:is(#canvas-skillNode-builder-layout,[data-canvas-skillNode-builder-layout]):hover,
+:is(#canvas-skillNode-builder-reset,[data-canvas-skillNode-builder-reset]):hover,
+:is(#canvas-skillNode-builder-toggle,[data-canvas-skillNode-builder-toggle]):hover {
   border-color: var(--line-strong);
   background: var(--panel-strong);
 }
 
-:is(#canvas-node-builder-layout,[data-canvas-node-builder-layout]):active,
-:is(#canvas-node-builder-reset,[data-canvas-node-builder-reset]):active,
-:is(#canvas-node-builder-toggle,[data-canvas-node-builder-toggle]):active {
+:is(#canvas-skillNode-builder-layout,[data-canvas-skillNode-builder-layout]):active,
+:is(#canvas-skillNode-builder-reset,[data-canvas-skillNode-builder-reset]):active,
+:is(#canvas-skillNode-builder-toggle,[data-canvas-skillNode-builder-toggle]):active {
   transform: scale(.95);
 }
 
-.canvas-node-builder-action-icon {
+.canvas-skillNode-builder-action-icon {
   width: 1.14rem;
   height: 1.14rem;
   flex: 0 0 1.14rem;
@@ -997,20 +997,20 @@
   justify-content: center;
 }
 
-.canvas-node-builder-action-icon svg {
+.canvas-skillNode-builder-action-icon svg {
   width: 1.14rem;
   height: 1.14rem;
 }
 
-.canvas-node-builder-action-icon rect,
-.canvas-node-builder-action-icon path {
+.canvas-skillNode-builder-action-icon rect,
+.canvas-skillNode-builder-action-icon path {
   stroke: currentColor;
   stroke-width: 1.45;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
-:is(#canvas-node-builder-reset,[data-canvas-node-builder-reset]).is-confirming {
+:is(#canvas-skillNode-builder-reset,[data-canvas-skillNode-builder-reset]).is-confirming {
   border-color:
     color-mix(
       in srgb,
@@ -1020,7 +1020,7 @@
   color: #d65f5f;
 }
 
-:is(#canvas-node-builder-panel,[data-canvas-node-builder-panel]) {
+:is(#canvas-skillNode-builder-panel,[data-canvas-skillNode-builder-panel]) {
   position: absolute;
   left: 0;
   bottom: calc(100% + .625rem);
@@ -1043,14 +1043,14 @@
   transition: opacity .18s ease, transform .22s var(--ease), visibility .18s ease;
 }
 
-:is(#canvas-node-builder,[data-canvas-node-builder]).is-open :is(#canvas-node-builder-panel,[data-canvas-node-builder-panel]) {
+:is(#canvas-skillNode-builder,[data-canvas-skillNode-builder]).is-open :is(#canvas-skillNode-builder-panel,[data-canvas-skillNode-builder-panel]) {
   opacity: 1;
   visibility: visible;
   transform: translateY(0) scale(1);
   pointer-events: auto;
 }
 
-.canvas-node-builder-header {
+.canvas-skillNode-builder-header {
   padding: .55rem .6rem .42rem;
   color: var(--text);
   font-size: .84rem;
@@ -1058,17 +1058,17 @@
   line-height: 1.35;
 }
 
-.canvas-node-builder-list {
+.canvas-skillNode-builder-list {
   display: block;
 }
 
-.canvas-node-builder-group + .canvas-node-builder-group {
+.canvas-skillNode-builder-group + .canvas-skillNode-builder-group {
   margin-top: .35rem;
   padding-top: .35rem;
   border-top: .0625rem solid color-mix(in srgb,var(--line) 65%,transparent);
 }
 
-.canvas-node-builder-group-title {
+.canvas-skillNode-builder-group-title {
   margin: 0;
   padding: .5rem .62rem .24rem;
   color: var(--sub);
@@ -1077,7 +1077,7 @@
   line-height: 1.3;
 }
 
-.canvas-node-builder-group.is-custom .canvas-node-builder-group-title {
+.canvas-skillNode-builder-group.is-custom .canvas-skillNode-builder-group-title {
   color:
     color-mix(
       in srgb,
@@ -1086,13 +1086,13 @@
     );
 }
 
-.canvas-node-builder-options {
+.canvas-skillNode-builder-options {
   display: grid;
   grid-template-columns: minmax(0,1fr);
   gap: .12rem;
 }
 
-.canvas-node-builder-option {
+.canvas-skillNode-builder-option {
   width: 100%;
   min-width: 0;
   min-height: 3rem;
@@ -1109,17 +1109,17 @@
   transition: background .14s ease;
 }
 
-.canvas-node-builder-option:hover,
-.canvas-node-builder-option:focus-visible {
+.canvas-skillNode-builder-option:hover,
+.canvas-skillNode-builder-option:focus-visible {
   background: var(--surface-hover);
   outline-offset: -2px;
 }
 
-.canvas-node-builder-option:active {
+.canvas-skillNode-builder-option:active {
   background: var(--surface-hover);
 }
 
-.canvas-node-builder-icon {
+.canvas-skillNode-builder-icon {
   width: 1.95rem;
   height: 1.95rem;
   flex: 0 0 1.95rem;
@@ -1127,39 +1127,39 @@
   place-items: center;
   border-radius: .58rem;
   background: color-mix(in srgb,var(--text) 6%,transparent);
-  color: var(--builder-node-color);
+  color: var(--builder-skillNode-color);
 }
 
-.canvas-node-builder-icon svg {
+.canvas-skillNode-builder-icon svg {
   display: block;
   width: 1.34rem;
   height: 1.34rem;
   max-width: none;
   aspect-ratio: 1 / 1;
 }
-.canvas-node-builder-info {
+.canvas-skillNode-builder-info {
   min-width: 0;
   flex: 1;
 }
-.canvas-node-builder-name,
-.canvas-node-builder-description {
+.canvas-skillNode-builder-name,
+.canvas-skillNode-builder-description {
   display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.canvas-node-builder-name {
+.canvas-skillNode-builder-name {
   font-size: .85rem;
   font-weight: 650;
   line-height: 1.45;
 }
-.canvas-node-builder-description {
+.canvas-skillNode-builder-description {
   color: var(--muted);
   font-size: .7rem;
   line-height: 1.55;
 }
 
-.canvas-node-builder-empty {
+.canvas-skillNode-builder-empty {
   padding: .875rem .5rem;
   color: var(--muted);
   font-size: .75rem;
@@ -1167,7 +1167,7 @@
 }
 
 @media (max-width: 26.25rem) {
-  :is(#canvas-node-builder,[data-canvas-node-builder]) {
+  :is(#canvas-skillNode-builder,[data-canvas-skillNode-builder]) {
     left: calc(max(.5rem, var(--safe-left)) + .375rem);
     bottom: calc(
       var(--safe-bottom) +
@@ -1177,7 +1177,7 @@
     );
   }
 
-  :is(#canvas-node-builder-panel,[data-canvas-node-builder-panel]) {
+  :is(#canvas-skillNode-builder-panel,[data-canvas-skillNode-builder-panel]) {
     width: min(19.375rem, calc(100vw - 1.25rem));
     padding: .34rem;
   }
@@ -1221,18 +1221,18 @@
 
 
 /* =========================================================
-   CANVAS NODE BUILDER ALIGNMENT
+   CANVAS SKILL_NODE BUILDER ALIGNMENT
    Keep the builder on the same visual rails as the composer.
    ========================================================= */
 
 @media (max-width: 43.75rem) {
-  :is(#canvas-node-builder,[data-canvas-node-builder]) {
+  :is(#canvas-skillNode-builder,[data-canvas-skillNode-builder]) {
     left: calc(max(.625rem, var(--safe-left)) + .5rem);
   }
 }
 
 @media (max-width: 26.25rem) {
-  :is(#canvas-node-builder,[data-canvas-node-builder]) {
+  :is(#canvas-skillNode-builder,[data-canvas-skillNode-builder]) {
     left: calc(max(.5rem, var(--safe-left)) + .375rem);
     bottom: calc(
       var(--safe-bottom) +
@@ -1248,9 +1248,9 @@
    ========================================================= */
 
 :is(#mode-switch,[data-ovll-mode-switch]),
-:is(#canvas-node-builder-layout,[data-canvas-node-builder-layout]),
-:is(#canvas-node-builder-reset,[data-canvas-node-builder-reset]),
-:is(#canvas-node-builder-toggle,[data-canvas-node-builder-toggle]) {
+:is(#canvas-skillNode-builder-layout,[data-canvas-skillNode-builder-layout]),
+:is(#canvas-skillNode-builder-reset,[data-canvas-skillNode-builder-reset]),
+:is(#canvas-skillNode-builder-toggle,[data-canvas-skillNode-builder-toggle]) {
   border: var(--ui-line-width) solid var(--ui-line);
   background: var(--ui-glass);
   backdrop-filter: var(--ui-backdrop);
@@ -1260,9 +1260,9 @@
 
 :is(#mode-switch,[data-ovll-mode-switch]),
 :is(#mode-switch,[data-ovll-mode-switch])::before,
-:is(#canvas-node-builder-layout,[data-canvas-node-builder-layout]),
-:is(#canvas-node-builder-reset,[data-canvas-node-builder-reset]),
-:is(#canvas-node-builder-toggle,[data-canvas-node-builder-toggle]) {
+:is(#canvas-skillNode-builder-layout,[data-canvas-skillNode-builder-layout]),
+:is(#canvas-skillNode-builder-reset,[data-canvas-skillNode-builder-reset]),
+:is(#canvas-skillNode-builder-toggle,[data-canvas-skillNode-builder-toggle]) {
   border-radius: var(--ui-radius-pill);
 }
 
@@ -1277,19 +1277,19 @@
 }
 
 :is(#mode-switch,[data-ovll-mode-switch]):hover,
-:is(#canvas-node-builder-layout,[data-canvas-node-builder-layout]):hover,
-:is(#canvas-node-builder-reset,[data-canvas-node-builder-reset]):hover,
-:is(#canvas-node-builder-toggle,[data-canvas-node-builder-toggle]):hover {
+:is(#canvas-skillNode-builder-layout,[data-canvas-skillNode-builder-layout]):hover,
+:is(#canvas-skillNode-builder-reset,[data-canvas-skillNode-builder-reset]):hover,
+:is(#canvas-skillNode-builder-toggle,[data-canvas-skillNode-builder-toggle]):hover {
   border-color: var(--ui-line-strong);
 }
 
-:is(#canvas-node-builder-layout,[data-canvas-node-builder-layout]):hover,
-:is(#canvas-node-builder-reset,[data-canvas-node-builder-reset]):hover,
-:is(#canvas-node-builder-toggle,[data-canvas-node-builder-toggle]):hover {
+:is(#canvas-skillNode-builder-layout,[data-canvas-skillNode-builder-layout]):hover,
+:is(#canvas-skillNode-builder-reset,[data-canvas-skillNode-builder-reset]):hover,
+:is(#canvas-skillNode-builder-toggle,[data-canvas-skillNode-builder-toggle]):hover {
   background: var(--ui-glass-strong);
 }
 
-:is(#canvas-node-builder-panel,[data-canvas-node-builder-panel]) {
+:is(#canvas-skillNode-builder-panel,[data-canvas-skillNode-builder-panel]) {
   border: var(--ui-line-width) solid var(--ui-line);
   border-radius: 1rem;
   background: var(--ui-glass-strong);

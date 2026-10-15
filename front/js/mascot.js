@@ -711,7 +711,7 @@ function mount(world,canvas,options={}){
   let orbitPhase=0;
   let orbitPausedUntil=0;
   let orbitPinned=false;
-  let nodeDragging=false;
+  let skillNodeDragging=false;
   let connectionDragging=false;
   let destroyed=false;
   const reducedMotion=global.matchMedia?.(
@@ -749,26 +749,26 @@ function mount(world,canvas,options={}){
     y:rect.top+rect.height/2
   });
 
-  const nodeEl=id=>{
+  const skillNodeEl=id=>{
     if(id==null) return null;
 
     return[
       ...viewport.querySelectorAll(
-        ".vc-node"
+        ".vc-skill-node"
       )
     ].find(
-      node=>
-        node.dataset.nodeId===
+      skillNode=>
+        skillNode.dataset.skillNodeId===
         String(id)
     )||null;
   };
 
-  function nodeColor(id){
-    const node=nodeEl(id);
+  function skillNodeColor(id){
+    const skillNode=skillNodeEl(id);
 
-    return node
-      ?getComputedStyle(node)
-        .getPropertyValue("--node-color")
+    return skillNode
+      ?getComputedStyle(skillNode)
+        .getPropertyValue("--skill-node-color")
         .trim()||DEFAULT_COLOR
       :DEFAULT_COLOR;
   }
@@ -868,14 +868,14 @@ function mount(world,canvas,options={}){
       closeCollaboration();
       return;
     }
-    const target=nodeEl(orbitId||focusId||lastObservedId);
-    const id=target?.dataset.nodeId;
+    const target=skillNodeEl(orbitId||focusId||lastObservedId);
+    const id=target?.dataset.skillNodeId;
     const next=canvas.getWorkflow?.().connections?.find(
-      edge=>String(edge.from?.node)===String(id)
+      edge=>String(edge.from?.skillNode)===String(id)
     );
     for(const button of collaboration.querySelectorAll("button")){
       button.disabled=button.dataset.mascotAction==="next"
-        ?!nodeEl(next?.to?.node)
+        ?!skillNodeEl(next?.to?.skillNode)
         :button.dataset.mascotAction==="resume"?false:!target;
     }
     collaboration.hidden=false;
@@ -885,7 +885,7 @@ function mount(world,canvas,options={}){
 
   function collaborate(action){
     const id=orbitId||focusId||lastObservedId;
-    const node=nodeEl(id);
+    const skillNode=skillNodeEl(id);
     closeCollaboration();
     if(action==="resume"){
       orbitPinned=false;
@@ -894,14 +894,14 @@ function mount(world,canvas,options={}){
       noteActivity();
       return;
     }
-    if(!node) return;
+    if(!skillNode) return;
     if(action==="question"){
       const input=composerElement?.querySelector("textarea")||
         documentRef.querySelector("#composer-input");
       if(input){
         if(!String(input.value||"").trim()){
-          const data=canvas.getNode?.(String(id));
-          const title=String(data?.title||node.querySelector(".vc-node-title,.vc-file-title")?.textContent||"선택한")
+          const data=canvas.getSkillNode?.(String(id));
+          const title=String(data?.title||skillNode.querySelector(".vc-skill-node-title,.vc-file-title")?.textContent||"선택한")
             .replace(/\s+/g," ").trim()||"선택한";
           const prompt=title+" 노드를 검토하고 개선할 점을 알려줘";
           const rich=composerElement?.ovllRichComposer;
@@ -917,10 +917,10 @@ function mount(world,canvas,options={}){
       }
     }else if(action==="next"){
       const next=canvas.getWorkflow?.().connections?.find(
-        edge=>String(edge.from?.node)===String(id)&&nodeEl(edge.to?.node)
+        edge=>String(edge.from?.skillNode)===String(id)&&skillNodeEl(edge.to?.skillNode)
       );
       if(next){
-        canvas.selectNode?.(String(next.to.node));
+        canvas.selectSkillNode?.(String(next.to.skillNode));
       }
     }else if(action==="stay"){
       orbitId=String(id);
@@ -931,7 +931,7 @@ function mount(world,canvas,options={}){
   }
 
   function startOrbit(id,{approach=true}={}){
-    if(id==null||!nodeEl(id)) return;
+    if(id==null||!skillNodeEl(id)) return;
     if(activeTaskId&&String(id)!==activeTaskId) return;
     const same=orbitId===String(id);
     orbitId=String(id);
@@ -945,9 +945,9 @@ function mount(world,canvas,options={}){
       if(approach&&!same) pendingOrbitId=String(id);
       return;
     }
-    const node=nodeEl(id);
-    if(approach&&!same&&nodeVisible(node)&&!drag&&!nodeDragging&&!layoutAnchor&&performance.now()>=typingUntil){
-      const target=nodeTarget(node);
+    const skillNode=skillNodeEl(id);
+    if(approach&&!same&&skillNodeVisible(skillNode)&&!drag&&!skillNodeDragging&&!layoutAnchor&&performance.now()>=typingUntil){
+      const target=skillNodeTarget(skillNode);
       const current=clientPoint(x,y);
       const size=orb.getBoundingClientRect().width||32;
       const distance=Math.hypot(target.x-current.x,target.y-current.y);
@@ -961,8 +961,8 @@ function mount(world,canvas,options={}){
 
   function positionOverlap(clientX,clientY,size,rects=null){
     const half=size*.65;
-    const boxes=rects||[...viewport.querySelectorAll(".vc-node")]
-      .map(node=>node.getBoundingClientRect());
+    const boxes=rects||[...viewport.querySelectorAll(".vc-skill-node")]
+      .map(skillNode=>skillNode.getBoundingClientRect());
     return boxes.reduce((total,r)=>{
       const width=Math.max(0,Math.min(clientX+half,r.right)-Math.max(clientX-half,r.left));
       const height=Math.max(0,Math.min(clientY+half,r.bottom)-Math.max(clientY-half,r.top));
@@ -988,7 +988,7 @@ function mount(world,canvas,options={}){
     if(destroyed) return;
     const dt=Math.min(.05,Math.max(0,(now-orbitTime)/1000));
     orbitTime=now;
-    const blocked=drag||motion||nodeDragging||connectionDragging||layoutAnchor||
+    const blocked=drag||motion||skillNodeDragging||connectionDragging||layoutAnchor||
       orb.hidden||documentRef.hidden||
       (UI?.getMode?.()&&UI.getMode()!=="canvas")||
       !collaboration.hidden||orb.classList.contains("connecting")||
@@ -996,28 +996,28 @@ function mount(world,canvas,options={}){
     if(!blocked){
       const id=activeTaskId||orbitId;
       if(!orbitScene||orbitScene.id!==id||now-orbitScene.time>100){
-        let node=nodeEl(id);
-        if(!node&&now-lastActivity>4800){
-          node=interestingNode();
-          if(node) orbitId=node.dataset.nodeId;
+        let skillNode=skillNodeEl(id);
+        if(!skillNode&&now-lastActivity>4800){
+          skillNode=interestingSkillNode();
+          if(skillNode) orbitId=skillNode.dataset.skillNodeId;
         }
-        if(node&&nodeVisible(node)){
+        if(skillNode&&skillNodeVisible(skillNode)){
           const view=viewport.getBoundingClientRect();
           const raw=getComputedStyle(world).transform;
           const matrix=raw==="none"?new DOMMatrix():new DOMMatrix(raw);
           const scale=Math.hypot(matrix.a,matrix.b)||1;
           orbitScene={
-            id:activeTaskId||orbitId,node,time:now,
-            r:node.getBoundingClientRect(),view,matrix,inverse:matrix.inverse(),
+            id:activeTaskId||orbitId,skillNode,time:now,
+            r:skillNode.getBoundingClientRect(),view,matrix,inverse:matrix.inverse(),
             size:orb.offsetWidth?orb.offsetWidth*scale:orb.getBoundingClientRect().width||32,
             top:Math.max(view.top,topbarElement?.getBoundingClientRect().bottom??view.top),
             bottom:Math.min(view.bottom,composerElement?.getBoundingClientRect().top??view.bottom),
-            rects:[...viewport.querySelectorAll(".vc-node")].map(el=>el.getBoundingClientRect())
+            rects:[...viewport.querySelectorAll(".vc-skill-node")].map(el=>el.getBoundingClientRect())
           };
         }else orbitScene=null;
       }
       if(orbitScene){
-        const {node,r,view,size,matrix,inverse,rects}=orbitScene;
+        const {skillNode,r,view,size,matrix,inverse,rects}=orbitScene;
         const thinking=orb.classList.contains("thinking");
         const working=orb.classList.contains("working");
         const still=orbitPinned||reducedMotion?.matches;
@@ -1042,7 +1042,7 @@ function mount(world,canvas,options={}){
         const currentOverlap=positionOverlap(current.x,current.y,size,rects);
         if(currentOverlap){
           orbitAnchor=null;
-          const escape=nodeTarget(node);
+          const escape=skillNodeTarget(skillNode);
           tx=escape.x;
           ty=escape.y;
         }
@@ -1361,7 +1361,7 @@ function mount(world,canvas,options={}){
     },320);
   }
 
-  function nodeVisible(node){
+  function skillNodeVisible(skillNode){
     const view=
       viewport.getBoundingClientRect();
 
@@ -1372,7 +1372,7 @@ function mount(world,canvas,options={}){
       topbarElement?.getBoundingClientRect();
 
     const rect=
-      node.getBoundingClientRect();
+      skillNode.getBoundingClientRect();
 
     const safeTop=
       Math.max(
@@ -1394,26 +1394,26 @@ function mount(world,canvas,options={}){
     );
   }
 
-  function interestingNode(){
-    const nodes=[
+  function interestingSkillNode(){
+    const skillNodes=[
       ...viewport.querySelectorAll(
-        ".vc-node"
+        ".vc-skill-node"
       )
-    ].filter(nodeVisible);
+    ].filter(skillNodeVisible);
 
-    if(!nodes.length)
+    if(!skillNodes.length)
       return null;
 
     const currentIndex=
-      nodes.findIndex(
-        node=>
-          node.dataset.nodeId===
+      skillNodes.findIndex(
+        skillNode=>
+          skillNode.dataset.skillNodeId===
           String(lastObservedId)
       );
 
-    return nodes[
-      (currentIndex+1+nodes.length)%
-      nodes.length
+    return skillNodes[
+      (currentIndex+1+skillNodes.length)%
+      skillNodes.length
     ];
   }
 
@@ -1430,12 +1430,12 @@ function mount(world,canvas,options={}){
     const active=
       focusId&&
       now<attentionUntil
-        ?nodeEl(focusId)
+        ?skillNodeEl(focusId)
         :null;
 
     if(
       active&&
-      nodeVisible(active)
+      skillNodeVisible(active)
     ){
       const c=
         center(
@@ -1451,10 +1451,10 @@ function mount(world,canvas,options={}){
       return;
     }
 
-    const orbitObserved=nodeEl(activeTaskId||orbitId);
-    const observed=!motion&&orbitObserved&&nodeVisible(orbitObserved)
+    const orbitObserved=skillNodeEl(activeTaskId||orbitId);
+    const observed=!motion&&orbitObserved&&skillNodeVisible(orbitObserved)
       ?orbitObserved
-      :interestingNode();
+      :interestingSkillNode();
 
     if(observed){
       const c=
@@ -1463,7 +1463,7 @@ function mount(world,canvas,options={}){
         );
 
       lastObservedId=
-        observed.dataset.nodeId||null;
+        observed.dataset.skillNodeId||null;
 
       lookAt(
         c.x,
@@ -1629,13 +1629,13 @@ function mount(world,canvas,options={}){
       Infinity;
 
     viewport
-      .querySelectorAll(".vc-node")
-      .forEach(node=>{
-        if(!nodeVisible(node))
+      .querySelectorAll(".vc-skill-node")
+      .forEach(skillNode=>{
+        if(!skillNodeVisible(skillNode))
           return;
 
         const r=
-          node.getBoundingClientRect();
+          skillNode.getBoundingClientRect();
 
         const nc=
           center(r);
@@ -1822,28 +1822,28 @@ function mount(world,canvas,options={}){
   }
 
   /*
-    node 중심이 아니라 node 바깥의 가장 가까운 쪽을 향한다.
-    그래서 node 위로 파고드는 이상한 이동 방지.
+    skillNode 중심이 아니라 skillNode 바깥의 가장 가까운 쪽을 향한다.
+    그래서 skillNode 위로 파고드는 이상한 이동 방지.
   */
-  function nodeTarget(
-    node
+  function skillNodeTarget(
+    skillNode
   ){
-    const nodeRect=node.getBoundingClientRect();
+    const skillNodeRect=skillNode.getBoundingClientRect();
     const orbRect=orb.getBoundingClientRect();
 
     const current=center(orbRect);
-    const nodeCenter=center(nodeRect);
-    const observationLift=nodeRect.height/2+orbRect.width*1.65;
+    const skillNodeCenter=center(skillNodeRect);
+    const observationLift=skillNodeRect.height/2+orbRect.width*1.65;
     const view=viewport.getBoundingClientRect();
     const size=orbRect.width||32;
     const top=Math.max(view.top,topbarElement?.getBoundingClientRect().bottom??view.top)+size;
     const bottom=Math.min(view.bottom,composerElement?.getBoundingClientRect().top??view.bottom)-size;
-    const side=current.x<nodeCenter.x?-1:1;
+    const side=current.x<skillNodeCenter.x?-1:1;
     const candidates=[
-      {x:nodeCenter.x+side*nodeRect.width*.35,y:nodeCenter.y-observationLift},
-      {x:nodeCenter.x-side*nodeRect.width*.35,y:nodeCenter.y-observationLift},
-      {x:nodeRect.left-size*1.5,y:nodeCenter.y-size*.4},
-      {x:nodeRect.right+size*1.5,y:nodeCenter.y-size*.4}
+      {x:skillNodeCenter.x+side*skillNodeRect.width*.35,y:skillNodeCenter.y-observationLift},
+      {x:skillNodeCenter.x-side*skillNodeRect.width*.35,y:skillNodeCenter.y-observationLift},
+      {x:skillNodeRect.left-size*1.5,y:skillNodeCenter.y-size*.4},
+      {x:skillNodeRect.right+size*1.5,y:skillNodeCenter.y-size*.4}
     ];
     for(const point of candidates){
       point.x=Math.max(view.left+size,Math.min(view.right-size,point.x));
@@ -1853,17 +1853,17 @@ function mount(world,canvas,options={}){
     return current;
   }
 
-  function reactMoveToNode(id){
-    const node=nodeEl(id);
+  function reactMoveToSkillNode(id){
+    const skillNode=skillNodeEl(id);
 
-    if(!node||!nodeVisible(node))
+    if(!skillNode||!skillNodeVisible(skillNode))
       return false;
 
     const orbRect=
       orb.getBoundingClientRect();
 
     const target=
-      nodeTarget(node);
+      skillNodeTarget(skillNode);
 
     const current=
       center(orbRect);
@@ -1909,7 +1909,7 @@ function mount(world,canvas,options={}){
     );
   }
 
-  function focusNode(
+  function focusSkillNode(
     id,
     {
       approach=false,
@@ -1919,9 +1919,9 @@ function mount(world,canvas,options={}){
       priority=3
     }={}
   ){
-    const node=nodeEl(id);
+    const skillNode=skillNodeEl(id);
 
-    if(!node)
+    if(!skillNode)
       return;
 
     noteActivity();
@@ -1949,10 +1949,10 @@ function mount(world,canvas,options={}){
       duration
     );
 
-    if(nodeVisible(node)){
+    if(skillNodeVisible(skillNode)){
       const c=
         center(
-          node.getBoundingClientRect()
+          skillNode.getBoundingClientRect()
         );
 
       lookAt(
@@ -1964,7 +1964,7 @@ function mount(world,canvas,options={}){
       );
 
       if(approach)
-        reactMoveToNode(id);
+        reactMoveToSkillNode(id);
     }
 
     if(pop)
@@ -1988,12 +1988,12 @@ function mount(world,canvas,options={}){
     },duration+30);
   }
 
-  function overlaps(node){
+  function overlaps(skillNode){
     const a=
       orb.getBoundingClientRect();
 
     const b=
-      node.getBoundingClientRect();
+      skillNode.getBoundingClientRect();
 
     return(
       a.right>b.left&&
@@ -2003,13 +2003,13 @@ function mount(world,canvas,options={}){
     );
   }
 
-  function pushFromNode(node){
-    if(!(node instanceof Element)||!overlaps(node)||drag) return false;
+  function pushFromSkillNode(skillNode){
+    if(!(skillNode instanceof Element)||!overlaps(skillNode)||drag) return false;
     const size=orb.getBoundingClientRect().width||32;
     if(motion?.reason==="collision"&&(
       performance.now()-motion.started<120||!positionOverlap(motion.x,motion.y,size)
     )) return true;
-    const r=node.getBoundingClientRect();
+    const r=skillNode.getBoundingClientRect();
     const current=clientPoint(x,y);
     const view=viewport.getBoundingClientRect();
     const gap=size*.85+4;
@@ -2043,7 +2043,7 @@ function mount(world,canvas,options={}){
 
   function ensureVisible(){
     if(UI?.getMode?.()!=="canvas"||(UI?.getProgress?.()??1)<.999)return;
-    if(drag||nodeDragging||connectionDragging||layoutAnchor||performance.now()<typingUntil) return;
+    if(drag||skillNodeDragging||connectionDragging||layoutAnchor||performance.now()<typingUntil) return;
     const view=
       viewport.getBoundingClientRect();
 
@@ -2214,13 +2214,13 @@ function mount(world,canvas,options={}){
   };
 
   function taskType(id){
-    const node=
-      canvas.getNode?.(
+    const skillNode=
+      canvas.getSkillNode?.(
         String(id)
       );
 
     return String(
-      node?.type||
+      skillNode?.type||
       "generic"
     );
   }
@@ -2261,12 +2261,12 @@ function mount(world,canvas,options={}){
         taskTimer=setTimeout(tick,200);
         return;
       }
-      const node=
-        nodeEl(key);
+      const skillNode=
+        skillNodeEl(key);
 
       if(
-        !node||
-        !nodeVisible(node)
+        !skillNode||
+        !skillNodeVisible(skillNode)
       ){
         taskTimer=setTimeout(
           tick,
@@ -2276,7 +2276,7 @@ function mount(world,canvas,options={}){
       }
 
       const rect=
-        node.getBoundingClientRect();
+        skillNode.getBoundingClientRect();
 
       const c=center(rect);
       let targetX=c.x;
@@ -2353,20 +2353,20 @@ function mount(world,canvas,options={}){
     name,
     detail={}
   ){
-    const nodeId=
-      detail?.nodeId;
+    const skillNodeId=
+      detail?.skillNodeId;
 
-    if(['nodeSuccess','nodeError','success','error','cancelled','idle'].includes(name)){
-      if(nodeId&&activeTaskId&&String(nodeId)!==activeTaskId)return;
+    if(['skillNodeSuccess','skillNodeError','success','error','cancelled','idle'].includes(name)){
+      if(skillNodeId&&activeTaskId&&String(skillNodeId)!==activeTaskId)return;
       setEffectMode('idle');
       clearTaskBehavior();
     }
 
-    if(name==="nodeSuccess"){
+    if(name==="skillNodeSuccess"){
       orbitPausedUntil=performance.now()+600;
-      if(nodeId&&nodeEl(nodeId)){
-        focusNode(
-          nodeId,
+      if(skillNodeId&&skillNodeEl(skillNodeId)){
+        focusSkillNode(
+          skillNodeId,
           {
             mood:"success",
             duration:520,
@@ -2393,12 +2393,12 @@ function mount(world,canvas,options={}){
       return;
     }
 
-    if(name==="nodeError"){
+    if(name==="skillNodeError"){
       orbitPausedUntil=Infinity;
       stopMotion();
-      if(nodeId&&nodeEl(nodeId)){
-        focusNode(
-          nodeId,
+      if(skillNodeId&&skillNodeEl(skillNodeId)){
+        focusSkillNode(
+          skillNodeId,
           {
             mood:"confused",
             duration:760,
@@ -2427,9 +2427,9 @@ function mount(world,canvas,options={}){
 
     if(name==="success"){
       orbitPausedUntil=performance.now()+850;
-      if(nodeId&&nodeEl(nodeId)){
-        focusNode(
-          nodeId,
+      if(skillNodeId&&skillNodeEl(skillNodeId)){
+        focusSkillNode(
+          skillNodeId,
           {
             mood:"success",
             duration:760,
@@ -2459,9 +2459,9 @@ function mount(world,canvas,options={}){
     if(name==="error"){
       orbitPausedUntil=Infinity;
       stopMotion();
-      if(nodeId&&nodeEl(nodeId)){
-        focusNode(
-          nodeId,
+      if(skillNodeId&&skillNodeEl(skillNodeId)){
+        focusSkillNode(
+          skillNodeId,
           {
             mood:"confused",
             duration:820,
@@ -2531,7 +2531,7 @@ function mount(world,canvas,options={}){
     }
   }
 
-  function workAtNode(
+  function workAtSkillNode(
     id,
     active=true
   ){
@@ -2555,10 +2555,10 @@ function mount(world,canvas,options={}){
       return false;
     }
 
-    const node=
-      nodeEl(id);
+    const skillNode=
+      skillNodeEl(id);
 
-    if(!node){
+    if(!skillNode){
       clearTaskBehavior();
       activeTaskId=String(id);
       orb.dataset.task='generic';
@@ -2594,15 +2594,15 @@ function mount(world,canvas,options={}){
     );
     startOrbit(id);
 
-    const nodeCenter=
+    const skillNodeCenter=
       center(
-        node.getBoundingClientRect()
+        skillNode.getBoundingClientRect()
       );
 
-    if(nodeVisible(node)){
+    if(skillNodeVisible(skillNode)){
       lookAt(
-        nodeCenter.x,
-        nodeCenter.y,
+        skillNodeCenter.x,
+        skillNodeCenter.y,
         .19
       );
 
@@ -2612,8 +2612,8 @@ function mount(world,canvas,options={}){
         );
       }else{
         pointSatelliteAt(
-          nodeCenter.x,
-          nodeCenter.y
+          skillNodeCenter.x,
+          skillNodeCenter.y
         );
       }
     }
@@ -2641,12 +2641,12 @@ function mount(world,canvas,options={}){
       );
 
       const target=
-        (focusId&&nodeEl(focusId))||
-        interestingNode();
+        (focusId&&skillNodeEl(focusId))||
+        interestingSkillNode();
 
       if(
         target&&
-        nodeVisible(target)
+        skillNodeVisible(target)
       ){
         const c=
           center(
@@ -2654,7 +2654,7 @@ function mount(world,canvas,options={}){
           );
 
         lastObservedId=
-          target.dataset.nodeId||null;
+          target.dataset.skillNodeId||null;
 
         lookAt(
           c.x,
@@ -2777,7 +2777,7 @@ function mount(world,canvas,options={}){
           );
 
           const observed=
-            interestingNode();
+            interestingSkillNode();
 
           const roll=
             Math.random();
@@ -2871,7 +2871,7 @@ function mount(world,canvas,options={}){
 
     orb.style.setProperty(
       "--react-color",
-      nodeColor(id)
+      skillNodeColor(id)
     );
   }
 
@@ -3080,7 +3080,7 @@ function mount(world,canvas,options={}){
     orb.classList.remove(
       "grabbed"
     );
-    if(resumeTask&&nodeEl(resumeTask)) workAtNode(resumeTask,true);
+    if(resumeTask&&skillNodeEl(resumeTask)) workAtSkillNode(resumeTask,true);
 
     try{
       orb.releasePointerCapture(
@@ -3094,33 +3094,33 @@ function mount(world,canvas,options={}){
     }else{
       orbitPinned=true;
       orbitPausedUntil=performance.now()+4000;
-      const near=[...viewport.querySelectorAll(".vc-node")].filter(nodeVisible)
+      const near=[...viewport.querySelectorAll(".vc-skill-node")].filter(skillNodeVisible)
         .sort((a,b)=>{
           const ac=center(a.getBoundingClientRect());
           const bc=center(b.getBoundingClientRect());
           const c=clientPoint(x,y);
           return Math.hypot(ac.x-c.x,ac.y-c.y)-Math.hypot(bc.x-c.x,bc.y-c.y);
         })[0];
-      if(near) orbitId=near.dataset.nodeId;
+      if(near) orbitId=near.dataset.skillNodeId;
     }
 
     scheduleVisible();
   }
 
   function listen(
-    node,
+    skillNode,
     type,
     handler,
     options
   ){
-    node.addEventListener(
+    skillNode.addEventListener(
       type,
       handler,
       options
     );
 
     cleanup.push(
-      ()=>node.removeEventListener(
+      ()=>skillNode.removeEventListener(
         type,
         handler,
         options
@@ -3239,7 +3239,7 @@ function mount(world,canvas,options={}){
     id=>{
       if(id){
         startOrbit(id);
-        focusNode(
+        focusSkillNode(
           id,
           {
             priority:21,
@@ -3252,12 +3252,12 @@ function mount(world,canvas,options={}){
   );
 
   bind(
-    "nodeAdd",
-    node=>
+    "skillNodeAdd",
+    skillNode=>
       requestAnimationFrame(
         ()=>{
-          focusNode(
-            node.id,
+          focusSkillNode(
+            skillNode.id,
             {
               approach:true,
               pop:true,
@@ -3276,10 +3276,10 @@ function mount(world,canvas,options={}){
   );
 
   bind(
-    "nodeEdit",
+    "skillNodeEdit",
     event=>{
       orbitPausedUntil=performance.now()+1800;
-      focusNode(
+      focusSkillNode(
         event.id,
         {
           mood:"curious",
@@ -3296,9 +3296,9 @@ function mount(world,canvas,options={}){
   );
 
   bind(
-    "nodeExpand",
+    "skillNodeExpand",
     event=>{
-      focusNode(
+      focusSkillNode(
         event.id,
         {
           mood:"focus",
@@ -3307,22 +3307,22 @@ function mount(world,canvas,options={}){
         }
       );
 
-      const node=
-        nodeEl(event.id);
+      const skillNode=
+        skillNodeEl(event.id);
 
-      if(node)
-        pushFromNode(node);
+      if(skillNode)
+        pushFromSkillNode(skillNode);
     }
   );
 
   bind(
-    "nodeDragStart",
+    "skillNodeDragStart",
     event=>{
-      nodeDragging=true;
+      skillNodeDragging=true;
       closeCollaboration();
       stopMotion();
 
-      focusNode(
+      focusSkillNode(
         event.id,
         {
           mood:"focus",
@@ -3334,17 +3334,17 @@ function mount(world,canvas,options={}){
   );
 
   bind(
-    "nodeDragMove",
+    "skillNodeDragMove",
     event=>{
-      const node=
-        nodeEl(event.id);
+      const skillNode=
+        skillNodeEl(event.id);
 
-      if(!node)
+      if(!skillNode)
         return;
 
       const c=
         center(
-          node.getBoundingClientRect()
+          skillNode.getBoundingClientRect()
         );
 
       lastObservedId=
@@ -3360,16 +3360,16 @@ function mount(world,canvas,options={}){
         .195
       );
 
-      pushFromNode(node);
+      pushFromSkillNode(skillNode);
     }
   );
 
   bind(
-    "nodeDragEnd",
+    "skillNodeDragEnd",
     event=>{
-      nodeDragging=false;
+      skillNodeDragging=false;
       startOrbit(event.id,{approach:false});
-      focusNode(
+      focusSkillNode(
         event.id,
         {
           mood:"focus",
@@ -3383,11 +3383,11 @@ function mount(world,canvas,options={}){
   );
 
   bind(
-    "nodeRemove",
-    node=>{
+    "skillNodeRemove",
+    skillNode=>{
       if(
         focusId===
-        String(node.id)
+        String(skillNode.id)
       ){
         focusId=null;
       }
@@ -3436,7 +3436,7 @@ function mount(world,canvas,options={}){
       );
 
       setReactColor(
-        event.anchor?.node
+        event.anchor?.skillNode
       );
 
       orb.classList.add(
@@ -3444,10 +3444,10 @@ function mount(world,canvas,options={}){
       );
 
       const anchorId=
-        event.anchor?.node;
+        event.anchor?.skillNode;
 
       if(anchorId!=null){
-        focusNode(
+        focusSkillNode(
           anchorId,
           {
             mood:"focus",
@@ -3497,8 +3497,8 @@ function mount(world,canvas,options={}){
   bind(
     "connect",
     connection=>{
-      focusNode(
-        connection.to.node,
+      focusSkillNode(
+        connection.to.skillNode,
         {
           pop:true,
           mood:"success",
@@ -3556,12 +3556,12 @@ function mount(world,canvas,options={}){
       layoutAnchor=null;
 
       for(
-        const node
+        const skillNode
         of viewport.querySelectorAll(
-          ".vc-node"
+          ".vc-skill-node"
         )
       ){
-        if(pushFromNode(node))
+        if(pushFromSkillNode(skillNode))
           break;
       }
 
@@ -3737,7 +3737,7 @@ function mount(world,canvas,options={}){
     react,
     setThinking,
     setSituation,
-    workAtNode,
+    workAtSkillNode,
     centerInViewport,
     scheduleVisible,
 
@@ -3953,7 +3953,7 @@ function init(){
     }
 
     const canvas=
-      global.getMountedCanvasNode?.(
+      global.getMountedCanvasSkillNode?.(
         viewport
       );
 

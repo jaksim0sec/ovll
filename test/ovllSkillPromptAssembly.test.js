@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createPromptComposer} from '../backend/ovllPointer/promptComposer.js';
 const context={requestRef:'r1',objective:'Summarize notes',constraints:[],
- capabilities:[],outputContract:'NodeOutput',requestText:'Summarize this',
+ capabilities:[],outputContract:'SkillNodeOutput',requestText:'Summarize this',
  materials:[{ref:'source1',kind:'text',source:'user_input',
   content:'Read supplied notes',truncated:false,provenanceRefs:['user:r1']}]};
 test('ENTRY, chat and EXIT share exactly one versioned Skill reference grammar',()=>{

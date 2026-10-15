@@ -13,28 +13,28 @@ test('saved functions remain canonical Pointer assets and executable without the
   vm.runInNewContext(read('front/js/ovllPointerFunctions.js'),{window,console});
   const store=window.OvllPointerFunctions;
   const catalog=getPointerCatalog();
-  const ref=catalog.definitions.find(d=>d.definitionId==='builtin:write');
-  const snapshot={graph:{graphId:'g_function',revision:1,nodes:[{
-    nodeId:'write_1',definitionRef:{definitionId:ref.definitionId,version:ref.version},
+  const ref=catalog.skillDefinitions.find(d=>d.definitionId==='builtin:write');
+  const snapshot={graph:{graphId:'g_function',revision:1,skillNodes:[{
+    skillNodeId:'write_1',skillDefinitionRef:{definitionId:ref.definitionId,version:ref.version},
     inputBindings:{},settings:{request:'Write the report'}}],connections:[]},
-    definitions:catalog.definitions};
+    skillDefinitions:catalog.skillDefinitions};
   const fn=store.save({purpose:'Reusable report',snapshot,targets:['write_1'],
     presentation:{name:'Report',description:'Report writer',iconKey:'pen',color:'#4f8ef7',
       view:[{id:'write_1',x:100,y:80}]}});
   assert.equal(store.list()[0].presentation.name,'Report');
-  assert.equal(store.get(fn.id).snapshot.graph.nodes[0].nodeId,'write_1');
+  assert.equal(store.get(fn.id).snapshot.graph.skillNodes[0].skillNodeId,'write_1');
   assert.equal(store.bind(fn,{}).targets[0],'write_1');
   assert.equal(store.remove(fn.id),true);
   assert.equal(store.get(fn.id),null);
 });
 test('draft projection translates built-in canvas graphs without persisting to unrelated conversations',async()=>{
-  const window={OvllWorkspaceStore:{updateConversationPointerGraph(){},getConversation(){return null;}}};
+  const window={OvllWorkspaceStore:{updateConversationSkillGraph(){},getConversation(){return null;}}};
   vm.runInNewContext(read('front/js/ovllPointerLocal.js'),{window,console});
   const local=window.createOvllPointerLocal({workspaceStore:window.OvllWorkspaceStore,
     loadCore:async()=>core,loadCatalog:async()=>getPointerCatalog()});
-  const graph=await local.projectCanvasDraft({workflow:{nodes:[{id:'n',type:'write',
+  const graph=await local.projectCanvasDraft({workflow:{skillNodes:[{id:'n',type:'write',
     data:{params:{request:'Describe the idea'}}}],connections:[]}},'g_builder');
-  assert.equal(graph.graph.nodes.length,1);
-  assert.equal(graph.graph.nodes[0].settings.request,'Describe the idea');
+  assert.equal(graph.graph.skillNodes.length,1);
+  assert.equal(graph.graph.skillNodes[0].settings.request,'Describe the idea');
   assert.equal(graph.graph.revision,1);
 });

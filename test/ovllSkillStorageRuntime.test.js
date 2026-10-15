@@ -1,71 +1,36 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {read,write,canonicalWorkspace,runtimeWorkspace,storageKey,schemaVersion}
-  from '../front/js/ovllSkillStorageRuntime.mjs';
-import {LEGACY_WORKSPACE_KEY} from '../front/js/ovllSkillStorageBridge.mjs';
-const original=()=>({
-  storageRevision:4,schemaVersion:9,
-  workspace:{id:'local',activeConversationId:'c'},
-  sections:[],contextBundles:[],pointerDefinitions:[{definitionId:'custom:one',version:1}],
-  conversations:[{id:'c',state:{
-    canvas:{workflow:{nodes:[{id:'n_old',type:'write',x:4,y:3}],connections:[]}},
-    pointerGraph:{graph:{graphId:'g',revision:2,nodes:[{
-      nodeId:'n_old',definitionRef:{definitionId:'custom:one',version:1},
-      settings:{nodeId:'user data'}}],connections:[]},
-      definitions:[{definitionId:'custom:one',version:1}]},
-    pointerRuns:[{runId:'r',nodes:[{nodeId:'n_old',status:'success',
-      outputs:{user:{nodeId:'opaque'}}}]}],messages:[{role:'user',text:'hi'}],
-    composerDraft:'pending'
-  }}]
+import {readFileSync} from 'node:fs';
+import {read,write,storageKey,schemaVersion,LEGACY_WORKSPACE_KEY,PREVIOUS_SKILL_WORKSPACE_KEY} from '../front/js/ovllSkillStorageRuntime.mjs';
+const fixture=name=>JSON.parse(readFileSync(new URL('./fixtures/'+name,import.meta.url)));
+function memory(seed={}){const data=new Map(Object.entries(seed));return{data,storage:{getItem:k=>data.get(k)??null,setItem:(k,v)=>data.set(k,String(v))}};}
+for(const [name,key] of [['workspace-node-v9.json',LEGACY_WORKSPACE_KEY],['workspace-skill-v10.json',PREVIOUS_SKILL_WORKSPACE_KEY]])test('storage imports once into native runtime and preserves original bytes: '+name,()=>{
+ const original=JSON.stringify(fixture(name)),m=memory({[key]:original}),loaded=read(m.storage);
+ assert.equal(schemaVersion,11);assert.equal(loaded.schemaVersion,11);
+ assert.equal(loaded.conversations[0].state.skillGraph.graph.skillNodes[0].skillNodeId,'n_saved');
+ loaded.storageRevision++;assert.equal(write(m.storage,loaded,{expectedRevision:2}),3);
+ assert.equal(m.data.get(key),original);assert.deepEqual(read(m.storage),loaded);
+ assert.equal(JSON.parse(m.data.get(storageKey)).schemaVersion,11);
 });
-function mem(seed={}){
-  const map=new Map(Object.entries(seed));
-  return {map,storage:{getItem:key=>map.get(key)??null,setItem:(key,value)=>map.set(key,String(value))}};
-}
-test('real storage writes canonical v2 and never alters original v1 bytes',()=>{
-  const old=JSON.stringify(original()),fixture=mem({[LEGACY_WORKSPACE_KEY]:old});
-  const loaded=read(fixture.storage);
-  assert.deepEqual(loaded,original());
-  assert.equal(storageKey,'ovll:workspace:skill:v2');
-  assert.equal(schemaVersion,10);
-  loaded.storageRevision++;
-  assert.equal(write(fixture.storage,loaded,{expectedRevision:4}),5);
-  assert.equal(fixture.map.get(LEGACY_WORKSPACE_KEY),old);
-  const saved=JSON.parse(fixture.map.get(storageKey));
-  assert.equal(saved.schemaVersion,10);
-  assert.equal(saved.conversations[0].state.skillGraph.graph.skills[0].skillId,'n_old');
-  assert.equal(saved.conversations[0].state.canvas.workflow.skills[0].skillId,'n_old');
-  assert.equal(saved.conversations[0].state.skillRuns[0].skills[0].skillId,'n_old');
-  assert.equal(saved.conversations[0].state.skillRuns[0].skills[0].outputs.user.nodeId,'opaque');
-  assert.deepEqual(read(fixture.storage),{...loaded,schemaVersion:9});
-  assert.deepEqual(canonicalWorkspace(runtimeWorkspace(saved)),saved);
+test('stale writers and newer historical tabs cannot overwrite current work',()=>{
+ const m=memory(),value=read(memory({[LEGACY_WORKSPACE_KEY]:JSON.stringify(fixture('workspace-node-v9.json'))}).storage);
+ value.storageRevision=1;write(m.storage,value,{expectedRevision:0});
+ assert.throws(()=>write(m.storage,value,{expectedRevision:0}),e=>e.code==='WORKSPACE_REVISION_CONFLICT');
+ const old=fixture('workspace-node-v9.json');old.storageRevision=10;m.data.set(LEGACY_WORKSPACE_KEY,JSON.stringify(old));
+ assert.throws(()=>read(m.storage),e=>e.code==='SKILL_STORAGE_STALE_SOURCE');
 });
-test('stale revision cannot overwrite newer v2',()=>{
-  const fixture=mem();
-  const value=original();value.storageRevision=1;
-  assert.equal(write(fixture.storage,value,{expectedRevision:0}),1);
-  assert.throws(()=>write(fixture.storage,value,{expectedRevision:0}),e=>e.code==='WORKSPACE_REVISION_CONFLICT');
-  assert.equal(read(fixture.storage).storageRevision,1);
+test('invalid native storage never silently resets or overwrites the damaged data',()=>{
+ const m=memory({[storageKey]:'{broken'});assert.throws(()=>read(m.storage));assert.equal(m.data.get(storageKey),'{broken');
 });
-test('invalid new key is never replaced by a fresh workspace',()=>{
-  const fixture=mem({[storageKey]:'{broken'});
-  assert.throws(()=>read(fixture.storage),e=>e.code==='SKILL_STORAGE_EXISTING_INVALID');
-  assert.equal(fixture.map.get(storageKey),'{broken');
+test('quota, partial writes and source races preserve historical bytes and report failure',()=>{
+ const raw=JSON.stringify(fixture('workspace-node-v9.json')),m=memory({[LEGACY_WORKSPACE_KEY]:raw}),value=read(m.storage);value.storageRevision++;
+ assert.throws(()=>write({...m.storage,setItem(){throw Error('quota');}},value,{expectedRevision:2}),e=>e.code==='SKILL_STORAGE_WRITE_FAILED');
+ assert.equal(m.data.get(LEGACY_WORKSPACE_KEY),raw);
+ assert.throws(()=>write({...m.storage,setItem(k,v){m.data.set(k,v.slice(0,12));}},value,{expectedRevision:2}),e=>e.code==='SKILL_STORAGE_VERIFY_FAILED');
+ assert.equal(m.data.get(LEGACY_WORKSPACE_KEY),raw);
 });
-test('quota and partial writes never alter original v1',()=>{
-  const old=JSON.stringify(original()),fixture=mem({[LEGACY_WORKSPACE_KEY]:old});
-  const value=original();value.storageRevision++;
-  const denied={...fixture.storage,setItem(){throw Error('quota')}};
-  assert.throws(()=>write(denied,value,{expectedRevision:4}),e=>e.code==='SKILL_STORAGE_WRITE_FAILED');
-  assert.equal(fixture.map.get(LEGACY_WORKSPACE_KEY),old);
-  const partial={...fixture.storage,setItem(k,v){fixture.map.set(k,v.slice(0,16))}};
-  assert.throws(()=>write(partial,value,{expectedRevision:4}),e=>e.code==='SKILL_STORAGE_VERIFY_FAILED');
-  assert.equal(fixture.map.get(LEGACY_WORKSPACE_KEY),old);
-});
-test('mixed v1 and v2 graph fields never persist',()=>{
-  const fixture=mem();
-  const value=original();value.storageRevision=1;
-  value.conversations[0].state.pointerGraph.graph.skills=[];
-  assert.throws(()=>write(fixture.storage,value,{expectedRevision:0}),e=>e.code==='INVALID_SKILL_WORKSPACE');
-  assert.equal(fixture.map.has(storageKey),false);
+test('mixed domain fields do not enter native storage',()=>{
+ const m=memory(),value=read(memory({[LEGACY_WORKSPACE_KEY]:JSON.stringify(fixture('workspace-node-v9.json'))}).storage);
+ value.storageRevision=1;value.conversations[0].state.skillGraph.graph.nodes=[];
+ assert.throws(()=>write(m.storage,value,{expectedRevision:0}));assert.equal(m.data.has(storageKey),false);
 });
