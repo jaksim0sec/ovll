@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="dark light">
+  <title>Ovll</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="./css/base.css">
+  <link rel="stylesheet" href="./css/shell.css">
+  <script type="module" src="./js/boot.js"></script>
+</head>
+<body>
+  <p id="boot-status" role="status">Ovll을 불러오는 중입니다</p>
+  <div id="app" class="app-shell" hidden>
+    <button class="shell-backdrop" type="button" data-menu-dismiss tabindex="-1" aria-label="메뉴 닫기" hidden></button>
+    <aside id="global-menu" class="shell-menu" aria-label="전체 메뉴" aria-hidden="true" tabindex="-1" inert>
+      <div class="shell-menu-header">
+        <span class="shell-brand">ovll</span>
+        <button class="icon-button" type="button" data-menu-dismiss aria-label="메뉴 닫기">
+          <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3.2" y="3.5" width="13.6" height="13" rx="4.7"/><path d="M7.55 4v12"/></svg>
+        </button>
+      </div>
+      <nav class="shell-nav" aria-label="페이지">
+        <button class="nav-button" type="button" data-page="workspace">
+          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 5.1A2.1 2.1 0 0 1 6.1 3h7.8A2.1 2.1 0 0 1 16 5.1v6.1a2.1 2.1 0 0 1-2.1 2.1H8.2L4.35 16v-2.7A2.08 2.08 0 0 1 4 12.15Z"/></svg>
+          <span>워크스페이스</span>
+        </button>
+        <button class="nav-button" type="button" data-page="library">
+          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4.1 7.15V6.3a1.8 1.8 0 0 1 1.8-1.8h2.15c.58 0 1.02.2 1.38.65l.7.85h3.97a1.8 1.8 0 0 1 1.8 1.8v5.9a1.8 1.8 0 0 1-1.8 1.8H5.9a1.8 1.8 0 0 1-1.8-1.8Z"/></svg>
+          <span>라이브러리</span>
+        </button>
+      </nav>
+    </aside>
+    <div class="shell-content">
+      <header class="shell-header">
+        <button class="icon-button menu-trigger" type="button" data-menu-trigger aria-label="메뉴 열기" aria-expanded="false" aria-controls="global-menu">
+          <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3.2" y="3.5" width="13.6" height="13" rx="4.7"/><path d="M7.55 4v12"/></svg>
+        </button>
+        <span class="shell-page-title" data-page-title>Ovll</span>
+      </header>
+      <main id="page-host" tabindex="-1" aria-label="페이지 영역"></main>
+    </div>
+  </div>
+  <template id="workspace-template">
+    <section class="empty-page" data-page="workspace" tabindex="-1" aria-labelledby="workspace-title">
+      <div><h1 id="workspace-title">워크스페이스</h1><p>Chat · Canvas 영역 준비 중</p></div>
+    </section>
+  </template>
+  <template id="library-template">
+    <section class="empty-page" data-page="library" tabindex="-1" aria-labelledby="library-title">
+      <div><h1 id="library-title">라이브러리</h1><p>라이브러리 영역 준비 중</p></div>
+    </section>
+  </template>
+  <noscript>Ovll을 사용하려면 JavaScript를 활성화해 주세요</noscript>
+</body>
+</html>
