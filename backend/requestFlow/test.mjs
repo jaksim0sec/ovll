@@ -94,4 +94,14 @@ async function task(t,userRequest='hello'){const {finished,requestId}=await t.r.
   assert.match(p,/common.md\n\nsettings:/);assert.match(p,/settings:Korean/);
   assert.match(p,/\{\{do-not-execute\}\}/);
 }
+{
+  let fails = 0;
+  const t = mk([{need:[]}], { persist: async ({event}) => {
+    if (event.type === 'model_call' && fails++ === 0) throw new Error('Temporary storage unavailable');
+  }});
+  const {state} = await task(t);
+  assert.equal(state.status, 'failed');
+  assert.match(state.error, /Temporary storage/);
+  assert.equal(t.events.at(-1).type, 'final');
+}
 console.log('PASS: direct, plan terminate, corridor return, failed action, stop in model, stop with committed action, session CAS, strict context, prompt order');

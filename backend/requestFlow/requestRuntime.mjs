@@ -80,7 +80,7 @@ export function createRequestRuntime({ buildPrompt, callAI, lookupNeed, runWorkr
   function record(r, type, payload = {}) {
     const id = key(r.roomId, r.requestId);
     const prev = queues.get(id) ?? Promise.resolve();
-    const done = prev.then(async () => {
+    const done = prev.catch(() => {}).then(async () => {
       r.revision = (r.revision ?? 0) + 1;
       const state = snapshot(r);
       const event = { roomId: r.roomId, requestId: r.requestId, revision: state.revision, type, payload: copy(payload), snapshot: state };
