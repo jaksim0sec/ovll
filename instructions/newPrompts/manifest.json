@@ -1,0 +1,35 @@
+{
+  "version": "1014-v1",
+  "layers": {
+    "gate": [
+      "common/concepts.md",
+      "base/gate.md",
+      "common/json.md",
+      "blocks/informationRequest.md"
+    ],
+    "corridorInitial": [
+      "common/concepts.md",
+      "base/corridorInitial.md",
+      "common/json.md",
+      "blocks/languageGeneration.md",
+      "blocks/planGeneration.md",
+      "blocks/contextBlockUpdate.md",
+      "blocks/contextDataUpdate.md"
+    ],
+    "corridorReturn": [
+      "common/concepts.md",
+      "base/corridorReturn.md",
+      "common/json.md",
+      "blocks/planGeneration.md",
+      "blocks/contextBlockUpdate.md"
+    ],
+    "output": [
+      "common/concepts.md",
+      "base/output.md",
+      "common/json.md",
+      "blocks/languageGeneration.md",
+      "blocks/contextBlockUpdate.md",
+      "blocks/contextDataUpdate.md"
+    ]
+  }
+}
