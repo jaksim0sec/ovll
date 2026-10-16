@@ -1,0 +1,16 @@
+# InformationRequestBlock — v1.0
+
+Write `need` as `[[datasetName, ...parameters], ...]`.
+
+**Datasets**
+- `["originalReq", n]` — Exact user requests, from current (0) through n requests back.
+- `["chatContext", n]` — Final context objects of the last n completed requests.
+- `["skillDef", [names]]` — Defined Skills by exact names, not Canvas Skill Blocks.
+- `["canvasSkill", [ids]]` — Canvas Skill Block (Skill Node) instance data by exact IDs; missing IDs return `false`.
+- `["skillList"]` — Compact skill index: name, purpose, iconKey, input/output signatures.
+
+**Rules**
+- Request only additional data necessary for the current task.
+- Prefer exact names/IDs; otherwise, use `skillList` to identify candidates.
+- Keep `n` small. Use `[]` when no additional data is needed.
+- Never invent identifiers.
