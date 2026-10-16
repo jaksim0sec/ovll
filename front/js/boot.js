@@ -1,11 +1,15 @@
 import { createAppShell } from "./shell/appShell.js";
 import { createPageHost } from "./shell/pageHost.js";
 import { createInputManager } from "./input/inputManager.js";
+import { createLocalDataStore } from "./data/localDataStore.js";
 
 const root = document.querySelector("#app");
 const status = document.querySelector("#boot-status");
 const lifetime = new AbortController();
 const input = createInputManager();
+// The cache is not a server source of truth. Empty pages have no consumers yet.
+const data = createLocalDataStore();
+let releaseUiTest;
 let shell;
 let pages;
 
@@ -15,6 +19,8 @@ function destroy() {
   finally {
     shell?.destroy();
     input.destroy();
+    data.destroy();
+    releaseUiTest?.();
   }
 }
 
@@ -36,6 +42,12 @@ try {
   root.hidden = false;
   pages.activate("workspace");
   status.hidden = true;
+  // TEMPORARY beta QA only. Remove this optional import with dev/uiTest.js and css/uiTest.css.
+  if (new URLSearchParams(location.search).get("ui-test") === "1") {
+    import("./dev/uiTest.js").then(({ mountUiTest }) => {
+      if (!lifetime.signal.aborted) releaseUiTest = mountUiTest({ root });
+    }).catch(error => console.error("Temporary UI test panel failed", error));
+  }
   window.addEventListener("pagehide", event => {
     if (event.persisted) input.cancel("page-hidden");
     else destroy();

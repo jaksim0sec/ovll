@@ -1,11 +1,11 @@
 # 프론트엔드 글로벌 시스템
 
-범위: `beta`의 App Shell, Page Host, Input Manager와 공통 스타일. Workspace·Library는 제목과 준비 중 문구만 표시하는 빈 페이지다. Chat·Canvas 내부, 실제 라이브러리, 도메인 상태, API, 저장소, 서비스워커는 구현하지 않았다.
+범위: `beta`의 App Shell, Page Host, Input Manager와 공통 스타일. Workspace·Library는 제목과 준비 중 문구만 표시하는 빈 페이지다. Chat·Canvas 내부, 실제 라이브러리, 도메인 상태, API, 서비스워커는 구현하지 않았다. 이후 로컬 저장 기반만 추가했으며 빈 페이지와 데이터는 연결하지 않는다.
 
 ## 진입·참조
 
 - 정적 배포 루트 `front/`, 진입점 `front/index.html`. HTTP 정적 서버로 실행한다. 예: 저장소 루트에서 `python3 -m http.server 8000 --directory front`, 이후 `http://localhost:8000/` 접속. ES Modules이므로 `file://` 실행 대상이 아니다.
-- 프레임워크·빌드·제품 외부 패키지 없음. HTML이 두 CSS와 `js/boot.js`만 로드하고 boot가 세 제어 모듈을 import한다.
+- 프레임워크·빌드·제품 외부 패키지 없음. HTML이 두 CSS와 `js/boot.js`만 로드한다. boot는 세 UI 제어 모듈 및 로컬 데이터 어댑터를 import하고, 테스트 모드는 조건부 import한다.
 - 외형 참조: `main`의 `front/css/style.css`, `front/css/shellMenu.css`, `front/js/shellMenu.js`, `front/index.html`, `front/css/ui.css`. 흑백 색상, 둥근 선 아이콘·컨트롤, 데스크톱 도킹·모바일 오버레이를 참고했다. 기존 Store·Navigation·전역 객체·히스토리·제스처 구현은 가져오지 않았다.
 - 기존 `docs/developing/`의 요청 처리·맥락·작업실 명세는 이번 프론트와 연결하지 않는다. 이번 작업 이전에는 프론트 전용 구현 명세가 없었다.
 
@@ -97,3 +97,9 @@
 - 입력 소유 충돌·거절·취소·signal abort·해제, 페이지 전환 후 이벤트·입력 제거, 재진입 새 수명, 진입 실패 정리, 훅 안의 Host 종료를 확인.
 - 콘솔 오류·모듈 로드 실패를 수집해 확인. 검증용 패키지·스크립트·전역 객체는 제품 소스에 추가하지 않는다.
 - 실제 Android/iOS·Safari·Firefox, 물리 기기의 노치·브라우저 툴바, BFCache 왕복은 미검증. 안전 영역은 env 토큰, 높이는 100dvh와 100% fallback으로 대응한다. 배포 설정·서비스워커를 변경하거나 별도 배포하지 않는다.
+
+## 후속 beta: 로컬 데이터 저장·임시 UI 테스트
+
+- `front/js/data/localDataStore.js`: 미래 서버/DB 원본 예정 캐시와 로컬 전용 UI 상태를 IndexedDB의 별도 저장 영역으로 보관. boot가 수명만 관리하며 실제 페이지 데이터 연결은 하지 않는다.
+- 독립 캐시 계약·미확정 동기화 경계: `docs/developing/frontend-data.md` 참고. 서버가 없는 현재 임시 저장을 서버 확정 데이터라고 취급하지 않는다.
+- `?ui-test=1`일 때만 `front/js/dev/uiTest.js`, `front/css/uiTest.css`를 불러온다. 테마·페이지 높이·입력기 목업 높이 테스트 목적의 **TEMPORARY** 코드이며 제품 Composer가 아니다. 제거 위치는 위 문서에 명시.
