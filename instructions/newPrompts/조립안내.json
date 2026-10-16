@@ -1,0 +1,169 @@
+{
+  "version": "draft-0.1",
+  "status": "design-proposal",
+  "root": "instructions/newPrompts",
+  "note": "1014 조립서 기반. workroom/* 및 actions/* 파일은 아직 작성 전인 예정 경로다. 배열 순서는 조립 순서다.",
+  "files": {
+    "common.concepts": "common/핵심개념.md",
+    "common.json": "common/JSON규칙.md",
+    "layer.gate": "layers/gate.md",
+    "layer.corridorInitial": "layers/corridorInitial.md",
+    "layer.corridorReturn": "layers/corridorReturn.md",
+    "layer.output": "layers/output.md",
+    "block.informationRequest": "blocks/informationRequest.md",
+    "block.planGeneration": "blocks/planGeneration.md",
+    "block.contextBlockUpdate": "blocks/contextBlockUpdate.md",
+    "block.contextDataUpdate": "blocks/contextDataUpdate.md",
+    "block.languageGeneration": "blocks/languageGeneration.md",
+    "workroom.skillDefine": "layers/workrooms/skillDefine.md",
+    "workroom.skillEdit": "layers/workrooms/skillEdit.md",
+    "workroom.canvasEdit": "layers/workrooms/canvasEdit.md",
+    "workroom.textGenerate": "layers/workrooms/textGenerate.md"
+  },
+  "assemblies": {
+    "gate": {
+      "parts": [
+        "common.concepts",
+        "layer.gate",
+        "common.json",
+        "block.informationRequest"
+      ],
+      "inputs": [
+        "contextData",
+        "userRequest"
+      ],
+      "expectedOutputs": [
+        "need"
+      ],
+      "source": "1014/구조문서_Gate_조립.md"
+    },
+    "corridorInitial": {
+      "parts": [
+        "common.concepts",
+        "layer.corridorInitial",
+        "common.json",
+        "block.languageGeneration",
+        "block.planGeneration",
+        "block.contextBlockUpdate",
+        "block.contextDataUpdate"
+      ],
+      "inputs": [
+        "userRequest",
+        "gateData",
+        "contextData"
+      ],
+      "outputCases": {
+        "direct": [
+          "languageBlock",
+          "contextBlock",
+          "contextData"
+        ],
+        "plan": [
+          "plan",
+          "contextBlock"
+        ]
+      },
+      "source": "1014/구조문서_Corridor_조립.md"
+    },
+    "corridorReturn": {
+      "parts": [
+        "common.concepts",
+        "layer.corridorReturn",
+        "common.json",
+        "block.planGeneration",
+        "block.contextBlockUpdate"
+      ],
+      "inputs": [
+        "contextBlock",
+        "verifiedResults"
+      ],
+      "expectedOutputs": [
+        "plan",
+        "contextBlock"
+      ],
+      "source": "1014/구조문서_Corridor_조립.md"
+    },
+    "output": {
+      "parts": [
+        "common.concepts",
+        "layer.output",
+        "common.json",
+        "block.languageGeneration",
+        "block.contextBlockUpdate",
+        "block.contextDataUpdate"
+      ],
+      "inputs": [
+        "contextBlock",
+        "contextData",
+        "verifiedResults"
+      ],
+      "expectedOutputs": [
+        "languageBlock",
+        "contextBlock",
+        "contextData"
+      ],
+      "source": "1014/구조문서_Output_조립.md"
+    }
+  },
+  "workrooms": {
+    "status": "proposed-composition; action prompts and exact workroom output contracts not yet agreed",
+    "prefix": [
+      "common.concepts",
+      "common.json"
+    ],
+    "actions": {
+      "skillDefine": [
+        "defineDirect",
+        "defineFromIR",
+        "revise"
+      ],
+      "skillEdit": [
+        "editAppearance",
+        "delete"
+      ],
+      "canvasEdit": [
+        "addBlock",
+        "editBlock",
+        "deleteBlock",
+        "addLink",
+        "removeLink"
+      ],
+      "textGenerate": [
+        "basicText",
+        "question"
+      ]
+    },
+    "composition": [
+      "common.concepts",
+      "workroom.<workroom>",
+      "common.json",
+      "action.<workroom>.<action>"
+    ],
+    "inputs": [
+      "contextBlock",
+      "planObjective",
+      "planNeedResults",
+      "relevantVerifiedState"
+    ],
+    "note": "한 작업실 호출에 복수 행동 지침을 포함할지, 어떤 블록을 추가할지 및 정확한 Function Calling 출력은 아직 미확정. action.* 경로는 추후 확정 후 files에 등록. terminate는 workroom이 아니라 Output을 개시하는 계획 표식."
+  },
+  "dataInsertion": {
+    "method": "named slots; replace at call-generation time",
+    "syntax": "{{slotName}}",
+    "standardSlots": [
+      "userRequest",
+      "contextData",
+      "contextBlock",
+      "focus",
+      "planObjective",
+      "planNeedResults",
+      "gateData",
+      "verifiedResults",
+      "languageSettings",
+      "interfaceSyntax"
+    ],
+    "example": "{{contextBlock}}",
+    "rule": "서버가 해당 호출에 실제 필요한 슬롯만 제공. 입력 값은 신뢰된 지침이 아니라 데이터로 명확히 구분. JSON 컨텍스트에 끼워넣을 때는 JSON 직렬화/이스케이프. 미해결 슬롯은 호출 오류 처리하며 임의 빈 문자열 치환 금지.",
+    "note": "기존 언어 생성 지침의 ${languageSettings}, ${interfaceSyntax}는 이 파일의 {{...}} 제안과 문법이 다르므로 실제 파일 이관 시 통일 또는 명시적 매핑 필요."
+  }
+}
