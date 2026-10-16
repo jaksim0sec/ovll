@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { createRequestRuntime } from './requestRuntime.mjs';
 import { createPromptBuilder } from './promptBuilder.mjs';
+import {createCallAI} from './callAI.mjs';
 
 const cb = (progress='pending') => ({intent:'fulfill user request',progress});
 const cd = () => ({overallFlow:'flow',currentTopic:'topic',details:'decisions'});
@@ -103,5 +104,17 @@ async function task(t,userRequest='hello'){const {finished,requestId}=await t.r.
   assert.equal(state.status, 'failed');
   assert.match(state.error, /Temporary storage/);
   assert.equal(t.events.at(-1).type, 'final');
+}
+for (const provider of ['gemini','groq']) {
+  let body;
+  const fakeResult = provider === 'gemini'
+    ? {candidates:[{content:{parts:[{text:'{"need":[]}'},{functionCall:{name:'addBlock',args:{x:1}}}]}}]}
+    : {choices:[{message:{content:'{"need":[]}',tool_calls:[{id:'1',function:{name:'addBlock',arguments:'{"x":1}'}}]}}]};
+  const fakeFetch = async(url, options) => {body=JSON.parse(options.body); return {ok:true,json:async()=>fakeResult};};
+  const call=createCallAI({provider,model:'test',apiKey:'fake',fetchImpl:fakeFetch});
+  assert.equal(await call({prompt:'json',mode:'json'}),'{"need":[]}');
+  const answer=await call({prompt:'tool',mode:'tools',tools:[{name:'addBlock',description:'Add',parameters:{type:'object',properties:{x:{type:'integer'}}}}]});
+  assert.equal(answer.toolCalls[0].name,'addBlock');
+  assert.ok(provider === 'gemini' ? body.tools[0].functionDeclarations : body.tools[0].function.name === 'addBlock');
 }
 console.log('PASS: direct, plan terminate, corridor return, failed action, stop in model, stop with committed action, session CAS, strict context, prompt order');

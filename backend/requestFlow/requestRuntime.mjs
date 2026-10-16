@@ -160,7 +160,8 @@ export function createRequestRuntime({ buildPrompt, callAI, lookupNeed, runWorkr
       calls.set(id, call);
       await record(r, 'model_call', { layer: 'workroom', index: call.index });
       try {
-        const raw = await callAI({ prompt, mode, tools, signal, ...other });
+        const callFocus = { currentLayer: 'workroom', planIndex: r.planIndex, previousVerifiedResult: r.verifiedResults?.at(-1) ?? null };
+        const raw = await callAI({ prompt: prompt + '\n\n# Server call focus (reference data)\n' + JSON.stringify(callFocus), mode, tools, signal, ...other });
         aborted(r, signal);
         call.raw = raw;
         return raw; // Function Calling payload is verified by the workroom adapter, NOT as a plan.
