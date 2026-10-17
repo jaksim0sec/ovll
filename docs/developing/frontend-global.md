@@ -133,3 +133,9 @@
 - Shell은 사이드바 토글 및 최상위 페이지명만 소유한다. 페이지명은 Shell 콘텐츠 영역의 수평 중앙에 배치하며 Hosted Page 알약이 표시되는 경우 숨기고 알약이 없으면 표시한다. Source of truth는 Hosted Slides의 실제 `pill.visible`이며 `onPillVisibilityChange` 콜백을 통해 Shell에 표시 상태를 전달한다. 알약 자체와 Stationary는 Shell 사이드바 버튼의 자식이 아닌 `[data-hosted-presentation]` 영역에서 관리한다.
 - `front/js/settings/theme.js`는 `system/dark/light` 사용자 선택을 관리한다. 임시 Chat과 SideMenu는 동일한 설정 소유자에 연결되고, 로컬 저장이 차단되어도 메모리에서 선택을 적용한다. `system`은 기존 OS 색상 선호 CSS가 해석한다.
 - 실제 Chat·Canvas·Composer·Library 도메인 기능이 아닌 **임시 시각 검수 픽스처**다. 실제 Android/iOS 키보드 애니메이션과 `main` 대비 픽셀 완전일치 검증은 이 테스트에서 주장하지 않는다.
+
+### 상단 글로벌 토글과 Hosted Pill의 시각 계약 (2026-10-18)
+
+- Shell의 사이드바 토글과 Hosted Slides의 알약은 **별도 책임/DOM 소유자**이다. 두 컨트롤이 맞닿는 상단 UI에서 높이 `--shell-top-control-height: 2.75rem`와 상단 위치 `--shell-top-control-top: calc(var(--safe-top) + .6875rem)`만 동일하게 사용한다. 해당 변수는 `.app-shell`이 제공한다. 모바일에서도 알약 높이를 독립적으로 2.6rem으로 축소하지 않는다.
+- 두 컨트롤의 유리 표면은 `--ui-glass`, `--ui-glass-strong`, `--ui-glass-sheen`, `--ui-glass-shadow`를 사용한다. main의 반투명 알약 팔레트(다크 rgba(28,29,32,.70), 라이트 rgba(255,255,255,.72))와 blur(.85rem)을 기본으로 하되, 평면 배경에서도 질감이 보이도록 약한 방향성 하이라이트와 inset 경계광을 더한다. 테마 system/dark/light에 따라 토큰을 전환한다.
+- **검수:** 브라우저에서 390px·428px·820px·1280px, 다크·라이트를 확인하고, 컨트롤 y/height 오차 1px 미만, 알약 클릭 전환, SPA 페이지 제목 대체 표시, 테마 전환, 모바일 메뉴 오버레이를 점검한다. 물리 모바일 장치별 투명도/성능은 별도 검수다.
