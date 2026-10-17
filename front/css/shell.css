@@ -1,15 +1,7 @@
-.app-shell {
-  --sidebar-width:19.25rem;
-  --shell-chrome-height:calc(4.35rem + var(--safe-top));
-  --content-offset:0px;
-  position:fixed;top:var(--shell-visible-top,0px);left:0;right:0;
-  height:var(--shell-visible-height,100dvh);overflow:hidden;background:var(--color-bg);
-  isolation:isolate;
-}
 /* One direct child interpolates page height, the outer frame immediately tracks the visible viewport. */
 .app-stage {
   position:absolute;top:0;left:0;right:0;height:var(--shell-stage-height,100%);
-  overflow:hidden;transition:height var(--shell-stage-duration,0ms) cubic-bezier(.2,.82,.2,1);
+  overflow:hidden;/* Height is interpolated by JS, not a second CSS transition. */
   isolation:isolate;
 }
 .shell-content{position:absolute;inset:0 0 0 var(--content-offset);min-width:0;overflow:hidden;transition:left var(--motion-duration) var(--motion-ease)}
@@ -25,7 +17,7 @@
 }
 .app-shell[data-layout="stacked"] .shell-header::before{bottom:0;background:var(--color-bg);border-bottom:1px solid var(--color-line)}
 .shell-header button{pointer-events:auto}
-.shell-page-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.92rem;font-weight:600;color:var(--color-secondary);margin-left:.05rem}
+.shell-page-title{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);max-width:calc(100% - 9rem);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center;font-size:.92rem;font-weight:600;color:var(--color-secondary)}
 .icon-button{width:2.75rem;min-height:2.75rem;display:grid;place-items:center;border-radius:999px;color:var(--color-secondary)}
 .menu-trigger{width:3rem;border:1px solid var(--color-line);background:color-mix(in srgb,var(--color-panel) 88%,transparent);backdrop-filter:blur(.7rem)}
 .icon-button:active,.nav-button:active{background:var(--color-active)}
@@ -55,3 +47,15 @@
 .is-docked .shell-menu-hint{display:none}
 @media(hover:hover){.icon-button:hover,.nav-button:hover{color:var(--color-text);background:var(--color-hover)}}
 @media(prefers-reduced-motion:reduce){.app-stage,.shell-content,.shell-menu{transition:none!important}}
+
+.hosted-root{position:relative;width:100%;height:100%;overflow:hidden;isolation:isolate}
+.hosted-viewport{position:absolute;inset:var(--stationary-reserve-top,0px) 0 var(--stationary-reserve-bottom,0px);width:100%;overflow:hidden;touch-action:pan-y;isolation:isolate}
+.hosted-track{position:absolute;inset:0;width:100%;height:100%;will-change:transform}
+.hosted-slide{position:absolute;top:0;left:calc(var(--slide-index,0) * 100%);width:100%;height:100%;overflow:hidden;background:var(--color-bg);contain:layout paint;backface-visibility:hidden}
+
+
+/* Global preference control lives in the SideMenu, not in Hosted Slides. */
+.shell-theme-field {display:flex;align-items:center;justify-content:space-between;gap:1rem;
+  margin:.85rem 1rem;padding:.75rem .65rem;color:var(--color-secondary);font-size:.8rem}
+.shell-theme-field select {min-width:7.4rem;border-radius:.8rem;border:1px solid var(--color-line);
+  background:var(--color-bg);color:var(--color-text);padding:.55rem .5rem;font:inherit}

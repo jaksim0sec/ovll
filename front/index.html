@@ -6,12 +6,15 @@
   <meta name="color-scheme" content="dark light">
   <title>Ovll · beta</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="./css/base.css">
-  <link rel="stylesheet" href="./css/shell.css">
-  <link rel="stylesheet" href="./css/hostedSlides.css">
-  <link rel="stylesheet" href="./css/uiTest.css">
-  <script type="module" src="./js/boot.js"></script>
-</head>
+  
+  
+  
+  
+  
+<link rel="stylesheet" href="./css/base.css">
+<link rel="stylesheet" href="./css/shell.css">
+<link rel="stylesheet" href="./css/hostedSlides.css">
+<link rel="stylesheet" href="./css/uiTest.css"></head>
 <body>
   <p id="boot-status" role="status">Ovll을 불러오는 중입니다</p>
   <div id="app" class="app-shell" data-layout="stacked" hidden>
@@ -34,6 +37,11 @@
             <span>라이브러리</span>
           </button>
         </nav>
+        <label class="shell-theme-field">테마
+          <select data-theme-select aria-label="테마 설정">
+            <option value="system">기기 설정</option><option value="dark">다크</option><option value="light">라이트</option>
+          </select>
+        </label>
         <p class="shell-menu-hint">모바일에서는 메뉴의 빈 영역을 왼쪽으로 밀어서 닫을 수 있어요.</p>
       </aside>
       <div class="shell-content">
@@ -46,8 +54,11 @@
         <main id="page-host" tabindex="-1" aria-label="페이지 영역"></main>
       </div>
     </div>
-    <div class="hosted-pill-host" data-hosted-pill hidden></div>
-    <div class="hosted-stationary-host" data-hosted-stationary></div>
+    <!-- Hosted Page presentation surface; separate from global navigation chrome. -->
+    <div class="hosted-presentation-root" data-hosted-presentation>
+      <div class="hosted-pill-host" data-hosted-pill hidden></div>
+      <div class="hosted-stationary-host" data-hosted-stationary></div>
+    </div>
   </div>
   <template id="workspace-template"><section class="demo-workspace" data-page="workspace" tabindex="-1" aria-label="워크스페이스 · 임시 화면"></section></template>
   <template id="library-template">
@@ -63,5 +74,5 @@
     </section>
   </template>
   <noscript>Ovll을 사용하려면 JavaScript를 활성화해 주세요.</noscript>
-</body>
+<script type="module" src="./js/boot.js"></script></body>
 </html>

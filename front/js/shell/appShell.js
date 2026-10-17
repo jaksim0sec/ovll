@@ -1,4 +1,4 @@
-import { decideViewportMotion } from './viewportMotion.js';
+import { createViewportMotion } from './viewportMotion.js';
 
 /** Shell alone owns global frame, menu, navigation chrome and layout mode. */
 export function createAppShell({ element, onNavigate, onMenuOpen = () => {} }) {
@@ -10,47 +10,37 @@ export function createAppShell({ element, onNavigate, onMenuOpen = () => {} }) {
   const backdrop = element.querySelector('.shell-backdrop');
   const title = element.querySelector('[data-page-title]');
   const navigation = [...menu.querySelectorAll('[data-page]')];
-  const pill = element.querySelector('[data-hosted-pill]');
-  const stationary = element.querySelector('[data-hosted-stationary]');
+  const presentation = element.querySelector('[data-hosted-presentation]');
   const desktop = matchMedia('(min-width: 43.76rem) and (hover: hover) and (pointer: fine), (min-width: 60.01rem)');
   const viewport = window.visualViewport;
   let open = false;
   let destroyed = false;
   let scheduled = null;
-  let lastHeight = null;
-  let lastChangeAt = -Infinity;
-  let lastTop = null;
+
   let rotating = false;
   let gesture = null;
 
+  // Browser bounds and stage motion share a single JS clock. The renderer
+  // never displays its frame outside the most recently measured visible rect.
+  const frameMotion = createViewportMotion({
+    reducedMotion: () => matchMedia('(prefers-reduced-motion: reduce)').matches,
+    onFrame: ({frameTop, frameHeight, stageHeight, mode}) => {
+      if (destroyed) return;
+      element.style.setProperty('--shell-visible-top', `${frameTop.toFixed(2)}px`);
+      element.style.setProperty('--shell-visible-height', `${frameHeight.toFixed(2)}px`);
+      element.style.setProperty('--shell-stage-height', `${stageHeight.toFixed(2)}px`);
+      element.dataset.viewportMotion = mode;
+    }
+  });
   function syncViewport() {
     if (destroyed) return;
     const visualHeight = viewport?.height;
     const fallback = window.innerHeight || document.documentElement.clientHeight || 1;
-    let height = Math.max(1, Math.round(Number.isFinite(visualHeight) && visualHeight > 0 ? visualHeight : fallback));
+    const height = Math.max(1, Number.isFinite(visualHeight) && visualHeight > 0 ? visualHeight : fallback);
     const offset = viewport?.offsetTop;
-    const top = Number.isFinite(offset) ? Math.round(offset) : 0;
-    if (lastHeight === height && lastTop === top && !rotating) return;
-    const now = performance.now();
-    const motion = lastHeight === null ? 'immediate' : decideViewportMotion({
-      previousHeight: lastHeight, height, elapsed: now - lastChangeAt, orientation: rotating
-    });
+    const top = Number.isFinite(offset) ? offset : 0;
+    frameMotion.update({ height, top, orientation: rotating });
     rotating = false;
-    // Ignore subpixel height jitter while still updating a genuine viewport offset.
-    if (motion === 'stable' && lastHeight !== null) {
-      if (lastTop === top) return;
-      height = lastHeight; // ignore fractional jitter; only genuine top movement propagates
-    } else {
-      lastHeight = height;
-      lastChangeAt = now;
-    }
-    lastTop = top;
-    element.style.setProperty('--shell-visible-height', `${height}px`);
-    element.style.setProperty('--shell-visible-top', `${top}px`);
-    element.style.setProperty('--shell-stage-height', `${height}px`);
-    element.dataset.viewportMotion = motion;
-    const duration = motion === 'shrinking' ? '120ms' : motion === 'growing' ? '140ms' : motion === 'tracking' ? '65ms' : '0ms';
-    element.style.setProperty('--shell-stage-duration', duration);
   }
   function scheduleViewport() {
     if (destroyed || scheduled !== null) return;
@@ -73,8 +63,7 @@ export function createAppShell({ element, onNavigate, onMenuOpen = () => {} }) {
     menu.inert = !open;
     menu.setAttribute('aria-hidden', String(!open));
     content.inert = modal();
-    pill.inert = modal();
-    stationary.inert = modal();
+    presentation.inert = modal();
     backdrop.hidden = !modal();
     if (modal()) {
       menu.setAttribute('role', 'dialog');
@@ -159,6 +148,7 @@ export function createAppShell({ element, onNavigate, onMenuOpen = () => {} }) {
     getMenuOpen: () => open,
     isModalOpen: modal,
     setMenuOpen,
+    setHostedPillVisible(visible) { title.hidden=Boolean(visible); },
     setPresentationMode(mode) {
       if (!['immersive','stacked'].includes(mode)) throw new TypeError('Unknown page layout');
       element.dataset.layout = mode;
@@ -178,7 +168,9 @@ export function createAppShell({ element, onNavigate, onMenuOpen = () => {} }) {
       destroyed = true;
       lifetime.abort();
       if (scheduled !== null) cancelAnimationFrame(scheduled);
-      for (const key of ['--shell-visible-height','--shell-visible-top','--shell-stage-height','--shell-stage-duration','--menu-drag-x','--menu-drag-progress']) element.style.removeProperty(key);
+      frameMotion.destroy();
+      for (const key of ['--shell-visible-height','--shell-visible-top','--shell-stage-height','--menu-drag-x','--menu-drag-progress']) element.style.removeProperty(key);
     }
   };
 }
+

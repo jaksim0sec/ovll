@@ -1,5 +1,5 @@
 /** TEMPORARY visual gesture/viewport fixture; no Chat or Canvas domain logic. */
-export function mountUiTest({workspace}) {
+export function mountUiTest({workspace,theme}) {
   const lifetime=new AbortController();const {signal}=lifetime;
   const chat=document.createElement('section');chat.className='fixture-slide fixture-chat';
   const canvas=document.createElement('section');canvas.className='fixture-slide fixture-canvas';
@@ -19,6 +19,11 @@ export function mountUiTest({workspace}) {
         <button type="button" data-demo-pill>알약 숨기기</button>
         <button type="button" data-demo-third>세 번째 슬라이드 추가</button>
       </div>
+      <label class="fixture-theme-field">화면 테마
+        <select data-demo-theme aria-label="임시 테마 변경">
+          <option value="system">기기 설정</option><option value="dark">다크</option><option value="light">라이트</option>
+        </select>
+      </label>
     </div>
     <div class="fixture-notice">입력창은 화면 전환에 참여하지 않습니다. 키보드 실행과 회전, 데스크톱 창 크기 변경을 시험할 수 있습니다.</div>
   </div></div>`;
@@ -43,6 +48,13 @@ export function mountUiTest({workspace}) {
   chat.querySelector('[data-demo-layout]').addEventListener('click',()=>{stacked=!stacked;configure();},{signal});
   chat.querySelector('[data-demo-pill]').addEventListener('click',()=>{pillVisible=!pillVisible;configure();},{signal});
   chat.querySelector('[data-demo-third]').addEventListener('click',()=>{thirdVisible=!thirdVisible;configure();},{signal});
+  const testTheme=chat.querySelector('[data-demo-theme]');
+  if(theme){
+    testTheme.value=theme.getTheme();
+    const unsubscribe=theme.subscribe(next=>{testTheme.value=next;});
+    signal.addEventListener('abort',unsubscribe,{once:true});
+    testTheme.addEventListener('change',()=>theme.setTheme(testTheme.value),{signal});
+  }
   composer.querySelector('[data-mock-send]').addEventListener('click',()=>{composer.querySelector('textarea').focus();},{signal});
   return {
     getPresentation:()=>({root:workspace,layout:stacked?'stacked':'immersive',pill:{visible:pillVisible},slides:thirdVisible?[...slides,withThird]:slides,stationary:[{id:'composer',slot:'bottom',element:composer}]}),
@@ -50,3 +62,4 @@ export function mountUiTest({workspace}) {
     destroy(){lifetime.abort();controller=null;}
   };
 }
+

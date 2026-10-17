@@ -1,7 +1,5 @@
-.hosted-root{position:relative;width:100%;height:100%;overflow:hidden;isolation:isolate}
-.hosted-viewport{position:absolute;inset:var(--stationary-reserve-top,0px) 0 var(--stationary-reserve-bottom,0px);width:100%;overflow:hidden;touch-action:pan-y;isolation:isolate}
-.hosted-track{position:absolute;inset:0;width:100%;height:100%;will-change:transform}
-.hosted-slide{position:absolute;top:0;left:calc(var(--slide-index,0) * 100%);width:100%;height:100%;overflow:hidden;background:var(--color-bg);contain:layout paint;backface-visibility:hidden}
+.hosted-presentation-root{position:absolute;inset:0;z-index:16;pointer-events:none}
+.app-shell.menu-open:not(.is-docked) .hosted-presentation-root{visibility:hidden}
 .hosted-pill-host{position:absolute;z-index:18;top:calc(var(--safe-top) + .75rem);left:calc(var(--content-offset) + (100% - var(--content-offset)) / 2);transform:translateX(-50%);max-width:calc(100% - var(--content-offset) - 8rem);pointer-events:none}
 .hosted-pill{
   position:relative;display:grid;grid-auto-columns:minmax(0,1fr);grid-auto-flow:column;gap:0;
@@ -22,8 +20,9 @@
 .stationary-slot[data-slot="bottom"]{bottom:0}
 .stationary-slot[data-slot="overlay"]{inset:0}
 .stationary-slot>*{pointer-events:auto}
-.app-shell[data-layout="stacked"] .hosted-pill-host{top:calc(var(--safe-top) + .75rem)}
 @media(max-width:26.25rem){.hosted-pill-host{max-width:calc(100% - var(--content-offset) - 7rem)}.hosted-pill{height:2.6rem}.hosted-pill button{font-size:.8rem}}
 @media(prefers-reduced-motion:reduce){.hosted-pill-thumb{transition:none}}
 /* Hosted track placement must win over a page's own .fixture-slide display rules. */
 .hosted-track > .hosted-slide { position:absolute; top:0; left:calc(var(--slide-index,0) * 100%); }
+
+

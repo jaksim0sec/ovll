@@ -125,3 +125,11 @@
 - 신규 `front/js/shell/viewportMotion.js`: 실제 뷰포트 측정 책임을 갖지 않고 Shell 내부의 보간 상태(`immediate|tracking|shrinking|growing|stable`)를 결정한다.
 - `front/js/boot.js`가 생명주기를 연결한다. Page Host `signal`이 종료되면 Hosted Slides가 알약과 stationary 요소를 해제한다. Page Host만 Workspace/Library의 활성 ID를 보관한다. `main`/배포 설정 변경 없음.
 - 검증: Node 3개 계약 테스트, Playwright Chromium 데스크톱/모바일 에뮬레이션에서 모드/알약/3슬라이드/입력기 유지/Library 왕복과 합성 터치/모의 VisualViewport 높이 테스트. 실제 Android/iOS·Safari·키보드 애니메이션·PWA 실기기는 **미검증**.
+
+
+## 2026-10-18: 브라우저 프레임 보간·Hosted 표시·테마 검수
+
+- `front/js/shell/viewportMotion.js`의 `createViewportMotion`: 브라우저 VisualViewport 실측값을 App Shell이 받아 JS requestAnimationFrame 하나로 외부 프레임과 내부 Stage 보간을 함께 수행한다. 외부 프레임은 마지막 실제 가시 영역으로 잘라 키보드 뒤에 노출되지 않게 하고, 내부 Stage는 65ms 연속 갱신 / 120ms 축소 / 140ms 확대를 출발값으로 사용한다. 회전과 동작 축소 선호에서는 즉시 적용. CSS height 전환을 중첩하지 않으며 실제 모바일 키보드 동작은 실기기 검증 필요.
+- Shell은 사이드바 토글 및 최상위 페이지명만 소유한다. 페이지명은 Shell 콘텐츠 영역의 수평 중앙에 배치하며 Hosted Page 알약이 표시되는 경우 숨기고 알약이 없으면 표시한다. Source of truth는 Hosted Slides의 실제 `pill.visible`이며 `onPillVisibilityChange` 콜백을 통해 Shell에 표시 상태를 전달한다. 알약 자체와 Stationary는 Shell 사이드바 버튼의 자식이 아닌 `[data-hosted-presentation]` 영역에서 관리한다.
+- `front/js/settings/theme.js`는 `system/dark/light` 사용자 선택을 관리한다. 임시 Chat과 SideMenu는 동일한 설정 소유자에 연결되고, 로컬 저장이 차단되어도 메모리에서 선택을 적용한다. `system`은 기존 OS 색상 선호 CSS가 해석한다.
+- 실제 Chat·Canvas·Composer·Library 도메인 기능이 아닌 **임시 시각 검수 픽스처**다. 실제 Android/iOS 키보드 애니메이션과 `main` 대비 픽셀 완전일치 검증은 이 테스트에서 주장하지 않는다.

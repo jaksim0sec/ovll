@@ -110,3 +110,11 @@
 
 - 현지 Node `node --test tests/frontend/hosted-contracts.test.mjs` 및 로컬 Playwright Chromium 데스크톱(1280×800), 모바일 에뮬레이션(390×844) 실험: Chat→Canvas 터치, Canvas 본문 제스처 거부, 알약 이동, 2↔3 슬라이드, immersive↔stacked, Composer 입력 유지, Library 왕복, 가상 VisualViewport 높이/offsetTop 변경.
 - 실제 Android/iOS Safari 환경, 실제 소프트키보드 animation/overscroll/PWA, 물리 모바일 터치·멀티터치와 main 비교 스크린샷 **미검증**. 임시 실험 화면이 제품 UI 구현을 의미하지 않는다.
+
+
+### 2026-10-18 검수 조정
+
+- `Shell`의 메뉴 토글과 Hosted 알약은 **각기 다른 표현 소유권**이다. 메뉴 버튼은 Shell 안에 남지만, 알약과 고정 컨트롤은 `[data-hosted-presentation]` 아래에서 별도 배치한다.
+- 글로벌 상단 페이지명은 현재 페이지에 알약이 없을 때만 중앙에 표시한다. `HostedSlides`의 `onPillVisibilityChange` 콜백으로 이를 반영하며, 슬라이드·알약 상태의 단일 원본을 Shell에 중복 생성하지 않는다.
+- `VisualViewport` 높이·오프셋에 대한 `createViewportMotion` JS 보간(프레임 안전영역 제한, 내부 Stage 재지향)은 현재 `beta`의 시험 구현이다. 화면 보간의 물리 키보드·모바일 브라우저별 품질은 별도 실기기 검수가 필요하다.
+- `ThemeSettings`의 `system/dark/light`는 SideMenu와 임시 Chat에서 같은 값을 관측·수정할 수 있다.

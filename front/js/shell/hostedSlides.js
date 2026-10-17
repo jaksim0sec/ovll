@@ -22,7 +22,7 @@ export function normalizePresentation({ layout='immersive', pill={}, slides=[], 
 }
 
 /** One active Hosted Page at a time; overlays may outlive swipe transitions, not page lifetime. */
-export function createHostedSlides({ pillHost, stationaryHost, input, onLayout=()=>{}, isBlocked=()=>false }) {
+export function createHostedSlides({ pillHost, stationaryHost, input, onLayout=()=>{}, onPillVisibilityChange=()=>{}, isBlocked=()=>false }) {
   let active=null;
   let destroyed=false;
   function cancel(reason='external') {active?.cancel(reason);}
@@ -40,6 +40,7 @@ export function createHostedSlides({ pillHost, stationaryHost, input, onLayout=(
     let closed=false;
     let animationId=0;
     let suppressedClick=false;
+    let lastPillVisible=null;
     const lifetime=new AbortController();
     const abort=()=>deactivate();
     const viewport=document.createElement('div');
@@ -70,6 +71,10 @@ export function createHostedSlides({ pillHost, stationaryHost, input, onLayout=(
       pillNode.style.setProperty('--pill-count',String(Math.max(1,n)));
       pillNode.hidden=!config.pill.visible;
       pillHost.hidden=!config.pill.visible;
+      if(lastPillVisible!==config.pill.visible) {
+        lastPillVisible=config.pill.visible;
+        onPillVisibilityChange(config.pill.visible);
+      }
       for(let i=0;i<n;i++) {
         const slide=config.slides[i];
         slide.element.style.opacity=String(1-.08*clamp(Math.abs(i-progress),0,1));
@@ -284,6 +289,7 @@ export function createHostedSlides({ pillHost, stationaryHost, input, onLayout=(
         bodyOwner.unregister();pillOwner.unregister();
         resizeObserver?.disconnect();
         pillHost.replaceChildren();pillHost.hidden=true;
+        onPillVisibilityChange(false);
         stationaryHost.replaceChildren();
         root.style.removeProperty('--stationary-reserve-top');root.style.removeProperty('--stationary-reserve-bottom');
         root.classList.remove('hosted-root');
@@ -301,3 +307,4 @@ export function createHostedSlides({ pillHost, stationaryHost, input, onLayout=(
   }
   return {activateForPage,cancel,destroy(){if(destroyed)return;destroyed=true;deactivate();}};
 }
+

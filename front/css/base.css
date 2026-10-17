@@ -1,3 +1,4 @@
+
 :root {
   color-scheme: dark;
   --color-bg: #060606;
@@ -42,3 +43,27 @@ svg{display:block;width:1.4rem;height:1.4rem;flex:0 0 auto;fill:none;stroke:curr
 @media(max-width:43.75rem){:root{font-size:16.25px}}
 @media(max-width:26.25rem){:root{font-size:15.75px}}
 @media(prefers-reduced-motion:reduce){:root{--motion-duration:0s}}
+
+.app-shell {
+  --sidebar-width:19.25rem;
+  --shell-chrome-height:calc(4.35rem + var(--safe-top));
+  --content-offset:0px;
+  position:fixed;top:var(--shell-visible-top,0px);left:0;right:0;
+  height:var(--shell-visible-height,100dvh);overflow:hidden;background:var(--color-bg);
+  isolation:isolate;
+}
+
+
+/* User preference wins over the OS, but system mode remains OS-responsive. */
+:root[data-theme="dark"] {
+  color-scheme:dark;--color-bg:#060606;--color-panel:#171717;--color-text:#f7f7f7;
+  --color-secondary:#b3b3b3;--color-line:rgb(255 255 255 / 9%);
+  --color-hover:rgb(255 255 255 / 5%);--color-active:rgb(255 255 255 / 9%);
+  --color-backdrop:rgb(0 0 0 / 24%);
+}
+:root[data-theme="light"] {
+  color-scheme:light;--color-bg:#f5f6f8;--color-panel:#fff;--color-text:#15171a;
+  --color-secondary:#676c74;--color-line:rgb(31 39 52 / 7%);
+  --color-hover:rgb(31 39 52 / 4%);--color-active:rgb(31 39 52 / 8%);
+  --color-backdrop:rgb(0 0 0 / 20%);
+}

@@ -47,3 +47,11 @@
 @media(max-width:43.75rem){.fixture-chat-inner{padding-left:1rem;padding-right:1rem}.fixture-canvas-badge{top:calc(var(--shell-chrome-height) + .3rem);max-width:19rem}.fixture-node{transform:scale(.85)}.fixture-canvas-foot{bottom:7rem}}
 
 .demo-library-slide{overflow-y:auto;overscroll-behavior:contain;height:100%;}
+
+
+
+.fixture-theme-field{display:flex;justify-content:space-between;align-items:center;gap:1rem;
+  margin-top:1rem;padding-top:1rem;border-top:1px solid var(--color-line);
+  font-size:.77rem;color:var(--color-secondary)}
+.fixture-theme-field select{font:inherit;color:var(--color-text);background:var(--color-bg);
+  border:1px solid var(--color-line);border-radius:.65rem;padding:.5rem .65rem}
