@@ -21,8 +21,15 @@ export function normalizePresentation({ layout='immersive', pill={}, slides=[], 
   return {layout,pill:{visible:requested && validated.length>=2,requested},slides:validated,stationary:fixed};
 }
 
+/** Crossing the start boundary opens the drawer only from an eligible body swipe.
+ * A sufficiently long deliberate drag or a shorter, fast flick counts. */
+export function shouldOpenStartDrawer({slideIndex,kind,allowContentSwipe,dx,width,speed,drag,denied}) {
+  if(slideIndex!==0 || kind!=='body' || !allowContentSwipe || !drag || denied || dx<=0)return false;
+  return dx>=Math.max(52,width*.22) || (dx>=24 && speed>.34);
+}
+
 /** One active Hosted Page at a time; overlays may outlive swipe transitions, not page lifetime. */
-export function createHostedSlides({ pillHost, stationaryHost, input, onLayout=()=>{}, onPillVisibilityChange=()=>{}, isBlocked=()=>false }) {
+export function createHostedSlides({ pillHost, stationaryHost, input, onLayout=()=>{}, onPillVisibilityChange=()=>{}, onSwipePastStart=()=>{}, isBlocked=()=>false }) {
   let active=null;
   let destroyed=false;
   function cancel(reason='external') {active?.cancel(reason);}
@@ -238,6 +245,13 @@ export function createHostedSlides({ pillHost, stationaryHost, input, onLayout=(
       interaction=null;
       if(!gesture)return;
       if(!gesture.drag){stop();progress=current;paint();return;}
+      if(shouldOpenStartDrawer({slideIndex:current,kind:gesture.kind,
+        allowContentSwipe:owner()?.allowContentSwipe,dx:gesture.lastX-gesture.startX,
+        width:width(),speed:gesture.speed,drag:gesture.drag,denied:gesture.denied})) {
+        stop();progress=current;paint();
+        onSwipePastStart({slideId:owner()?.id});
+        return;
+      }
       const distance=progress-gesture.base;
       let target=Math.round(progress);
       if(Math.abs(gesture.speed)>.34){

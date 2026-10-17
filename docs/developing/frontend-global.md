@@ -139,3 +139,16 @@
 - Shell의 사이드바 토글과 Hosted Slides의 알약은 **별도 책임/DOM 소유자**이다. 두 컨트롤이 맞닿는 상단 UI에서 높이 `--shell-top-control-height: 2.75rem`와 상단 위치 `--shell-top-control-top: calc(var(--safe-top) + .6875rem)`만 동일하게 사용한다. 해당 변수는 `.app-shell`이 제공한다. 모바일에서도 알약 높이를 독립적으로 2.6rem으로 축소하지 않는다.
 - 두 컨트롤의 유리 표면은 `--ui-glass`, `--ui-glass-strong`, `--ui-glass-sheen`, `--ui-glass-shadow`를 사용한다. main의 반투명 알약 팔레트(다크 rgba(28,29,32,.70), 라이트 rgba(255,255,255,.72))와 blur(.85rem)을 기본으로 하되, 평면 배경에서도 질감이 보이도록 약한 방향성 하이라이트와 inset 경계광을 더한다. 테마 system/dark/light에 따라 토큰을 전환한다.
 - **검수:** 브라우저에서 390px·428px·820px·1280px, 다크·라이트를 확인하고, 컨트롤 y/height 오차 1px 미만, 알약 클릭 전환, SPA 페이지 제목 대체 표시, 테마 전환, 모바일 메뉴 오버레이를 점검한다. 물리 모바일 장치별 투명도/성능은 별도 검수다.
+
+
+### Hosted Slides 좌측 경계와 글로벌 SideMenu 제스처
+
+- 가장 왼쪽 내부 슬라이드(index 0)가 `allowContentSwipe:true`를 선언한 경우에만 본문 오른쪽 드래그를 **왼쪽 경계를 넘는 메뉴 열기 의도**로 해석한다. 본문 스와이프에서 `dx >= max(52px, viewportWidth × 22%)`이거나, `dx >= 24px` 이면서 `speed > .34px/ms`일 때 커밋한다.
+- `onSwipePastStart({slideId})`는 Hosted Slides의 선택적 출력 계약이고, Boot가 기존 `shell.setMenuOpen(true)`에 연결한다. Hosted Slides는 SideMenu의 DOM/기능을 직접 수정하지 않는다. 메뉴가 이미 열려 있으면 재오픈하지 않는다.
+- 알약 드래그, 첫 슬라이드 외 다른 슬라이드의 스와이프, `allowContentSwipe:false`(Canvas), 세로 스크롤·편집기/버튼 및 취소된 제스처는 메뉴를 열지 않는다. 역방향 Chat→Canvas 전환도 유지한다.
+
+### 얇은 글로벌 베일과 반투명 글라스
+
+- Immersive 상단 헤더 베일은 기존 95~100%에 가까운 불투명 그라데이션 대신 `--color-bg` 26%→12%→0%의 얇은 그라데이션과 3px backdrop blur, 점차 사라지는 마스크를 사용한다. Stacked 헤더는 콘텐츠 공간을 점유하므로 일반 불투명 표면으로 유지한다.
+- 임시 Composer의 하단 베일 역시 24%→10%→0% 그라데이션과 3px blur로 낮추고, 베일이 슬라이드에 따라 잘리지 않도록 정지형 요소에 유지한다.
+- 알약과 토글 표면은 별도 소유권 및 공동 높이/상단 위치 기준을 유지한다. 다크 유리 alpha .38(선택 영역 .58), 라이트 .48(선택 영역 .65)이며 내부 inset 반사광을 사용하지 않는다. `backdrop-filter`는 약한 0.5rem 블러. 균일한 배경에서는 블러 차이가 작을 수 있으므로 시각 품질은 실제 콘텐츠 배경에서 추가 검수한다.

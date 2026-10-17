@@ -32,7 +32,7 @@
 .fixture-third-inner{padding:1rem 2rem;max-width:28rem;text-align:center}
 .fixture-third-inner p{margin:0}
 .fixture-composer{position:relative;pointer-events:none;padding:1.2rem max(.65rem,var(--safe-right)) calc(.7rem + var(--safe-bottom));}
-.fixture-composer-veil{position:absolute;inset:-2rem 0 0;z-index:-1;background:linear-gradient(to top,var(--color-bg),color-mix(in srgb,var(--color-bg) 89%,transparent) 60%,transparent);pointer-events:none}
+.fixture-composer-veil{position:absolute;inset:-2rem 0 0;z-index:-1;background:linear-gradient(to top,color-mix(in srgb,var(--color-bg) 24%,transparent),color-mix(in srgb,var(--color-bg) 10%,transparent) 60%,transparent);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);mask-image:linear-gradient(to top,#000 50%,transparent);-webkit-mask-image:linear-gradient(to top,#000 50%,transparent);pointer-events:none}
 .fixture-composer-box{max-width:41rem;margin:auto;border:1px solid var(--color-line);border-radius:1.35rem;background:color-mix(in srgb,var(--color-panel) 80%,transparent);backdrop-filter:blur(.85rem);padding:.5rem .75rem .6rem;box-shadow:0 0 18px rgb(0 0 0 / 6%);pointer-events:auto}
 .fixture-composer-label{display:block;font-size:.65rem;font-weight:600;letter-spacing:.035em;color:var(--color-secondary);padding:.1rem .4rem .38rem}
 .fixture-composer-row{display:flex;align-items:end;gap:.5rem}

@@ -27,7 +27,7 @@ function destroy(){
 try{
   pages=createPageHost({element:document.querySelector('#page-host'),onChange:id=>shell.setActivePage(id)});
   shell=createAppShell({element:root,onNavigate:id=>{input.cancel('page-change');hosted.cancel('page-change');pages.activate(id)},onMenuOpen:()=>{input.cancel('menu-open');hosted?.cancel('menu-open')}});
-  hosted=createHostedSlides({pillHost:root.querySelector('[data-hosted-pill]'),stationaryHost:root.querySelector('[data-hosted-stationary]'),input,onLayout:mode=>shell.setPresentationMode(mode),onPillVisibilityChange:visible=>shell.setHostedPillVisible(visible),isBlocked:()=>shell.isModalOpen()});
+  hosted=createHostedSlides({pillHost:root.querySelector('[data-hosted-pill]'),stationaryHost:root.querySelector('[data-hosted-stationary]'),input,onLayout:mode=>shell.setPresentationMode(mode),onPillVisibilityChange:visible=>shell.setHostedPillVisible(visible),onSwipePastStart:()=>{if(!shell.getMenuOpen())shell.setMenuOpen(true)},isBlocked:()=>shell.isModalOpen()});
   const workspace=document.querySelector('#workspace-template').content.firstElementChild.cloneNode(true);
   fixture=mountUiTest({workspace,theme});
   pages.register('workspace',{element:workspace,onEnter:({signal})=>fixture.setController(hosted.activateForPage({...fixture.getPresentation(),signal})),onLeave:()=>{fixture.setController(null)}});
