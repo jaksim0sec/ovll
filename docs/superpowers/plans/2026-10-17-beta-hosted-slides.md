@@ -1,5 +1,7 @@
 # Beta Hosted Page Slides & Pill Gesture Implementation Plan
 
+> **실행 전 보완 필요 (2026-10-17):** 사용자가 Hosted Page별 `stationary` 스와이프 독립 요소와 `layout: immersive|stacked` 모드를 추가 요청했다. `docs/notes/frontend-layout-and-viewport-amendment.md` B/C항 검토·승인 후 Task 2·4 API/렌더/검증을 갱신해야 한다.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Re-create main's Chat↔Canvas pill and horizontal slide gesture/detail as a page-declared, global Hosted Page control, supporting 1/2/N slides, mouse and touch, while preserving SideMenu and Canvas ownership.
