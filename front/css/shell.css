@@ -1,9 +1,14 @@
 .app-shell {
   --sidebar-width: 19.25rem;
-  position: relative;
+  /* VisualViewport is measured by App Shell. CSS-only 100dvh stays as fallback. */
+  position: fixed;
+  top: var(--shell-visible-top, 0px);
+  left: 0;
+  right: 0;
   width: 100%;
   height: 100%;
   height: 100dvh;
+  height: var(--shell-visible-height, 100dvh);
   overflow: hidden;
 }
 

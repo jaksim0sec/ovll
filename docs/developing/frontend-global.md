@@ -17,13 +17,13 @@
 | `front/css/base.css` | 색상·간격·반경·모션·안전 영역 토큰, 시스템 폰트·기본 버튼·아이콘, OS 테마 |
 | `front/css/shell.css` | 메뉴·헤더·페이지 영역 배치, 글로벌 내비게이션 상태, 빈 페이지 표시 |
 | `front/js/boot.js` | 인스턴스 생성·공개 API 연결, 두 빈 페이지 등록, 첫 진입·문서 이탈 정리 |
-| `front/js/shell/appShell.js` | 메뉴 열림, 뷰포트에 따른 도킹, 메뉴 이벤트·포커스·접근성, 활성 페이지의 표시 |
+| `front/js/shell/appShell.js` | 메뉴 열림, 도킹, **가시 뷰포트 높이·상단 위치 관측**, 메뉴 이벤트·포커스·접근성, 활성 페이지의 표시 |
 | `front/js/shell/pageHost.js` | 페이지 등록, 현재 페이지의 단일 원본, 활성 DOM의 장착·제거, 진입별 수명 신호 |
 | `front/js/input/inputManager.js` | 등록된 입력 소유 주체, 단일 활성 포인터 스트림, 전달·취소·캡처 해제 |
 | `front/js/dev/uiTest.js`, `front/css/uiTest.css` | **TEMPORARY** 테스트 화면과 전용 스타일. 실제 제품 동작·상태를 소유하지 않음 |
 
 - boot만 세 시스템을 조립한다. 시스템 간 import는 없고 `window`에 앱 API를 게시하지 않는다.
-- App Shell은 메뉴·헤더·내비게이션 DOM만 조작한다. 페이지 내부 DOM·데이터를 조회하지 않는다. 현재 페이지 ID를 별도 상태로 보관하지 않고 Page Host의 통지를 DOM에 반영한다.
+- App Shell은 메뉴·헤더·내비게이션 및 **앱 프레임의 뷰포트 배치**만 조작한다. 페이지 내부 DOM·데이터를 조회하지 않는다. 현재 페이지 ID를 별도 상태로 보관하지 않고 Page Host의 통지를 DOM에 반영한다.
 - Page Host만 `#page-host` 안에 페이지 루트를 장착·제거한다. 페이지 안의 내용·이벤트는 페이지 구현의 책임이다.
 - Input Manager는 소유권을 결정하고 등록 콜백에 이벤트를 전달한다. 캔버스·텍스트 편집 동작이나 도메인 상태를 갖지 않는다.
 
@@ -41,7 +41,17 @@
 - 닫힘→열림 직전에 `onMenuOpen()` 호출. boot는 `input.cancel("menu-open")`으로 기존 입력을 끝낸다. 메뉴 이벤트는 일반 버튼 클릭이며 별도 입력 제스처를 등록하지 않는다.
 - 도킹 조건은 main과 동일: `(min-width: 43.76rem) and (hover: hover) and (pointer: fine), (min-width: 60.01rem)`. 조건에 맞으면 처음에 펼치며 콘텐츠 너비를 줄인다. 그 외에는 처음에 접고, 열 때 배경을 덮는다. 조건이 바뀌면 해당 기본 열림 상태로 재설정한다.
 - 모바일 오버레이는 `role="dialog"`, `aria-modal`, 페이지 콘텐츠 `inert`를 사용한다. Tab/Shift+Tab은 메뉴 버튼 안에서 순환한다. 배경·닫기·Escape·페이지 선택으로 닫힌다. 데스크톱도 닫기·Escape로 접을 수 있다.
-- 모든 Shell 이벤트는 인스턴스의 AbortController에 묶는다. OS 테마는 CSS 미디어 쿼리로만 반영하며 테마 선택·저장 UI는 없다.
+- 모든 Shell 이벤트는 인스턴스의 AbortController에 묶는다. OS 테마는 CSS 미디어 쿼리로만 반영하며 정식 테마 선택·저장 UI는 없다. 현재 Workspace의 임시 테스트 UI는 별도다.
+
+### 브라우저 가시 뷰포트/모바일 키보드
+
+- **책임**: App Shell이 현재 사용 가능한 브라우저 화면의 높이와 상단 위치를 계산해 **자신의 루트에만** CSS 변수 `--shell-visible-height`, `--shell-visible-top`를 설정한다. `front/css/shell.css`의 `.app-shell` 프레임이 이를 사용하며, 페이지 영역 `#page-host`는 기존 flex 수축 규칙으로 남은 공간을 배정받는다. Page Host의 라이프사이클이나 Input Manager의 포인터 계약을 변경하지 않는다.
+- **출처**: 이전 `main/front/js/workspaceUi.js`의 `visualViewport.height/offsetTop`, `requestAnimationFrame` 동기화 방식을 **Shell 책임으로 이전**한 최소 구현. `main/front/js/ovllComposer.js`의 입력기 자체 높이/선택 팝업 재측정은 신규 Composer가 생길 때 해당 UI 구성요소의 책임으로 구현한다.
+- `visualViewport.height`의 유효값과 `offsetTop`을 사용한다. `visualViewport` 부재/높이 오류 시 `window.innerHeight` → `documentElement.clientHeight` → 최소 1px 순서의 대체값 사용. `100dvh`는 JS 비활성/갱신 전 CSS 기본값으로 유지한다.
+- `window.resize`, `orientationchange`, `pageshow`, `visualViewport.resize/scroll`을 한 `requestAnimationFrame`으로 합쳐 계산하고, `destroy()`에서 리스너·예약 프레임·CSS 변수를 정리한다. BFCache 복귀 시 재측정한다.
+- **의도적인 미도입**: `navigator.virtualKeyboard.overlaysContent = true` 설정, 브라우저 키보드 직접 열기·닫기, 사용자 확대 비활성화, 별도 Mobile/Viewport Manager, 페이지 내부 요소 직접 이동, 키보드 높이 추정. 기본 브라우저 키보드 처리(visual viewport 축소)를 유지한다. 브라우저가 이미 오버레이 모드인 특수 환경과 OS별 차이는 후속 실기기 검증 후 결정한다.
+- **주의**: 높이 감소가 항상 키보드 열림은 아니다(주소창·회전·확대도 가능). 현재 구현은 '키보드 열림' 불리언을 추론하지 않는다. Chat/Canvas 내부 스크롤, 정식 Composer 포커스·팝업·크기 대응은 아직 미구현.
+- **검증**: 현재 변경에 대한 Android/iOS 실기기 및 실제 키보드 애니메이션·PWA 검증은 미수행. 기존 문서의 '확인 범위'는 최초 Shell 구현에 대한 과거 검증이고 이번 변경의 새 검증 결과가 아니다.
 
 ## Page Host 공개 API·수명
 

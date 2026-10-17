@@ -11,6 +11,34 @@ export function createAppShell({ element, onNavigate, onMenuOpen = () => {} }) {
   const desktop = matchMedia("(min-width: 43.76rem) and (hover: hover) and (pointer: fine), (min-width: 60.01rem)");
   let open = false;
   let destroyed = false;
+  const visibleViewport = window.visualViewport;
+  let viewportFrame = null;
+
+  /**
+   * The App Shell owns the usable browser viewport, not the page content.
+   * Derived from main/workspaceUi.js viewport tracking; no keyboard overlay opt-in.
+   * The Page Host and Composer remain responsible for their own layouts.
+   */
+  function syncViewportBounds() {
+    if (destroyed) return;
+    const visualHeight = visibleViewport?.height;
+    const fallbackHeight = window.innerHeight || document.documentElement.clientHeight || 1;
+    const height = Math.max(1, Math.round(
+      Number.isFinite(visualHeight) && visualHeight > 0 ? visualHeight : fallbackHeight
+    ));
+    const visualTop = visibleViewport?.offsetTop;
+    const top = Number.isFinite(visualTop) ? Math.round(visualTop) : 0;
+    element.style.setProperty("--shell-visible-height", `${height}px`);
+    element.style.setProperty("--shell-visible-top", `${top}px`);
+  }
+
+  function scheduleViewportBounds() {
+    if (destroyed || viewportFrame !== null) return;
+    viewportFrame = requestAnimationFrame(() => {
+      viewportFrame = null;
+      syncViewportBounds();
+    });
+  }
 
   function setMenuOpen(value, { focus = true } = {}) {
     if (destroyed) return;
@@ -63,12 +91,20 @@ export function createAppShell({ element, onNavigate, onMenuOpen = () => {} }) {
       }
     }
   }, options);
-  function syncViewport() {
+  function syncDocking() {
     element.classList.toggle("is-docked", desktop.matches);
     setMenuOpen(desktop.matches, { focus: false });
   }
-  desktop.addEventListener("change", syncViewport, options);
-  syncViewport();
+  desktop.addEventListener("change", syncDocking, options);
+  // Browser chrome, IME and orientation may change the visual viewport without
+  // changing 100dvh. Measure centrally and publish only Shell layout variables.
+  window.addEventListener("resize", scheduleViewportBounds, options);
+  window.addEventListener("orientationchange", scheduleViewportBounds, options);
+  window.addEventListener("pageshow", scheduleViewportBounds, options);
+  visibleViewport?.addEventListener("resize", scheduleViewportBounds, options);
+  visibleViewport?.addEventListener("scroll", scheduleViewportBounds, options);
+  syncViewportBounds();
+  syncDocking();
 
   return {
     setMenuOpen,
@@ -89,6 +125,12 @@ export function createAppShell({ element, onNavigate, onMenuOpen = () => {} }) {
       setMenuOpen(false);
       destroyed = true;
       lifetime.abort();
+      if (viewportFrame !== null) {
+        cancelAnimationFrame(viewportFrame);
+        viewportFrame = null;
+      }
+      element.style.removeProperty("--shell-visible-height");
+      element.style.removeProperty("--shell-visible-top");
       element.classList.remove("is-docked");
     }
   };
