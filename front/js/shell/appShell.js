@@ -27,7 +27,7 @@ export function createAppShell({ element, onNavigate, onMenuOpen = () => {} }) {
     if (destroyed) return;
     const visualHeight = viewport?.height;
     const fallback = window.innerHeight || document.documentElement.clientHeight || 1;
-    const height = Math.max(1, Math.round(Number.isFinite(visualHeight) && visualHeight > 0 ? visualHeight : fallback));
+    let height = Math.max(1, Math.round(Number.isFinite(visualHeight) && visualHeight > 0 ? visualHeight : fallback));
     const offset = viewport?.offsetTop;
     const top = Number.isFinite(offset) ? Math.round(offset) : 0;
     if (lastHeight === height && lastTop === top && !rotating) return;
@@ -39,6 +39,7 @@ export function createAppShell({ element, onNavigate, onMenuOpen = () => {} }) {
     // Ignore subpixel height jitter while still updating a genuine viewport offset.
     if (motion === 'stable' && lastHeight !== null) {
       if (lastTop === top) return;
+      height = lastHeight; // ignore fractional jitter; only genuine top movement propagates
     } else {
       lastHeight = height;
       lastChangeAt = now;

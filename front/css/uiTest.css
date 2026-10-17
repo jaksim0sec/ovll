@@ -45,3 +45,5 @@
 .mock-file-icon{width:2.8rem;height:2.8rem;display:grid;place-items:center;border-radius:.75rem;background:var(--color-active);font-size:1.4rem}
 .library-demo-card div{display:flex;flex-direction:column;gap:.3rem}.library-demo-card small{font-size:.73rem;color:var(--color-secondary)}
 @media(max-width:43.75rem){.fixture-chat-inner{padding-left:1rem;padding-right:1rem}.fixture-canvas-badge{top:calc(var(--shell-chrome-height) + .3rem);max-width:19rem}.fixture-node{transform:scale(.85)}.fixture-canvas-foot{bottom:7rem}}
+
+.demo-library-slide{overflow-y:auto;overscroll-behavior:contain;height:100%;}

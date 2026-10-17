@@ -26,7 +26,13 @@ try{
   fixture=mountUiTest({workspace});
   pages.register('workspace',{element:workspace,onEnter:({signal})=>fixture.setController(hosted.activateForPage({...fixture.getPresentation(),signal})),onLeave:()=>{fixture.setController(null)}});
   const library=document.querySelector('#library-template').content.firstElementChild.cloneNode(true);
-  pages.register('library',{element:library,onEnter:()=>{shell.setPresentationMode('stacked');}});
+  const libraryContent=library.querySelector('.library-demo-inner');
+  const librarySlide=document.createElement('div');
+  librarySlide.className='demo-library-slide';
+  librarySlide.append(libraryContent);
+  pages.register('library',{element:library,onEnter:({signal})=>{
+    hosted.activateForPage({root:library,layout:'stacked',pill:{visible:false},slides:[{id:'library',label:'라이브러리',element:librarySlide}],signal});
+  }});
   root.hidden=false;
   pages.activate('workspace');
   status.hidden=true;

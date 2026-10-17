@@ -104,7 +104,7 @@
 - 본문 8px, 알약 5px 정도의 움직임을 확인한 뒤 드래그로 판단한다. 세로 스크롤, interactive control, `data-swipe-block`, 내부 수평 scroll 영역은 글로벌 스와이프에서 제외한다. 마우스 본문 전체 스와이프는 하지 않고 PC에서는 알약 클릭·드래그로 전환한다.
 - 화면 이동 및 알약 하이라이트는 **동일한 실수형 progress**를 사용한다. 슬라이드 폭만큼 x 변위, 근접 페이지 opacity 0.92–1, 280ms + 이동 정도×55ms ease-out quartic 스냅을 적용한다. 큰 영역의 전면 blur 대신 고정된 연속 베일/작은 알약 유리 blur를 사용한다.
 - 오버레이 메뉴가 열리면 hosted 제스처를 취소하고, 메뉴 패널 왼쪽 드래그는 Shell 자신이 처리한다. Page Host 이탈/abort/resize 상황에서는 진행 중 조작을 취소·정리한다. Input Manager의 한 포인터 스트림이라는 제한은 여전히 유지한다.
-- 현재 구현은 도메인 기능 없는 임시 Chat/Canvas/Composer/Library 및 선택적인 세 번째 실험 슬라이드만 테스트한다. 제품용 Composer IME 정책/Canvas pinch·drag는 아직 구현하지 않는다.
+- Library 역시 `layout:stacked`, 내부 단일 슬라이드/알약 미노출을 Hosted Slides 구성 객체로 선언한다. 현재 구현은 도메인 기능 없는 임시 Chat/Canvas/Composer/Library 및 선택적인 세 번째 실험 슬라이드만 테스트한다. 제품용 Composer IME 정책/Canvas pinch·drag는 아직 구현하지 않는다.
 
 ### 8.4 테스트 / 남은 한계
 
