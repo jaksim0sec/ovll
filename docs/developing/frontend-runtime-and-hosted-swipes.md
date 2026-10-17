@@ -1,6 +1,6 @@
 # Ovll beta — 공통 실행환경 · Hosted Page 스와이프 설계
 
-상태: **설계 승인 (2026-10-17)**. 구현/검증 완료와는 별개. 이 문서는 승인된 책임 경계와 의도 및 의도적으로 미확정인 항목을 기록하며, 실제 구현 상태는 `frontend-global.md` 및 `frontend-data.md`와 해당 구현 계획에서 관리한다.
+상태: **설계 승인 및 아래 A/B 실험 기반 구현 반영 (2026-10-17)**. 실제 모바일 물리 키보드/플랫폼별 최종 시각 품질 검증 완료와는 별개. 이 문서는 승인된 책임 경계와 의도 및 의도적으로 미확정인 항목을 기록하며, 실제 구현 상태는 `frontend-global.md` 및 `frontend-data.md`와 해당 구현 계획에서 관리한다.
 대상: `beta`의 전역 프론트 기반. `main`은 구현·디자인 참고용이며 수정하지 않는다.
 
 ## 1. 세션에서 확정된 의도 및 요구
@@ -78,3 +78,35 @@
 현재 beta는 **실제 Canvas/Chat/Composer가 아니라 임시 픽스처**이므로 본문 제스처 억제·전역 슬라이드 구성 계약과 목업 화면 효과는 검증할 수 있지만 실제 Canvas 멀티터치·IME 등은 최종 구성요소와 함께 추가 검증해야 한다.
 
 **후속 판단이 필요한 항목**: 초기 슬라이드 기억 범위(활성 기간/SPA 역사/로컬 지속성), Safari 터치 캡처 정책, 시각적 blur 강도·성능, 앱 버전 신뢰 가능한 원본 및 PWA 서비스워커 구축 시기. 미정 사항을 코드에서 사실처럼 확정하지 않는다.
+
+
+## 8. 실제 구현 계약 — 가시 뷰포트·고정 슬롯·페이지 모드 (2026-10-17)
+
+### 8.1 Frame/Stage 높이
+
+- `#app`은 브라우저에서 현재 보이는 가시 영역의 상단(`visualViewport.offsetTop`)과 높이(`visualViewport.height`)를 **즉시** 적용한다. `visualViewport`가 없거나 값이 유효하지 않으면 `innerHeight → documentElement.clientHeight → 1px` 순으로 대체한다. 키보드 열림 불리언은 추론하지 않는다.
+- 외부 프레임의 직계 자식 `#app-stage`는 같은 목표 높이 `--shell-stage-height`를 가지되 CSS `height` 전환을 조건부 적용한다. 수신 시점 간격이 95ms 미만인 연속 변화에는 65ms 추종, 단발 축소에는 120ms, 단발 확대에는 140ms, 초기/회전에는 0ms를 적용한다. 1.25px 미만 크기 흔들림은 재애니메이션하지 않는다. 현 실제 소스는 `front/js/shell/appShell.js`, `viewportMotion.js`, `front/css/shell.css`.
+- 글로벌 알약·임시 Composer는 `#app-stage` 밖에서, Frame 안의 독립 overlay에 마운트한다. 브라우저 높이가 바뀔 때 지연 Stage 때문에 입력기가 화면 밖에 남지 않도록 한다. Shell은 Composer 내부 DOM이나 실제 편집 동작을 해석하지 않는다.
+- `VirtualKeyboard.overlaysContent` opt-in은 하지 않는다. 새로운 가시 viewport 처리 방식을 브라우저가 사용하면 실기기에서 검증해야 한다. `prefers-reduced-motion`에서는 Stage 전환 생략. 실제 폰에서 부드러움을 확인한 것은 **아님**.
+
+### 8.2 페이지 구성 선언과 장착 수명
+
+- `createHostedSlides({pillHost,stationaryHost,input,onLayout,isBlocked})`가 한 활성 Hosted Page에 한하여 `activateForPage({root, layout, pill, slides, stationary, signal})`를 제공한다. `layout`은 `immersive`(기본) 또는 `stacked`, `pill.visible`은 사용자 표시 요청, `slides`는 `{id,label,element,allowContentSwipe}`, `stationary`는 `{id,element,slot,reserveSpace}` 배열이다. 정지형 요소의 slot은 `top|bottom|overlay`, 공간 예약 기본값은 false.
+- `layout:immersive`는 Stage 전체에 slide viewport를 펼치고 글로벌 chrome/Composer가 투명 베일로 겹친다. `stacked`는 `--shell-chrome-height` 아래부터 Page Host 콘텐츠를 시작하며 Shell 헤더 DOM과 베일은 재생성하지 않는다.
+- `stationary` 요소는 슬라이드 track 바깥 `[data-hosted-stationary]` 아래에서 렌더링한다. 내부 요소 생성·상태는 Page 담당이며 Hosted Slides는 `HTMLElement`를 장착만 한다. 동일 ID/element의 레이아웃 변경에 재장착하지 않는다. 현재 임시 Composer는 bottom 슬롯에 한번 장착되며 Chat/Canvas 전환 중 DOM/입력값이 유지된다.
+- `showPill` 호환 인수 또는 `pill.visible` 요청과 슬라이드 개수 `>=2`일 때만 알약이 나타난다. 요청 여부는 실제 표시 여부와 분리해 유지하여 1개→2개로 동적 증가할 때 원래 표시 요청을 복원한다.
+- `goTo(id)` 전환, `getCurrentSlide()` 조회, `update(patch)` 부분 갱신, `cancel(reason)` 제스처·애니메이션 취소, `destroy()` 정리를 제공한다. 업데이트의 `slides`, `stationary` 목록은 부분 항목 수정이 아니라 **전체 교체**다. 동일한 stationary element는 다시 장착하지 않는다.
+- `Page Host`는 최상위 `workspace/library`만 소유하고, Hosted Slides는 페이지 내부 슬라이드 ID와 진행률만 소유한다. 메뉴 열림은 Shell만 소유하고, Input Manager는 제스처 소유권만 중재한다.
+
+### 8.3 제스처·시각 효과
+
+- Chat에서는 `allowContentSwipe:true`이므로 모바일/터치 가로 제스처로 옆 슬라이드를 열 수 있다. Canvas는 `false`라서 전체 본문 제스처를 글로벌이 가져가지 않는다. 알약 클릭·드래그·키보드 화살표/Home/End는 독립적으로 동작한다.
+- 본문 8px, 알약 5px 정도의 움직임을 확인한 뒤 드래그로 판단한다. 세로 스크롤, interactive control, `data-swipe-block`, 내부 수평 scroll 영역은 글로벌 스와이프에서 제외한다. 마우스 본문 전체 스와이프는 하지 않고 PC에서는 알약 클릭·드래그로 전환한다.
+- 화면 이동 및 알약 하이라이트는 **동일한 실수형 progress**를 사용한다. 슬라이드 폭만큼 x 변위, 근접 페이지 opacity 0.92–1, 280ms + 이동 정도×55ms ease-out quartic 스냅을 적용한다. 큰 영역의 전면 blur 대신 고정된 연속 베일/작은 알약 유리 blur를 사용한다.
+- 오버레이 메뉴가 열리면 hosted 제스처를 취소하고, 메뉴 패널 왼쪽 드래그는 Shell 자신이 처리한다. Page Host 이탈/abort/resize 상황에서는 진행 중 조작을 취소·정리한다. Input Manager의 한 포인터 스트림이라는 제한은 여전히 유지한다.
+- 현재 구현은 도메인 기능 없는 임시 Chat/Canvas/Composer/Library 및 선택적인 세 번째 실험 슬라이드만 테스트한다. 제품용 Composer IME 정책/Canvas pinch·drag는 아직 구현하지 않는다.
+
+### 8.4 테스트 / 남은 한계
+
+- 현지 Node `node --test tests/frontend/hosted-contracts.test.mjs` 및 로컬 Playwright Chromium 데스크톱(1280×800), 모바일 에뮬레이션(390×844) 실험: Chat→Canvas 터치, Canvas 본문 제스처 거부, 알약 이동, 2↔3 슬라이드, immersive↔stacked, Composer 입력 유지, Library 왕복, 가상 VisualViewport 높이/offsetTop 변경.
+- 실제 Android/iOS Safari 환경, 실제 소프트키보드 animation/overscroll/PWA, 물리 모바일 터치·멀티터치와 main 비교 스크린샷 **미검증**. 임시 실험 화면이 제품 UI 구현을 의미하지 않는다.

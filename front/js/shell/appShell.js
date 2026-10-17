@@ -1,137 +1,183 @@
-/** Owns global chrome only. Page selection is requested through onNavigate. */
+import { decideViewportMotion } from './viewportMotion.js';
+
+/** Shell alone owns global frame, menu, navigation chrome and layout mode. */
 export function createAppShell({ element, onNavigate, onMenuOpen = () => {} }) {
   const lifetime = new AbortController();
-  const menu = element.querySelector("#global-menu");
-  const content = element.querySelector(".shell-content");
-  const trigger = element.querySelector("[data-menu-trigger]");
-  const backdrop = element.querySelector(".shell-backdrop");
-  const title = element.querySelector("[data-page-title]");
-  const navigation = [...menu.querySelectorAll("[data-page]")];
-  // Match main's dock behavior for desktop pointers and wide touch screens.
-  const desktop = matchMedia("(min-width: 43.76rem) and (hover: hover) and (pointer: fine), (min-width: 60.01rem)");
+  const { signal } = lifetime;
+  const menu = element.querySelector('#global-menu');
+  const content = element.querySelector('.shell-content');
+  const trigger = element.querySelector('[data-menu-trigger]');
+  const backdrop = element.querySelector('.shell-backdrop');
+  const title = element.querySelector('[data-page-title]');
+  const navigation = [...menu.querySelectorAll('[data-page]')];
+  const pill = element.querySelector('[data-hosted-pill]');
+  const stationary = element.querySelector('[data-hosted-stationary]');
+  const desktop = matchMedia('(min-width: 43.76rem) and (hover: hover) and (pointer: fine), (min-width: 60.01rem)');
+  const viewport = window.visualViewport;
   let open = false;
   let destroyed = false;
-  const visibleViewport = window.visualViewport;
-  let viewportFrame = null;
+  let scheduled = null;
+  let lastHeight = null;
+  let lastChangeAt = -Infinity;
+  let lastTop = null;
+  let rotating = false;
+  let gesture = null;
 
-  /**
-   * The App Shell owns the usable browser viewport, not the page content.
-   * Derived from main/workspaceUi.js viewport tracking; no keyboard overlay opt-in.
-   * The Page Host and Composer remain responsible for their own layouts.
-   */
-  function syncViewportBounds() {
+  function syncViewport() {
     if (destroyed) return;
-    const visualHeight = visibleViewport?.height;
-    const fallbackHeight = window.innerHeight || document.documentElement.clientHeight || 1;
-    const height = Math.max(1, Math.round(
-      Number.isFinite(visualHeight) && visualHeight > 0 ? visualHeight : fallbackHeight
-    ));
-    const visualTop = visibleViewport?.offsetTop;
-    const top = Number.isFinite(visualTop) ? Math.round(visualTop) : 0;
-    element.style.setProperty("--shell-visible-height", `${height}px`);
-    element.style.setProperty("--shell-visible-top", `${top}px`);
-  }
-
-  function scheduleViewportBounds() {
-    if (destroyed || viewportFrame !== null) return;
-    viewportFrame = requestAnimationFrame(() => {
-      viewportFrame = null;
-      syncViewportBounds();
+    const visualHeight = viewport?.height;
+    const fallback = window.innerHeight || document.documentElement.clientHeight || 1;
+    const height = Math.max(1, Math.round(Number.isFinite(visualHeight) && visualHeight > 0 ? visualHeight : fallback));
+    const offset = viewport?.offsetTop;
+    const top = Number.isFinite(offset) ? Math.round(offset) : 0;
+    if (lastHeight === height && lastTop === top && !rotating) return;
+    const now = performance.now();
+    const motion = lastHeight === null ? 'immediate' : decideViewportMotion({
+      previousHeight: lastHeight, height, elapsed: now - lastChangeAt, orientation: rotating
     });
+    rotating = false;
+    // Ignore subpixel height jitter while still updating a genuine viewport offset.
+    if (motion === 'stable' && lastHeight !== null) {
+      if (lastTop === top) return;
+    } else {
+      lastHeight = height;
+      lastChangeAt = now;
+    }
+    lastTop = top;
+    element.style.setProperty('--shell-visible-height', `${height}px`);
+    element.style.setProperty('--shell-visible-top', `${top}px`);
+    element.style.setProperty('--shell-stage-height', `${height}px`);
+    element.dataset.viewportMotion = motion;
+    const duration = motion === 'shrinking' ? '120ms' : motion === 'growing' ? '140ms' : motion === 'tracking' ? '65ms' : '0ms';
+    element.style.setProperty('--shell-stage-duration', duration);
+  }
+  function scheduleViewport() {
+    if (destroyed || scheduled !== null) return;
+    scheduled = requestAnimationFrame(() => { scheduled = null; syncViewport(); });
   }
 
+  function modal() { return open && !desktop.matches; }
   function setMenuOpen(value, { focus = true } = {}) {
     if (destroyed) return;
     const next = Boolean(value);
     if (next && !open) onMenuOpen();
     const focusWasInMenu = menu.contains(document.activeElement);
+    gesture = null;
+    element.style.removeProperty('--menu-drag-x');
+    element.style.removeProperty('--menu-drag-progress');
     open = next;
-    element.classList.toggle("menu-open", open);
+    element.classList.toggle('menu-open', open);
     trigger.hidden = open;
-    trigger.setAttribute("aria-expanded", String(open));
+    trigger.setAttribute('aria-expanded', String(open));
     menu.inert = !open;
-    menu.setAttribute("aria-hidden", String(!open));
-    content.inert = open && !desktop.matches;
-    backdrop.hidden = !open || desktop.matches;
-    if (open && !desktop.matches) {
-      menu.setAttribute("role", "dialog");
-      menu.setAttribute("aria-modal", "true");
+    menu.setAttribute('aria-hidden', String(!open));
+    content.inert = modal();
+    pill.inert = modal();
+    stationary.inert = modal();
+    backdrop.hidden = !modal();
+    if (modal()) {
+      menu.setAttribute('role', 'dialog');
+      menu.setAttribute('aria-modal', 'true');
     } else {
-      menu.removeAttribute("role");
-      menu.removeAttribute("aria-modal");
+      menu.removeAttribute('role');
+      menu.removeAttribute('aria-modal');
     }
-    if (focus && open) (navigation.find(button => button.getAttribute("aria-current") === "page") ?? navigation[0]).focus();
+    if (focus && open) (navigation.find(button => button.getAttribute('aria-current') === 'page') ?? navigation[0]).focus();
     else if (!open && focusWasInMenu) trigger.focus();
   }
-
-  const options = { signal: lifetime.signal };
-  trigger.addEventListener("click", () => setMenuOpen(true), options);
-  for (const button of element.querySelectorAll("[data-menu-dismiss]")) {
-    button.addEventListener("click", () => setMenuOpen(false), options);
-  }
-  for (const button of navigation) {
-    button.addEventListener("click", () => {
-      if (!desktop.matches) setMenuOpen(false);
-      onNavigate(button.dataset.page);
-    }, options);
-  }
-  element.addEventListener("keydown", event => {
+  const options = { signal };
+  trigger.addEventListener('click', () => setMenuOpen(true), options);
+  element.querySelectorAll('[data-menu-dismiss]').forEach(button => button.addEventListener('click', () => setMenuOpen(false), options));
+  for (const button of navigation) button.addEventListener('click', () => {
+    if (!desktop.matches) setMenuOpen(false);
+    onNavigate(button.dataset.page);
+  }, options);
+  element.addEventListener('keydown', event => {
     if (!open) return;
-    if (event.key === "Escape") {
-      event.preventDefault();
-      setMenuOpen(false);
-    } else if (event.key === "Tab" && !desktop.matches) {
-      const buttons = [...menu.querySelectorAll("button")];
-      const first = buttons[0];
-      const last = buttons.at(-1);
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault(); last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault(); first.focus();
-      }
-    }
+    if (event.key === 'Escape') { event.preventDefault(); setMenuOpen(false); }
+    if (event.key !== 'Tab' || !modal()) return;
+    const buttons = [...menu.querySelectorAll('button:not([hidden])')];
+    const first = buttons[0]; const last = buttons.at(-1);
+    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
   }, options);
   function syncDocking() {
-    element.classList.toggle("is-docked", desktop.matches);
+    element.classList.toggle('is-docked', desktop.matches);
     setMenuOpen(desktop.matches, { focus: false });
   }
-  desktop.addEventListener("change", syncDocking, options);
-  // Browser chrome, IME and orientation may change the visual viewport without
-  // changing 100dvh. Measure centrally and publish only Shell layout variables.
-  window.addEventListener("resize", scheduleViewportBounds, options);
-  window.addEventListener("orientationchange", scheduleViewportBounds, options);
-  window.addEventListener("pageshow", scheduleViewportBounds, options);
-  visibleViewport?.addEventListener("resize", scheduleViewportBounds, options);
-  visibleViewport?.addEventListener("scroll", scheduleViewportBounds, options);
-  syncViewportBounds();
-  syncDocking();
+  desktop.addEventListener('change', syncDocking, options);
+  window.addEventListener('resize', scheduleViewport, options);
+  window.addEventListener('pageshow', scheduleViewport, options);
+  window.addEventListener('orientationchange', () => { rotating = true; scheduleViewport(); }, options);
+  viewport?.addEventListener('resize', scheduleViewport, options);
+  viewport?.addEventListener('scroll', scheduleViewport, options);
 
+  // Drawer gesture is owned by Shell, independently from hosted-page swipes.
+  menu.addEventListener('pointerdown', event => {
+    if (!modal() || (event.button !== 0 && event.pointerType === 'mouse')) return;
+    if (event.target.closest('button,input,textarea,select,a,[contenteditable]')) return;
+    gesture = { id: event.pointerId, x: event.clientX, y: event.clientY, lastX: event.clientX,
+      time: performance.now(), vx: 0, horizontal: false, delta: 0 };
+  }, options);
+  window.addEventListener('pointermove', event => {
+    if (!gesture || gesture.id !== event.pointerId || !modal()) return;
+    const dx = event.clientX - gesture.x;
+    const dy = event.clientY - gesture.y;
+    if (!gesture.horizontal) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) < 6) return;
+      if (dx >= 0 || Math.abs(dy) > Math.abs(dx) * .92) { gesture = null; return; }
+      gesture.horizontal = true;
+      menu.classList.add('is-dragging');
+    }
+    if (event.cancelable) event.preventDefault();
+    const width = menu.getBoundingClientRect().width || 1;
+    gesture.delta = Math.max(-width, Math.min(0, dx));
+    const now = performance.now();
+    const speed = (event.clientX - gesture.lastX) / Math.max(1, now - gesture.time);
+    gesture.vx = gesture.vx * .68 + speed * .32;
+    gesture.lastX = event.clientX; gesture.time = now;
+    element.style.setProperty('--menu-drag-x', `${gesture.delta}px`);
+    element.style.setProperty('--menu-drag-progress', String(1 + gesture.delta / width));
+  }, { signal, passive: false });
+  function finishDrawer(event) {
+    if (!gesture || event.pointerId !== gesture.id) return;
+    const session = gesture; gesture = null;
+    menu.classList.remove('is-dragging');
+    element.style.removeProperty('--menu-drag-x');
+    element.style.removeProperty('--menu-drag-progress');
+    const width = menu.getBoundingClientRect().width || 1;
+    if (session.horizontal && (Math.abs(session.delta) > width * .22 || session.vx < -.34)) setMenuOpen(false);
+  }
+  window.addEventListener('pointerup', finishDrawer, options);
+  window.addEventListener('pointercancel', finishDrawer, options);
+
+  element.dataset.layout = 'stacked';
+  syncViewport();
+  syncDocking();
   return {
+    getMenuOpen: () => open,
+    isModalOpen: modal,
     setMenuOpen,
+    setPresentationMode(mode) {
+      if (!['immersive','stacked'].includes(mode)) throw new TypeError('Unknown page layout');
+      element.dataset.layout = mode;
+    },
     setActivePage(id) {
-      if (destroyed) return;
-      let label = "Ovll";
+      let label = 'Ovll';
       for (const button of navigation) {
-        if (button.dataset.page === id) {
-          button.setAttribute("aria-current", "page");
-          label = button.textContent.trim();
-        } else button.removeAttribute("aria-current");
+        if (button.dataset.page === id) { button.setAttribute('aria-current','page'); label = button.textContent.trim(); }
+        else button.removeAttribute('aria-current');
       }
       title.textContent = label;
       document.title = `${label} · Ovll`;
     },
     destroy() {
       if (destroyed) return;
-      setMenuOpen(false);
+      setMenuOpen(false, { focus: false });
       destroyed = true;
       lifetime.abort();
-      if (viewportFrame !== null) {
-        cancelAnimationFrame(viewportFrame);
-        viewportFrame = null;
-      }
-      element.style.removeProperty("--shell-visible-height");
-      element.style.removeProperty("--shell-visible-top");
-      element.classList.remove("is-docked");
+      if (scheduled !== null) cancelAnimationFrame(scheduled);
+      for (const key of ['--shell-visible-height','--shell-visible-top','--shell-stage-height','--shell-stage-duration','--menu-drag-x','--menu-drag-progress']) element.style.removeProperty(key);
     }
   };
 }

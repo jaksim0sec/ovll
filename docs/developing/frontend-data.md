@@ -47,4 +47,4 @@ data.destroy();
 
 ## 임시 UI 검사
 
-기본 `beta` Workspace에서 **TEMPORARY** 테스트 화면을 바로 표시한다. 테마(기기/다크/라이트), Page Host 최대 높이, Workspace 안의 입력기 **목업** 높이 및 키보드 입력을 조절한다. 실제 Chat/Canvas/Composer 기능이나 저장/전송은 없다. `front/index.html`의 테스트 CSS link, `front/js/boot.js`의 임시 import/mount, `front/js/dev/uiTest.js`, `front/css/uiTest.css`를 함께 제거하면 기존 빈 Workspace 템플릿으로 복귀한다.
+기본 `beta` Workspace에서 **TEMPORARY** Chat/Canvas/Composer 실험 화면을 바로 표시한다. 알약 표시·3슬라이드 추가·immersive/stacked 변경과 입력기 포커스·모바일 키보드, Page Host/Library 전환을 검사한다. 이전 테마/최대높이 슬라이더 목업은 대체되었다. 실제 Chat/Canvas/Composer 기능이나 저장/전송은 없다. `front/index.html`의 테스트 CSS link, `front/js/boot.js`의 임시 import/mount, `front/js/dev/uiTest.js`, `front/css/uiTest.css`를 함께 제거하면 기존 빈 Workspace 템플릿으로 복귀한다.

@@ -1,6 +1,6 @@
 # Beta Hosted Page Slides & Pill Gesture Implementation Plan
 
-> **실행 전 보완 필요 (2026-10-17):** 사용자가 Hosted Page별 `stationary` 스와이프 독립 요소와 `layout: immersive|stacked` 모드를 추가 요청했다. `docs/notes/frontend-layout-and-viewport-amendment.md` B/C항 검토·승인 후 Task 2·4 API/렌더/검증을 갱신해야 한다.
+> **실행 상태 참고 (2026-10-17):** Hosted Slides 글로벌 알약/슬라이드/Stationary/Layout와 임시 Chat/Canvas가 실제 구현되었다. 기존 Task 1의 deferred-probe Input Manager 확장은 채택하지 않고, 기존 단일 pointer 계약의 영역/터치 정책을 이용했다. 실제 다중포인터는 아직 미구현. 사용자가 Hosted Page별 `stationary` 스와이프 독립 요소와 `layout: immersive|stacked` 모드를 추가 요청했다. `docs/notes/frontend-layout-and-viewport-amendment.md` B/C항 검토·승인 후 Task 2·4 API/렌더/검증을 갱신해야 한다.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 

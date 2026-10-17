@@ -1,6 +1,6 @@
 # Beta Runtime Foundation Implementation Plan
 
-> **실행 전 보완 필요 (2026-10-17):** 실제 `main`은 프레임+직계 Stage에 각각 짧은 height/top 전환을 적용했고, 현재 beta는 이를 누락했다. `docs/notes/frontend-layout-and-viewport-amendment.md` A항 검토·승인 후 Task 1을 수정해야 한다. 또한 사용자가 정의한 서버 API ↔ 로컬 **정적 프론트 파일 캐시 버전 비교 및 재요청**이 Task 4에 빠져 있으므로 현재 Task 4로 완료를 주장하면 안 된다.
+> **실행 범위 참고 (2026-10-17):** Task 1의 Frame 즉시 추적 + Stage 적응형 보간 및 임시 시각화가 구현되었다. Task 2–4의 테마/캐시/버전/PWA 본격 구현은 이번 범위 밖으로 미완료다. 실제 `main`은 프레임+직계 Stage에 각각 짧은 height/top 전환을 적용했고, 현재 beta는 이를 누락했다. `docs/notes/frontend-layout-and-viewport-amendment.md` A항 검토·승인 후 Task 1을 수정해야 한다. 또한 사용자가 정의한 서버 API ↔ 로컬 **정적 프론트 파일 캐시 버전 비교 및 재요청**이 Task 4에 빠져 있으므로 현재 Task 4로 완료를 주장하면 안 된다.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 

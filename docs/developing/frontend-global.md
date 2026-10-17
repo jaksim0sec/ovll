@@ -1,11 +1,11 @@
 # 프론트엔드 글로벌 시스템
 
-범위: `beta`의 App Shell, Page Host, Input Manager와 공통 스타일. 기본 Workspace는 빈 템플릿에 **임시 레이아웃 테스트 픽스처**를 장착하며, Library는 준비 중 문구만 표시하는 빈 페이지다. 테스트 UI는 완성된 Chat/Canvas/Composer가 아니다. Chat·Canvas 내부, 실제 라이브러리, 도메인 상태, API, 서비스워커는 구현하지 않았다. 이후 로컬 저장 기반만 추가했으며 빈 페이지와 데이터는 연결하지 않는다.
+범위: `beta`의 App Shell, Page Host, Input Manager, Hosted Slides와 공통 스타일. Workspace에는 **임시 Chat·Canvas·Composer 시각 실험 페이지**, Library에는 **임시 Stacked 시각 페이지**만 존재하며 내부 도메인 기능은 없다. 실제 Chat/Canvas/Composer, 서버 API, 서비스워커는 구현하지 않았다.
 
 ## 진입·참조
 
 - 정적 배포 루트 `front/`, 진입점 `front/index.html`. HTTP 정적 서버로 실행한다. 예: 저장소 루트에서 `python3 -m http.server 8000 --directory front`, 이후 `http://localhost:8000/` 접속. ES Modules이므로 `file://` 실행 대상이 아니다.
-- 프레임워크·빌드·제품 외부 패키지 없음. HTML이 기본 CSS 2개와 **임시 테스트 CSS 1개**, `js/boot.js`를 로드한다. boot는 세 UI 제어 모듈·로컬 데이터 어댑터·임시 Workspace 픽스처를 import한다.
+- 프레임워크·빌드·제품 외부 패키지 없음. HTML이 기본 CSS 2개, Hosted Slides 전용 CSS 1개와 **임시 테스트 CSS 1개**, `js/boot.js`를 로드한다. boot는 Shell, Page Host, Input Manager, Hosted Slides, 로컬 데이터 어댑터와 임시 Workspace 픽스처를 import한다.
 - 외형 참조: `main`의 `front/css/style.css`, `front/css/shellMenu.css`, `front/js/shellMenu.js`, `front/index.html`, `front/css/ui.css`. 흑백 색상, 둥근 선 아이콘·컨트롤, 데스크톱 도킹·모바일 오버레이를 참고했다. 기존 Store·Navigation·전역 객체·히스토리·제스처 구현은 가져오지 않았다.
 - 기존 `docs/developing/`의 요청 처리·맥락·작업실 명세는 이번 프론트와 연결하지 않는다. 이번 작업 이전에는 프론트 전용 구현 명세가 없었다.
 
@@ -23,7 +23,7 @@
 | `front/js/dev/uiTest.js`, `front/css/uiTest.css` | **TEMPORARY** 테스트 화면과 전용 스타일. 실제 제품 동작·상태를 소유하지 않음 |
 
 - boot만 세 시스템을 조립한다. 시스템 간 import는 없고 `window`에 앱 API를 게시하지 않는다.
-- App Shell은 메뉴·헤더·내비게이션 및 **앱 프레임의 뷰포트 배치**만 조작한다. 페이지 내부 DOM·데이터를 조회하지 않는다. 현재 페이지 ID를 별도 상태로 보관하지 않고 Page Host의 통지를 DOM에 반영한다.
+- App Shell은 메뉴·헤더·내비게이션 및 **앱 프레임의 뷰포트 배치와 페이지 레이아웃 모드 표시**만 조작한다. 페이지 내부 DOM·데이터를 조회하지 않는다. 현재 페이지 ID를 별도 상태로 보관하지 않고 Page Host의 통지를 DOM에 반영한다.
 - Page Host만 `#page-host` 안에 페이지 루트를 장착·제거한다. 페이지 안의 내용·이벤트는 페이지 구현의 책임이다.
 - Input Manager는 소유권을 결정하고 등록 콜백에 이벤트를 전달한다. 캔버스·텍스트 편집 동작이나 도메인 상태를 갖지 않는다.
 
@@ -41,16 +41,16 @@
 - 닫힘→열림 직전에 `onMenuOpen()` 호출. boot는 `input.cancel("menu-open")`으로 기존 입력을 끝낸다. 메뉴 이벤트는 일반 버튼 클릭이며 별도 입력 제스처를 등록하지 않는다.
 - 도킹 조건은 main과 동일: `(min-width: 43.76rem) and (hover: hover) and (pointer: fine), (min-width: 60.01rem)`. 조건에 맞으면 처음에 펼치며 콘텐츠 너비를 줄인다. 그 외에는 처음에 접고, 열 때 배경을 덮는다. 조건이 바뀌면 해당 기본 열림 상태로 재설정한다.
 - 모바일 오버레이는 `role="dialog"`, `aria-modal`, 페이지 콘텐츠 `inert`를 사용한다. Tab/Shift+Tab은 메뉴 버튼 안에서 순환한다. 배경·닫기·Escape·페이지 선택으로 닫힌다. 데스크톱도 닫기·Escape로 접을 수 있다.
-- 모든 Shell 이벤트는 인스턴스의 AbortController에 묶는다. OS 테마는 CSS 미디어 쿼리로만 반영하며 정식 테마 선택·저장 UI는 없다. 현재 Workspace의 임시 테스트 UI는 별도다.
+- 모든 Shell 이벤트는 인스턴스의 AbortController에 묶는다. OS 테마는 CSS 미디어 쿼리로만 반영하며 정식 테마 선택·저장 UI는 없다. 현재 Workspace의 임시 테스트 UI는 레이아웃/알약/슬라이드 3개 동적 변경 테스트에 사용하며, 테마 영속 설정 기능은 아니다.
 
 ### 브라우저 가시 뷰포트/모바일 키보드
 
-- **책임**: App Shell이 현재 사용 가능한 브라우저 화면의 높이와 상단 위치를 계산해 **자신의 루트에만** CSS 변수 `--shell-visible-height`, `--shell-visible-top`를 설정한다. `front/css/shell.css`의 `.app-shell` 프레임이 이를 사용하며, 페이지 영역 `#page-host`는 기존 flex 수축 규칙으로 남은 공간을 배정받는다. Page Host의 라이프사이클이나 Input Manager의 포인터 계약을 변경하지 않는다.
+- **책임**: App Shell이 현재 사용 가능한 브라우저 화면의 높이와 상단 위치를 계산해 **자신의 루트에만** CSS 변수 `--shell-visible-height`, `--shell-visible-top`, `--shell-stage-height`, `--shell-stage-duration`을 설정한다. 외부 App Frame은 즉시 반응하고 직계자식 Stage만 선택적으로 보간한다. `front/css/shell.css`의 `.app-shell` 프레임이 이를 사용하며, 페이지 영역 `#page-host`는 기존 flex 수축 규칙으로 남은 공간을 배정받는다. Page Host의 라이프사이클이나 Input Manager의 포인터 계약을 변경하지 않는다.
 - **출처**: 이전 `main/front/js/workspaceUi.js`의 `visualViewport.height/offsetTop`, `requestAnimationFrame` 동기화 방식을 **Shell 책임으로 이전**한 최소 구현. `main/front/js/ovllComposer.js`의 입력기 자체 높이/선택 팝업 재측정은 신규 Composer가 생길 때 해당 UI 구성요소의 책임으로 구현한다.
 - `visualViewport.height`의 유효값과 `offsetTop`을 사용한다. `visualViewport` 부재/높이 오류 시 `window.innerHeight` → `documentElement.clientHeight` → 최소 1px 순서의 대체값 사용. `100dvh`는 JS 비활성/갱신 전 CSS 기본값으로 유지한다.
 - `window.resize`, `orientationchange`, `pageshow`, `visualViewport.resize/scroll`을 한 `requestAnimationFrame`으로 합쳐 계산하고, `destroy()`에서 리스너·예약 프레임·CSS 변수를 정리한다. BFCache 복귀 시 재측정한다.
 - **의도적인 미도입**: `navigator.virtualKeyboard.overlaysContent = true` 설정, 브라우저 키보드 직접 열기·닫기, 사용자 확대 비활성화, 별도 Mobile/Viewport Manager, 페이지 내부 요소 직접 이동, 키보드 높이 추정. 기본 브라우저 키보드 처리(visual viewport 축소)를 유지한다. 브라우저가 이미 오버레이 모드인 특수 환경과 OS별 차이는 후속 실기기 검증 후 결정한다.
-- **주의**: 높이 감소가 항상 키보드 열림은 아니다(주소창·회전·확대도 가능). 현재 구현은 '키보드 열림' 불리언을 추론하지 않는다. Chat/Canvas 내부 스크롤, 정식 Composer 포커스·팝업·크기 대응은 아직 미구현.
+- **주의**: 높이 감소가 항상 키보드 열림은 아니다(주소창·회전·확대도 가능). 현재 구현은 '키보드 열림' 불리언을 추론하지 않는다. Shell은 키보드가 아닌 뷰포트 높이 변화를 관측하고, 빠르게 연속되는 변화에는 65ms Stage 추종, 단발 축소 120ms/확대 140ms Stage 보간, 회전/초기화에서는 무보간을 적용한다. 이 값은 실기기에서 조정할 기준값이며 완성된 IME 실기기 검증 결과가 아니다. Chat/Canvas 내부 스크롤, 정식 Composer 포커스·팝업·크기 대응은 아직 미구현.
 - **검증**: 현재 변경에 대한 Android/iOS 실기기 및 실제 키보드 애니메이션·PWA 검증은 미수행. 기존 문서의 '확인 범위'는 최초 Shell 구현에 대한 과거 검증이고 이번 변경의 새 검증 결과가 아니다.
 
 ## Page Host 공개 API·수명
@@ -70,7 +70,7 @@
 - 페이지 재진입은 동일한 루트와 새로운 signal을 사용한다. 이전 signal은 다시 활성화하지 않는다. 비활성 페이지 루트는 문서에서 제거한다.
 - `onEnter` 실패 시 해당 signal을 abort하고 이탈 훅·DOM 제거를 수행한 뒤 오류를 전파한다. 이전 페이지로 자동 복구하거나 예외를 숨기지 않는다.
 - abort·이탈·진입 훅에서 Host가 해제되면 진행 중인 활성화를 중단한다. 해제된 Host에 다음 페이지나 새 수명을 남기지 않는다.
-- boot가 등록하는 ID는 `workspace`, `library`뿐이다. 두 페이지 모두 Input Manager의 입력 소유권은 등록하지 않는다. Workspace 안의 임시 텍스트 입력기는 기본 브라우저 입력만 사용하고 데이터를 저장/전송하지 않는다. URL·history·deep link·페이지 저장 상태는 사용하지 않는다.
+- boot가 등록하는 최상위 ID는 `workspace`, `library`뿐이다. Workspace의 Hosted Slides가 Chat 본문/글로벌 알약에 한해 Input Manager의 소유권을 등록한다. Canvas 본문은 글로벌 스와이프에 등록하지 않는다. 임시 Composer는 브라우저 기본 텍스트 입력만 사용하며 데이터를 저장/전송하지 않는다. URL·history·deep link·페이지 저장 상태는 사용하지 않는다.
 
 ## Input Manager 공개 API·수명
 
@@ -115,4 +115,13 @@
 - 독립 캐시 계약·미확정 동기화 경계: `docs/developing/frontend-data.md` 참고. 서버가 없는 현재 임시 저장을 서버 확정 데이터라고 취급하지 않는다.
 - **기본 Workspace 화면에서** `front/js/dev/uiTest.js`, `front/css/uiTest.css`의 **TEMPORARY** 픽스처를 바로 확인한다. 테마 선택, 실제 Page Host 최대 높이, Workspace 내 목업 입력기 높이를 테스트한다. Library는 기존 빈 페이지를 유지한다.
 - `front/index.html`의 임시 CSS link, `front/js/boot.js`의 임시 import/mount, 위 두 임시 파일을 함께 제거하면 빈 Workspace 템플릿으로 복귀한다. Shell·Page Host·Input Manager의 인터페이스에는 변경 없음.
-- 이전의 `?ui-test=1` 조건부 플로팅 패널은 사용하지 않는다. 임시 UI가 제품 Composer/Chat/Canvas 구현 완료를 뜻하지 않는다.
+- 이전의 `?ui-test=1` 조건부 플로팅 패널은 사용하지 않는다. 임시 UI가 제품 Composer/Chat/Canvas 구현 완료를 뜻하지 않는다. 임시 Chat↔Canvas 스와이프, 2↔3슬라이드, immersive↔stacked, 알약 노출, 별도 Composer 배치와 Library 전환을 관측하는 실험 UI다.
+
+
+## 2026-10-17 Hosted Slides 실제 결합 계약
+
+- 확정된 사용자 의도/구현 경계 및 추가 명세: `docs/developing/frontend-runtime-and-hosted-swipes.md` 8절. 기존 초기 Scaffold 설명보다 현행 모듈 계약을 우선한다.
+- 신규 `front/js/shell/hostedSlides.js`: `normalizePresentation(...)`, `createHostedSlides({pillHost,stationaryHost,input,onLayout,isBlocked})` 제공. `activateForPage({root,slides,pill,stationary,layout,signal})` 반환값에 `goTo(id)`, `getCurrentSlide()`, `update(patch)`, `cancel(reason)`, `destroy()`가 있다. 한 번에 Hosted Page 그룹 하나만 활성화한다.
+- 신규 `front/js/shell/viewportMotion.js`: 실제 뷰포트 측정 책임을 갖지 않고 Shell 내부의 보간 상태(`immediate|tracking|shrinking|growing|stable`)를 결정한다.
+- `front/js/boot.js`가 생명주기를 연결한다. Page Host `signal`이 종료되면 Hosted Slides가 알약과 stationary 요소를 해제한다. Page Host만 Workspace/Library의 활성 ID를 보관한다. `main`/배포 설정 변경 없음.
+- 검증: Node 3개 계약 테스트, Playwright Chromium 데스크톱/모바일 에뮬레이션에서 모드/알약/3슬라이드/입력기 유지/Library 왕복과 합성 터치/모의 VisualViewport 높이 테스트. 실제 Android/iOS·Safari·키보드 애니메이션·PWA 실기기는 **미검증**.

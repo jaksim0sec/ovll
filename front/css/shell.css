@@ -1,71 +1,57 @@
 .app-shell {
-  --sidebar-width: 19.25rem;
-  /* VisualViewport is measured by App Shell. CSS-only 100dvh stays as fallback. */
-  position: fixed;
-  top: var(--shell-visible-top, 0px);
-  left: 0;
-  right: 0;
-  width: 100%;
-  height: 100%;
-  height: 100dvh;
-  height: var(--shell-visible-height, 100dvh);
-  overflow: hidden;
+  --sidebar-width:19.25rem;
+  --shell-chrome-height:calc(4.35rem + var(--safe-top));
+  --content-offset:0px;
+  position:fixed;top:var(--shell-visible-top,0px);left:0;right:0;
+  height:var(--shell-visible-height,100dvh);overflow:hidden;background:var(--color-bg);
+  isolation:isolate;
 }
-
-.shell-content { height: 100%; min-width: 0; display: flex; flex-direction: column; }
-.shell-header {
-  flex: 0 0 auto;
-  min-height: calc(4.35rem + var(--safe-top));
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: calc(var(--safe-top) + var(--space-3)) max(var(--space-4), var(--safe-right)) var(--space-3) max(var(--space-4), var(--safe-left));
+/* One direct child interpolates page height, the outer frame immediately tracks the visible viewport. */
+.app-stage {
+  position:absolute;top:0;left:0;right:0;height:var(--shell-stage-height,100%);
+  overflow:hidden;transition:height var(--shell-stage-duration,0ms) cubic-bezier(.2,.82,.2,1);
+  isolation:isolate;
 }
-.shell-page-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .92rem; font-weight: 600; color: var(--color-secondary); }
-.icon-button { width: 2.75rem; min-height: 2.75rem; display: grid; place-items: center; border-radius: 999px; color: var(--color-secondary); }
-.menu-trigger { width: 3rem; border: 1px solid var(--color-line); background: color-mix(in srgb, var(--color-panel) 88%, transparent); }
-.icon-button:active, .nav-button:active { background: var(--color-active); }
-
-.shell-menu {
-  position: absolute;
-  z-index: 3;
-  inset: 0 auto 0 0;
-  width: min(var(--sidebar-width), calc(100% - 3.75rem));
-  padding-bottom: var(--safe-bottom);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  background: var(--color-panel);
-  border-right: 1px solid var(--color-line);
-  border-radius: 0 var(--radius-panel) var(--radius-panel) 0;
-  visibility: hidden;
-  transform: translateX(-100%);
-  transition: transform var(--motion-duration) var(--motion-ease), visibility var(--motion-duration);
+.shell-content{position:absolute;inset:0 0 0 var(--content-offset);min-width:0;overflow:hidden;transition:left var(--motion-duration) var(--motion-ease)}
+.shell-header{
+  position:absolute;z-index:10;top:0;left:0;right:0;height:var(--shell-chrome-height);
+  padding:calc(var(--safe-top) + .75rem) max(1rem,var(--safe-right)) .75rem max(1rem,var(--safe-left));
+  display:flex;gap:.8rem;align-items:center;pointer-events:none;
 }
-.menu-open .shell-menu { visibility: visible; transform: translateX(0); }
-.shell-menu-header {
-  min-height: calc(4.35rem + var(--safe-top));
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding: calc(var(--safe-top) + var(--space-3)) var(--space-3) var(--space-3) max(var(--space-6), var(--safe-left));
+.shell-header::before {
+  content:"";position:absolute;inset:0 0 -2.2rem 0;z-index:-1;pointer-events:none;
+  background:linear-gradient(to bottom,var(--color-bg) 1%,color-mix(in srgb,var(--color-bg) 95%,transparent) 42%,color-mix(in srgb,var(--color-bg) 72%,transparent) 72%,transparent);
+  opacity:1;
 }
-.shell-brand { font-size: 1.3rem; font-weight: 700; letter-spacing: -.045em; }
-.shell-nav { display: grid; gap: var(--space-1); padding: var(--space-2) var(--space-3) var(--space-4) max(var(--space-3), var(--safe-left)); }
-.nav-button { width: 100%; min-height: 3.1rem; display: flex; align-items: center; gap: .7rem; padding: var(--space-3); border-radius: var(--radius-control); text-align: left; color: var(--color-secondary); font-size: .98rem; font-weight: 560; }
-.nav-button svg { width: 1.25rem; height: 1.25rem; }
-.nav-button[aria-current="page"] { background: var(--color-active); color: var(--color-text); font-weight: 650; }
-.shell-backdrop { position: absolute; z-index: 2; inset: 0; width: 100%; height: 100%; background: var(--color-backdrop); }
-.is-docked .shell-menu { width: var(--sidebar-width); border-radius: 0; }
-.is-docked.menu-open .shell-content { margin-left: var(--sidebar-width); }
-
-#page-host { flex: 1 1 auto; min-height: 0; overflow: hidden; }
-.empty-page { width: 100%; height: 100%; display: grid; place-items: center; overflow: auto; padding: var(--space-6) max(var(--space-6), var(--safe-right)) calc(var(--space-6) + var(--safe-bottom)) max(var(--space-6), var(--safe-left)); text-align: center; outline: none; }
-.empty-page h1 { margin: 0 0 var(--space-3); font-size: clamp(1.25rem, 3vw, 1.6rem); font-weight: 650; letter-spacing: -.035em; }
-.empty-page p { margin: 0; color: var(--color-secondary); font-size: .88rem; line-height: 1.6; }
-
-@media (hover: hover) {
-  .icon-button:hover, .nav-button:hover { color: var(--color-text); background: var(--color-hover); }
-  .nav-button[aria-current="page"]:hover { background: var(--color-active); }
+.app-shell[data-layout="stacked"] .shell-header::before{bottom:0;background:var(--color-bg);border-bottom:1px solid var(--color-line)}
+.shell-header button{pointer-events:auto}
+.shell-page-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.92rem;font-weight:600;color:var(--color-secondary);margin-left:.05rem}
+.icon-button{width:2.75rem;min-height:2.75rem;display:grid;place-items:center;border-radius:999px;color:var(--color-secondary)}
+.menu-trigger{width:3rem;border:1px solid var(--color-line);background:color-mix(in srgb,var(--color-panel) 88%,transparent);backdrop-filter:blur(.7rem)}
+.icon-button:active,.nav-button:active{background:var(--color-active)}
+#page-host{position:absolute;inset:0;overflow:hidden;min-width:0;min-height:0;outline:none}
+.app-shell[data-layout="stacked"] #page-host{top:var(--shell-chrome-height)}
+.shell-menu{
+  position:absolute;z-index:30;top:0;bottom:0;left:0;width:min(19.25rem,86vw);
+  background:var(--color-panel);border-right:1px solid var(--color-line);
+  box-shadow:0 12px 40px rgba(0,0,0,.1);visibility:hidden;
+  transform:translateX(-100%);transition:transform var(--motion-duration) var(--motion-ease),visibility var(--motion-duration);
+  touch-action:pan-y;overflow-y:auto;
 }
-@media (max-width: 43.75rem) { .app-shell { --sidebar-width: min(20.5rem, 82vw); } }
+.menu-open .shell-menu{visibility:visible;transform:translateX(var(--menu-drag-x,0px))}
+.shell-menu.is-dragging{transition:none}
+.shell-menu-header{height:var(--shell-chrome-height);padding:calc(var(--safe-top) + .75rem) var(--space-4) var(--space-3);display:flex;justify-content:space-between;align-items:center}
+.shell-brand{font-size:1.3rem;font-weight:700;letter-spacing:-.045em}
+.shell-brand small{font-size:.58rem;font-weight:650;letter-spacing:.12em;text-transform:uppercase;color:var(--color-secondary)}
+.shell-nav{display:grid;gap:.25rem;padding:.5rem .75rem 1rem}
+.nav-button{width:100%;min-height:3.1rem;display:flex;align-items:center;gap:.7rem;padding:.75rem;border-radius:var(--radius-control);text-align:left;color:var(--color-secondary);font-size:.98rem;font-weight:560}
+.nav-button svg{width:1.25rem;height:1.25rem}
+.nav-button[aria-current="page"]{background:var(--color-active);color:var(--color-text);font-weight:650}
+.shell-menu-hint{margin:1.5rem 1.3rem;color:var(--color-secondary);font-size:.72rem;line-height:1.7}
+.shell-backdrop{position:absolute;z-index:28;inset:0;width:100%;height:100%;background:var(--color-backdrop);opacity:var(--menu-drag-progress,1)}
+/* The navbar and floating controls share one content offset on wide docked screens. */
+.app-shell.is-docked.menu-open{--content-offset:var(--sidebar-width)}
+.is-docked .shell-menu{width:var(--sidebar-width);border-radius:0}
+.is-docked .shell-menu-hint{display:none}
+@media(hover:hover){.icon-button:hover,.nav-button:hover{color:var(--color-text);background:var(--color-hover)}}
+@media(prefers-reduced-motion:reduce){.app-stage,.shell-content,.shell-menu{transition:none!important}}
