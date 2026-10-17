@@ -47,4 +47,4 @@ data.destroy();
 
 ## 임시 UI 검사
 
-`?ui-test=1`을 주소 뒤에 붙이면 **TEMPORARY** 테스트 패널이 표시된다. 테마(기기/다크/라이트), 페이지 영역 높이, 입력기 **목업** 높이 및 키보드 입력만 검사할 수 있다. 실제 Composer 구현 또는 저장/전송과는 무관하다. `front/js/dev/uiTest.js`, `front/css/uiTest.css`, boot 조건부 import를 함께 삭제하면 완전히 제거된다. 일반 URL에서는 import되지 않고 DOM/CSS에 추가되지 않는다.
+기본 `beta` Workspace에서 **TEMPORARY** 테스트 화면을 바로 표시한다. 테마(기기/다크/라이트), Page Host 최대 높이, Workspace 안의 입력기 **목업** 높이 및 키보드 입력을 조절한다. 실제 Chat/Canvas/Composer 기능이나 저장/전송은 없다. `front/index.html`의 테스트 CSS link, `front/js/boot.js`의 임시 import/mount, `front/js/dev/uiTest.js`, `front/css/uiTest.css`를 함께 제거하면 기존 빈 Workspace 템플릿으로 복귀한다.

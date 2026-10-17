@@ -1,11 +1,11 @@
 # 프론트엔드 글로벌 시스템
 
-범위: `beta`의 App Shell, Page Host, Input Manager와 공통 스타일. Workspace·Library는 제목과 준비 중 문구만 표시하는 빈 페이지다. Chat·Canvas 내부, 실제 라이브러리, 도메인 상태, API, 서비스워커는 구현하지 않았다. 이후 로컬 저장 기반만 추가했으며 빈 페이지와 데이터는 연결하지 않는다.
+범위: `beta`의 App Shell, Page Host, Input Manager와 공통 스타일. 기본 Workspace는 빈 템플릿에 **임시 레이아웃 테스트 픽스처**를 장착하며, Library는 준비 중 문구만 표시하는 빈 페이지다. 테스트 UI는 완성된 Chat/Canvas/Composer가 아니다. Chat·Canvas 내부, 실제 라이브러리, 도메인 상태, API, 서비스워커는 구현하지 않았다. 이후 로컬 저장 기반만 추가했으며 빈 페이지와 데이터는 연결하지 않는다.
 
 ## 진입·참조
 
 - 정적 배포 루트 `front/`, 진입점 `front/index.html`. HTTP 정적 서버로 실행한다. 예: 저장소 루트에서 `python3 -m http.server 8000 --directory front`, 이후 `http://localhost:8000/` 접속. ES Modules이므로 `file://` 실행 대상이 아니다.
-- 프레임워크·빌드·제품 외부 패키지 없음. HTML이 두 CSS와 `js/boot.js`만 로드한다. boot는 세 UI 제어 모듈 및 로컬 데이터 어댑터를 import하고, 테스트 모드는 조건부 import한다.
+- 프레임워크·빌드·제품 외부 패키지 없음. HTML이 기본 CSS 2개와 **임시 테스트 CSS 1개**, `js/boot.js`를 로드한다. boot는 세 UI 제어 모듈·로컬 데이터 어댑터·임시 Workspace 픽스처를 import한다.
 - 외형 참조: `main`의 `front/css/style.css`, `front/css/shellMenu.css`, `front/js/shellMenu.js`, `front/index.html`, `front/css/ui.css`. 흑백 색상, 둥근 선 아이콘·컨트롤, 데스크톱 도킹·모바일 오버레이를 참고했다. 기존 Store·Navigation·전역 객체·히스토리·제스처 구현은 가져오지 않았다.
 - 기존 `docs/developing/`의 요청 처리·맥락·작업실 명세는 이번 프론트와 연결하지 않는다. 이번 작업 이전에는 프론트 전용 구현 명세가 없었다.
 
@@ -20,6 +20,7 @@
 | `front/js/shell/appShell.js` | 메뉴 열림, 뷰포트에 따른 도킹, 메뉴 이벤트·포커스·접근성, 활성 페이지의 표시 |
 | `front/js/shell/pageHost.js` | 페이지 등록, 현재 페이지의 단일 원본, 활성 DOM의 장착·제거, 진입별 수명 신호 |
 | `front/js/input/inputManager.js` | 등록된 입력 소유 주체, 단일 활성 포인터 스트림, 전달·취소·캡처 해제 |
+| `front/js/dev/uiTest.js`, `front/css/uiTest.css` | **TEMPORARY** 테스트 화면과 전용 스타일. 실제 제품 동작·상태를 소유하지 않음 |
 
 - boot만 세 시스템을 조립한다. 시스템 간 import는 없고 `window`에 앱 API를 게시하지 않는다.
 - App Shell은 메뉴·헤더·내비게이션 DOM만 조작한다. 페이지 내부 DOM·데이터를 조회하지 않는다. 현재 페이지 ID를 별도 상태로 보관하지 않고 Page Host의 통지를 DOM에 반영한다.
@@ -59,7 +60,7 @@
 - 페이지 재진입은 동일한 루트와 새로운 signal을 사용한다. 이전 signal은 다시 활성화하지 않는다. 비활성 페이지 루트는 문서에서 제거한다.
 - `onEnter` 실패 시 해당 signal을 abort하고 이탈 훅·DOM 제거를 수행한 뒤 오류를 전파한다. 이전 페이지로 자동 복구하거나 예외를 숨기지 않는다.
 - abort·이탈·진입 훅에서 Host가 해제되면 진행 중인 활성화를 중단한다. 해제된 Host에 다음 페이지나 새 수명을 남기지 않는다.
-- boot가 등록하는 ID는 `workspace`, `library`뿐이다. 현재 두 페이지는 이벤트·입력 소유권을 등록하지 않는다. URL·history·deep link·페이지 저장 상태는 사용하지 않는다.
+- boot가 등록하는 ID는 `workspace`, `library`뿐이다. 두 페이지 모두 Input Manager의 입력 소유권은 등록하지 않는다. Workspace 안의 임시 텍스트 입력기는 기본 브라우저 입력만 사용하고 데이터를 저장/전송하지 않는다. URL·history·deep link·페이지 저장 상태는 사용하지 않는다.
 
 ## Input Manager 공개 API·수명
 
@@ -102,4 +103,6 @@
 
 - `front/js/data/localDataStore.js`: 미래 서버/DB 원본 예정 캐시와 로컬 전용 UI 상태를 IndexedDB의 별도 저장 영역으로 보관. boot가 수명만 관리하며 실제 페이지 데이터 연결은 하지 않는다.
 - 독립 캐시 계약·미확정 동기화 경계: `docs/developing/frontend-data.md` 참고. 서버가 없는 현재 임시 저장을 서버 확정 데이터라고 취급하지 않는다.
-- `?ui-test=1`일 때만 `front/js/dev/uiTest.js`, `front/css/uiTest.css`를 불러온다. 테마·페이지 높이·입력기 목업 높이 테스트 목적의 **TEMPORARY** 코드이며 제품 Composer가 아니다. 제거 위치는 위 문서에 명시.
+- **기본 Workspace 화면에서** `front/js/dev/uiTest.js`, `front/css/uiTest.css`의 **TEMPORARY** 픽스처를 바로 확인한다. 테마 선택, 실제 Page Host 최대 높이, Workspace 내 목업 입력기 높이를 테스트한다. Library는 기존 빈 페이지를 유지한다.
+- `front/index.html`의 임시 CSS link, `front/js/boot.js`의 임시 import/mount, 위 두 임시 파일을 함께 제거하면 빈 Workspace 템플릿으로 복귀한다. Shell·Page Host·Input Manager의 인터페이스에는 변경 없음.
+- 이전의 `?ui-test=1` 조건부 플로팅 패널은 사용하지 않는다. 임시 UI가 제품 Composer/Chat/Canvas 구현 완료를 뜻하지 않는다.

@@ -1,4 +1,4 @@
-/* TEMPORARY beta visual QA styles. Remove with front/js/dev/uiTest.js. */
+/* TEMPORARY BETA UI TEST. Not product styles; remove with js/dev/uiTest.js. */
 :root[data-ui-test-theme="dark"] {
   color-scheme: dark;
   --color-bg: #060606; --color-panel: #171717; --color-text: #f7f7f7;
@@ -13,12 +13,84 @@
   --color-hover: rgb(31 39 52 / 4%); --color-active: rgb(31 39 52 / 8%);
   --color-backdrop: rgb(0 0 0 / 20%);
 }
-.ui-test-active #page-host { flex: 0 1 auto; height: var(--ui-test-page-height, 100%); border-bottom: 1px dashed var(--color-line); }
-.ui-test-panel { position: fixed; z-index: 10; right: max(12px, var(--safe-right)); bottom: max(12px, var(--safe-bottom)); width: min(310px, calc(100vw - 24px)); font: 13px/1.4 system-ui, sans-serif; color: var(--color-text); }
-.ui-test-toggle { margin-left: auto; display: block; padding: 10px 14px; border: 1px solid var(--color-line); background: var(--color-panel); border-radius: 14px; box-shadow: 0 4px 24px #0002; }
-.ui-test-controls { margin-top: 8px; padding: 14px; border: 1px solid var(--color-line); border-radius: 16px; background: var(--color-panel); box-shadow: 0 6px 26px #0003; }
-.ui-test-controls label { display: block; margin-bottom: 12px; }
-.ui-test-controls select, .ui-test-controls input { display: block; width: 100%; margin: 5px 0 0; accent-color: var(--color-secondary); }
-.ui-test-controls select, .ui-test-controls textarea { background: var(--color-bg); color: var(--color-text); border: 1px solid var(--color-line); border-radius: 9px; padding: 7px; }
-.ui-test-controls textarea { display: block; width: 100%; min-height: 56px; max-height: 260px; resize: none; font: inherit; }
-.ui-test-controls small { display: block; margin-top: 8px; color: var(--color-secondary); }
+/* This changes the actual Page Host's available height; Shell still owns layout. */
+.ui-test-active #page-host { max-height: var(--ui-test-max-page-height, 100%); }
+.empty-page.ui-test-workspace {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 12px;
+  min-height: 0;
+  padding: 14px max(14px, var(--safe-right)) calc(14px + var(--safe-bottom)) max(14px, var(--safe-left));
+  text-align: left;
+  position: relative;
+  overflow-y: auto;
+}
+.ui-test-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex: 0 0 auto; }
+.ui-test-kicker { display: block; font-size: .66rem; font-weight: 650; letter-spacing: .08em; color: var(--color-secondary); }
+.ui-test-heading h1 { margin: 4px 0 0; font-size: 1.16rem; }
+.ui-test-toggle {
+  flex: 0 0 auto;
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  background: var(--color-panel);
+  padding: 9px 13px;
+  font-size: .78rem;
+  font-weight: 600;
+}
+.ui-test-controls {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  border: 1px solid var(--color-line);
+  background: var(--color-panel);
+  border-radius: 16px;
+  padding: 12px;
+}
+.ui-test-controls[hidden] { display: none; }
+.ui-test-controls label { font-size: .73rem; font-weight: 550; min-width: 0; }
+.ui-test-controls output { color: var(--color-secondary); white-space: nowrap; }
+.ui-test-controls input, .ui-test-controls select { display: block; width: 100%; margin-top: 9px; accent-color: var(--color-secondary); }
+.ui-test-controls select { padding: 6px; min-height: 36px; color: var(--color-text); background: var(--color-bg); border: 1px solid var(--color-line); border-radius: 9px; }
+.ui-test-stage { flex: 1 1 auto; min-height: 65px; overflow: auto; }
+.ui-test-surface { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; height: 100%; min-height: 65px; }
+.ui-test-preview {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  border: 1px dashed var(--color-line);
+  border-radius: 16px;
+  background: var(--color-panel);
+  padding: 10px;
+  text-align: center;
+}
+.ui-test-preview-title { font-weight: 700; font-size: .93rem; }
+.ui-test-preview p { margin-top: 6px; font-size: .73rem; }
+.ui-test-composer { flex: 0 0 auto; border: 1px solid var(--color-line); border-radius: 18px; background: var(--color-panel); padding: 12px; }
+.ui-test-composer label { display: block; font-size: .79rem; font-weight: 650; margin-bottom: 7px; }
+.ui-test-composer textarea {
+  display: block;
+  width: 100%;
+  min-height: 56px;
+  max-height: 240px;
+  resize: none;
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+  padding: 12px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font: inherit;
+  font-size: .88rem;
+  line-height: 1.45;
+}
+.ui-test-composer span { display: block; margin-top: 8px; font-size: .7rem; color: var(--color-secondary); }
+@media (max-width: 43.75rem) {
+  .ui-test-controls { grid-template-columns: 1fr; gap: 9px; }
+  .ui-test-controls label { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; }
+  .ui-test-controls label input, .ui-test-controls label select { grid-column: 1 / -1; }
+  .ui-test-surface { gap: 7px; }
+}

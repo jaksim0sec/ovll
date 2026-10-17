@@ -2,6 +2,8 @@ import { createAppShell } from "./shell/appShell.js";
 import { createPageHost } from "./shell/pageHost.js";
 import { createInputManager } from "./input/inputManager.js";
 import { createLocalDataStore } from "./data/localDataStore.js";
+// TEMPORARY BETA: remove the fixture import when real Workspace UI is implemented.
+import { mountUiTest } from "./dev/uiTest.js";
 
 const root = document.querySelector("#app");
 const status = document.querySelector("#boot-status");
@@ -36,18 +38,13 @@ try {
   });
   for (const id of ["workspace", "library"]) {
     const element = document.querySelector(`#${id}-template`).content.firstElementChild.cloneNode(true);
-    // Empty pages intentionally register no events, input owners or domain state.
+    // TEMPORARY BETA: fixture lives inside Workspace; it is not the real Composer.
+    if (id === "workspace") releaseUiTest = mountUiTest({ workspace: element, app: root });
     pages.register(id, { element });
   }
   root.hidden = false;
   pages.activate("workspace");
   status.hidden = true;
-  // TEMPORARY beta QA only. Remove this optional import with dev/uiTest.js and css/uiTest.css.
-  if (new URLSearchParams(location.search).get("ui-test") === "1") {
-    import("./dev/uiTest.js").then(({ mountUiTest }) => {
-      if (!lifetime.signal.aborted) releaseUiTest = mountUiTest({ root });
-    }).catch(error => console.error("Temporary UI test panel failed", error));
-  }
   window.addEventListener("pagehide", event => {
     if (event.persisted) input.cancel("page-hidden");
     else destroy();
