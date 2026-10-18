@@ -8,6 +8,9 @@ export function createAppShell({ element, onNavigate, onMenuOpen = () => {} }) {
   const content = element.querySelector('.shell-content');
   const trigger = element.querySelector('[data-menu-trigger]');
   const backdrop = element.querySelector('.shell-backdrop');
+  // CSS owns the drawer's reveal lifetime; closed controls stop taking input
+  // immediately while their surfaces can finish fading.
+  backdrop.hidden = false;
   const title = element.querySelector('[data-page-title]');
   const navigation = [...menu.querySelectorAll('[data-page]')];
   const presentation = element.querySelector('[data-hosted-presentation]');
@@ -54,17 +57,21 @@ export function createAppShell({ element, onNavigate, onMenuOpen = () => {} }) {
     if (next && !open) onMenuOpen();
     const focusWasInMenu = menu.contains(document.activeElement);
     gesture = null;
+    menu.classList.remove('is-dragging');
+    backdrop.classList.remove('is-dragging');
     element.style.removeProperty('--menu-drag-x');
     element.style.removeProperty('--menu-drag-progress');
     open = next;
     element.classList.toggle('menu-open', open);
-    trigger.hidden = open;
+    trigger.inert = open;
+    trigger.setAttribute('aria-hidden', String(open));
     trigger.setAttribute('aria-expanded', String(open));
     menu.inert = !open;
     menu.setAttribute('aria-hidden', String(!open));
     content.inert = modal();
     presentation.inert = modal();
-    backdrop.hidden = !modal();
+    backdrop.inert = !modal();
+    backdrop.setAttribute('aria-hidden', String(!modal()));
     if (modal()) {
       menu.setAttribute('role', 'dialog');
       menu.setAttribute('aria-modal', 'true');
@@ -118,6 +125,7 @@ export function createAppShell({ element, onNavigate, onMenuOpen = () => {} }) {
       if (dx >= 0 || Math.abs(dy) > Math.abs(dx) * .92) { gesture = null; return; }
       gesture.horizontal = true;
       menu.classList.add('is-dragging');
+      backdrop.classList.add('is-dragging');
     }
     if (event.cancelable) event.preventDefault();
     const width = menu.getBoundingClientRect().width || 1;
@@ -133,10 +141,11 @@ export function createAppShell({ element, onNavigate, onMenuOpen = () => {} }) {
     if (!gesture || event.pointerId !== gesture.id) return;
     const session = gesture; gesture = null;
     menu.classList.remove('is-dragging');
+    backdrop.classList.remove('is-dragging');
     element.style.removeProperty('--menu-drag-x');
     element.style.removeProperty('--menu-drag-progress');
     const width = menu.getBoundingClientRect().width || 1;
-    if (session.horizontal && (Math.abs(session.delta) > width * .22 || session.vx < -.34)) setMenuOpen(false);
+    if (event.type !== 'pointercancel' && session.horizontal && (Math.abs(session.delta) > width * .22 || session.vx < -.34)) setMenuOpen(false);
   }
   window.addEventListener('pointerup', finishDrawer, options);
   window.addEventListener('pointercancel', finishDrawer, options);

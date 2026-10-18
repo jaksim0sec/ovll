@@ -1,6 +1,6 @@
 /* Composer owns layout and popup surfaces; colors follow the app theme. */
 .ovll-composer{position:relative;width:100%;min-width:0;color:var(--color-text);isolation:isolate}
-.ovll-composer-form{position:relative;display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-rows:minmax(2.5rem,auto);align-items:center;gap:0 .25rem;min-height:3.25rem;margin:0;padding:.35rem .44rem;border:1px solid var(--color-line);border-radius:999px;background:var(--ui-glass);backdrop-filter:blur(1rem);-webkit-backdrop-filter:blur(1rem);box-shadow:var(--ui-glass-shadow);transition:border-radius .145s cubic-bezier(.22,1,.36,1),border-color .1s,background-color .1s}
+.ovll-composer-form{position:relative;display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-rows:minmax(2.5rem,auto);align-items:center;gap:0 .25rem;min-height:3.25rem;margin:0;padding:.35rem .44rem;border:1px solid var(--color-line);border-radius:999px;background:var(--ui-glass);backdrop-filter:blur(1rem);-webkit-backdrop-filter:blur(1rem);box-shadow:var(--ui-glass-shadow);transition:border-radius .3s cubic-bezier(.22,1,.36,1),border-color .1s,background-color .1s}
 .ovll-composer-form:focus-within{border-color:color-mix(in srgb,var(--color-text) 19%,transparent);background:var(--ui-glass-strong)}
 .ovll-composer-form.is-expanded{grid-template-columns:minmax(0,1fr) auto;grid-template-rows:minmax(2.35rem,auto) 2.5rem;row-gap:.26rem;padding:.55rem .55rem .4rem;border-radius:1.4rem}
 .ovll-composer-form>.ovll-rich-editor{position:relative;grid-column:2;grid-row:1;align-self:center;width:100%;min-width:0;min-height:2.2rem;max-height:min(9.5rem,35dvh);overflow:hidden auto;margin:0;padding:.25rem .28rem;outline:0;border:0;background:transparent;color:var(--color-text);caret-color:var(--color-text);font-size:.93rem;font-weight:450;line-height:1.5;letter-spacing:-.012em;white-space:pre-wrap;overflow-wrap:anywhere;word-break:normal;scrollbar-width:thin;-webkit-user-select:text;user-select:text}
@@ -54,7 +54,7 @@
 @media(max-width:43.75rem){
   .ovll-composer-form{--ovll-rich-compact-padding-rem:.4;--ovll-rich-compact-gap-rem:.15;padding:.32rem .4rem;column-gap:.15rem}
   .ovll-composer-form.is-expanded{padding:.48rem .44rem .32rem;row-gap:.2rem}
-  .ovll-composer-form>.ovll-rich-editor{font-size:16px;line-height:1.45}
+  .ovll-composer-form>.ovll-rich-editor{font-size:.93rem;line-height:1.5}
 }
 @media(max-width:26.25rem){
   .ovll-composer-form{width:calc(100% - .5rem);margin-inline:auto}

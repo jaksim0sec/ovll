@@ -40,7 +40,7 @@ export function createCanvas({model,input,onRun,onNotice,onAttach}={}) {
   const blockViews=new Map(),gestures=createGestureTracker(),pendingFields=new Map();
   const fileResources=createFileResources();
   let fieldTimer=null,lifecycleGeneration=0;
-  let fileBlock=null,attachmentGeneration=0;
+  let fileBlock=null,attachmentGeneration=0,paletteOpen=false,paletteAnimations=[];
   let panSample=null,portStartedAt=0,motionFrame=0,pickupTimer=null,pickupCandidate=null,portTap=null;
   const removalTimers=new Map(),linkViews=new Map(),layoutPositions=new Map();
   const reducedMotion=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -114,7 +114,28 @@ export function createCanvas({model,input,onRun,onNotice,onAttach}={}) {
     for(const entry of pendingFields.values()){if(!model.getBlock(entry.blockId))continue;if(!values.has(entry.blockId))values.set(entry.blockId,{});values.get(entry.blockId)[entry.fieldId]=entry.value}
     pendingFields.clear();for(const [id,fields]of values)safe(()=>model.updateBlock(id,{values:fields}));
   }
-  function closePalette(focus=false) {palette.hidden=true;add.setAttribute('aria-expanded','false');if(focus)add.focus()}
+  function setPalette(open,{immediate=false}={}){
+    if(paletteOpen===open&&!immediate)return;
+    const style=palette.hidden?{opacity:'0',transform:'translateY(.5rem) scale(.98)'}:getComputedStyle(palette);
+    const from={opacity:style.opacity,transform:style.transform};
+    paletteAnimations.forEach(animation=>animation.cancel());paletteAnimations=[];paletteOpen=open;
+    palette.hidden=false;palette.inert=!open;palette.setAttribute('aria-hidden',String(!open));add.setAttribute('aria-expanded',String(open));
+    const to={opacity:open?'1':'0',transform:open?'translateY(0) scale(1)':'translateY(.5rem) scale(.98)'};
+    palette.style.opacity=to.opacity;palette.style.transform=to.transform;
+    if(immediate||reducedMotion()){palette.hidden=!open;return}
+    const fade=palette.animate([{opacity:from.opacity},{opacity:to.opacity}],{duration:180,easing:'ease'});
+    const slide=palette.animate([{transform:from.transform},{transform:to.transform}],{duration:220,easing:'cubic-bezier(.2,.82,.2,1)'});
+    paletteAnimations=[fade,slide];slide.onfinish=()=>{if(paletteAnimations.includes(slide)){paletteAnimations=[];palette.hidden=!open}};
+  }
+  function closePalette(focus=false) {setPalette(false,{immediate:!active});if(focus)add.focus()}
+  function stopExpansion(view){view.animation?.cancel();view.fade?.cancel();view.reveal?.cancel();view.animation=view.fade=view.reveal=null}
+  function stopEntry(view){if(!view)return;view.entry?.forEach(animation=>animation.cancel());view.entry=null}
+  function enterBlock(view){
+    if(!view||reducedMotion())return;stopEntry(view);
+    const fade=view.element.animate([{opacity:0},{opacity:1}],{duration:240,easing:'ease'});
+    const rise=view.element.animate([{transform:'translateY(.28rem) scale(.965)'},{transform:'translateY(0) scale(1)'}],{duration:340,easing:'cubic-bezier(.2,.82,.2,1)'});
+    view.entry=[fade,rise];rise.onfinish=()=>{if(view.entry?.includes(rise))view.entry=null};
+  }
   function disarmReset() {clearTimeout(resetTimer);resetTimer=null;reset.classList.remove('is-confirming');resetText.textContent='초기화';reset.setAttribute('aria-label','캔버스 초기화')}
   function portInfo(target) {
     const port=target?.closest?.('.canvas-port');if(!port||!element.contains(port))return null;
@@ -130,6 +151,7 @@ export function createCanvas({model,input,onRun,onNotice,onAttach}={}) {
     if(a.direction===b.direction){notice('출력 포트와 입력 포트를 연결해 주세요.');return}
     const from=a.direction==='output'?a:b,to=a.direction==='input'?a:b;
     const existing=model.getSnapshot().links.find(link=>link.from.blockId===from.blockId&&link.from.portId===from.portId&&link.to.blockId===to.blockId&&link.to.portId===to.portId);
+    clearTimeout(noticeTimer);status.textContent='';
     safe(()=>existing?model.disconnect(existing.id):model.connect({blockId:from.blockId,portId:from.portId},{blockId:to.blockId,portId:to.portId}));
   }
   function selectBlock(id) {selected=id;selectedLink=null;linkDelete.hidden=true;renderSelection()}
@@ -148,8 +170,12 @@ export function createCanvas({model,input,onRun,onNotice,onAttach}={}) {
     const record=blockViews.get(endpoint.blockId),block=model.getBlock(endpoint.blockId);if(!record||!block)return null;
     const ports=direction==='input'?getSkill(block.skillId).inputs:getSkill(block.skillId).outputs;
     const index=ports.findIndex(port=>port.id===endpoint.portId);if(index<0)return null;
-    const position=blockPosition(block),box=record.element;
-    return {x:position.x+(direction==='output'?box.offsetWidth:0),y:position.y+box.offsetHeight*(index+1)/(ports.length+1)};
+    const position=blockPosition(block),box=record.element,port=box.querySelectorAll(`.canvas-port.is-${direction}`)[index];
+    if(!port||!box.isConnected)return null;
+    // Read untransformed fractional layout metrics. offsetHeight rounds animated
+    // heights and the block border is inside each port's containing rectangle.
+    const style=getComputedStyle(port);
+    return {x:position.x+box.clientLeft+parseFloat(style.left)+parseFloat(style.width)/2,y:position.y+box.clientTop+parseFloat(style.top)};
   }
   function renderLinks() {
     if(destroyed)return;const ids=new Set();
@@ -171,16 +197,20 @@ export function createCanvas({model,input,onRun,onNotice,onAttach}={}) {
   }
   function setExpanded(view,expanded,{immediate=false}={}){
     const node=view.element,body=node.querySelector('.canvas-block-body'),toggle=node.querySelector('.canvas-block-toggle');
-    const start=body.hidden?0:parseFloat(getComputedStyle(body).height)||0;
-    view.animation?.cancel();view.animation=null;view.expanded=expanded;
+    const style=getComputedStyle(body);
+    const from=body.hidden?{height:0,opacity:'0',transform:'translateY(-.16rem)'}:{height:parseFloat(style.height)||0,opacity:style.opacity,transform:style.transform};
+    stopExpansion(view);view.expanded=expanded;
     node.classList.toggle('is-expanded',expanded);toggle.setAttribute('aria-expanded',String(expanded));toggle.setAttribute('aria-label',`상세 내용 ${expanded?'닫기':'열기'}`);
     body.hidden=false;body.inert=!expanded;body.setAttribute('aria-hidden',String(!expanded));body.style.height='auto';
     for(const field of body.querySelectorAll('textarea'))resizeField(field);
     const target=expanded?body.scrollHeight:0;
-    const settle=()=>{body.style.height=expanded?'auto':'0px';body.hidden=!expanded;view.animation=null;renderLinks()};
-    if(immediate||reducedMotion()||Math.abs(start-target)<.5){settle();return}
+    body.style.opacity=expanded?'1':'0';body.style.transform=expanded?'translateY(0)':'translateY(-.16rem)';
+    const settle=()=>{body.style.height=expanded?'auto':'0px';body.hidden=!expanded;view.animation=view.fade=view.reveal=null;renderLinks()};
+    if(immediate||reducedMotion()||Math.abs(from.height-target)<.5){settle();return}
     body.style.height=`${target}px`;
-    const animation=body.animate([{height:`${start}px`,opacity:expanded?0:1,transform:expanded?'translateY(-.16rem)':'translateY(0)'},{height:`${target}px`,opacity:expanded?1:0,transform:expanded?'translateY(0)':'translateY(-.16rem)'}],{duration:380,easing:'cubic-bezier(.16,1,.3,1)'});
+    const animation=body.animate([{height:`${from.height}px`},{height:`${target}px`}],{duration:380,easing:'cubic-bezier(.16,1,.3,1)'});
+    view.fade=body.animate([{opacity:from.opacity},{opacity:body.style.opacity}],{duration:240,easing:'ease'});
+    view.reveal=body.animate([{transform:from.transform},{transform:body.style.transform}],{duration:240,easing:'cubic-bezier(.16,1,.3,1)'});
     view.animation=animation;animation.onfinish=()=>{if(view.animation===animation)settle()};
   }
   function createBlock(block,skill) {
@@ -222,12 +252,12 @@ export function createCanvas({model,input,onRun,onNotice,onAttach}={}) {
   }
   function render() {
     if(destroyed)return;const blocks=model.getBlocks();fileResources.sync(blocks);const ids=new Set(blocks.map(b=>b.id));
-    for(const [id,view]of blockViews)if(!ids.has(id)){view.animation?.cancel();resize?.unobserve(view.element);view.element.remove();blockViews.delete(id)}
+    for(const [id,view]of blockViews)if(!ids.has(id)){stopExpansion(view);stopEntry(view);resize?.unobserve(view.element);view.element.remove();blockViews.delete(id)}
     if(selected&&!ids.has(selected))selected=null;
     if(pendingPort&&!ids.has(pendingPort.blockId))pendingPort=null;
     for(const block of blocks){const skill=getSkill(block.skillId);if(!skill)continue;
       const signature=JSON.stringify([block.skillId,block.file?.localId,block.file?.name,block.file?.type,block.file?.size]);let view=blockViews.get(block.id);
-      if(!view||view.signature!==signature){const node=createBlock(block,skill);if(view){view.animation?.cancel();resize?.unobserve(view.element);view.element.replaceWith(node)}else nodes.append(node);view={element:node,signature,expanded:block.expanded};blockViews.set(block.id,view);resize?.observe(node)}
+      if(!view||view.signature!==signature){const node=createBlock(block,skill);if(view){stopExpansion(view);stopEntry(view);resize?.unobserve(view.element);view.element.replaceWith(node)}else nodes.append(node);view={element:node,signature,expanded:block.expanded};blockViews.set(block.id,view);resize?.observe(node)}
       const expanded=preview?.id===block.id&&preview.collapsed?false:block.expanded;
       if(view.expanded!==expanded)setExpanded(view,expanded);
       const position=blockPosition(block);view.element.style.left=`${position.x}px`;view.element.style.top=`${position.y}px`;
@@ -252,7 +282,8 @@ export function createCanvas({model,input,onRun,onNotice,onAttach}={}) {
       const progress=Math.min(1,(now-started)/duration),spring=(1-(1+6*progress)*Math.exp(-6*progress))/normalizer;
       for(const block of targets){const start=from.get(block.id)||block;layoutPositions.set(block.id,{x:start.x+(block.x-start.x)*spring,y:start.y+(block.y-start.y)*spring})}
       setViewport({x:fromCamera.x+(targetCamera.x-fromCamera.x)*spring,y:fromCamera.y+(targetCamera.y-fromCamera.y)*spring,zoom:fromCamera.zoom+(targetCamera.zoom-fromCamera.zoom)*spring},{motion:true});
-      render();if(progress<1)motionFrame=requestAnimationFrame(frame);else{motionFrame=0;layoutPositions.clear();render()}
+      for(const block of targets){const node=blockViews.get(block.id)?.element,position=layoutPositions.get(block.id);if(node&&position){node.style.left=`${position.x}px`;node.style.top=`${position.y}px`}}
+      renderLinks();if(progress<1)motionFrame=requestAnimationFrame(frame);else{motionFrame=0;layoutPositions.clear();render()}
     }
     frame(started);
   }
@@ -268,7 +299,7 @@ export function createCanvas({model,input,onRun,onNotice,onAttach}={}) {
     stopMotion();panSample={point:localPoint(event),time:performance.now(),vx:0,vy:0};
     const point=localPoint(event),block=event.target.closest?.('.canvas-block');
     const mode=port?{kind:'link',port}:block&&event.button!==1?{kind:'block',blockId:block.dataset.blockId,origin:model.getBlock(block.dataset.blockId),collapseOnDrag:!!event.target.closest('.canvas-block-head')}:{kind:'pan'};
-    if(mode.kind==='block')selectBlock(mode.blockId);
+    if(mode.kind==='block'){stopEntry(blockViews.get(mode.blockId));selectBlock(mode.blockId);}
     if(mode.kind==='link')portStartedAt=performance.now();
     if(!gestures.size&&mode.kind==='pan'){selected=null;selectedLink=null;pendingPort=null;linkDelete.hidden=true;renderSelection();renderLinks();closePalette()}
     const begun=gestures.begin(point,camera,mode);if(!begun)return false;
@@ -318,7 +349,7 @@ export function createCanvas({model,input,onRun,onNotice,onAttach}={}) {
   }
   function placeBlock(skillId,options={}) {
     const {position}=placement(skillId,options),block=model.addBlock(skillId,{...position,...options});
-    render();selectBlock(block.id);
+    render();selectBlock(block.id);enterBlock(blockViews.get(block.id));
     // Insertion changes the graph only. An explicit focus/fit may move the camera.
     return block;
   }
@@ -345,7 +376,7 @@ export function createCanvas({model,input,onRun,onNotice,onAttach}={}) {
     listen(window,'blur',cancel);listen(document,'visibilitychange',()=>{if(document.hidden)cancel()});
     owner=input.registerOwner({element:surface,signal:life.signal,multiPointer:true,onStart:start,onMove:move,onEnd:end,onCancel:cancel});
     unsubscribe=model.subscribe(render);resize=new ResizeObserver(()=>renderLinks());for(const record of blockViews.values())resize.observe(record.element);
-    listen(add,'click',()=>{const open=palette.hidden;palette.hidden=!open;add.setAttribute('aria-expanded',String(open));disarmReset();if(open)paletteList.querySelector('button')?.focus()});
+    listen(add,'click',()=>{setPalette(!paletteOpen);disarmReset();if(paletteOpen)paletteList.querySelector('button')?.focus()});
     listen(paletteList,'click',event=>{const option=event.target.closest('[data-skill-id]');if(!option)return;
       const block=safe(()=>placeBlock(option.dataset.skillId,{expanded:true}));closePalette(true);
       if(block?.skillId==='file'){fileBlock=block.id;fileInput.click()}
@@ -382,12 +413,12 @@ export function createCanvas({model,input,onRun,onNotice,onAttach}={}) {
     listen(surface,'focusout',event=>{if(event.target.matches('textarea')){resizeField(event.target);renderLinks()}});
     listen(surface,'wheel',event=>{if(event.target.closest(`${editable},.canvas-palette`))return;event.preventDefault();if(gestures.size)return;setViewport(zoomAt(camera,localPoint(event),camera.zoom*Math.exp(-event.deltaY*.0015)))},{passive:false});
     listen(fileInput,'change',attachFile);
-    listen(document,'pointerdown',event=>{if(!palette.hidden&&!primary.contains(event.target))closePalette()},{capture:true});
+    listen(document,'pointerdown',event=>{if(paletteOpen&&!primary.contains(event.target))closePalette()},{capture:true});
     render();setViewport(camera);
   }
   function deactivate() {
     for(const timer of removalTimers.values())clearTimeout(timer);removalTimers.clear();
-    for(const view of blockViews.values())if(view.animation){view.animation.cancel();view.animation=null;setExpanded(view,view.expanded,{immediate:true})}
+    for(const view of blockViews.values()){stopEntry(view);if(view.animation){stopExpansion(view);setExpanded(view,view.expanded,{immediate:true})}}
     flushFields();active?.abort();active=null;owner?.unregister();owner=null;unsubscribe?.();unsubscribe=null;resize?.disconnect();resize=null;cancel();closePalette();disarmReset();attachmentGeneration++;lifecycleGeneration++;clearTimeout(noticeTimer);status.textContent='';
   }
   function closeMenu(){owner?.cancel('menu-open');cancel();closePalette();disarmReset();flushFields()}

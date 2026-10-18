@@ -17,6 +17,35 @@ test('workspace restores rich drafts and graph, owns no server traffic, survives
  await page.goto(`http://127.0.0.1:${server.address().port}`);
  await page.getByRole('textbox',{name:'작업 입력',exact:true}).waitFor({timeout:5000});
  assert.equal(await page.locator('.canvas-block').count(),0,'main starts with an empty editable canvas');
+ // Drawer surfaces finish their own motion while accessibility and input state
+ // change immediately. Cancellation must return a dragged drawer to open.
+ await page.getByRole('button',{name:'메뉴 열기',exact:true}).click();
+ const opening=await page.evaluate(()=>{
+  const menu=document.querySelector('.shell-menu'),backdrop=document.querySelector('.shell-backdrop'),trigger=document.querySelector('[data-menu-trigger]');
+  const transitions=menu.getAnimations();const moving=transitions.find(a=>a.transitionProperty==='transform');
+  moving?.pause();if(moving)moving.currentTime=80;
+  const fade=backdrop.getAnimations().find(a=>a.transitionProperty==='opacity');fade?.pause();if(fade)fade.currentTime=80;
+  return {duration:moving?.effect.getTiming().duration,opacity:Number(getComputedStyle(backdrop).opacity),triggerHidden:trigger.hidden,triggerInert:trigger.inert,modal:menu.getAttribute('aria-modal')};
+ });
+ assert.equal(opening.duration,380);assert.ok(opening.opacity>0&&opening.opacity<1,'backdrop fades rather than appearing instantly');assert.equal(opening.triggerHidden,false);assert.equal(opening.triggerInert,true);assert.equal(opening.modal,'true');
+ await page.evaluate(()=>document.getAnimations().forEach(a=>a.finish()));
+ await page.locator('.shell-menu').evaluate(menu=>{
+  menu.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,pointerId:41,pointerType:'touch',button:0,clientX:260,clientY:400}));
+  window.dispatchEvent(new PointerEvent('pointermove',{bubbles:true,cancelable:true,pointerId:41,pointerType:'touch',clientX:80,clientY:400}));
+  window.dispatchEvent(new PointerEvent('pointercancel',{bubbles:true,pointerId:41,pointerType:'touch',clientX:80,clientY:400}));
+ });
+ assert.equal(await page.locator('#app').evaluate(node=>node.classList.contains('menu-open')),true,'cancelled drawer drag rolls back to open');
+ await page.keyboard.press('Escape');
+ const closing=await page.evaluate(()=>{
+  const backdrop=document.querySelector('.shell-backdrop'),menu=document.querySelector('.shell-menu');
+  return {hidden:backdrop.hidden,inert:backdrop.inert,pointerEvents:getComputedStyle(backdrop).pointerEvents,menuInert:menu.inert,focused:document.activeElement===document.querySelector('[data-menu-trigger]'),animation:menu.getAnimations().some(a=>a.transitionProperty==='transform')};
+ });
+ assert.deepEqual(closing,{hidden:false,inert:true,pointerEvents:'none',menuInert:true,focused:true,animation:true});
+ await page.waitForFunction(()=>getComputedStyle(document.querySelector('.shell-menu')).visibility==='hidden');
+ await page.emulateMedia({reducedMotion:'reduce'});
+ await page.getByRole('button',{name:'메뉴 열기',exact:true}).click();await page.keyboard.press('Escape');
+ assert.equal(await page.locator('.shell-menu').evaluate(menu=>getComputedStyle(menu).visibility),'hidden','reduced motion closes immediately');
+ await page.emulateMedia({reducedMotion:'no-preference'});
  // A scrollable slide is the browser's nearest touch-action boundary. Exercise
  // trusted touches rather than synthetic pointer dispatch, which cannot cancel.
  const swipeCdp=await context.newCDPSession(page);

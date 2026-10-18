@@ -4,7 +4,7 @@
   overflow:hidden;/* Height is interpolated by JS, not a second CSS transition. */
   isolation:isolate;
 }
-.shell-content{position:absolute;inset:0 0 0 var(--content-offset);min-width:0;overflow:hidden;transition:left var(--motion-duration) var(--motion-ease)}
+.shell-content{position:absolute;inset:0 0 0 var(--content-offset);min-width:0;overflow:hidden;transition:left .38s cubic-bezier(.16,1,.3,1)}
 .shell-header{
   position:absolute;z-index:10;top:0;left:0;right:0;height:var(--shell-chrome-height);
   padding:calc(var(--safe-top) + .75rem) max(1rem,var(--safe-right)) .75rem max(1rem,var(--safe-left));
@@ -28,7 +28,10 @@
   background-image:var(--ui-glass-sheen);
   backdrop-filter:blur(.5rem) saturate(1.03);-webkit-backdrop-filter:blur(.5rem) saturate(1.03);
   box-shadow:var(--ui-glass-shadow);
+  opacity:1;visibility:visible;transform:translateX(0) scale(1);
+  transition:opacity .24s cubic-bezier(.2,.72,.2,1),transform .24s cubic-bezier(.16,1,.3,1),visibility 0s;
 }
+.menu-open .menu-trigger{opacity:0;visibility:hidden;transform:translateX(-.25rem) scale(.96);pointer-events:none;transition-delay:0s,0s,.24s}
 .icon-button:active,.nav-button:active{background:var(--color-active)}
 #page-host{position:absolute;inset:0;overflow:hidden;min-width:0;min-height:0;outline:none}
 .app-shell[data-layout="stacked"] #page-host{top:var(--shell-chrome-height)}
@@ -36,10 +39,10 @@
   position:absolute;z-index:30;top:0;bottom:0;left:0;width:min(19.25rem,86vw);
   background:var(--color-panel);border-right:1px solid var(--color-line);
   box-shadow:0 12px 40px rgba(0,0,0,.1);visibility:hidden;
-  transform:translateX(-100%);transition:transform var(--motion-duration) var(--motion-ease),visibility var(--motion-duration);
-  touch-action:pan-y;overflow-y:auto;
+  transform:translateX(-100%);transition:transform .38s cubic-bezier(.16,1,.3,1),visibility 0s .38s;
+  touch-action:pan-y;overflow-y:auto;pointer-events:none;
 }
-.menu-open .shell-menu{visibility:visible;transform:translateX(var(--menu-drag-x,0px))}
+.menu-open .shell-menu{visibility:visible;transform:translateX(var(--menu-drag-x,0px));pointer-events:auto;transition-delay:0s}
 .shell-menu.is-dragging{transition:none}
 .shell-menu-header{height:var(--shell-chrome-height);padding:calc(var(--safe-top) + .75rem) var(--space-4) var(--space-3);display:flex;justify-content:space-between;align-items:center}
 .shell-brand{font-size:1.3rem;font-weight:700;letter-spacing:-.045em}
@@ -49,13 +52,15 @@
 .nav-button svg{width:1.25rem;height:1.25rem}
 .nav-button[aria-current="page"]{background:var(--color-active);color:var(--color-text);font-weight:650}
 .shell-menu-hint{margin:1.5rem 1.3rem;color:var(--color-secondary);font-size:.72rem;line-height:1.7}
-.shell-backdrop{position:absolute;z-index:28;inset:0;width:100%;height:100%;background:var(--color-backdrop);opacity:var(--menu-drag-progress,1)}
+.shell-backdrop{position:absolute;z-index:28;inset:0;width:100%;height:100%;background:var(--color-backdrop);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .24s cubic-bezier(.2,.72,.2,1),visibility 0s .24s}
+.menu-open:not(.is-docked) .shell-backdrop{opacity:var(--menu-drag-progress,1);visibility:visible;pointer-events:auto;transition-delay:0s}
+.shell-backdrop.is-dragging{transition:none}
 /* The navbar and floating controls share one content offset on wide docked screens. */
 .app-shell.is-docked.menu-open{--content-offset:var(--sidebar-width)}
 .is-docked .shell-menu{width:var(--sidebar-width);border-radius:0}
 .is-docked .shell-menu-hint{display:none}
 @media(hover:hover){.icon-button:hover,.nav-button:hover{color:var(--color-text);background:var(--color-hover)}}
-@media(prefers-reduced-motion:reduce){.app-stage,.shell-content,.shell-menu{transition:none!important}}
+@media(prefers-reduced-motion:reduce){.app-stage,.shell-content,.shell-menu,.shell-backdrop,.menu-trigger{transition:none!important}}
 
 .hosted-root{position:relative;width:100%;height:100%;overflow:hidden;isolation:isolate}
 .hosted-viewport{position:absolute;inset:var(--stationary-reserve-top,0px) 0 var(--stationary-reserve-bottom,0px);width:100%;overflow:hidden;touch-action:pan-y;isolation:isolate}

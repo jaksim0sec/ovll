@@ -152,14 +152,23 @@ export function createComposer({model,onSubmit,onHeightChange,onAttach} = {}) {
     const parts=readParts();
     const expanded=doc.activeElement===editor || openingToolbarMenu || !picker.hidden || attachments.length>0 || parts.some(p=>p.type!=='text'||p.text.trim()||p.text.includes('\n')) || measure.scrollHeight>(parseFloat(style.lineHeight)||24)+.5*rem+2;
     const layoutChanged=form.classList.contains('is-expanded')!==expanded;
-    const previous=layoutChanged?[form,toolbar,send].map(node=>node.getBoundingClientRect()):null;
+    const nodes=[editor,toolbar,send];
+    const beforeForm=layoutChanged?form.getBoundingClientRect():null;
+    const previous=layoutChanged?nodes.map(node=>node.getBoundingClientRect()):null;
     if(layoutChanged){for(const animation of layoutAnimations)animation.cancel();layoutAnimations=[];}
     form.classList.toggle('is-expanded',expanded);
     if(layoutChanged && !view.matchMedia?.('(prefers-reduced-motion: reduce)').matches){
-      const motion={duration:145,easing:'cubic-bezier(.22,1,.36,1)'};
-      const nextHeight=form.getBoundingClientRect().height;
-      if(Math.abs(previous[0].height-nextHeight)>1)layoutAnimations.push(form.animate([{height:`${previous[0].height}px`},{height:`${nextHeight}px`}],motion));
-      [toolbar,send].forEach((node,index)=>{const next=node.getBoundingClientRect();const dx=previous[index+1].left-next.left;const dy=previous[index+1].top-next.top;if(Math.abs(dx)+Math.abs(dy)>1)layoutAnimations.push(node.animate([{transform:`translate3d(${dx}px,${dy}px,0)`},{transform:'translate3d(0,0,0)'}],motion));});
+      // Read every destination before starting the height animation. Positions
+      // are relative to the form: its anchored top moves with its live height.
+      const afterForm=form.getBoundingClientRect();
+      const next=nodes.map(node=>node.getBoundingClientRect());
+      const motion={duration:300,easing:'cubic-bezier(.22,1,.36,1)'};
+      if(Math.abs(beforeForm.height-afterForm.height)>1)layoutAnimations.push(form.animate([{height:`${beforeForm.height}px`},{height:`${afterForm.height}px`}],motion));
+      nodes.forEach((node,index)=>{
+        const dx=(previous[index].left-beforeForm.left)-(next[index].left-afterForm.left);
+        const dy=(previous[index].top-beforeForm.top)-(next[index].top-afterForm.top);
+        if(Math.abs(dx)+Math.abs(dy)>1)layoutAnimations.push(node.animate([{transform:`translate3d(${dx}px,${dy}px,0)`},{transform:'translate3d(0,0,0)'}],motion));
+      });
     }
     pickerHost.style.left=`${form.offsetLeft}px`;pickerHost.style.width=`${form.offsetWidth}px`;pickerHost.style.right='auto';
     const height=element.getBoundingClientRect().height;
@@ -177,15 +186,41 @@ export function createComposer({model,onSubmit,onHeightChange,onAttach} = {}) {
   function usableRange(){return savedRange && editor.contains(savedRange.commonAncestorContainer)?savedRange.cloneRange():endRange();}
   function setCaret(range,{focus=true}={}) {
     if(focus && !coarse())editor.focus({preventScroll:true});
-    const selection=view.getSelection();selection.removeAllRanges();selection.addRange(range);savedRange=range.cloneRange();
+    // Selection.addRange itself focuses a blurred contenteditable in Chromium.
+    if(!coarse() || doc.activeElement===editor){
+      const selection=view.getSelection();selection.removeAllRanges();selection.addRange(range);
+    }
+    savedRange=range.cloneRange();
   }
   function edit(command,value,range=usableRange()) {
-    setCaret(range);
+    // Chromium focuses the editable target even when only Selection.addRange
+    // or execCommand is used. A toolbar transaction suppresses its virtual
+    // keyboard before either call, then returns to a blurred editor. Keep the
+    // native editing transaction so existing undo history remains consistent.
+    const manual=coarse() && doc.activeElement!==editor;
+    const inputMode=editor.getAttribute('inputmode');
+    const keyboardPolicy=editor.getAttribute('virtualkeyboardpolicy');
+    if(manual){editor.setAttribute('inputmode','none');editor.setAttribute('virtualkeyboardpolicy','manual');}
     const previousRevision=revision;
     const previousHTML=editor.innerHTML;
     // Browser editing commands participate in the native contenteditable undo
     // stack. Direct Range DOM mutations leave older native history out of sync.
-    const applied=doc.execCommand(command,false,value);
+    let applied;
+    try{
+      if(manual){
+        const selection=view.getSelection();selection.removeAllRanges();selection.addRange(range);
+        savedRange=range.cloneRange();
+      }else setCaret(range);
+      applied=doc.execCommand(command,false,value);remember();
+    }
+    finally{
+      if(manual){
+        editor.blur();
+        if(inputMode===null)editor.removeAttribute('inputmode');else editor.setAttribute('inputmode',inputMode);
+        if(keyboardPolicy===null)editor.removeAttribute('virtualkeyboardpolicy');else editor.setAttribute('virtualkeyboardpolicy',keyboardPolicy);
+      }
+    }
+
     if(!applied && revision===previousRevision && editor.innerHTML===previousHTML){
       notify('이 브라우저에서 편집 작업을 적용하지 못했습니다.');return false;
     }
@@ -364,6 +399,7 @@ export function createComposer({model,onSubmit,onHeightChange,onAttach} = {}) {
     const listen=(target,type,handler)=>target.addEventListener(type,handler,options);
     listen(editor,'input',()=>changed());listen(editor,'compositionstart',()=>{composing=true;closeMenu();});
     listen(editor,'compositionend',()=>{composing=false;changed();});listen(editor,'keydown',onKeydown);
+    listen(editor,'pointerdown',event=>{if(coarse() && event.target.closest('[data-ref-kind]')){remember();event.preventDefault();editor.blur();}});
     listen(editor,'keyup',remember);listen(editor,'mouseup',remember);listen(editor,'focus',scheduleResize);listen(editor,'blur',scheduleResize);listen(editor,'click',onEditorClick);
     listen(editor,'paste',event=>{const text=event.clipboardData?.getData('text/plain');if(typeof text!=='string')return;event.preventDefault();remember();closeMenu();insertText(text);});
     listen(editor,'dragover',event=>event.preventDefault());

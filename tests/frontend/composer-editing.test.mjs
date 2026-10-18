@@ -90,6 +90,64 @@ test('rich token insertion and atomic deletion survive native undo and redo',asy
 });
 
 
+test('anchored composer expansion interpolates controls from their original position',async()=>{
+  const {page,editor}=await fixture();
+  try{
+    await page.locator('main').evaluate(node=>Object.assign(node.style,{position:'fixed',bottom:'20px',left:'20px',right:'20px'}));
+    await page.waitForFunction(()=>document.querySelector('.ovll-composer-form').getAnimations({subtree:true}).length===0);
+    const before=await page.locator('.ovll-rich-send').boundingBox();
+    await editor.focus();
+    const start=await page.evaluate(async()=>{
+      await new Promise(resolve=>requestAnimationFrame(resolve));
+      const form=document.querySelector('.ovll-composer-form');
+      const animations=form.getAnimations({subtree:true});
+      for(const animation of animations){animation.pause();animation.currentTime=0;}
+      const send=document.querySelector('.ovll-rich-send').getBoundingClientRect();
+      return {left:send.left,top:send.top,duration:animations.find(a=>a.effect.target===form && a.effect.getKeyframes().some(frame=>'height' in frame))?.effect.getTiming().duration};
+    });
+    assert.equal(start.duration,300);
+    assert.ok(Math.abs(start.left-before.x)<1 && Math.abs(start.top-before.y)<1,JSON.stringify({before,start}));
+    await page.evaluate(()=>document.querySelector('.ovll-composer-form').getAnimations({subtree:true}).forEach(a=>a.finish()));
+    await page.emulateMedia({reducedMotion:'reduce'});
+    await editor.evaluate(node=>node.blur());
+    await page.waitForFunction(()=>!document.querySelector('.ovll-composer-form').classList.contains('is-expanded'));
+    assert.equal(await page.locator('.ovll-composer-form').evaluate(node=>node.getAnimations({subtree:true}).length),0);
+  }finally{await page.close();}
+});
+
+test('touch menu edits suppress virtual keyboard and preserve native editing history',async()=>{
+  const {page,editor}=await fixture({mobile:true});
+  try{
+    await page.locator('main').evaluate(node=>Object.assign(node.style,{position:'fixed',bottom:'20px',left:'20px',right:'20px'}));
+    await editor.tap();await editor.fill('first');
+    await page.evaluate(()=>{window.unsuppressedFocuses=0;window.composer.editor.addEventListener('focus',()=>{if(window.composer.editor.inputMode!=='none' || window.composer.editor.getAttribute('virtualkeyboardpolicy')!=='manual')window.unsuppressedFocuses++;});});
+    await page.getByRole('button',{name:'빠른 명령',exact:true}).tap();
+    await page.getByRole('option',{name:'줄바꿈',exact:false}).tap();
+    assert.equal(await plain(page),'first\n');
+    assert.equal(await editor.evaluate(node=>node===document.activeElement),false);
+    await page.getByRole('button',{name:'스킬 및 스킬블럭 참조',exact:true}).tap();
+    await page.getByRole('option',{name:'조사하기',exact:false}).tap();
+    assert.equal(await editor.locator('[data-ref-kind=skill]').count(),1);
+    assert.equal(await page.evaluate(()=>window.unsuppressedFocuses),0,'native menu commands must suppress the keyboard before any transient focus');
+    assert.equal(await editor.evaluate(node=>node===document.activeElement),false);
+    const withToken=await page.evaluate(()=>window.composer.getDraft());
+    await editor.locator('[data-ref-kind=skill]').tap();
+    await page.getByRole('option',{name:'참조 삭제',exact:false}).tap();
+    assert.equal(await editor.locator('[data-ref-kind=skill]').count(),0);
+    assert.equal(await page.evaluate(()=>window.unsuppressedFocuses),0,'reference menus also keep the keyboard closed');
+    assert.equal(await editor.evaluate(node=>node===document.activeElement),false);
+    await editor.tap();await editor.press('Control+z');
+    assert.deepEqual(await page.evaluate(()=>window.composer.getDraft()),withToken);
+    await editor.tap();await editor.press('Control+z');
+    assert.equal(await editor.locator('[data-ref-kind=skill]').count(),0,'menu insertion stays in the native undo stack');
+    await editor.press('Control+Shift+z');assert.deepEqual(await page.evaluate(()=>window.composer.getDraft()),withToken);
+    await editor.press('Control+End');await editor.pressSequentially(' next');
+    assert.match(await plain(page),/ next$/);
+    await editor.press('Control+z');await editor.press('Control+Shift+z');
+    assert.match(await plain(page),/ next$/,'native typing history after a menu edit remains usable');
+  }finally{await page.close();}
+});
+
 test('an external attachment handler receives the File and consumes it without changing draft',async()=>{
   const {page}=await fixture({onAttachMode:'handled'});
   try{

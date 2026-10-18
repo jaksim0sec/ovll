@@ -158,3 +158,8 @@
 - Boot는 비동기 로컬 복원 뒤 페이지를 등록한다. Workspace가 Page Host signal을 Composer/Canvas에 전달하고 Hosted Slides의 stationary 슬롯을 사용한다.
 - 단일 임시 방의 그래프·초안을 기존 IDB 캐시에, 카메라를 local 저장 영역에 기록한다. 실패·복원 불가 시 성공/임의 덮어쓰기를 하지 않는다.
 - 공개 API·실제 로컬 형식·향후 서버 연결 경계·검증 한계는 `frontend-workspace.md`를 따른다.
+
+### 2026-10-19 메뉴 전환 조정
+
+- SideMenu와 콘텐츠 left, Hosted 알약/고정 슬롯 offset은 380ms `cubic-bezier(.16,1,.3,1)`로 함께 이동한다. backdrop·트리거는 240ms로 표시 전환하며 hidden 즉시 변경 대신 CSS visibility 수명으로 닫힘 효과를 유지한다.
+- 열림 상태의 단일 원본·aria/inert·입력 허용은 즉시 변경한다. 닫는 backdrop은 fade 중에도 입력을 가로채지 않는다. pointercancel은 메뉴를 닫지 않고 드래그를 원위치로 돌린다. reduced-motion은 모두 즉시 전환한다. Hosted 본문/pill 스냅 속도와 가시 viewport 보간 정책은 변경하지 않았다.

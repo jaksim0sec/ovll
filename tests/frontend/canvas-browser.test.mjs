@@ -103,7 +103,7 @@ test('menu handoff releases capture, cancels a drag and closes transient control
  const {page,context,errors}=await setup();const start=page.locator('.canvas-block').first();const box=await start.locator('.canvas-block-head').boundingBox();
  const before=await page.evaluate(()=>model.getSnapshot());await page.mouse.move(box.x+50,box.y+15);await page.mouse.down();await page.mouse.move(box.x+100,box.y+40);
  await page.evaluate(()=>canvas.closeMenu());await page.mouse.up();assert.deepEqual(await page.evaluate(()=>model.getSnapshot()),before);
- await page.getByRole('button',{name:'스킬블럭 추가',exact:true}).click();await page.evaluate(()=>canvas.closeMenu());assert.equal(await page.locator('.canvas-palette').isVisible(),false);
+ await page.getByRole('button',{name:'스킬블럭 추가',exact:true}).click();await page.evaluate(()=>canvas.closeMenu());assert.equal(await page.locator('.canvas-palette').evaluate(n=>n.inert),true);await page.locator('.canvas-palette').waitFor({state:'hidden'});
  await page.getByRole('button',{name:'캔버스 초기화',exact:true}).click();await page.evaluate(()=>canvas.closeMenu());assert.equal(await page.getByRole('button',{name:'캔버스 초기화',exact:true}).count(),1);
  assert.deepEqual(errors,[]);await context.close();
 });
@@ -278,4 +278,46 @@ test('native touch collects multiple outputs and releases into one input on a zo
  const touch=(type,point)=>cdp.send('Input.dispatchTouchEvent',{type,touchPoints:point?[point]:[]});
  await touch('touchStart',points.a);await touch('touchMove',points.b);await page.waitForTimeout(250);assert.equal(await page.locator('.canvas-link-preview').count(),2);
  await touch('touchMove',points.c);await touch('touchEnd');assert.equal(await page.evaluate(()=>model.getSnapshot().links.length),2);await context.close();
+});
+
+test('ports keep circular geometry and external single-line labels at mobile zoom levels',async()=>{
+ const {page,context}=await setup(390,720);
+ await page.evaluate(()=>{model.clear();const a=model.addBlock('research',{x:0,y:20,expanded:true}),b=model.addBlock('judge',{x:220,y:20,expanded:true});model.connect({blockId:a.id,portId:'result'},{blockId:b.id,portId:'true'});});
+ for(const zoom of [.55,1,1.16,2]){
+  await page.evaluate(zoom=>canvas.setViewport({x:60,y:130,zoom}),zoom);
+  const geometry=await page.locator('.canvas-port').evaluateAll(nodes=>nodes.map(node=>{
+   const dot=node.querySelector('.canvas-port-dot'),label=node.querySelector('.canvas-port-label'),d=getComputedStyle(dot),s=getComputedStyle(label),root=parseFloat(getComputedStyle(document.documentElement).fontSize),port=node.getBoundingClientRect(),box=dot.getBoundingClientRect();
+   return {dotWidth:parseFloat(d.width)/root,dotHeight:parseFloat(d.height)/root,border:parseFloat(d.borderTopWidth),round:d.borderRadius,labelPosition:s.position,font:parseFloat(s.fontSize)/root,nowrap:s.whiteSpace,opacity:s.opacity,centerError:Math.hypot(box.x+box.width/2-(port.x+port.width/2),box.y+box.height/2-(port.y+port.height/2))};
+  }));
+  for(const p of geometry){assert.ok(Math.abs(p.dotWidth-.75)<.02&&Math.abs(p.dotHeight-.75)<.02,JSON.stringify(p));assert.equal(p.border,1);assert.equal(p.round,'50%');assert.equal(p.labelPosition,'absolute');assert.ok(p.font<=.65);assert.equal(p.nowrap,'nowrap');assert.equal(p.opacity,'0');assert.ok(p.centerError<1);}
+  const errors=await page.evaluate(()=>{
+   const link=model.getSnapshot().links[0],surface=document.querySelector('.canvas-surface').getBoundingClientRect(),camera=canvas.getViewport(),numbers=document.querySelector('.canvas-link').getAttribute('d').match(/-?[0-9.]+/g).map(Number);
+   return [[link.from,'output',numbers.slice(0,2)],[link.to,'input',numbers.slice(-2)]].map(([endpoint,direction,point])=>{const rect=document.querySelector(`.canvas-block[data-block-id="${endpoint.blockId}"] .canvas-port[data-direction="${direction}"][data-port-id="${endpoint.portId}"] .canvas-port-dot`).getBoundingClientRect();return Math.hypot(rect.x+rect.width/2-(surface.x+camera.x+point[0]*camera.zoom),rect.y+rect.height/2-(surface.y+camera.y+point[1]*camera.zoom))});
+  });
+  assert.ok(errors.every(error=>error<.6),JSON.stringify({zoom,errors}));
+ }
+ await page.locator('.canvas-block-head').first().click();
+ assert.equal(await page.locator('.canvas-port-label').first().evaluate(n=>getComputedStyle(n).position),'absolute');
+ await context.close();
+});
+
+test('new block and palette reveal gradually and interrupted collapse keeps its current visual state',async()=>{
+ const {page,context}=await setup();
+ await page.getByRole('button',{name:'스킬블럭 추가',exact:true}).evaluate(n=>n.click());
+ await page.waitForTimeout(45);
+ const opening=await page.locator('.canvas-palette').evaluate(n=>({opacity:parseFloat(getComputedStyle(n).opacity),transform:getComputedStyle(n).transform}));
+ assert.ok(opening.opacity>0&&opening.opacity<1,JSON.stringify(opening));assert.notEqual(opening.transform,'none');
+ await page.waitForTimeout(260);await page.locator('[data-skill-id=research]').evaluate(n=>n.click());
+ const block=page.locator('.canvas-block').last();
+ const inserted=await block.evaluate(n=>({opacity:parseFloat(getComputedStyle(n).opacity),animated:n.getAnimations().length}));
+ assert.ok(inserted.animated>0&&inserted.opacity<1,JSON.stringify(inserted));await page.waitForTimeout(400);
+ await block.getByRole('button',{name:'상세 내용 닫기'}).evaluate(n=>n.click());await page.waitForTimeout(70);
+ const before=await block.locator('.canvas-block-body').evaluate(n=>({opacity:parseFloat(getComputedStyle(n).opacity),height:parseFloat(getComputedStyle(n).height)}));
+ await block.getByRole('button',{name:'상세 내용 열기'}).evaluate(n=>n.click());
+ const after=await block.locator('.canvas-block-body').evaluate(n=>({opacity:parseFloat(getComputedStyle(n).opacity),height:parseFloat(getComputedStyle(n).height)}));
+ assert.ok(Math.abs(before.opacity-after.opacity)<.18,JSON.stringify({before,after}));assert.ok(Math.abs(before.height-after.height)<12,JSON.stringify({before,after}));
+ await page.waitForTimeout(450);assert.equal(await block.locator('.canvas-block-body').evaluate(n=>getComputedStyle(n).opacity),'1');
+ await page.getByRole('button',{name:'스킬블럭 추가',exact:true}).evaluate(n=>n.click());await page.waitForTimeout(240);await page.evaluate(()=>canvas.closeMenu());
+ assert.equal(await page.locator('.canvas-palette').evaluate(n=>n.inert),true);await page.waitForTimeout(250);assert.equal(await page.locator('.canvas-palette').isVisible(),false);
+ await page.emulateMedia({reducedMotion:'reduce'});await page.getByRole('button',{name:'스킬블럭 추가',exact:true}).click();assert.equal(await page.locator('.canvas-palette').evaluate(n=>n.getAnimations().length),0);await context.close();
 });
