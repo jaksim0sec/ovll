@@ -163,3 +163,10 @@
 
 - SideMenu와 콘텐츠 left, Hosted 알약/고정 슬롯 offset은 380ms `cubic-bezier(.16,1,.3,1)`로 함께 이동한다. backdrop·트리거는 240ms로 표시 전환하며 hidden 즉시 변경 대신 CSS visibility 수명으로 닫힘 효과를 유지한다.
 - 열림 상태의 단일 원본·aria/inert·입력 허용은 즉시 변경한다. 닫는 backdrop은 fade 중에도 입력을 가로채지 않는다. pointercancel은 메뉴를 닫지 않고 드래그를 원위치로 돌린다. reduced-motion은 모두 즉시 전환한다. Hosted 본문/pill 스냅 속도와 가시 viewport 보간 정책은 변경하지 않았다.
+
+### 테마 색상·밀도 토큰 (2026-10-19)
+
+- `base.css`의 공개 입력은 `:root --theme-color`(유효한 CSS color, 기본 `#969696` 무채색). 예: `:root { --theme-color: #b4a6f0; }`. JS·색상 설정 UI·저장 계약은 추가하지 않는다. 기존 `system/dark/light` 선택과 OS 변경은 그대로 사용한다.
+- 모드 입력 `--theme-canvas/surface/ink`, accent base/share, line/shadow alpha만 dark/light에서 교체한다. 공통 파생 토큰은 배경에 seed 4%, 표면 6%, 본문 2%를 oklab 혼합하고 보조 글자는 본문/배경 65/35로 만든다. 강조색은 seed와 dark의 흰색 68% 또는 light의 검정 54%를 혼합한다. `--color-on-accent`는 모드 canvas 원색이다.
+- `--color-bg/panel/text/secondary/accent/on-accent/line/hover/active`와 유리·그림자 토큰이 같은 seed에서 파생된다. 전송 버튼은 accent/on-accent, 비활성 상태는 기존 중립 토큰을 사용한다. 스킬별 의미 색과 오류 색은 별도로 보존한다.
+- 사이드바 공통 폭은 17rem, 메뉴 행 최소 높이 2.75rem. 컴포저·참조 선택창은 간격/내부 여백을 조정하되 글자 크기와 입력·제스처 계약은 바꾸지 않는다.

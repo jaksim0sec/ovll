@@ -9,7 +9,9 @@
 .canvas-link-preview{stroke:color-mix(in srgb,var(--color-text) 42%,var(--color-bg));stroke-width:2.2;stroke-dasharray:none;stroke-linecap:round;opacity:1}
 .canvas-link-hit{fill:none;stroke:transparent;stroke-width:16;pointer-events:stroke;cursor:pointer;outline:none}
 .canvas-link-hit:hover+.canvas-link,.canvas-link-hit:focus-visible+.canvas-link{stroke:var(--color-text);stroke-width:2}
-.canvas-block{position:absolute;width:12.25rem;min-height:3.35rem;padding:.58rem .82rem;border:1px solid var(--color-line);border-radius:1.3rem;background:var(--color-panel);color:var(--color-text);box-shadow:0 .24rem .8rem rgb(0 0 0 / 5%);cursor:grab;pointer-events:auto;touch-action:none;user-select:none;-webkit-user-select:none}
+.canvas-block{position:absolute;isolation:isolate;width:12.25rem;min-height:3.35rem;padding:.58rem .82rem;border:1px solid var(--color-line);border-radius:1.3rem;background:var(--color-panel);color:var(--color-text);box-shadow:0 .24rem .8rem rgb(0 0 0 / 5%);cursor:grab;pointer-events:auto;touch-action:none;user-select:none;-webkit-user-select:none}
+/* Match main: the surface covers the inner half of each port. */
+.canvas-block::before{content:'';position:absolute;inset:-1px;z-index:1;border:1px solid;border-color:inherit;border-radius:inherit;background:var(--color-panel);pointer-events:none}
 .canvas-block:hover,.canvas-block.is-expanded{border-color:color-mix(in srgb,var(--color-text) 16%,transparent)}
 .canvas-block.is-selected{border-color:var(--canvas-strong-line)}
 .canvas-block.is-dragging{cursor:grabbing;box-shadow:none;z-index:4}
@@ -50,7 +52,7 @@
 .canvas-file-summary{margin:.45rem 0;color:var(--color-secondary);font-size:.65rem;line-height:1.6;overflow-wrap:anywhere}
 .canvas-file-select,.canvas-file-remove{width:100%;height:2.2rem;border:1px solid var(--color-line);border-radius:.65rem;font-size:.66rem;margin-top:.35rem}
 .canvas-file-remove{border:0;color:var(--color-secondary)}
-.canvas-port{position:absolute;z-index:1;display:flex;align-items:center;justify-content:center;width:2rem;height:2rem;transform:translateY(-50%);touch-action:none;cursor:crosshair;outline-offset:-.25rem}
+.canvas-port{position:absolute;z-index:0;display:flex;align-items:center;justify-content:center;width:2rem;height:2rem;transform:translateY(-50%);touch-action:none;cursor:crosshair;outline-offset:-.25rem}
 .canvas-port.is-input{left:-1rem}.canvas-port.is-output{right:-1rem}
 .canvas-port-anchor{width:.82rem;height:.82rem;display:flex;align-items:center;justify-content:center;pointer-events:none}
 .canvas-port-dot{width:.75rem;height:.75rem;flex:none;box-sizing:border-box;border:1px solid color-mix(in srgb,var(--color-text) 18%,var(--color-panel));border-radius:50%;background:var(--color-panel);pointer-events:none;transition:transform .28s cubic-bezier(.22,.72,.18,1),border-color .24s ease,background .24s ease,box-shadow .3s ease}
