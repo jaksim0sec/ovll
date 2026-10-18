@@ -1,6 +1,6 @@
 # 프론트 로컬 데이터 저장 기반 (beta)
 
-상태: 로컬 어댑터 기반만 구현. 서버 API, SSE, 오프라인 수정 동기화, 실제 Workspace/Library 데이터 연결은 미구현. 데이터의 소유권 구분은 `docs/notes/request-state-sync.md` 4절에서 가져오되 미확정 부분은 계약으로 확정하지 않는다.
+상태: 로컬 어댑터와 단일 임시 Workspace의 그래프·구조화 초안·카메라 연결 구현. 서버 API, SSE, 오프라인 수정 동기화, 실제 Library 데이터 연결은 미구현. 데이터의 소유권 구분은 `docs/notes/request-state-sync.md` 4절에서 가져오되 미확정 부분은 계약으로 확정하지 않는다.
 
 ## 저장 영역
 
@@ -43,8 +43,10 @@ data.destroy();
 - 로그인/계정 도입 전 반드시 사용자별 캐시 격리·로그아웃 정리 정책 확정. 현재 브라우저 origin 수준의 beta 실험 DB이며 계정 단위 격리가 아님.
 - 서버 DB 도입 시 조회·권한·캐시 업데이트 책임을 별도로 연결한다. 원격 스냅샷 revision 정책과 변경 확정 프로토콜을 정한 후 `source: "server"`를 사용한다.
 - 읽음/수정중 초안, 미동기화 오프라인 편집, 동시 요청 충돌, 데이터 삭제/무효화 정책, 메시지 커서/정렬은 미정. 이 어댑터가 결정하지 않는다.
-- `front/js/boot.js`는 데이터 어댑터 수명만 생성·종료. 빈 Workspace/Library는 아직 데이터 연동 없음.
+- `front/js/boot.js`는 데이터 어댑터 수명을 생성·종료하고 Workspace 조립자에 주입한다. 로컬 Workspace 연결은 `frontend-workspace.md`. Library는 아직 데이터 연동 없음.
 
-## 임시 UI 검사
+## Workspace 로컬 연결
 
-기본 `beta` Workspace에서 **TEMPORARY** Chat/Canvas/Composer 실험 화면을 바로 표시한다. 알약 표시·3슬라이드 추가·immersive/stacked 변경과 입력기 포커스·모바일 키보드, Page Host/Library 전환을 검사한다. 이전 테마/최대높이 슬라이더 목업은 대체되었다. 실제 Chat/Canvas/Composer 기능이나 저장/전송은 없다. `front/index.html`의 테스트 CSS link, `front/js/boot.js`의 임시 import/mount, `front/js/dev/uiTest.js`, `front/css/uiTest.css`를 함께 제거하면 기존 빈 Workspace 템플릿으로 복귀한다.
+기존 임시 uiTest 화면/모듈/CSS는 제거했다. `workspace/controller.js`가 `beta-local-workspace`의 canvasState/chatDraft와 local.canvasViewport를 읽고 저장한다. 스킬블럭·연결, typed 초안 참조, 실제 로컬 Blob/File을 재진입 시 복원한다. itemId는 state, cache source는 provisional. 서버 스키마/Revision으로 확정하지 않는다.
+
+저장 쓰기 순서를 보존하고 영역별 오류를 따로 추적한다. 그래프 복원 실패 시 원본을 자동 덮어쓰지 않는다. 실제 공개 형식·수명·파일 표시/서버 미연결 경계는 `frontend-workspace.md`를 따른다.

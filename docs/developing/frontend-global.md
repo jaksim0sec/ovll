@@ -1,11 +1,11 @@
 # 프론트엔드 글로벌 시스템
 
-범위: `beta`의 App Shell, Page Host, Input Manager, Hosted Slides와 공통 스타일. Workspace에는 **임시 Chat·Canvas·Composer 시각 실험 페이지**, Library에는 **임시 Stacked 시각 페이지**만 존재하며 내부 도메인 기능은 없다. 실제 Chat/Canvas/Composer, 서버 API, 서비스워커는 구현하지 않았다.
+범위: `beta`의 App Shell, Page Host, Input Manager, Hosted Slides와 공통 스타일. Workspace에는 **로컬 Composer·Canvas**와 Chat 시작 화면, Library에는 임시 Stacked 페이지가 있다. Workspace 로컬 구현 계약은 `frontend-workspace.md`. AI Chat·서버 API·실행·서비스워커는 미구현이다. 아래 초기 Scaffold/임시 실험 기록은 후반 갱신 절과 현재 Workspace 명세보다 우선하지 않는다.
 
 ## 진입·참조
 
 - 정적 배포 루트 `front/`, 진입점 `front/index.html`. HTTP 정적 서버로 실행한다. 예: 저장소 루트에서 `python3 -m http.server 8000 --directory front`, 이후 `http://localhost:8000/` 접속. ES Modules이므로 `file://` 실행 대상이 아니다.
-- 프레임워크·빌드·제품 외부 패키지 없음. HTML이 기본 CSS 2개, Hosted Slides 전용 CSS 1개와 **임시 테스트 CSS 1개**, `js/boot.js`를 로드한다. boot는 Shell, Page Host, Input Manager, Hosted Slides, 로컬 데이터 어댑터와 임시 Workspace 픽스처를 import한다.
+- 프레임워크·빌드·제품 외부 패키지 없음. HTML이 기본/Shell/Hosted Slides CSS와 Composer·Canvas·Workspace CSS, `js/boot.js`를 로드한다. boot는 Shell, Page Host, Input Manager, Hosted Slides, 로컬 데이터 어댑터와 Workspace 조립자를 import한다.
 - 외형 참조: `main`의 `front/css/style.css`, `front/css/shellMenu.css`, `front/js/shellMenu.js`, `front/index.html`, `front/css/ui.css`. 흑백 색상, 둥근 선 아이콘·컨트롤, 데스크톱 도킹·모바일 오버레이를 참고했다. 기존 Store·Navigation·전역 객체·히스토리·제스처 구현은 가져오지 않았다.
 - 기존 `docs/developing/`의 요청 처리·맥락·작업실 명세는 이번 프론트와 연결하지 않는다. 이번 작업 이전에는 프론트 전용 구현 명세가 없었다.
 
@@ -19,8 +19,8 @@
 | `front/js/boot.js` | 인스턴스 생성·공개 API 연결, 두 빈 페이지 등록, 첫 진입·문서 이탈 정리 |
 | `front/js/shell/appShell.js` | 메뉴 열림, 도킹, **가시 뷰포트 높이·상단 위치 관측**, 메뉴 이벤트·포커스·접근성, 활성 페이지의 표시 |
 | `front/js/shell/pageHost.js` | 페이지 등록, 현재 페이지의 단일 원본, 활성 DOM의 장착·제거, 진입별 수명 신호 |
-| `front/js/input/inputManager.js` | 등록된 입력 소유 주체, 단일 활성 포인터 스트림, 전달·취소·캡처 해제 |
-| `front/js/dev/uiTest.js`, `front/css/uiTest.css` | **TEMPORARY** 테스트 화면과 전용 스타일. 실제 제품 동작·상태를 소유하지 않음 |
+| `front/js/input/inputManager.js` | 등록된 입력 소유 주체, 단일 활성 소유권 묶음, 전달·취소·캡처 해제 |
+| `front/js/workspace/*`, `front/js/canvas/*`, `front/js/composer/*` | 로컬 기능 조립·모델·편집·렌더링. 상세는 `frontend-workspace.md` |
 
 - boot만 세 시스템을 조립한다. 시스템 간 import는 없고 `window`에 앱 API를 게시하지 않는다.
 - App Shell은 메뉴·헤더·내비게이션 및 **앱 프레임의 뷰포트 배치와 페이지 레이아웃 모드 표시**만 조작한다. 페이지 내부 DOM·데이터를 조회하지 않는다. 현재 페이지 ID를 별도 상태로 보관하지 않고 Page Host의 통지를 DOM에 반영한다.
@@ -70,7 +70,7 @@
 - 페이지 재진입은 동일한 루트와 새로운 signal을 사용한다. 이전 signal은 다시 활성화하지 않는다. 비활성 페이지 루트는 문서에서 제거한다.
 - `onEnter` 실패 시 해당 signal을 abort하고 이탈 훅·DOM 제거를 수행한 뒤 오류를 전파한다. 이전 페이지로 자동 복구하거나 예외를 숨기지 않는다.
 - abort·이탈·진입 훅에서 Host가 해제되면 진행 중인 활성화를 중단한다. 해제된 Host에 다음 페이지나 새 수명을 남기지 않는다.
-- boot가 등록하는 최상위 ID는 `workspace`, `library`뿐이다. Workspace의 Hosted Slides가 Chat 본문/글로벌 알약에 한해 Input Manager의 소유권을 등록한다. Canvas 본문은 글로벌 스와이프에 등록하지 않는다. 임시 Composer는 브라우저 기본 텍스트 입력만 사용하며 데이터를 저장/전송하지 않는다. URL·history·deep link·페이지 저장 상태는 사용하지 않는다.
+- boot가 등록하는 최상위 ID는 `workspace`, `library`뿐이다. Workspace의 Hosted Slides가 Chat 본문/글로벌 알약에 한해 Input Manager의 소유권을 등록한다. Canvas 본문은 글로벌 스와이프에 등록하지 않는다. Composer는 네이티브 편집과 구조화 초안 저장을 제공하며 실제 전송은 미연결이다. URL·history·deep link·페이지 저장 상태는 사용하지 않는다.
 
 ## Input Manager 공개 API·수명
 
@@ -78,14 +78,14 @@
 
 | API | 동작 |
 |---|---|
-| `registerOwner({ element, signal?, onStart, onMove?, onEnd?, onCancel? })` | 입력 영역과 콜백 등록. `{ unregister, cancel }` 반환. 같은 element 중복 등록 금지 |
+| `registerOwner({ element, signal?, multiPointer?, onStart, onMove?, onEnd?, onCancel? })` | 입력 영역과 콜백 등록. `{ unregister, cancel }` 반환. 같은 element 중복 등록 금지 |
 | 반환 핸들의 `unregister()` | 영역·abort 리스너 해제. 소유 중인 입력도 `owner-unregistered`로 취소. 반복 호출 무해 |
 | 반환 핸들의 `cancel(reason = "owner-cancel")` | 이 주체가 가진 활성 입력만 취소. 등록은 유지 |
 | `cancel(reason = "cancel")` | 현재 활성 입력 취소. 등록은 유지 |
 | `destroy()` | 활성 입력 취소, 전체 소유 주체·외부 signal 리스너·전역 이벤트 해제. 반복 호출 무해 |
 
 - `pointerdown`의 composed path에서 가장 가까운 등록 영역만 선택한다. 그 주체의 `onStart(event)`가 정확히 `true`를 반환해야 소유권을 얻는다. 거절한 이벤트를 상위 등록 영역에 다시 넘기지 않는다.
-- 활성 스트림은 **하나**이며 `pointerId`가 일치하는 move/up/cancel만 전달한다. 소유 중인 추가 pointerdown은 무시한다. 멀티터치·핀치·소유권 전환은 구현하지 않았다.
+- 활성 소유자는 **하나**다. 기본은 포인터 하나이며 추가 pointerdown을 무시한다. `multiPointer:true`에서는 같은 소유자가 시작을 수락한 추가 포인터도 전달한다. 종료는 포인터별, 취소는 소유권 묶음 전체이며 다른 소유자로의 전환은 없다. 핀치 의미는 Canvas가 처리한다.
 - 실제 브라우저 입력은 최초 이벤트 target에 pointer capture를 설정한다. 원래 버튼을 캡처하므로 등록된 컨트롤의 기본 클릭 대상도 보존한다. 합성 이벤트에는 브라우저의 활성 포인터가 없어 capture를 설정하지 않는다.
 - `onMove(event)` → `onEnd(event)` 또는 `onCancel({ reason, event })`. 수동·수명 취소의 event는 `null`이다. 종료 시 활성 소유권을 먼저 비운 뒤 캡처를 해제하므로 lostpointercapture에 의한 이중 취소를 방지한다.
 - 취소 사유: `pointercancel`, `lostpointercapture`, `window-blur`, `document-hidden`, `owner-unregistered`, `manager-destroyed`, 호출자가 전달한 사유. boot가 추가로 전달하는 사유는 `menu-open`, `page-hidden`이다.
@@ -109,14 +109,11 @@
 - 콘솔 오류·모듈 로드 실패를 수집해 확인. 검증용 패키지·스크립트·전역 객체는 제품 소스에 추가하지 않는다.
 - 실제 Android/iOS·Safari·Firefox, 물리 기기의 노치·브라우저 툴바, BFCache 왕복은 미검증. 안전 영역은 env 토큰, 높이는 100dvh와 100% fallback으로 대응한다. 배포 설정·서비스워커를 변경하거나 별도 배포하지 않는다.
 
-## 후속 beta: 로컬 데이터 저장·임시 UI 테스트
+## 로컬 데이터 저장·Workspace 연결
 
-- `front/js/data/localDataStore.js`: 미래 서버/DB 원본 예정 캐시와 로컬 전용 UI 상태를 IndexedDB의 별도 저장 영역으로 보관. boot가 수명만 관리하며 실제 페이지 데이터 연결은 하지 않는다.
-- 독립 캐시 계약·미확정 동기화 경계: `docs/developing/frontend-data.md` 참고. 서버가 없는 현재 임시 저장을 서버 확정 데이터라고 취급하지 않는다.
-- **기본 Workspace 화면에서** `front/js/dev/uiTest.js`, `front/css/uiTest.css`의 **TEMPORARY** 픽스처를 바로 확인한다. 테마 선택, 실제 Page Host 최대 높이, Workspace 내 목업 입력기 높이를 테스트한다. Library는 기존 빈 페이지를 유지한다.
-- `front/index.html`의 임시 CSS link, `front/js/boot.js`의 임시 import/mount, 위 두 임시 파일을 함께 제거하면 빈 Workspace 템플릿으로 복귀한다. Shell·Page Host·Input Manager의 인터페이스에는 변경 없음.
-- 이전의 `?ui-test=1` 조건부 플로팅 패널은 사용하지 않는다. 임시 UI가 제품 Composer/Chat/Canvas 구현 완료를 뜻하지 않는다. 임시 Chat↔Canvas 스와이프, 2↔3슬라이드, immersive↔stacked, 알약 노출, 별도 Composer 배치와 Library 전환을 관측하는 실험 UI다.
-
+- `front/js/data/localDataStore.js`는 미래 서버 원본 예정 캐시와 로컬 UI 상태를 별도 영역에 저장한다. Boot가 수명을 소유하고 Workspace 조립자에 주입한다.
+- 현재 단일 로컬 Workspace가 그래프·초안·카메라를 저장한다. 기존 임시 uiTest 모듈/CSS는 제거했다. Library는 독립 임시 페이지이며 데이터 연결은 없다.
+- 저장 경계는 `frontend-data.md`, 실제 기능·공개 API·서버 미연결 범위는 `frontend-workspace.md`를 따른다.
 
 ## 2026-10-17 Hosted Slides 실제 결합 계약
 
@@ -150,5 +147,14 @@
 ### 얇은 글로벌 베일과 반투명 글라스
 
 - Immersive 상단 헤더 베일은 기존 95~100%에 가까운 불투명 그라데이션 대신 `--color-bg` 26%→12%→0%의 얇은 그라데이션과 3px backdrop blur, 점차 사라지는 마스크를 사용한다. Stacked 헤더는 콘텐츠 공간을 점유하므로 일반 불투명 표면으로 유지한다.
-- 임시 Composer의 하단 베일 역시 24%→10%→0% 그라데이션과 3px blur로 낮추고, 베일이 슬라이드에 따라 잘리지 않도록 정지형 요소에 유지한다.
+- Composer의 하단 베일 역시 24%→10%→0% 그라데이션과 3px blur로 낮추고, 베일이 슬라이드에 따라 잘리지 않도록 정지형 요소에 유지한다.
 - 알약과 토글 표면은 별도 소유권 및 공동 높이/상단 위치 기준을 유지한다. 다크 유리 alpha .38(선택 영역 .58), 라이트 .48(선택 영역 .65)이며 내부 inset 반사광을 사용하지 않는다. `backdrop-filter`는 약한 0.5rem 블러. 균일한 배경에서는 블러 차이가 작을 수 있으므로 시각 품질은 실제 콘텐츠 배경에서 추가 검수한다.
+
+
+## 2026-10-18 로컬 Workspace 연결
+
+- 기존 임시 uiTest 모듈/CSS는 제거했다. 현재 컴포저·캔버스는 로컬 편집 기능이며 서버 실행은 연결되지 않았다. 기본 캔버스는 비어 있다.
+- Input Manager의 `multiPointer:true` opt-in은 같은 소유자에 한해 복수 포인터를 전달한다. 기본 한 포인터 계약과 시스템 간 소유권은 유지한다.
+- Boot는 비동기 로컬 복원 뒤 페이지를 등록한다. Workspace가 Page Host signal을 Composer/Canvas에 전달하고 Hosted Slides의 stationary 슬롯을 사용한다.
+- 단일 임시 방의 그래프·초안을 기존 IDB 캐시에, 카메라를 local 저장 영역에 기록한다. 실패·복원 불가 시 성공/임의 덮어쓰기를 하지 않는다.
+- 공개 API·실제 로컬 형식·향후 서버 연결 경계·검증 한계는 `frontend-workspace.md`를 따른다.

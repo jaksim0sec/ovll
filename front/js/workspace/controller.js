@@ -1,0 +1,149 @@
+import { createWorkspaceModel } from './model.js';
+import { createCanvas } from '../canvas/controller.js';
+import { createComposer } from '../composer/controller.js';
+import { icon } from './icons.js';
+
+const ROOM = 'beta-local-workspace';
+
+/** A single local Workspace. Owns graph/draft persistence and component composition.
+ * SERVER INTEGRATION: room selection and validated remote snapshots enter here.
+ * No main store, request protocol, offline queue or inferred AI result is used.
+ */
+export async function createWorkspace({ root, data, input }) {
+  const lifetime = new AbortController();
+  const feedback = document.createElement('div');
+  feedback.className = 'workspace-feedback';
+  const notice = document.createElement('p');
+  notice.className = 'workspace-notice'; notice.role = 'status'; notice.hidden = true;
+  feedback.append(notice);
+  let noticeTimer = null;
+  function announce(message, { persistent = false } = {}) {
+    clearTimeout(noticeTimer); notice.textContent = message; notice.hidden = !message;
+    if (!persistent) noticeTimer = setTimeout(() => { notice.hidden = true; }, 6000);
+  }
+
+  const chat = document.createElement('section');
+  chat.className = 'workspace-chat'; chat.setAttribute('aria-label', '채팅');
+  chat.innerHTML = `<div class="workspace-welcome"><span class="workspace-wordmark">ovll<span>beta</span></span><h1>무엇부터 시작할까요?</h1><p>스킬을 연결하고 작업을 이어가세요.</p><button type="button" class="workspace-open-canvas">${icon('canvas')}<span>캔버스 열기</span></button><small class="workspace-save-state" role="status" data-save-state>불러오는 중</small></div>`;
+  const saveState = chat.querySelector('[data-save-state]');
+  let queued = Promise.resolve(), pending = 0, destroyed = false;
+  const failedDomains = new Set();
+  function save(domain, operation) {
+    if (destroyed) return;
+    pending++; saveState.textContent = '저장 중';
+    queued = queued.then(operation).then(() => {
+      failedDomains.delete(domain);
+    }, error => {
+      failedDomains.add(domain);
+      console.error('Workspace local save failed', error);
+      announce('이 기기에 저장하지 못했습니다. 새로고침 전에 내용을 보관해 주세요.', { persistent: true });
+    }).finally(() => {
+      pending--;
+      saveState.textContent = pending ? '저장 중' : failedDomains.size ? '저장되지 않음' : '이 기기에 임시 저장됨';
+    });
+  }
+  let storedGraph = null, storedDraft = null, storedViewport = null;
+  const restored = await Promise.allSettled([
+    data.cache.read('canvasState', ROOM, 'state'),
+    data.cache.read('chatDraft', ROOM, 'state'),
+    data.local.read('canvasViewport', ROOM)
+  ]);
+  if (restored[0].status === 'fulfilled') storedGraph = restored[0].value?.value;
+  if (restored[1].status === 'fulfilled') storedDraft = restored[1].value?.value;
+  if (restored[2].status === 'fulfilled') storedViewport = restored[2].value;
+  const loadFailed = restored.some(r => r.status === 'rejected');
+  if (loadFailed) {
+    restored.forEach((result, index) => { if (result.status === 'rejected') failedDomains.add(['canvas', 'draft', 'viewport'][index]); });
+    announce('이 기기의 저장 내용을 불러오지 못했습니다. 새로 입력한 내용도 저장 여부를 확인해 주세요.', { persistent: true });
+  }
+  let model;
+  // A corrupt stored graph is left intact. Do not silently overwrite user work.
+  let preserveStoredGraph = restored[0].status === 'rejected';
+  try { model = createWorkspaceModel({ snapshot: storedGraph || undefined }); }
+  catch (error) {
+    model = createWorkspaceModel(); preserveStoredGraph = true; failedDomains.add('canvas');
+    announce('저장된 캔버스를 복원하지 못했습니다. 새로고침 후 다시 확인해 주세요.', { persistent: true });
+    console.error('Workspace graph restore failed', error);
+  }
+  if (!storedGraph && !loadFailed) {
+    save('canvas', () => data.cache.write('canvasState', ROOM, 'state', model.getSnapshot(), { source: 'provisional' }));
+  }
+  let presentation = null;
+  const runUnavailable = () => {
+    // SERVER INTEGRATION: connect a validated request/execution adapter here.
+    // A request acceptance must never be fabricated from a local button click.
+    return { accepted: false, message: '아직 서버에 연결되지 않았습니다. 입력과 캔버스는 유지됩니다.' };
+  };
+  const canvas = createCanvas({
+    model, input,
+    onRun: runUnavailable,
+    onAttach: async (file, { blockId, metadata }) => {
+      // Preserve the actual local file for future reads; metadata alone is not a file.
+      return { ...metadata, blob: file };
+    }
+  });
+  function composerHeight(height) {
+    const value = `${height + 22}px`;
+    chat.style.setProperty('--workspace-composer-height', value);
+    canvas.element.style.setProperty('--workspace-composer-height', value);
+  }
+  const composer = createComposer({
+    model, onSubmit: runUnavailable, onHeightChange: composerHeight,
+    onAttach: async files => {
+      for (const file of files) {
+        const block = await canvas.addFile(file);
+        if (!block) throw new Error('파일을 캔버스에 추가하지 못했습니다.');
+      }
+      presentation?.goTo('canvas');
+      return { handled: true };
+    }
+  });
+  composer.element.classList.add('workspace-composer');
+  if (storedDraft) composer.setDraft(storedDraft);
+  if (storedViewport) canvas.setViewport(storedViewport);
+  let hasViewport = Boolean(storedViewport);
+  const unsubscribe = model.subscribe(({ snapshot }) => {
+    if (!preserveStoredGraph) save('canvas', () => data.cache.write('canvasState', ROOM, 'state', snapshot, { source: 'provisional' }));
+    else announce('저장된 캔버스 보호를 위해 현재 변경은 저장하지 않습니다. 새로고침 후 다시 확인해 주세요.', { persistent: true });
+  });
+  composer.element.addEventListener('input', () => {
+    const draft = composer.getDraft();
+    save('draft', () => data.cache.write('chatDraft', ROOM, 'state', draft, { source: 'provisional' }));
+  }, { signal: lifetime.signal });
+  canvas.element.addEventListener('canvasviewportchange', event => {
+    hasViewport = true;
+    const viewport = { ...event.detail };
+    save('viewport', () => data.local.write('canvasViewport', ROOM, viewport));
+  }, { signal: lifetime.signal });
+  chat.querySelector('button').addEventListener('click', () => presentation?.goTo('canvas'), { signal: lifetime.signal });
+  saveState.textContent = pending ? '저장 중' : failedDomains.size ? '저장 내용을 확인해 주세요' : '이 기기에 임시 저장됨';
+  const resize = new ResizeObserver(() => {
+    composerHeight(composer.element.getBoundingClientRect().height);
+  });
+  resize.observe(composer.element);
+  return {
+    getPresentation: () => ({
+      root, layout: 'immersive', pill: { visible: true },
+      slides: [{ id: 'chat', label: '채팅', element: chat, allowContentSwipe: true }, { id: 'canvas', label: '캔버스', element: canvas.element, allowContentSwipe: false }],
+      stationary: [{ id: 'composer', slot: 'bottom', element: composer.element }, { id: 'workspace-feedback', slot: 'overlay', element: feedback }]
+    }),
+    activate({ signal, controller }) {
+      presentation = controller;
+      // A graph restored without a local camera can be framed without rewriting its blocks.
+      if (!hasViewport && model.getBlocks().length) {
+        const frame = root.getBoundingClientRect();
+        canvas.setViewport({ x: Math.max(60, frame.width / 2 - 100), y: Math.max(115, frame.height / 2 - 70), zoom: 1 });
+      }
+      canvas.activate({ signal }); composer.activate({ signal });
+    },
+    closeTransientUI() { composer.closeMenu(); canvas.closeMenu?.(); },
+    deactivate() { composer.deactivate(); canvas.deactivate(); presentation = null; },
+    flush: () => queued,
+    destroy() {
+      if (destroyed) return;
+      composer.deactivate(); canvas.deactivate();
+      destroyed = true; clearTimeout(noticeTimer); lifetime.abort(); resize.disconnect(); unsubscribe();
+      composer.destroy(); canvas.destroy(); presentation = null;
+    }
+  };
+}

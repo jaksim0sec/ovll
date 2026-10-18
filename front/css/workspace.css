@@ -1,0 +1,26 @@
+/* Workspace content only. App Shell and Hosted Slides retain all global geometry. */
+.workspace-chat{background:var(--color-bg);overflow:auto;overscroll-behavior:contain;padding:calc(var(--safe-top) + 6rem) 1.3rem calc(var(--workspace-composer-height,5.5rem) + 1.5rem);display:flex;align-items:center;justify-content:center}
+.workspace-welcome{width:100%;max-width:36rem;text-align:center;margin-top:-3.5rem}
+.workspace-wordmark{display:inline-flex;align-items:baseline;gap:.5rem;font-size:2.5rem;font-weight:720;letter-spacing:-.075em;line-height:1.2}
+.workspace-wordmark>span{font-size:.59rem;letter-spacing:.09em;color:var(--color-secondary);font-weight:600;text-transform:uppercase}
+.workspace-welcome h1{font-size:1.52rem;font-weight:600;letter-spacing:-.055em;margin:1.2rem 0 .6rem}
+.workspace-welcome p{font-size:.85rem;color:var(--color-secondary);line-height:1.7;margin:0}
+.workspace-open-canvas{display:inline-flex;gap:.4rem;align-items:center;margin:1.6rem 0 .4rem;padding:.65rem .85rem;border:1px solid var(--color-line);border-radius:999px;font-size:.8rem;color:var(--color-secondary);background:var(--color-hover)}
+.workspace-open-canvas svg{width:1.1rem;height:1.1rem}
+.workspace-open-canvas:hover{color:var(--color-text)}
+.workspace-save-state{display:block;margin:.8rem 0;color:var(--color-secondary);font-size:.65rem;opacity:.66}
+.workspace-composer{max-width:45rem;width:calc(100% - 1.25rem);margin:0 auto;padding-bottom:calc(var(--safe-bottom) + .625rem)}
+.workspace-composer::before{content:'';position:absolute;left:calc((45rem - 100vw)/2);right:calc((45rem - 100vw)/2);bottom:-.5rem;height:5.6rem;background:linear-gradient(to top,color-mix(in srgb,var(--color-bg) 24%,transparent),color-mix(in srgb,var(--color-bg) 10%,transparent) 56%,transparent);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);mask-image:linear-gradient(to top,#000 55%,transparent);pointer-events:none;z-index:-1}
+.workspace-feedback{position:absolute;inset:0;pointer-events:none!important;display:flex;align-items:flex-start;justify-content:center;padding:calc(var(--safe-top) + 4.6rem) 1.2rem 0}
+.workspace-notice{max-width:35rem;margin:0;padding:.65rem 1rem;border:1px solid var(--color-line);border-radius:1rem;background:var(--ui-glass-strong);backdrop-filter:blur(1rem);-webkit-backdrop-filter:blur(1rem);color:var(--color-secondary);font-size:.76rem;line-height:1.6;box-shadow:var(--ui-glass-shadow)}
+/* Library remains a navigation placeholder until its own domain is implemented. */
+.demo-library{height:100%;width:100%;overflow:auto;padding:2.25rem 1.5rem;background:var(--color-bg)}
+.library-demo-inner{max-width:42rem;margin:0 auto}
+.demo-eyebrow{font-size:.65rem;font-weight:650;letter-spacing:.1em;color:var(--color-secondary)}
+.library-demo-inner h1{font-size:1.75rem;letter-spacing:-.05em;margin:1rem 0 .7rem}
+.library-demo-inner p{font-size:.85rem;color:var(--color-secondary);line-height:1.7}
+.library-demo-card{display:flex;gap:.85rem;align-items:center;padding:1.1rem;margin:1rem 0;border:1px solid var(--color-line);border-radius:1.2rem;background:var(--color-panel)}
+.library-demo-card small{display:block;margin-top:.3rem;font-size:.75rem;color:var(--color-secondary)}
+.mock-file-icon{font-size:1.5rem;color:var(--color-secondary)}
+@media(max-width:45rem){.workspace-composer::before{left:-.625rem;right:-.625rem}}
+@media(max-height:520px){.workspace-welcome{margin-top:0}.workspace-wordmark{font-size:1.6rem}.workspace-welcome h1{font-size:1.1rem}.workspace-welcome p,.workspace-save-state{display:none}.workspace-open-canvas{margin-top:.5rem}.workspace-chat{align-items:flex-start}}

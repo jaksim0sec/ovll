@@ -4,8 +4,7 @@ import { createPageHost } from './shell/pageHost.js';
 import { createInputManager } from './input/inputManager.js';
 import { createLocalDataStore } from './data/localDataStore.js';
 import { createHostedSlides } from './shell/hostedSlides.js';
-// TEMPORARY BETA ONLY: remove when actual Workspace is implemented.
-import { mountUiTest } from './dev/uiTest.js';
+import { createWorkspace } from './workspace/controller.js';
 
 const root=document.querySelector('#app');
 const status=document.querySelector('#boot-status');
@@ -16,21 +15,26 @@ const themeSelect=root.querySelector('[data-theme-select]');
 themeSelect.value=theme.getTheme();
 themeSelect.addEventListener('change',()=>theme.setTheme(themeSelect.value),{signal:lifetime.signal});
 const releaseTheme=theme.subscribe(value=>{themeSelect.value=value;});
-const data=createLocalDataStore(); // existing data adapter: not used by fixture
-let shell,pages,hosted,fixture;
+const data=createLocalDataStore();
+let shell,pages,hosted,workspaceController;
 function destroy(){
   lifetime.abort();
   try{pages?.destroy()}finally{
-    hosted?.destroy();shell?.destroy();input.destroy();data.destroy();fixture?.destroy();releaseTheme();theme.destroy();
+    hosted?.destroy();shell?.destroy();input.destroy();workspaceController?.destroy();releaseTheme();theme.destroy();
+    // Pending IDB writes finish before closing their adapter.
+    Promise.resolve(workspaceController?.flush()).finally(()=>data.destroy());
   }
 }
 try{
   pages=createPageHost({element:document.querySelector('#page-host'),onChange:id=>shell.setActivePage(id)});
-  shell=createAppShell({element:root,onNavigate:id=>{input.cancel('page-change');hosted.cancel('page-change');pages.activate(id)},onMenuOpen:()=>{input.cancel('menu-open');hosted?.cancel('menu-open')}});
+  shell=createAppShell({element:root,onNavigate:id=>{input.cancel('page-change');hosted.cancel('page-change');pages.activate(id)},onMenuOpen:()=>{input.cancel('menu-open');hosted?.cancel('menu-open');workspaceController?.closeTransientUI()}});
   hosted=createHostedSlides({pillHost:root.querySelector('[data-hosted-pill]'),stationaryHost:root.querySelector('[data-hosted-stationary]'),input,onLayout:mode=>shell.setPresentationMode(mode),onPillVisibilityChange:visible=>shell.setHostedPillVisible(visible),onSwipePastStart:()=>{if(!shell.getMenuOpen())shell.setMenuOpen(true)},isBlocked:()=>shell.isModalOpen()});
   const workspace=document.querySelector('#workspace-template').content.firstElementChild.cloneNode(true);
-  fixture=mountUiTest({workspace,theme});
-  pages.register('workspace',{element:workspace,onEnter:({signal})=>fixture.setController(hosted.activateForPage({...fixture.getPresentation(),signal})),onLeave:()=>{fixture.setController(null)}});
+  workspaceController=await createWorkspace({root:workspace,data,input});
+  pages.register('workspace',{element:workspace,onEnter:({signal})=>{
+    const controller=hosted.activateForPage({...workspaceController.getPresentation(),signal});
+    workspaceController.activate({signal,controller});
+  },onLeave:()=>workspaceController.deactivate()});
   const library=document.querySelector('#library-template').content.firstElementChild.cloneNode(true);
   const libraryContent=library.querySelector('.library-demo-inner');
   const librarySlide=document.createElement('div');
@@ -43,7 +47,7 @@ try{
   pages.activate('workspace');
   status.hidden=true;
   window.addEventListener('pagehide',event=>{
-    if(event.persisted){input.cancel('page-hidden');hosted.cancel('page-hidden')}
+    if(event.persisted){input.cancel('page-hidden');hosted.cancel('page-hidden');workspaceController.closeTransientUI()}
     else destroy();
   },{signal:lifetime.signal});
 }catch(error){
