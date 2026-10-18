@@ -273,6 +273,7 @@ export function createHostedSlides({ pillHost, stationaryHost, input, onLayout=(
     const publicHandle={
       goTo,
       getCurrentSlide:()=>config.slides[current]?.id??null,
+      getFirstSlide:()=>config.slides[0]?.id??null,
       hasSlide:id=>config.slides.some(slide=>slide.id===id),
       update(patch={}){
         if(closed)return;
@@ -329,6 +330,7 @@ export function createHostedSlides({ pillHost, stationaryHost, input, onLayout=(
   return {
     activateForPage,cancel,
     getCurrentSlide:()=>active?.getCurrentSlide()??null,
+    getFirstSlide:()=>active?.getFirstSlide()??null,
     hasSlide:id=>active?.hasSlide(id)??false,
     goTo:(id,options)=>active?.goTo(id,options),
     destroy(){if(destroyed)return;destroyed=true;deactivate();}

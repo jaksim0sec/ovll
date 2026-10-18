@@ -40,7 +40,8 @@ function applyRoute(){
     input.cancel('route-change');
     hosted?.cancel('route-change');
     pages.activate(page);
-    if(slide&&hosted.hasSlide(slide))hosted.goTo(slide,{immediate:true});
+    const target=slide&&hosted.hasSlide(slide)?slide:hosted.getFirstSlide();
+    if(target)hosted.goTo(target,{immediate:true});
   }finally{applyingRoute=false;}
 }
 function destroy(){
