@@ -26,5 +26,8 @@
 @media(prefers-reduced-motion:reduce){.hosted-pill-thumb{transition:none}}
 /* Hosted track placement must win over a page's own .fixture-slide display rules. */
 .hosted-track > .hosted-slide { position:absolute; top:0; left:calc(var(--slide-index,0) * 100%); }
+/* Touch-action is intersected only up to the nearest scroll container. An
+   overflow:auto slide must declare its policy itself, not just on viewport. */
+.hosted-slide.allows-content-swipe{touch-action:pan-y}
 
 

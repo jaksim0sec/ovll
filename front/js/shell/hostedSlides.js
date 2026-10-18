@@ -156,6 +156,7 @@ export function createHostedSlides({ pillHost, stationaryHost, input, onLayout=(
       track.replaceChildren();
       config.slides.forEach((item,i)=>{
         item.element.classList.add('hosted-slide');
+        item.element.classList.toggle('allows-content-swipe',item.allowContentSwipe);
         item.element.style.setProperty('--slide-index',String(i));
         track.append(item.element);
       });
@@ -305,6 +306,7 @@ export function createHostedSlides({ pillHost, stationaryHost, input, onLayout=(
         pillHost.replaceChildren();pillHost.hidden=true;
         onPillVisibilityChange(false);
         stationaryHost.replaceChildren();
+        for(const slide of config.slides)slide.element.classList.remove('allows-content-swipe');
         root.style.removeProperty('--stationary-reserve-top');root.style.removeProperty('--stationary-reserve-bottom');
         root.classList.remove('hosted-root');
         if(signal)signal.removeEventListener('abort',abort);

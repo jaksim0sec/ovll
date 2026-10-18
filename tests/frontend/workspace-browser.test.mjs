@@ -17,6 +17,25 @@ test('workspace restores rich drafts and graph, owns no server traffic, survives
  await page.goto(`http://127.0.0.1:${server.address().port}`);
  await page.getByRole('textbox',{name:'작업 입력',exact:true}).waitFor({timeout:5000});
  assert.equal(await page.locator('.canvas-block').count(),0,'main starts with an empty editable canvas');
+ // A scrollable slide is the browser's nearest touch-action boundary. Exercise
+ // trusted touches rather than synthetic pointer dispatch, which cannot cancel.
+ const swipeCdp=await context.newCDPSession(page);
+ async function bodySwipe(fromX,toX,y){
+  await swipeCdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:fromX,y,id:1}]});
+  for(let i=1;i<=8;i++){
+   await swipeCdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:fromX+(toX-fromX)*i/8,y,id:1}]});
+   await page.waitForTimeout(18);
+  }
+  await swipeCdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+  await page.waitForTimeout(400);
+ }
+ await bodySwipe(300,55,260);
+ assert.equal(await page.locator('[data-active-slide]').getAttribute('data-active-slide'),'canvas','chat body must swipe into a canvas that refuses swipe initiation');
+ await bodySwipe(55,300,600);
+ assert.equal(await page.locator('[data-active-slide]').getAttribute('data-active-slide'),'canvas','canvas body owns pan and must not initiate a slide swipe');
+ await page.getByRole('tab',{name:'채팅',exact:true}).click();
+ await page.waitForFunction(()=>!document.querySelector('.hosted-viewport').classList.contains('is-dragging'));
+
  const composerBox=await page.locator('.workspace-composer').boundingBox();assert.ok(composerBox.x>=8 && composerBox.x+composerBox.width<=382,'composer keeps the main-style mobile side gutters');
  const editor=page.getByRole('textbox',{name:'작업 입력',exact:true});await editor.fill('초안 @조사');
  await page.getByRole('option').filter({hasText:'조사하기'}).first().click();

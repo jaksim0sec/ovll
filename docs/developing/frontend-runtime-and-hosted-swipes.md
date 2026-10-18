@@ -49,6 +49,8 @@
 `HostedSlides.activateForPage({ root, slides, showPill, signal })` 제안:
 - `slides`: 명시적 순서의 `{ id, label, element, allowContentSwipe? }` 배열. `id` 유일. 0개/1개에서는 알약 및 수평 제스처 없음.
 - 기본 `allowContentSwipe: false` (Canvas 등에 안전한 opt-in). Chat 슬라이드만 true 선언. 콘텐츠의 `input/textarea/button/a/select/contenteditable` 및 가로 스크롤 하위 요소에서는 거절.
+- 이 플래그는 **현재 슬라이드에서 본문 스와이프를 시작할 수 있는지**만 결정한다. 도착 슬라이드가 false여도 전환은 허용한다. 본문 마우스 드래그는 현재 구현에서 거부하고 터치/펜만 처리한다. 알약은 마우스/터치 모두 허용한다.
+- Hosted Slides는 true인 슬라이드 루트에 `allows-content-swipe` 클래스로 `touch-action:pan-y`를 부여한다. 브라우저는 touch-action을 가장 가까운 스크롤 컨테이너까지만 결합하므로 `overflow:auto` 루트에는 viewport의 pan-y만으로 부족하다. 중첩된 별도 스크롤 컨테이너가 본문 스와이프를 허용하려면 해당 콘텐츠도 pan-y를 선언해야 한다. 수직 스크롤은 네이티브 처리하고 Canvas의 none/자체 입력 정책은 유지한다.
 - `signal`이 종료되면 제스처 취소, DOM 표시/가시성/ARIA 해제, 알약 삭제. 페이지 재활성화 때는 새로운 signal과 현재 슬라이드 관리 정책에 따라 재구성.
 - `goTo(id)`, `getCurrentSlide()` 등 공개 제어 계약. 임의 전역 상태 변수로 두지 않음.
 - 활성 Hosted Page가 바뀌어도 `Page Host` 자신의 `getActivePage()`가 최상위 ID의 유일한 원본. 글로벌 알약은 현재 활성한 페이지의 구성으로만 렌더링.
