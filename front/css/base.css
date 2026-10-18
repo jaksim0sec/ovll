@@ -1,24 +1,26 @@
 
 :root {
   color-scheme: dark;
-  /* Public seed: override this once to tint every semantic surface/action. */
-  --theme-color: #969696;
+  /* Brand seed. Change this color once; dark/light surfaces and accents derive from it. */
+  --brand-color: #969696;
   --theme-canvas: #101012;
   --theme-surface: #1d1d20;
   --theme-ink: #f7f7f9;
   --theme-accent-base: #fff;
-  --theme-accent-share: 68%;
+  --theme-accent-share: 38%;
   --theme-line-alpha: 10%;
   --theme-shadow-alpha: 12%;
-  --color-bg: color-mix(in oklab, var(--theme-color) 4%, var(--theme-canvas));
-  --color-panel: color-mix(in oklab, var(--theme-color) 6%, var(--theme-surface));
-  --color-text: color-mix(in oklab, var(--theme-color) 2%, var(--theme-ink));
+  --color-bg: color-mix(in oklab, var(--brand-color) 4%, var(--theme-canvas));
+  --color-panel: color-mix(in oklab, var(--brand-color) 9%, var(--theme-surface));
+  --color-text: color-mix(in oklab, var(--brand-color) 2%, var(--theme-ink));
   --color-secondary: color-mix(in oklab, var(--color-text) 65%, var(--color-bg));
-  --color-accent: color-mix(in oklab, var(--theme-color), var(--theme-accent-base) var(--theme-accent-share));
+  --color-accent: color-mix(in oklab, var(--brand-color), var(--theme-accent-base) var(--theme-accent-share));
   --color-on-accent: var(--theme-canvas);
   --color-line: color-mix(in srgb, var(--color-text) var(--theme-line-alpha), transparent);
   --color-hover: color-mix(in srgb, var(--color-text) 5%, transparent);
-  --color-active: color-mix(in srgb, var(--color-accent) 15%, var(--color-hover));
+  --color-active: color-mix(in srgb, var(--color-accent) 14%, var(--color-hover));
+  --ui-brand-line: color-mix(in srgb, var(--brand-color) 34%, var(--color-line));
+  --ui-brand-wash: color-mix(in srgb, var(--brand-color) 11%, transparent);
   --color-backdrop: color-mix(in srgb, #000 24%, transparent);
   --ui-glass: color-mix(in srgb, var(--color-panel) 72%, transparent);
   --ui-glass-strong: color-mix(in srgb, var(--color-panel) 90%, transparent);
@@ -45,7 +47,7 @@
   -webkit-font-smoothing: antialiased;
 }
 @media(prefers-color-scheme: light) {
-  :root {color-scheme:light;--theme-canvas:#f7f7f9;--theme-surface:#fff;--theme-ink:#17171a;--theme-accent-base:#000;--theme-accent-share:54%;--theme-line-alpha:9%;--theme-shadow-alpha:6%;}
+  :root {color-scheme:light;--theme-canvas:#f7f7f9;--theme-surface:#fff;--theme-ink:#17171a;--theme-accent-base:#000;--theme-accent-share:50%;--theme-line-alpha:9%;--theme-shadow-alpha:6%;}
 }
 *,*::before,*::after{box-sizing:border-box}
 [hidden]{display:none!important}
@@ -76,9 +78,9 @@ svg{display:block;width:1.4rem;height:1.4rem;flex:0 0 auto;fill:none;stroke:curr
 /* Change only mode primitives; derived tokens keep the same seed relationship. */
 :root[data-theme="dark"] {
   color-scheme:dark;--theme-canvas:#101012;--theme-surface:#1d1d20;--theme-ink:#f7f7f9;
-  --theme-accent-base:#fff;--theme-accent-share:68%;--theme-line-alpha:10%;--theme-shadow-alpha:12%;
+  --theme-accent-base:#fff;--theme-accent-share:38%;--theme-line-alpha:10%;--theme-shadow-alpha:12%;
 }
 :root[data-theme="light"] {
   color-scheme:light;--theme-canvas:#f7f7f9;--theme-surface:#fff;--theme-ink:#17171a;
-  --theme-accent-base:#000;--theme-accent-share:54%;--theme-line-alpha:9%;--theme-shadow-alpha:6%;
+  --theme-accent-base:#000;--theme-accent-share:50%;--theme-line-alpha:9%;--theme-shadow-alpha:6%;
 }

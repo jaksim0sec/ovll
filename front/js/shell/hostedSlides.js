@@ -29,7 +29,7 @@ export function shouldOpenStartDrawer({slideIndex,kind,allowContentSwipe,dx,widt
 }
 
 /** One active Hosted Page at a time; overlays may outlive swipe transitions, not page lifetime. */
-export function createHostedSlides({ pillHost, stationaryHost, input, onLayout=()=>{}, onPillVisibilityChange=()=>{}, onSwipePastStart=()=>{}, isBlocked=()=>false }) {
+export function createHostedSlides({ pillHost, stationaryHost, input, onLayout=()=>{}, onPillVisibilityChange=()=>{}, onSlideChange=()=>{}, onSwipePastStart=()=>{}, isBlocked=()=>false }) {
   let active=null;
   let destroyed=false;
   function cancel(reason='external') {active?.cancel(reason);}
@@ -106,10 +106,12 @@ export function createHostedSlides({ pillHost, stationaryHost, input, onLayout=(
       const index=config.slides.findIndex(s=>s.id===id);
       if(index<0) throw new Error(`Unknown slide: ${id}`);
       stop();
+      const previous=config.slides[current]?.id;
       current=index;
+      const changed=previous!==id;
       const initial=progress;
       if(immediate || matchMedia('(prefers-reduced-motion: reduce)').matches || Math.abs(initial-index)<.001) {
-        progress=index;paint();return;
+        progress=index;paint();if(changed)onSlideChange(id);return;
       }
       const token=animationId;
       const start=performance.now();
@@ -125,6 +127,7 @@ export function createHostedSlides({ pillHost, stationaryHost, input, onLayout=(
         else {frame=null;progress=index;viewport.classList.remove('is-dragging');pillNode.classList.remove('is-dragging');paint();}
       };
       frame=requestAnimationFrame(tick);
+      if(changed)onSlideChange(id);
     }
     function createPillButtons() {
       pillNode.replaceChildren(thumb);
@@ -270,6 +273,7 @@ export function createHostedSlides({ pillHost, stationaryHost, input, onLayout=(
     const publicHandle={
       goTo,
       getCurrentSlide:()=>config.slides[current]?.id??null,
+      hasSlide:id=>config.slides.some(slide=>slide.id===id),
       update(patch={}){
         if(closed)return;
         const next=normalizePresentation({
@@ -293,6 +297,7 @@ export function createHostedSlides({ pillHost, stationaryHost, input, onLayout=(
         onLayout(config.layout);
         if(structureChanged || stationaryChanged || previousIndex!==current)watchSlots();
         paint();
+        if(selected!==config.slides[current]?.id)onSlideChange(config.slides[current]?.id??null);
       },
       cancel(reason){
         if(interaction){interaction=null;input.cancel(reason);}
@@ -321,6 +326,12 @@ export function createHostedSlides({ pillHost, stationaryHost, input, onLayout=(
     if(signal){signal.addEventListener('abort',abort,{once:true});if(signal.aborted)abort();}
     return publicHandle;
   }
-  return {activateForPage,cancel,destroy(){if(destroyed)return;destroyed=true;deactivate();}};
+  return {
+    activateForPage,cancel,
+    getCurrentSlide:()=>active?.getCurrentSlide()??null,
+    hasSlide:id=>active?.hasSlide(id)??false,
+    goTo:(id,options)=>active?.goTo(id,options),
+    destroy(){if(destroyed)return;destroyed=true;deactivate();}
+  };
 }
 

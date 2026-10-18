@@ -166,7 +166,14 @@
 
 ### 테마 색상·밀도 토큰 (2026-10-19)
 
-- `base.css`의 공개 입력은 `:root --theme-color`(유효한 CSS color, 기본 `#969696` 무채색). 예: `:root { --theme-color: #b4a6f0; }`. JS·색상 설정 UI·저장 계약은 추가하지 않는다. 기존 `system/dark/light` 선택과 OS 변경은 그대로 사용한다.
-- 모드 입력 `--theme-canvas/surface/ink`, accent base/share, line/shadow alpha만 dark/light에서 교체한다. 공통 파생 토큰은 배경에 seed 4%, 표면 6%, 본문 2%를 oklab 혼합하고 보조 글자는 본문/배경 65/35로 만든다. 강조색은 seed와 dark의 흰색 68% 또는 light의 검정 54%를 혼합한다. `--color-on-accent`는 모드 canvas 원색이다.
+- `base.css`의 공개 브랜드 입력은 `:root --brand-color`(유효한 CSS color, 기본 `#969696` 무채색). 예: `:root { --brand-color: #b4a6f0; }`. JS·색상 설정 UI·저장 계약은 추가하지 않는다. 기존 `system/dark/light` 선택과 OS 변경은 그대로 사용한다.
+- 모드 입력 `--theme-canvas/surface/ink`, accent base/share, line/shadow alpha만 dark/light에서 교체한다. 공통 파생 토큰은 배경에 seed 4%, 표면 9%, 본문 2%를 oklab 혼합하고 보조 글자는 본문/배경 65/35로 만든다. 강조색은 seed와 dark의 흰색 38% 또는 light의 검정 50%를 혼합한다. `--color-on-accent`는 모드 canvas 원색이다.
 - `--color-bg/panel/text/secondary/accent/on-accent/line/hover/active`와 유리·그림자 토큰이 같은 seed에서 파생된다. 전송 버튼은 accent/on-accent, 비활성 상태는 기존 중립 토큰을 사용한다. 스킬별 의미 색과 오류 색은 별도로 보존한다.
 - 사이드바 공통 폭은 17rem, 메뉴 행 최소 높이 2.75rem. 컴포저·참조 선택창은 간격/내부 여백을 조정하되 글자 크기와 입력·제스처 계약은 바꾸지 않는다.
+
+### URL 페이지·슬라이드 상태 (2026-10-19)
+
+- `boot.js`만 브라우저 URL·History를 소유한다. `?page=workspace&slide=chat|canvas`, `?page=library&slide=library`로 최상위 페이지와 현재 Hosted Slide를 표현한다. 기존 다른 쿼리와 hash는 보존한다.
+- 최초 로드의 쿼리로 페이지를 활성화하고 슬라이드를 즉시 선택한다. 생략되거나 알 수 없는 값은 기본 Workspace/해당 페이지 첫 슬라이드로 해석해 현재 상태로 URL을 replace한다.
+- 사용자가 페이지 또는 슬라이드를 실제 변경한 경우에만 pushState한다. `popstate`는 활성 페이지·슬라이드를 복구하며 복구 중 History 엔트리를 새로 만들지 않는다. 현재 페이지·슬라이드를 읽고 변경을 알리는 Hosted Slides의 공개 API로만 연결한다.
+- URL은 UI 위치 상태일 뿐 room ID/서버 자산 식별·인증·데이터 동기화 프로토콜이 아니다. 기존 Page Host 수명과 Composer stationary 보존 정책을 변경하지 않는다.
