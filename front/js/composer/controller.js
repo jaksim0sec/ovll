@@ -33,11 +33,11 @@ export function createComposer({model,onSubmit,onHeightChange,onAttach} = {}) {
     node.innerHTML=icon(glyph);node.setAttribute('aria-label',label);node.title=label;
     return node;
   }
-  const add = button('plus','추가','ovll-rich-add');
+  const add = button('plus','파일 추가','ovll-rich-add');
   const mention = button('mention','스킬 및 스킬블럭 참조','ovll-rich-mention');
   const canvas = button('canvas','스킬블럭 참조','ovll-rich-canvas');
   const commands = button('slash','빠른 명령','ovll-rich-slash');
-  for(const node of [add,mention,canvas,commands]) {
+  for(const node of [mention,canvas,commands]) {
     node.setAttribute('aria-haspopup','listbox');node.setAttribute('aria-expanded','false');
   }
   toolbar.append(add,mention,canvas,commands);
@@ -75,6 +75,8 @@ export function createComposer({model,onSubmit,onHeightChange,onAttach} = {}) {
   let lastHeight=-1;
   let revision=0;
   let tokenNumber=0;
+  let openingToolbarMenu=false;
+  let layoutAnimations=[];
   const coarse=()=>view.matchMedia?.('(hover: none) and (pointer: coarse)').matches;
 
   function notify(message='') {status.textContent=message;status.hidden=!message;scheduleResize();}
@@ -142,11 +144,24 @@ export function createComposer({model,onSubmit,onHeightChange,onAttach} = {}) {
   function resize() {
     resizeFrame=0;if(destroyed)return;
     const style=view.getComputedStyle(editor);const rem=parseFloat(view.getComputedStyle(doc.documentElement).fontSize)||16;
-    const compactWidth=Math.max(1,form.clientWidth-2*.44*rem-2.25*rem-2.5*rem-.5*rem);
+    const formStyle=view.getComputedStyle(form);
+    const compactPadding=parseFloat(formStyle.getPropertyValue('--ovll-rich-compact-padding-rem'))||.44;
+    const compactGap=parseFloat(formStyle.getPropertyValue('--ovll-rich-compact-gap-rem'))||.25;
+    const compactWidth=Math.max(1,form.clientWidth-2*compactPadding*rem-2.25*rem-2.5*rem-2*compactGap*rem);
     measure.style.width=`${compactWidth}px`;measure.textContent=editor.textContent||'';
     const parts=readParts();
-    const expanded=attachments.length>0 || parts.some(p=>p.type!=='text'||p.text.includes('\n')) || measure.scrollHeight>(parseFloat(style.lineHeight)||24)+.5*rem+2;
+    const expanded=doc.activeElement===editor || openingToolbarMenu || !picker.hidden || attachments.length>0 || parts.some(p=>p.type!=='text'||p.text.trim()||p.text.includes('\n')) || measure.scrollHeight>(parseFloat(style.lineHeight)||24)+.5*rem+2;
+    const layoutChanged=form.classList.contains('is-expanded')!==expanded;
+    const previous=layoutChanged?[form,toolbar,send].map(node=>node.getBoundingClientRect()):null;
+    if(layoutChanged){for(const animation of layoutAnimations)animation.cancel();layoutAnimations=[];}
     form.classList.toggle('is-expanded',expanded);
+    if(layoutChanged && !view.matchMedia?.('(prefers-reduced-motion: reduce)').matches){
+      const motion={duration:145,easing:'cubic-bezier(.22,1,.36,1)'};
+      const nextHeight=form.getBoundingClientRect().height;
+      if(Math.abs(previous[0].height-nextHeight)>1)layoutAnimations.push(form.animate([{height:`${previous[0].height}px`},{height:`${nextHeight}px`}],motion));
+      [toolbar,send].forEach((node,index)=>{const next=node.getBoundingClientRect();const dx=previous[index+1].left-next.left;const dy=previous[index+1].top-next.top;if(Math.abs(dx)+Math.abs(dy)>1)layoutAnimations.push(node.animate([{transform:`translate3d(${dx}px,${dy}px,0)`},{transform:'translate3d(0,0,0)'}],motion));});
+    }
+    pickerHost.style.left=`${form.offsetLeft}px`;pickerHost.style.width=`${form.offsetWidth}px`;pickerHost.style.right='auto';
     const height=element.getBoundingClientRect().height;
     if(height!==lastHeight){lastHeight=height;onHeightChange?.(height);}
   }
@@ -188,7 +203,8 @@ export function createComposer({model,onSubmit,onHeightChange,onAttach} = {}) {
   function closeMenu() {
     picker.hidden=true;picker.replaceChildren();menuType='';entries=[];triggerRange=null;selectedTag=null;
     editor.removeAttribute('aria-activedescendant');editor.setAttribute('aria-expanded','false');
-    for(const node of [add,mention,canvas,commands])node.setAttribute('aria-expanded','false');
+    for(const node of [mention,canvas,commands])node.setAttribute('aria-expanded','false');
+    scheduleResize();
   }
   function references(type) {
     const definitions=skills.filter(skill=>skill.id!=='start').map(skill=>({type:'skill',id:skill.id,label:skill.name,detail:skill.description,icon:skill.icon,color:skill.color,group:'기본 스킬'}));
@@ -200,11 +216,11 @@ export function createComposer({model,onSubmit,onHeightChange,onAttach} = {}) {
   }
   function menuItems(type) {
     if(type==='tag')return [{action:'remove',label:'참조 삭제',detail:'선택한 참조만 제거합니다.',icon:'close'}];
-    if(type==='add' || type==='commands')return [
+    if(type==='commands')return [
       {action:'skills',label:'스킬 참조',detail:'사용할 스킬을 지정합니다.',icon:'mention',keywords:'skill @'},
       {action:'blocks',label:'스킬블럭 참조',detail:'캔버스의 스킬블럭을 지정합니다.',icon:'canvas',keywords:'canvas block'},
       {action:'file',label:'파일 추가',detail:'이 기기의 파일을 첨부합니다.',icon:'folder',keywords:'file attach'},
-      {action:'newline',label:'줄바꿈',detail:'커서 위치에서 새 줄을 시작합니다.',icon:'slash',keywords:'newline'}
+      {action:'newline',label:'줄바꿈',detail:'커서 위치에서 새 줄을 시작합니다.',icon:'enter',keywords:'newline'}
     ];
     return references(type);
   }
@@ -213,13 +229,15 @@ export function createComposer({model,onSubmit,onHeightChange,onAttach} = {}) {
     if(!entries.length){const empty=doc.createElement('p');empty.className='ovll-rich-empty';empty.textContent=menuType==='blocks'?'캔버스에 스킬블럭을 추가해 주세요.':'검색 결과가 없습니다.';picker.append(empty);editor.removeAttribute('aria-activedescendant');return;}
     let group='';
     entries.forEach((entry,index)=>{
-      if(entry.group && entry.group!==group){group=entry.group;const heading=doc.createElement('div');heading.className='ovll-rich-group-title';heading.setAttribute('role','presentation');heading.textContent=group;picker.append(heading);}
+      if(menuType==='skills' && entry.group && entry.group!==group){group=entry.group;const heading=doc.createElement('div');heading.className='ovll-rich-group-title';heading.setAttribute('role','presentation');heading.textContent=group;picker.append(heading);}
       const option=doc.createElement('button');option.type='button';option.className=`ovll-rich-option${index===selectedIndex?' is-selected':''}`;
       option.id=`${prefix}-option-${index}`;option.setAttribute('role','option');option.setAttribute('aria-selected',String(index===selectedIndex));option.dataset.optionIndex=String(index);option.tabIndex=-1;
       const glyph=doc.createElement('span');glyph.className='ovll-rich-option-icon';glyph.innerHTML=icon(entry.icon);if(entry.color)glyph.style.color=entry.color;
       const label=doc.createElement('span');label.className='ovll-rich-option-label';
       const title=doc.createElement('strong');title.textContent=entry.label;const detail=doc.createElement('small');detail.textContent=entry.detail||'';
-      label.append(title,detail);option.append(glyph,label);picker.append(option);
+      label.append(title,detail);option.append(glyph,label);
+      if(entry.group && menuType!=='skills'){const kind=doc.createElement('small');kind.className='ovll-rich-option-kind';kind.textContent=entry.group;option.append(kind);}
+      picker.append(option);
     });
     editor.setAttribute('aria-activedescendant',`${prefix}-option-${selectedIndex}`);
     picker.querySelector('.is-selected')?.scrollIntoView({block:'nearest'});
@@ -230,8 +248,8 @@ export function createComposer({model,onSubmit,onHeightChange,onAttach} = {}) {
     const search=query.trim().toLocaleLowerCase();
     entries=menuItems(type).filter(entry=>!search||[entry.label,entry.detail,entry.id,entry.keywords].some(value=>String(value||'').toLocaleLowerCase().includes(search)));
     picker.hidden=false;editor.setAttribute('aria-expanded','true');
-    for(const [node,kind] of [[add,'add'],[mention,'skills'],[canvas,'blocks'],[commands,'commands']])node.setAttribute('aria-expanded',String(type===kind));
-    renderMenu();
+    for(const [node,kind] of [[mention,'skills'],[canvas,'blocks'],[commands,'commands']])node.setAttribute('aria-expanded',String(type===kind));
+    renderMenu();scheduleResize();
   }
   function detectTrigger() {
     if(composing)return;
@@ -346,7 +364,7 @@ export function createComposer({model,onSubmit,onHeightChange,onAttach} = {}) {
     const listen=(target,type,handler)=>target.addEventListener(type,handler,options);
     listen(editor,'input',()=>changed());listen(editor,'compositionstart',()=>{composing=true;closeMenu();});
     listen(editor,'compositionend',()=>{composing=false;changed();});listen(editor,'keydown',onKeydown);
-    listen(editor,'keyup',remember);listen(editor,'mouseup',remember);listen(editor,'focus',scheduleResize);listen(editor,'click',onEditorClick);
+    listen(editor,'keyup',remember);listen(editor,'mouseup',remember);listen(editor,'focus',scheduleResize);listen(editor,'blur',scheduleResize);listen(editor,'click',onEditorClick);
     listen(editor,'paste',event=>{const text=event.clipboardData?.getData('text/plain');if(typeof text!=='string')return;event.preventDefault();remember();closeMenu();insertText(text);});
     listen(editor,'dragover',event=>event.preventDefault());
     listen(editor,'drop',event=>{
@@ -357,9 +375,12 @@ export function createComposer({model,onSubmit,onHeightChange,onAttach} = {}) {
     });
     listen(editor,'beforeinput',event=>{if(event.inputType?.startsWith('format'))event.preventDefault();});
     listen(element,'keydown',onElementKeydown);listen(form,'submit',submit);
-    for(const [node,type] of [[add,'add'],[mention,'skills'],[canvas,'blocks'],[commands,'commands']]){
-      listen(node,'pointerdown',event=>{remember();if(!coarse())event.preventDefault();});
-      listen(node,'click',()=>{if(menuType===type){closeMenu();return;}if(coarse())editor.blur();else editor.focus({preventScroll:true});openMenu(type);});
+    listen(add,'pointerdown',()=>remember());
+    listen(add,'click',()=>{closeMenu();fileInput.click();});
+    for(const [node,type] of [[mention,'skills'],[canvas,'blocks'],[commands,'commands']]){
+      listen(node,'pointerdown',event=>{openingToolbarMenu=true;remember();if(!coarse())event.preventDefault();});
+      listen(node,'pointercancel',()=>{openingToolbarMenu=false;scheduleResize();});
+      listen(node,'click',()=>{openingToolbarMenu=false;if(menuType===type){closeMenu();return;}if(coarse())editor.blur();else editor.focus({preventScroll:true});openMenu(type);});
     }
     listen(picker,'pointerdown',event=>event.preventDefault());
     listen(picker,'click',event=>{const option=event.target.closest('[data-option-index]');if(option)choose(entries[Number(option.dataset.optionIndex)]);});
@@ -383,7 +404,9 @@ export function createComposer({model,onSubmit,onHeightChange,onAttach} = {}) {
     lifetime?.abort();lifetime=null;observer?.disconnect();observer=null;unsubscribe?.();unsubscribe=null;
     externalSignal?.removeEventListener('abort',externalAbort);externalSignal=null;externalAbort=null;
     if(resizeFrame)view.cancelAnimationFrame(resizeFrame);resizeFrame=0;
-    composing=false;savedRange=null;closeMenu();
+    composing=false;openingToolbarMenu=false;savedRange=null;closeMenu();
+    for(const animation of layoutAnimations)animation.cancel();layoutAnimations=[];
+    if(resizeFrame)view.cancelAnimationFrame(resizeFrame);resizeFrame=0;
   }
   function destroy(){if(destroyed)return;deactivate();destroyed=true;element.remove();attachments=[];}
   update();

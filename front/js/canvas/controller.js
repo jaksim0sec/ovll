@@ -41,11 +41,64 @@ export function createCanvas({model,input,onRun,onNotice,onAttach}={}) {
   const fileResources=createFileResources();
   let fieldTimer=null,lifecycleGeneration=0;
   let fileBlock=null,attachmentGeneration=0;
+  let panSample=null,portStartedAt=0,motionFrame=0,pickupTimer=null,pickupCandidate=null,portTap=null;
+  const removalTimers=new Map(),linkViews=new Map(),layoutPositions=new Map();
+  const reducedMotion=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const samePort=(a,b)=>!!a&&!!b&&a.blockId===b.blockId&&a.portId===b.portId&&a.direction===b.direction;
+  function stopMotion(){
+    cancelAnimationFrame(motionFrame);motionFrame=0;surface.classList.remove('is-panning');
+    if(layoutPositions.size){layoutPositions.clear();render()}
+  }
+  function coast(sample){
+    stopMotion();if(!sample||reducedMotion()||performance.now()-sample.time>100)return;
+    let {vx,vy}=sample;const speed=Math.hypot(vx,vy);if(speed<.08)return;
+    if(speed>1.6){vx*=1.6/speed;vy*=1.6/speed}
+    let previous=performance.now();surface.classList.add('is-panning');
+    const tick=now=>{const dt=Math.min(32,Math.max(1,now-previous));previous=now;
+      setViewport({...camera,x:camera.x+vx*dt,y:camera.y+vy*dt},{motion:true});
+      const damping=Math.pow(.86,dt/16.67);vx*=damping;vy*=damping;
+      if(Math.hypot(vx,vy)<.035){stopMotion();return}motionFrame=requestAnimationFrame(tick);
+    };motionFrame=requestAnimationFrame(tick);
+  }
+  function clearPickup(){clearTimeout(pickupTimer);pickupTimer=null;pickupCandidate=null}
+  function portAt(point,direction){
+    const worldPoint=screenToWorld(point,camera);
+    for(const block of model.getBlocks())for(const port of getSkill(block.skillId)[direction==='input'?'inputs':'outputs']){
+      const endpoint={blockId:block.id,portId:port.id,direction},center=portPoint(endpoint,direction);
+      if(center&&Math.abs(center.x-worldPoint.x)<=20&&Math.abs(center.y-worldPoint.y)<=20)return endpoint;
+    }return null;
+  }
+  function collectOutput(point){
+    const candidate=portAt(point,'output');
+    if(!candidate||dragLink.anchors.some(anchor=>samePort(anchor,candidate))){clearPickup();renderSelection();return}
+    if(samePort(candidate,pickupCandidate))return;
+    clearPickup();pickupCandidate=candidate;renderSelection();const drag=dragLink;
+    pickupTimer=setTimeout(()=>{
+      if(dragLink!==drag||!samePort(portAt(drag.point,'output'),candidate))return;
+      drag.anchors.push(candidate);clearPickup();renderSelection();renderLinks();
+    },200);
+  }
+  function tapPort(port){
+    const now=performance.now();
+    if(samePort(portTap?.port,port)&&now-portTap.at<=340){
+      portTap=null;pendingPort=null;
+      const links=model.getSnapshot().links.filter(link=>{const end=port.direction==='input'?link.to:link.from;return end.blockId===port.blockId&&end.portId===port.portId});
+      if(links.length){
+        const key=JSON.stringify(port);clearTimeout(removalTimers.get(key));
+        links.forEach(link=>linkViews.get(link.id)?.path.classList.add('is-removing'));
+        const ids=new Set(links.map(link=>link.id));
+        const timer=setTimeout(()=>{removalTimers.delete(key);safe(()=>model.toggleConnections(model.getSnapshot().links.filter(link=>ids.has(link.id)).map(({from,to})=>({from,to}))));},reducedMotion()?0:140);
+        removalTimers.set(key,timer);renderSelection();return;
+      }
+    }else portTap={port,at:now};
+    choosePort(port);
+  }
   const notice=message=>{const text=String(message?.message||message||'작업을 완료하지 못했습니다.');status.textContent=text;onNotice?.(text);clearTimeout(noticeTimer);noticeTimer=setTimeout(()=>{status.textContent=''},4500)};
   const safe=action=>{try{return action()}catch(error){notice(error.message);return null}};
   const localPoint=event=>{const bounds=surface.getBoundingClientRect();return {id:event.pointerId,x:event.clientX-bounds.left,y:event.clientY-bounds.top}};
   const bottomSpace=()=>{const value=parseFloat(getComputedStyle(element).getPropertyValue('--workspace-composer-height'));return (Number.isFinite(value)?value:76)+90};
-  function setViewport(next) {
+  function setViewport(next,{motion=false}={}) {
+    if(!motion)stopMotion();
     camera=normalizeViewport(next);world.style.transform=`translate(${camera.x}px, ${camera.y}px) scale(${camera.zoom})`;
     surface.style.setProperty('--canvas-grid-size',`${24*camera.zoom}px`);surface.style.setProperty('--canvas-grid-x',`${camera.x}px`);surface.style.setProperty('--canvas-grid-y',`${camera.y}px`);
     zoom.firstChild.textContent=`${Math.round(camera.zoom*100)}%`;
@@ -84,11 +137,13 @@ export function createCanvas({model,input,onRun,onNotice,onAttach}={}) {
     const connected=new Set();for(const link of model.getSnapshot().links){connected.add(`output/${link.from.blockId}/${link.from.portId}`);connected.add(`input/${link.to.blockId}/${link.to.portId}`)}
     for(const [id,record]of blockViews){record.element.classList.toggle('is-selected',id===selected);for(const p of record.element.querySelectorAll('.canvas-port')){
       p.classList.toggle('is-connected',connected.has(`${p.dataset.direction}/${p.dataset.blockId}/${p.dataset.portId}`));
-      p.classList.toggle('is-picked',!!pendingPort&&p.dataset.blockId===pendingPort.blockId&&p.dataset.portId===pendingPort.portId&&p.dataset.direction===pendingPort.direction);
+      const endpoint=portInfo(p);
+      p.classList.toggle('is-picked',samePort(endpoint,pendingPort)||!!dragLink?.anchors?.some(anchor=>samePort(anchor,endpoint)));
+      p.classList.toggle('is-pickup-hover',samePort(endpoint,pickupCandidate));
       p.setAttribute('aria-pressed',String(p.classList.contains('is-picked')));
     }}
   }
-  function blockPosition(block) {return preview?.id===block.id?{x:preview.x,y:preview.y}:block}
+  function blockPosition(block) {return layoutPositions.get(block.id)||(preview?.id===block.id?{x:preview.x,y:preview.y}:block)}
   function portPoint(endpoint,direction) {
     const record=blockViews.get(endpoint.blockId),block=model.getBlock(endpoint.blockId);if(!record||!block)return null;
     const ports=direction==='input'?getSkill(block.skillId).inputs:getSkill(block.skillId).outputs;
@@ -97,19 +152,43 @@ export function createCanvas({model,input,onRun,onNotice,onAttach}={}) {
     return {x:position.x+(direction==='output'?box.offsetWidth:0),y:position.y+box.offsetHeight*(index+1)/(ports.length+1)};
   }
   function renderLinks() {
-    if(destroyed)return;connections.replaceChildren();
+    if(destroyed)return;const ids=new Set();
     for(const link of model.getSnapshot().links){const from=portPoint(link.from,'output'),to=portPoint(link.to,'input');if(!from||!to)continue;
-      const d=connectionPath(from,to),hit=svgPath('canvas-link-hit',d),path=svgPath('canvas-link',d);hit.dataset.linkId=link.id;hit.setAttribute('role','button');hit.setAttribute('aria-label','연결 선택');hit.setAttribute('tabindex','0');path.classList.toggle('is-selected',link.id===selectedLink);connections.append(hit,path);
+      ids.add(link.id);let record=linkViews.get(link.id);
+      if(!record){const hit=svgPath('canvas-link-hit',''),path=svgPath('canvas-link','');hit.dataset.linkId=link.id;hit.setAttribute('role','button');hit.setAttribute('aria-label','연결 선택');hit.setAttribute('tabindex','0');connections.append(hit,path);record={hit,path};linkViews.set(link.id,record)}
+      const d=connectionPath(from,to);record.hit.setAttribute('d',d);record.path.setAttribute('d',d);
+      record.path.classList.toggle('is-selected',link.id===selectedLink||selected===link.from.blockId||selected===link.to.blockId);
     }
+    for(const [id,record]of linkViews)if(!ids.has(id)){record.hit.remove();record.path.remove();linkViews.delete(id)}
+    connections.querySelectorAll('.canvas-link-preview,.canvas-link-source').forEach(node=>node.remove());
     const pending=dragLink;
-    if(pending){const anchor=portPoint(pending.port,pending.port.direction),point=screenToWorld(pending.point,camera);if(anchor)connections.append(svgPath('canvas-link-preview',pending.port.direction==='output'?connectionPath(anchor,point):connectionPath(point,anchor)))}
+    if(pending){const point=screenToWorld(pending.point,camera);
+      for(const port of pending.anchors){const anchor=portPoint(port,port.direction);if(!anchor)continue;
+        connections.append(svgPath('canvas-link-preview',port.direction==='output'?connectionPath(anchor,point):connectionPath(point,anchor)));
+        const dot=document.createElementNS(SVG,'circle');dot.setAttribute('class','canvas-link-source');dot.setAttribute('cx',anchor.x);dot.setAttribute('cy',anchor.y);dot.setAttribute('r','4');connections.append(dot);
+      }
+    }
+  }
+  function setExpanded(view,expanded,{immediate=false}={}){
+    const node=view.element,body=node.querySelector('.canvas-block-body'),toggle=node.querySelector('.canvas-block-toggle');
+    const start=body.hidden?0:parseFloat(getComputedStyle(body).height)||0;
+    view.animation?.cancel();view.animation=null;view.expanded=expanded;
+    node.classList.toggle('is-expanded',expanded);toggle.setAttribute('aria-expanded',String(expanded));toggle.setAttribute('aria-label',`상세 내용 ${expanded?'닫기':'열기'}`);
+    body.hidden=false;body.inert=!expanded;body.setAttribute('aria-hidden',String(!expanded));body.style.height='auto';
+    for(const field of body.querySelectorAll('textarea'))resizeField(field);
+    const target=expanded?body.scrollHeight:0;
+    const settle=()=>{body.style.height=expanded?'auto':'0px';body.hidden=!expanded;view.animation=null;renderLinks()};
+    if(immediate||reducedMotion()||Math.abs(start-target)<.5){settle();return}
+    body.style.height=`${target}px`;
+    const animation=body.animate([{height:`${start}px`,opacity:expanded?0:1,transform:expanded?'translateY(-.16rem)':'translateY(0)'},{height:`${target}px`,opacity:expanded?1:0,transform:expanded?'translateY(0)':'translateY(-.16rem)'}],{duration:380,easing:'cubic-bezier(.16,1,.3,1)'});
+    view.animation=animation;animation.onfinish=()=>{if(view.animation===animation)settle()};
   }
   function createBlock(block,skill) {
     const node=el('article','canvas-block');node.dataset.blockId=block.id;node.setAttribute('aria-label',`${skill.name} 스킬블럭`);node.style.setProperty('--block-color',skill.color);
     node.classList.toggle('is-expanded',block.expanded);
     const head=el('div','canvas-block-head');head.append(glyph(skill.icon),el('span','canvas-block-title',block.file?.name||skill.name));
     const toggle=button('chevron',`상세 내용 ${block.expanded?'닫기':'열기'}`,'canvas-block-toggle');toggle.dataset.action='toggle';toggle.setAttribute('aria-expanded',String(block.expanded));head.append(toggle);node.append(head);
-    const body=el('div','canvas-block-body');body.hidden=!block.expanded;
+    const body=el('div','canvas-block-body');body.hidden=!block.expanded;body.inert=!block.expanded;body.setAttribute('aria-hidden',String(!block.expanded));
     if(skill.id==='start')body.append(el('p','canvas-block-description','출력 포트를 다른 스킬블럭에 연결해 작업을 시작하세요.'));
     for(const field of skill.fields){
       const label=el('label',`canvas-field${field.id==='request'?' canvas-request-field':''}`);label.append(el('span','canvas-field-label',field.label));
@@ -134,7 +213,7 @@ export function createCanvas({model,input,onRun,onNotice,onAttach}={}) {
     for(const [direction,ports]of [['input',skill.inputs],['output',skill.outputs]])ports.forEach((port,index)=>{
       const p=el('button',`canvas-port is-${direction}`);p.type='button';p.dataset.blockId=block.id;p.dataset.portId=port.id;p.dataset.direction=direction;p.dataset.portType=port.type;
       p.title=`${port.label} · ${port.type} · ${direction==='input'?'입력':'출력'}`;p.setAttribute('aria-label',`${skill.name} ${port.label} ${direction==='input'?'입력':'출력'} 포트 (${port.type})`);p.style.top=`${(index+1)/(ports.length+1)*100}%`;
-      p.append(el('span','canvas-port-dot'),el('span','canvas-port-label',port.label));node.append(p);
+      const anchor=el('span','canvas-port-anchor');anchor.append(el('span','canvas-port-dot'));p.append(anchor,el('span','canvas-port-label',port.label));node.append(p);
     });return node;
   }
   function resizeField(control) {
@@ -143,12 +222,14 @@ export function createCanvas({model,input,onRun,onNotice,onAttach}={}) {
   }
   function render() {
     if(destroyed)return;const blocks=model.getBlocks();fileResources.sync(blocks);const ids=new Set(blocks.map(b=>b.id));
-    for(const [id,view]of blockViews)if(!ids.has(id)){resize?.unobserve(view.element);view.element.remove();blockViews.delete(id)}
+    for(const [id,view]of blockViews)if(!ids.has(id)){view.animation?.cancel();resize?.unobserve(view.element);view.element.remove();blockViews.delete(id)}
     if(selected&&!ids.has(selected))selected=null;
     if(pendingPort&&!ids.has(pendingPort.blockId))pendingPort=null;
     for(const block of blocks){const skill=getSkill(block.skillId);if(!skill)continue;
-      const signature=JSON.stringify([block.skillId,block.expanded,block.file?.localId,block.file?.name,block.file?.type,block.file?.size]);let view=blockViews.get(block.id);
-      if(!view||view.signature!==signature){const node=createBlock(block,skill);if(view){resize?.unobserve(view.element);view.element.replaceWith(node)}else nodes.append(node);view={element:node,signature};blockViews.set(block.id,view);resize?.observe(node)}
+      const signature=JSON.stringify([block.skillId,block.file?.localId,block.file?.name,block.file?.type,block.file?.size]);let view=blockViews.get(block.id);
+      if(!view||view.signature!==signature){const node=createBlock(block,skill);if(view){view.animation?.cancel();resize?.unobserve(view.element);view.element.replaceWith(node)}else nodes.append(node);view={element:node,signature,expanded:block.expanded};blockViews.set(block.id,view);resize?.observe(node)}
+      const expanded=preview?.id===block.id&&preview.collapsed?false:block.expanded;
+      if(view.expanded!==expanded)setExpanded(view,expanded);
       const position=blockPosition(block);view.element.style.left=`${position.x}px`;view.element.style.top=`${position.y}px`;
       for(const control of view.element.querySelectorAll('[data-field-id]')){if(control!==document.activeElement)control.value=block.values[control.dataset.fieldId]??'';if(control.matches('textarea'))resizeField(control)}
     }
@@ -156,47 +237,77 @@ export function createCanvas({model,input,onRun,onNotice,onAttach}={}) {
     if(selectedLink&&!model.getSnapshot().links.some(link=>link.id===selectedLink)){selectedLink=null;linkDelete.hidden=true}
     renderSelection();renderLinks();
   }
-  function fit() {
-    const blocks=model.getBlocks();if(!blocks.length){setViewport({x:surface.clientWidth/2-100,y:surface.clientHeight*.4,zoom:1});return}
+  function fittedViewport() {
+    const blocks=model.getBlocks();if(!blocks.length)return {x:surface.clientWidth/2-100,y:surface.clientHeight*.4,zoom:1};
     const left=Math.min(...blocks.map(b=>b.x)),top=Math.min(...blocks.map(b=>b.y)),right=Math.max(...blocks.map(b=>b.x+(blockViews.get(b.id)?.element.offsetWidth||205))),bottom=Math.max(...blocks.map(b=>b.y+(blockViews.get(b.id)?.element.offsetHeight||60)));
-    setViewport(fitViewport({x:left,y:top,width:right-left,height:bottom-top},{width:surface.clientWidth,height:surface.clientHeight},{padding:45,top:72,bottom:bottomSpace()}));
+    return fitViewport({x:left,y:top,width:right-left,height:bottom-top},{width:surface.clientWidth,height:surface.clientHeight},{padding:45,top:72,bottom:bottomSpace()});
+  }
+  function fit(){setViewport(fittedViewport())}
+  function arrangeBlocks(){
+    cancel();const fromCamera={...camera},from=new Map(model.getBlocks().map(block=>[block.id,{x:block.x,y:block.y}]));
+    safe(()=>model.arrange());const targetCamera=fittedViewport(),targets=model.getBlocks();
+    if(reducedMotion()){setViewport(targetCamera);return}
+    const started=performance.now(),duration=520,normalizer=1-7*Math.exp(-6);
+    function frame(now){
+      const progress=Math.min(1,(now-started)/duration),spring=(1-(1+6*progress)*Math.exp(-6*progress))/normalizer;
+      for(const block of targets){const start=from.get(block.id)||block;layoutPositions.set(block.id,{x:start.x+(block.x-start.x)*spring,y:start.y+(block.y-start.y)*spring})}
+      setViewport({x:fromCamera.x+(targetCamera.x-fromCamera.x)*spring,y:fromCamera.y+(targetCamera.y-fromCamera.y)*spring,zoom:fromCamera.zoom+(targetCamera.zoom-fromCamera.zoom)*spring},{motion:true});
+      render();if(progress<1)motionFrame=requestAnimationFrame(frame);else{motionFrame=0;layoutPositions.clear();render()}
+    }
+    frame(started);
   }
   function focusBlock(id) {
     const block=model.getBlock(id),node=blockViews.get(id)?.element;if(!block||!node)return;
     selectBlock(id);const zoom=Math.max(.65,Math.min(camera.zoom,1.2));setViewport({zoom,x:surface.clientWidth/2-(block.x+node.offsetWidth/2)*zoom,y:72+Math.max(100,(surface.clientHeight-bottomSpace()-72)/2)-(block.y+node.offsetHeight/2)*zoom});
   }
-  function clearPreview(){if(preview){const record=blockViews.get(preview.id),block=model.getBlock(preview.id);if(record&&block){record.element.style.left=`${block.x}px`;record.element.style.top=`${block.y}px`;record.element.classList.remove('is-dragging')}}preview=null;dragLink=null;surface.classList.remove('is-panning');renderLinks()}
+  function clearPreview(){clearPickup();if(preview){const record=blockViews.get(preview.id),block=model.getBlock(preview.id);if(record&&block){record.element.style.left=`${block.x}px`;record.element.style.top=`${block.y}px`;record.element.classList.remove('is-dragging');if(record.expanded!==block.expanded)setExpanded(record,block.expanded,{immediate:!active})}}preview=null;dragLink=null;surface.classList.remove('is-panning');renderLinks()}
   function start(event) {
     if(event.button!==0&&event.button!==1)return false;
     const port=portInfo(event.target);
     if(!port&&event.target.closest?.(`${editable},button,a,.canvas-link-hit`))return false;
+    stopMotion();panSample={point:localPoint(event),time:performance.now(),vx:0,vy:0};
     const point=localPoint(event),block=event.target.closest?.('.canvas-block');
-    const mode=port?{kind:'link',port}:block&&event.button!==1?{kind:'block',blockId:block.dataset.blockId,origin:model.getBlock(block.dataset.blockId)}:{kind:'pan'};
+    const mode=port?{kind:'link',port}:block&&event.button!==1?{kind:'block',blockId:block.dataset.blockId,origin:model.getBlock(block.dataset.blockId),collapseOnDrag:!!event.target.closest('.canvas-block-head')}:{kind:'pan'};
     if(mode.kind==='block')selectBlock(mode.blockId);
+    if(mode.kind==='link')portStartedAt=performance.now();
     if(!gestures.size&&mode.kind==='pan'){selected=null;selectedLink=null;pendingPort=null;linkDelete.hidden=true;renderSelection();renderLinks();closePalette()}
     const begun=gestures.begin(point,camera,mode);if(!begun)return false;
-    if(begun.kind==='pinch'){clearPreview();pendingPort=null;renderSelection()}
+    if(begun.kind==='pinch'){clearPreview();panSample=null;pendingPort=null;renderSelection()}
     if(mode.kind==='pan')surface.classList.add('is-panning');
     event.preventDefault();surface.focus({preventScroll:true});return true;
   }
   function move(event) {
     const result=gestures.move(localPoint(event));if(!result)return;event.preventDefault();
-    if(result.viewport)setViewport(result.viewport);
-    if(result.kind==='block'&&result.moved){const block=result.origin;preview={id:block.id,x:block.x+result.delta.x,y:block.y+result.delta.y};const record=blockViews.get(block.id);if(record){record.element.style.left=`${preview.x}px`;record.element.style.top=`${preview.y}px`;record.element.classList.add('is-dragging')}renderLinks()}
-    if(result.kind==='link'&&result.moved){dragLink={port:result.port,point:result.point};renderLinks()}
+    if(result.viewport){
+      if(result.kind==='pan'&&panSample){const now=performance.now(),dt=Math.max(1,now-panSample.time),point=localPoint(event);panSample={point,time:now,vx:panSample.vx*.68+(point.x-panSample.point.x)/dt*.32,vy:panSample.vy*.68+(point.y-panSample.point.y)/dt*.32};}
+      setViewport(result.viewport,{motion:true});
+    }
+    if(result.kind==='block'&&result.moved){const block=result.origin;preview={id:block.id,x:block.x+result.delta.x,y:block.y+result.delta.y,collapsed:result.collapseOnDrag&&block.expanded};const record=blockViews.get(block.id);if(record){if(preview.collapsed&&record.expanded)setExpanded(record,false,{immediate:true});record.element.style.left=`${preview.x}px`;record.element.style.top=`${preview.y}px`;record.element.classList.add('is-dragging')}renderLinks()}
+    if(result.kind==='link'&&result.moved){
+      portTap=null;
+      if(!dragLink)dragLink={port:result.port,point:result.point,anchors:[result.port]};else dragLink.point=result.point;
+      if(result.port.direction==='output')collectOutput(result.point);renderSelection();renderLinks();
+    }
   }
   function end(event) {
     // Include the final release position; browsers need not send a last move.
     gestures.move(localPoint(event));const result=gestures.end(event.pointerId,camera);if(!result)return;
-    clearPreview();
+    const completedLink=dragLink;clearPreview();
     if(result.kind==='block'&&result.moved)safe(()=>model.updateBlock(result.blockId,{x:result.origin.x+result.delta.x,y:result.origin.y+result.delta.y}));
     if(result.kind==='link'){
-      if(result.moved){const target=portInfo(document.elementFromPoint(event.clientX,event.clientY));if(target)connectPorts(result.port,target);pendingPort=null;renderSelection()}
-      else choosePort(result.port);
+      if(result.moved){
+        const target=portAt(localPoint(event),result.port.direction==='output'?'input':'output');
+        if(target){const anchors=completedLink?.anchors||[result.port];const results=safe(()=>model.toggleConnections(anchors.map(anchor=>({from:anchor.direction==='output'?{blockId:anchor.blockId,portId:anchor.portId}:{blockId:target.blockId,portId:target.portId},to:anchor.direction==='input'?{blockId:anchor.blockId,portId:anchor.portId}:{blockId:target.blockId,portId:target.portId}}))));for(const result of results||[])if(result.error)notice(result.error)}
+        pendingPort=null;renderSelection();
+      }else if(performance.now()-portStartedAt<320)tapPort(result.port);else portTap=null;
     }
-    if(!gestures.size)surface.classList.remove('is-panning');
+    if(!gestures.size){surface.classList.remove('is-panning');if(result.kind==='pan'&&result.moved)coast(panSample);panSample=null;}
   }
-  function cancel(){gestures.cancel();clearPreview();pendingPort=null;renderSelection()}
+  function cancel(){
+    stopMotion();panSample=null;portTap=null;gestures.cancel();clearPreview();pendingPort=null;
+    for(const timer of removalTimers.values())clearTimeout(timer);removalTimers.clear();
+    for(const record of linkViews.values())record.path.classList.remove('is-removing');renderSelection();
+  }
   function placement(skillId,{expanded=true,file}={}) {
     const skill=getSkill(skillId),center=screenToWorld({x:surface.clientWidth/2,y:Math.max(130,(surface.clientHeight-bottomSpace())/2)},camera);
     const sample=createBlock({id:'',skillId,values:{},expanded,file},skill);sample.style.visibility='hidden';nodes.append(sample);
@@ -206,17 +317,16 @@ export function createCanvas({model,input,onRun,onNotice,onAttach}={}) {
     return {position:findOpenPosition(center,size,occupied),size};
   }
   function placeBlock(skillId,options={}) {
-    const {position,size}=placement(skillId,options),block=model.addBlock(skillId,{...position,...options});
+    const {position}=placement(skillId,options),block=model.addBlock(skillId,{...position,...options});
     render();selectBlock(block.id);
-    const left=position.x*camera.zoom+camera.x,top=position.y*camera.zoom+camera.y;
-    if(left<30||left+size.width*camera.zoom>surface.clientWidth-30||top<85||top+size.height*camera.zoom>surface.clientHeight-bottomSpace())focusBlock(block.id);
+    // Insertion changes the graph only. An explicit focus/fit may move the camera.
     return block;
   }
   async function addFile(file) {
     if(destroyed)throw new Error('종료된 캔버스에는 파일을 추가할 수 없습니다.');
     const generation=lifecycleGeneration,metadata=await readLocalFile(file);
     if(destroyed||generation!==lifecycleGeneration)return null;
-    const block=placeBlock('file',{expanded:false,file:metadata});focusBlock(block.id);return block;
+    return placeBlock('file',{expanded:false,file:metadata});
   }
   async function attachFile() {
     const file=fileInput.files?.[0],id=fileBlock,generation=++attachmentGeneration;fileInput.value='';if(!file||!model.getBlock(id))return;
@@ -231,6 +341,8 @@ export function createCanvas({model,input,onRun,onNotice,onAttach}={}) {
     if(destroyed||signal?.aborted)return;deactivate();active=new AbortController();const life=active;
     signal?.addEventListener('abort',deactivate,{once:true});life.signal.addEventListener('abort',()=>signal?.removeEventListener('abort',deactivate),{once:true});
     const listen=(target,type,handler,options={})=>target.addEventListener(type,handler,{...options,signal:life.signal});
+    listen(element,'pointerdown',()=>{if(motionFrame)stopMotion()},{capture:true});
+    listen(window,'blur',cancel);listen(document,'visibilitychange',()=>{if(document.hidden)cancel()});
     owner=input.registerOwner({element:surface,signal:life.signal,multiPointer:true,onStart:start,onMove:move,onEnd:end,onCancel:cancel});
     unsubscribe=model.subscribe(render);resize=new ResizeObserver(()=>renderLinks());for(const record of blockViews.values())resize.observe(record.element);
     listen(add,'click',()=>{const open=palette.hidden;palette.hidden=!open;add.setAttribute('aria-expanded',String(open));disarmReset();if(open)paletteList.querySelector('button')?.focus()});
@@ -240,7 +352,7 @@ export function createCanvas({model,input,onRun,onNotice,onAttach}={}) {
     });
     listen(palette,'keydown',event=>{if(event.key==='Escape'){event.preventDefault();closePalette(true)}else if(['ArrowDown','ArrowUp','Home','End'].includes(event.key)){event.preventDefault();const items=[...paletteList.querySelectorAll('button')],index=items.indexOf(document.activeElement);let next=event.key==='Home'?0:event.key==='End'?items.length-1:(index+(event.key==='ArrowDown'?1:-1)+items.length)%items.length;items[next]?.focus()}});
     listen(reset,'click',()=>{if(resetTimer){disarmReset();cancel();safe(()=>model.clear());notice('캔버스를 초기화했습니다. 실행 취소로 복원할 수 있습니다.')}else{reset.classList.add('is-confirming');resetText.textContent='한 번 더';reset.setAttribute('aria-label','캔버스 초기화 확인');resetTimer=setTimeout(disarmReset,3500);notice('한 번 더 누르면 모든 스킬블럭과 연결을 삭제합니다.')}});
-    listen(arrange,'click',()=>{cancel();safe(()=>model.arrange());fit()});listen(undo,'click',()=>{cancel();safe(()=>model.undo())});listen(redo,'click',()=>{cancel();safe(()=>model.redo())});
+    listen(arrange,'click',arrangeBlocks);listen(undo,'click',()=>{cancel();safe(()=>model.undo())});listen(redo,'click',()=>{cancel();safe(()=>model.redo())});
     const zoomBy=factor=>setViewport(zoomAt(camera,{x:surface.clientWidth/2,y:(surface.clientHeight-bottomSpace())/2},camera.zoom*factor));
     listen(out,'click',()=>zoomBy(1/1.2));listen(inside,'click',()=>zoomBy(1.2));listen(zoom,'click',fit);
     listen(linkDelete,'click',()=>{safe(()=>model.disconnect(selectedLink));selectedLink=null;linkDelete.hidden=true;surface.focus()});
@@ -268,12 +380,14 @@ export function createCanvas({model,input,onRun,onNotice,onAttach}={}) {
     listen(surface,'input',event=>{if(event.target.matches('[data-field-id]'))queueField(event.target);if(event.target.matches('textarea')){resizeField(event.target);renderLinks()}});
     listen(surface,'focusin',event=>{if(event.target.matches('textarea')){resizeField(event.target);renderLinks()}});
     listen(surface,'focusout',event=>{if(event.target.matches('textarea')){resizeField(event.target);renderLinks()}});
-    listen(surface,'wheel',event=>{if(event.target.closest(`${editable},.canvas-palette`))return;event.preventDefault();if(gestures.size)return;setViewport(zoomAt(camera,localPoint(event),camera.zoom*Math.exp(-Math.max(-100,Math.min(100,event.deltaY))*.002)))},{passive:false});
+    listen(surface,'wheel',event=>{if(event.target.closest(`${editable},.canvas-palette`))return;event.preventDefault();if(gestures.size)return;setViewport(zoomAt(camera,localPoint(event),camera.zoom*Math.exp(-event.deltaY*.0015)))},{passive:false});
     listen(fileInput,'change',attachFile);
     listen(document,'pointerdown',event=>{if(!palette.hidden&&!primary.contains(event.target))closePalette()},{capture:true});
     render();setViewport(camera);
   }
   function deactivate() {
+    for(const timer of removalTimers.values())clearTimeout(timer);removalTimers.clear();
+    for(const view of blockViews.values())if(view.animation){view.animation.cancel();view.animation=null;setExpanded(view,view.expanded,{immediate:true})}
     flushFields();active?.abort();active=null;owner?.unregister();owner=null;unsubscribe?.();unsubscribe=null;resize?.disconnect();resize=null;cancel();closePalette();disarmReset();attachmentGeneration++;lifecycleGeneration++;clearTimeout(noticeTimer);status.textContent='';
   }
   function closeMenu(){owner?.cancel('menu-open');cancel();closePalette();disarmReset();flushFields()}

@@ -178,3 +178,104 @@ test('programmatic file placement is one undoable add and local previews/downloa
  await page.evaluate(()=>canvas.destroy());assert.equal(await page.evaluate(url=>revokedUrls.includes(url),finalUrl),true);
  assert.deepEqual(errors,[]);await context.close();
 });
+
+test('inserting blocks and files leaves the camera fixed even when nearby slots overflow the view',async()=>{
+ for(const width of [390,1200]){
+  const {page,context}=await setup(width,844);
+  const before=await page.evaluate(()=>canvas.getViewport());
+  for(let i=0;i<5;i++){await addResearch(page);assert.deepEqual(await page.evaluate(()=>canvas.getViewport()),before,'insertion must not recenter or zoom');}
+  await page.evaluate(()=>canvas.addFile(new File(['text'],'local.txt',{type:'text/plain'})));
+  assert.deepEqual(await page.evaluate(()=>canvas.getViewport()),before,'file insertion must not recenter');await context.close();
+ }
+});
+test('expansion preserves the block DOM and animates height with its connection anchor',async()=>{
+ const {page,context}=await setup();const block=await addResearch(page);
+ await block.evaluate(node=>window.originalBlock=node);
+ const open=await block.evaluate(n=>n.offsetHeight);await block.getByRole('button',{name:'상세 내용 닫기'}).click();
+ const middle=await block.evaluate(n=>({same:n===originalBlock,height:n.getBoundingClientRect().height}));
+ assert.equal(middle.same,true,'toggle must preserve DOM and native editing history');
+ assert.ok(middle.height>60,'collapse must start from expanded geometry');
+ await page.waitForTimeout(440);const closed=await block.evaluate(n=>n.offsetHeight);assert.ok(closed<open);
+ await block.getByRole('button',{name:'상세 내용 열기'}).click();await page.waitForTimeout(80);
+ const partial=await block.evaluate(n=>n.offsetHeight);assert.ok(partial>closed&&partial<open,JSON.stringify({closed,partial,open}));
+ await page.waitForTimeout(440);assert.equal(await block.evaluate(n=>n.offsetHeight),open);await context.close();
+});
+async function connectionFixture(page){
+ await page.evaluate(()=>{
+  model.clear();const a=model.addBlock('research',{x:30,y:30}),b=model.addBlock('research',{x:30,y:220}),c=model.addBlock('organize',{x:430,y:120});
+  window.fixture={a:a.id,b:b.id,c:c.id};canvas.setViewport({x:60,y:60,zoom:1});
+ });
+ const port=async(id,direction)=>{const box=await page.locator(`[data-block-id="${id}"].canvas-block [data-direction="${direction}"]`).boundingBox();return {x:box.x+box.width/2,y:box.y+box.height/2}};
+ const ids=await page.evaluate(()=>fixture);return {a:await port(ids.a,'output'),b:await port(ids.b,'output'),c:await port(ids.c,'input'),ids};
+}
+test('output drag collects another output after dwell, commits the group and double-tap disconnects a port',async()=>{
+ const {page,context}=await setup();const {a,b,c,ids}=await connectionFixture(page);
+ await page.mouse.move(a.x,a.y);await page.mouse.down();await page.mouse.move(b.x,b.y,{steps:10});
+ await page.waitForTimeout(240);assert.equal(await page.locator('.canvas-port.is-picked').count(),2);
+ assert.equal(await page.locator('.canvas-link-preview').count(),2);
+ await page.mouse.move(c.x,c.y,{steps:10});await page.mouse.up();
+ assert.equal(await page.evaluate(()=>model.getSnapshot().links.length),2);
+ await page.getByRole('button',{name:'실행 취소',exact:true}).click();assert.equal(await page.evaluate(()=>model.getSnapshot().links.length),0,'one undo removes the collected group');
+ await page.getByRole('button',{name:'다시 실행',exact:true}).click();
+ await page.mouse.dblclick(c.x,c.y,{delay:90});await page.waitForTimeout(180);
+ assert.equal(await page.evaluate(()=>model.getSnapshot().links.length),0,'input double-tap disconnects all incoming links');
+ await page.getByRole('button',{name:'실행 취소',exact:true}).click();assert.equal(await page.evaluate(()=>model.getSnapshot().links.length),2);
+ await page.evaluate(({a,b,c})=>{model.disconnectPort({blockId:c,portId:'in'},'input');model.connect({blockId:a,portId:'result'},{blockId:b,portId:'in'});model.connect({blockId:a,portId:'result'},{blockId:c,portId:'in'})},ids);
+ await page.mouse.dblclick(a.x,a.y,{delay:90});await page.waitForTimeout(180);assert.equal(await page.evaluate(()=>model.getSnapshot().links.length),0,'output double-tap disconnects fanout');
+ await context.close();
+});
+test('pan continues with main damping after release and stops on menu handoff or reduced motion',async()=>{
+ const {page,context}=await setup();
+ await page.mouse.move(700,400);await page.mouse.down();
+ for(let i=1;i<=6;i++){await page.mouse.move(700+i*15,400);await page.waitForTimeout(14)}
+ await page.mouse.up();const released=await page.evaluate(()=>canvas.getViewport());await page.waitForTimeout(90);
+ assert.ok((await page.evaluate(()=>canvas.getViewport())).x>released.x+2,'release should coast');
+ await page.evaluate(()=>canvas.closeMenu());const stopped=await page.evaluate(()=>canvas.getViewport());await page.waitForTimeout(120);assert.deepEqual(await page.evaluate(()=>canvas.getViewport()),stopped);
+ await page.emulateMedia({reducedMotion:'reduce'});await page.mouse.move(700,400);await page.mouse.down();await page.mouse.move(800,400,{steps:6});await page.mouse.up();const reduced=await page.evaluate(()=>canvas.getViewport());await page.waitForTimeout(100);assert.deepEqual(await page.evaluate(()=>canvas.getViewport()),reduced);await context.close();
+});
+
+test('arrange interpolates the graph and camera together and settles at the actual connected anchors',async()=>{
+ const {page,context}=await setup();await connectionFixture(page);
+ const before=await page.evaluate(()=>({camera:canvas.getViewport(),box:document.querySelector('.canvas-block').offsetLeft}));
+ await page.getByRole('button',{name:'스킬블럭 정리하기'}).click();
+ const early=await page.evaluate(()=>({camera:canvas.getViewport(),box:document.querySelector('.canvas-block').offsetLeft}));
+ await page.waitForTimeout(650);const final=await page.evaluate(()=>({camera:canvas.getViewport(),box:document.querySelector('.canvas-block').offsetLeft}));
+ assert.notDeepEqual(early,final,'arrange must interpolate, not jump immediately');assert.notDeepEqual(before,final);assert.equal(final.box,0);
+ await page.emulateMedia({reducedMotion:'reduce'});await page.evaluate(()=>{model.updateBlock(model.getBlocks()[0].id,{x:220})});
+ await page.getByRole('button',{name:'스킬블럭 정리하기'}).click();assert.equal(await page.locator('.canvas-block').first().evaluate(n=>n.offsetLeft),0);await context.close();
+});
+test('cancelled output collection clears its timer and preview without changing the graph',async()=>{
+ const {page,context}=await setup();const {a,b,c}=await connectionFixture(page);
+ await page.mouse.move(a.x,a.y);await page.mouse.down();await page.mouse.move(b.x,b.y,{steps:5});
+ await page.evaluate(()=>canvas.closeMenu());await page.waitForTimeout(250);await page.mouse.move(c.x,c.y);await page.mouse.up();
+ assert.equal(await page.locator('.canvas-port.is-picked,.canvas-port.is-pickup-hover,.canvas-link-preview').count(),0);assert.equal(await page.evaluate(()=>model.getSnapshot().links.length),0);await context.close();
+});
+
+test('header dragging temporarily folds a block, reopening without a separate history entry',async()=>{
+ const {page,context}=await setup();const block=await addResearch(page);const before=await block.evaluate(n=>n.offsetHeight),header=await block.locator('.canvas-block-head').boundingBox();
+ await page.evaluate(()=>changes.length=0);await page.mouse.move(header.x+45,header.y+12);await page.mouse.down();await page.mouse.move(header.x+90,header.y+18,{steps:4});
+ assert.ok(await block.evaluate(n=>n.offsetHeight)<before,'header drag folds the body');assert.equal(await page.evaluate(()=>model.getBlocks().at(-1).expanded),true,'temporary fold is view state');
+ await page.mouse.up();await page.waitForTimeout(440);assert.equal(await block.evaluate(n=>n.offsetHeight),before);assert.deepEqual(await page.evaluate(()=>changes),['update-block']);await context.close();
+});
+test('leaving during bulk disconnect cancels both the fade and delayed graph edit',async()=>{
+ const {page,context}=await setup();const {a,c,ids}=await connectionFixture(page);
+ await page.evaluate(({a,c})=>model.connect({blockId:a,portId:'result'},{blockId:c,portId:'in'}),ids);
+ await page.mouse.dblclick(a.x,a.y,{delay:60});await page.evaluate(()=>{canvas.deactivate();canvas.activate()});await page.waitForTimeout(200);
+ assert.equal(await page.evaluate(()=>model.getSnapshot().links.length),1);assert.equal(await page.locator('.canvas-link.is-removing').count(),0);assert.equal(await page.locator('.canvas-link').evaluate(n=>getComputedStyle(n).opacity),'1');await context.close();
+});
+
+test('a held port does not count toward the double-tap disconnect gesture',async()=>{
+ const {page,context}=await setup();const {a,ids}=await connectionFixture(page);
+ await page.evaluate(({a,c})=>model.connect({blockId:a,portId:'result'},{blockId:c,portId:'in'}),ids);
+ await page.mouse.move(a.x,a.y);await page.mouse.down();await page.waitForTimeout(360);await page.mouse.up();
+ await page.mouse.click(a.x,a.y);await page.waitForTimeout(180);assert.equal(await page.evaluate(()=>model.getSnapshot().links.length),1,'a hold followed by one tap must not disconnect');await context.close();
+});
+
+test('native touch collects multiple outputs and releases into one input on a zoomed mobile canvas',async()=>{
+ const {page,context}=await setup(390,844);await connectionFixture(page);await page.evaluate(()=>canvas.setViewport({x:10,y:130,zoom:.5}));
+ const points=await page.evaluate(()=>{const center=(id,direction)=>{const n=document.querySelector(`.canvas-block[data-block-id="${id}"] [data-direction="${direction}"]`),r=n.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2,id:1,radiusX:2,radiusY:2}};return {a:center(fixture.a,'output'),b:center(fixture.b,'output'),c:center(fixture.c,'input')}});
+ const cdp=await context.newCDPSession(page);
+ const touch=(type,point)=>cdp.send('Input.dispatchTouchEvent',{type,touchPoints:point?[point]:[]});
+ await touch('touchStart',points.a);await touch('touchMove',points.b);await page.waitForTimeout(250);assert.equal(await page.locator('.canvas-link-preview').count(),2);
+ await touch('touchMove',points.c);await touch('touchEnd');assert.equal(await page.evaluate(()=>model.getSnapshot().links.length),2);await context.close();
+});

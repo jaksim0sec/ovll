@@ -56,7 +56,7 @@ export function createGestureTracker() {
       last={kind:'pinch',moved:true,viewport:pinchViewport(base,pinch,[...pointers.values()])};
     } else {
       const delta={x:(point.x-origin.x)/base.zoom,y:(point.y-origin.y)/base.zoom};
-      moved ||= distance(point,origin)>=4;
+      moved ||= distance(point,origin)>7;
       last={...mode,point:{...point},delta,moved};
       if(mode.kind==='pan')last.viewport={...base,x:base.x+point.x-origin.x,y:base.y+point.y-origin.y};
     }

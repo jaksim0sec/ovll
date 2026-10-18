@@ -81,6 +81,19 @@ export function createWorkspaceModel({ snapshot } = {}) {
     deleteBlock(key) { return commit('delete-block', next => { requireBlock(next, key); next.blocks = next.blocks.filter(b => b.id !== key); next.links = next.links.filter(l => l.from.blockId !== key && l.to.blockId !== key); }); },
     connect(from, to) { checkLink(state, from, to); return commit('connect', next => { const link = { id: id('link'), from: clone(from), to: clone(to) }; next.links.push(link); return link; }); },
     disconnect(key) { return commit('disconnect', next => { next.links = next.links.filter(l => l.id !== key); }); },
+    // One gesture is one history entry. Invalid pairs do not discard valid peers.
+    toggleConnections(pairs) {
+      return commit('connections', next => pairs.map(({from,to}) => {
+        const existing=next.links.find(l=>l.from.blockId===from.blockId&&l.from.portId===from.portId&&l.to.blockId===to.blockId&&l.to.portId===to.portId);
+        if(existing){next.links=next.links.filter(l=>l.id!==existing.id);return {connected:false};}
+        try { checkLink(next,from,to);next.links.push({id:id('link'),from:clone(from),to:clone(to)});return {connected:true}; }
+        catch(error){return {error:error.message};}
+      }));
+    },
+    disconnectPort(endpoint,direction) {
+      if(!['input','output'].includes(direction))throw new Error('포트 방향이 올바르지 않습니다');
+      return commit('disconnect-port',next=>{next.links=next.links.filter(link=>{const end=direction==='input'?link.to:link.from;return end.blockId!==endpoint.blockId||end.portId!==endpoint.portId});});
+    },
     clear() { return commit('clear', next => { next.blocks = []; next.links = []; }); },
     arrange() {
       return commit('arrange', next => {

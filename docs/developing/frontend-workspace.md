@@ -34,11 +34,12 @@ Shell은 기능 내부 DOM을 조회하지 않는다. Page Host는 최상위 페
 
 이 형식은 **beta 로컬 편집 스냅샷**이다. 서버 계약·실행 IR·Revision 형식으로 확정하지 않는다. 파일은 `{localId,name,type,size,text?,blob?}`. blob은 실제 로컬 Blob/File이고 URL 문자열을 영속 저장하지 않는다.
 
-`createWorkspaceModel({snapshot?})`: `getSnapshot/getBlocks/getBlock`, `addBlock(skillId,{x,y,values,expanded,file}?)`, `updateBlock(id,patch)`, `deleteBlock`, `connect(from,to)`, `disconnect`, `clear`, `arrange`, `undo/redo/canUndo/canRedo`, `replace`, `subscribe`.
+`createWorkspaceModel({snapshot?})`: `getSnapshot/getBlocks/getBlock`, `addBlock(skillId,{x,y,values,expanded,file}?)`, `updateBlock(id,patch)`, `deleteBlock`, `connect(from,to)`, `disconnect`, `toggleConnections(pairs)`, `disconnectPort(endpoint,direction)`, `clear`, `arrange`, `undo/redo/canUndo/canRedo`, `replace`, `subscribe`.
 
 - 반환/이벤트 스냅샷은 복제본. 블럭 ID·스킬 참조와 카메라를 혼동하지 않는다.
 - 실제 포트 존재·방향·타입·중복·단일 입력·자기 연결·순환을 검증한다. 기존 연결의 재선택으로 해제하는 UI 정책은 Canvas 책임이다.
 - 블럭 삭제는 연결도 함께 삭제한다. 복원 검증 실패 시 기존 그래프를 바꾸지 않는다. replace는 되돌리기 기록을 초기화한다.
+- `toggleConnections([{from,to}])`는 기존 쌍은 해제하고 새 쌍은 검증 후 추가한다. 유효하지 않은 쌍은 `{error}`를 반환하고 나머지를 적용한다. 전체 제스처는 한 번의 undo 단위. `disconnectPort`도 해당 방향의 모든 연결을 한 번에 해제한다.
 - 되돌리기 최대 80회. 블럭 드래그는 표시만 이동하다 포인터 종료에 한 번 반영한다. 파일 생성/교체는 실제 Blob과 메타데이터를 한 번에 반영한다.
 - 정리는 DAG 깊이에 따라 가로 열을 배정하고 같은 열의 블럭을 세로 배치한다. 실제 작업 실행 순서를 확정하는 계약이 아니다.
 
@@ -48,8 +49,8 @@ Shell은 기능 내부 DOM을 조회하지 않는다. Page Host는 최상위 페
 
 초안은 `{parts,attachments}`. parts는 `{type:'text',text}`, `{type:'skill',id,label}`, `{type:'block',id,label}`. 스킬과 배치 참조를 별도로 보존하고 태그를 문자열 프로토콜로 변환하지 않는다. 초안 복원에는 저장된 HTML을 사용하지 않는다. 첨부는 실제 File/Blob과 이름·MIME·크기·수정시각을 보존한다.
 
-- compact 알약에서 내용 길이·줄바꿈·참조/첨부에 따라 확장하고 짧아지면 축소한다. 입력 폭은 별도 측정 요소로 판단한다.
-- `@` 스킬/스킬블럭 검색, `/` 빠른 명령, 도구 메뉴, 방향키·Enter·Escape, 참조 선택/삭제를 제공한다.
+- compact 알약은 편집기 포커스·비어 있지 않은 입력·참조·첨부·열린 메뉴에서 확장한다. 빈 초안에서 포커스와 메뉴가 모두 사라지면 축소한다. 확장 시 파일 추가/스킬 참조/스킬블럭 참조/빠른 명령 4개 도구를 표시한다. 높이와 도구 이동은 145ms 보간하며 reduced-motion에서 생략한다. 입력 폭은 별도 측정 요소로 판단한다.
+- `+`는 파일 선택기를 바로 연다. `@` 스킬/스킬블럭 검색, `/` 빠른 명령, 도구 메뉴, 방향키·Enter·Escape, 참조 선택/삭제를 제공한다. main의 저장 함수·사용자 스킬 목록은 beta 데이터 공급 계약이 없어 미연결이다. 정적 기본 스킬과 현재 모델의 스킬블럭만 참조한다.
 - PC Enter는 전송, Shift+Enter는 줄바꿈, coarse 입력의 Enter는 편집으로 남긴다. IME 조합 중 전송/메뉴 선택을 실행하지 않는다. 붙여넣기/텍스트 드롭은 일반 텍스트만 삽입한다.
 - 입력 높이·IME·메뉴 위치는 Composer 책임이다. 앱 프레임/브라우저 키보드를 조작하지 않는다. picker는 form의 backdrop 컨텍스트 바깥 형제 DOM이다.
 - 편집은 element의 bubbling `input`으로 Workspace에 알린다. setDraft는 복원용이며 변경 이벤트를 발생시키지 않는다.
@@ -61,9 +62,11 @@ Shell은 기능 내부 DOM을 조회하지 않는다. Page Host는 최상위 페
 `createCanvas({model,input,onRun,onNotice,onAttach})` → `{element,activate,deactivate,closeMenu,destroy,getViewport,setViewport,focusBlock,addFile}`.
 
 - 표시/조작: 블럭 추가·확장·요청 입력·이동·삭제, 입력/출력 포트 클릭 또는 드래그 연결, 기존 연결 해제, 연결 선택·삭제, 정리·전체 보기·초기화·undo/redo.
-- 새 일반 블럭은 펼쳐서 추가한다. 실제 펼친 크기를 측정해 주변 빈 위치를 찾고 화면 밖이면 카메라를 이동한다. main의 compact 크기·아이콘·색·자연어 입력 스타일을 기준으로 한다.
+- 새 일반 블럭은 펼쳐서 추가한다. 실제 펼친 크기를 측정해 주변 빈 위치를 찾는다. **일반/파일 삽입은 카메라 위치·줌을 변경하지 않는다.** 빈 위치가 화면 밖이어도 자동 재정렬하지 않으며 전체 보기/정리/명시적 focusBlock으로 이동한다. main의 compact 크기·아이콘·색·자연어 입력 스타일을 기준으로 한다.
+- 접기·펼치기는 같은 블럭/편집 DOM에서 body 높이를 380ms `cubic-bezier(.16,1,.3,1)`로 보간한다. 포트와 곡선은 ResizeObserver로 현재 높이를 추종한다. 헤더 드래그 중에는 임시로 접었다가 해제/취소 시 펼치며 그래프 확장 상태와 undo 기록을 추가하지 않는다. reduced-motion은 즉시 반영한다.
+- 출력 포트 드래그 중 다른 출력에 200ms 머물면 소스로 수집한다. 수집한 각 출력의 미리보기 곡선·시작점을 표시하고 입력에 놓을 때 한 묶음으로 토글한다. 입력에서 시작한 역방향 드래그는 단일 연결. 히트 범위는 포트 중심에서 월드 좌표 각 축 ±20px이다. 짧은 탭(<320ms)을 동일 포트에 340ms 안에 두 번 하면 해당 입/출력의 연결을 140ms fade 후 일괄 해제한다. 이탈·취소 시 수집 타이머·미리보기·미확정 fade를 정리한다. 클릭-클릭 연결과 연결 선택/삭제도 유지한다.
 - 초기화는 두 번째 클릭으로 확정하며 되돌릴 수 있다. 입력 필드는 250ms 뒤 반영하고 change·이탈·메뉴 인계 시 남은 편집을 반영한다.
-- 카메라 `{x,y,zoom}`는 그래프 밖의 로컬 UI 상태. 줌 .12–3. 마우스 배경 드래그·휠 커서 중심 줌, 터치 이동·두 손가락 핀치를 처리한다. `canvasviewportchange` detail로 카메라 변경을 알린다.
+- 카메라 `{x,y,zoom}`는 그래프 밖의 로컬 UI 상태. 줌 .12–3. 마우스 배경 드래그·휠 커서 중심 줌(`exp(-deltaY*.0015)`), 터치 이동·두 손가락 핀치를 처리한다. 이동 판정은 7px 초과. 팬 해제 후 속도 평활(.68/.32)·최대 1.6px/ms·감쇠 `.86^(dt/16.67)`의 관성을 적용한다. 새 입력·메뉴·이탈·blur·hidden에서 중단하고 reduced-motion에서는 생략한다. 정리는 블럭 좌표와 카메라를 520ms의 정규화된 임계 감쇠 곡선으로 함께 보간한다. `canvasviewportchange` detail로 카메라 변경을 알린다.
 - 텍스트/컨트롤은 Canvas 포인터 시작을 거절해 네이티브 편집을 유지한다. 포인터 취소·두 번째 손가락 개입·페이지 이탈 시 미확정 블럭 이동을 되돌린다.
 - `InputManager.registerOwner({multiPointer:true,...})`는 같은 Canvas 소유자의 추가 포인터만 수락한다. 기본 소유자는 한 포인터 그대로다. 다른 소유자는 제어권을 탈취하지 못하며, 취소는 묶음 전체를 정리한다. Manager는 핀치 의미를 해석하지 않는다.
 - `addFile(File)`은 로컬 파일 스킬블럭을 생성한다. 텍스트 미리보기는 파일의 앞 64KiB만 읽고 화면에는 최대 900자를 표시한다. 이미지/텍스트 미리보기와 로컬 내려받기는 실제 Blob으로 제공한다. Blob URL은 표시 수명에만 존재하고 교체·삭제·destroy 시 해제한다.
@@ -88,4 +91,4 @@ Shell은 기능 내부 DOM을 조회하지 않는다. Page Host는 최상위 페
 
 `node --test tests/frontend/*.test.mjs` 실행에 Playwright 개발 환경과 Chromium이 필요하다. 별도 실행 파일은 `CHROMIUM_PATH`로 지정한다. 제품에는 패키지/빌드 도구를 추가하지 않는다.
 
-검증 범위: 모델 무결성·복원·undo/redo·파일 교체, 편집/참조/초안 복원·한글 조합 이벤트·줄바꿈/붙여넣기, 포인터 취소·native mouse·CDP native touch·모바일 핀치, 메뉴/슬라이드/Library 왕복, IDB 재진입·실패 표시, 모의 VisualViewport 축소/offsetTop, 모바일 여백·테마·화면 크기, 요청 미발생. Android/iOS 실기기 IME·키보드 애니메이션·Safari/Firefox·PWA 물리 환경은 미검증이다. main과의 픽셀 완전일치를 주장하지 않는다.
+검증 범위: 모델 무결성·복원·undo/redo·파일 교체, 편집/참조/초안 복원·한글 조합 이벤트·줄바꿈/붙여넣기, 포인터 취소·native mouse·CDP native touch·모바일 핀치·관성/취소·다중 출력 수집/일괄 해제·삽입 시 카메라 불변·펼침 DOM/높이 보간·정리 보간, 메뉴/슬라이드/Library 왕복, IDB 재진입·실패 표시, 모의 VisualViewport 축소/offsetTop, 모바일 여백·테마·화면 크기, 요청 미발생. Android/iOS 실기기 IME·키보드 애니메이션·Safari/Firefox·PWA 물리 환경은 미검증이다. main과의 픽셀 완전일치를 주장하지 않는다.
