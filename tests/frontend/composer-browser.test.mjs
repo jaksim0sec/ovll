@@ -78,8 +78,12 @@ test('composer keeps rich drafts safe, handles pickers and preserves rejected re
     await tag.press('Enter');await tag.press('Enter');
     assert.equal(await page.evaluate(()=>window.submitted.length),1);
     assert.equal(await editor.locator('[data-ref-kind]').count(),0);
+    let openedDirectly=false;page.once('filechooser',()=>{openedDirectly=true;});
+    await page.locator('.ovll-rich-add').click();
+    assert.equal(openedDirectly,false,'plus opens its menu rather than a file chooser');
+    assert.match(await page.getByRole('option').first().innerText(),/^파일 추가/);
     const chooserPromise=page.waitForEvent('filechooser');
-    await page.getByRole('button',{name:'파일 추가',exact:true}).click();
+    await page.getByRole('option').filter({hasText:'파일 추가'}).click();
     assert.equal(await page.getByRole('listbox').isVisible(),false);
     const chooser=await chooserPromise;
     await chooser.setFiles({name:'메모.txt',mimeType:'text/plain',buffer:Buffer.from('로컬 메모')});

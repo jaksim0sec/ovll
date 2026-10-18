@@ -33,11 +33,11 @@ export function createComposer({model,onSubmit,onHeightChange,onAttach} = {}) {
     node.innerHTML=icon(glyph);node.setAttribute('aria-label',label);node.title=label;
     return node;
   }
-  const add = button('plus','파일 추가','ovll-rich-add');
+  const add = button('plus','추가 메뉴','ovll-rich-add');
   const mention = button('mention','스킬 및 스킬블럭 참조','ovll-rich-mention');
   const canvas = button('canvas','스킬블럭 참조','ovll-rich-canvas');
   const commands = button('slash','빠른 명령','ovll-rich-slash');
-  for(const node of [mention,canvas,commands]) {
+  for(const node of [add,mention,canvas,commands]) {
     node.setAttribute('aria-haspopup','listbox');node.setAttribute('aria-expanded','false');
   }
   toolbar.append(add,mention,canvas,commands);
@@ -238,7 +238,7 @@ export function createComposer({model,onSubmit,onHeightChange,onAttach} = {}) {
   function closeMenu() {
     picker.hidden=true;picker.replaceChildren();menuType='';entries=[];triggerRange=null;selectedTag=null;
     editor.removeAttribute('aria-activedescendant');editor.setAttribute('aria-expanded','false');
-    for(const node of [mention,canvas,commands])node.setAttribute('aria-expanded','false');
+    for(const node of [add,mention,canvas,commands])node.setAttribute('aria-expanded','false');
     scheduleResize();
   }
   function references(type) {
@@ -251,6 +251,11 @@ export function createComposer({model,onSubmit,onHeightChange,onAttach} = {}) {
   }
   function menuItems(type) {
     if(type==='tag')return [{action:'remove',label:'참조 삭제',detail:'선택한 참조만 제거합니다.',icon:'close'}];
+    if(type==='add')return [
+      {action:'file',label:'파일 추가',detail:'이 기기의 파일을 첨부합니다.',icon:'folder'},
+      {action:'skills',label:'스킬 참조',detail:'사용할 스킬을 지정합니다.',icon:'mention'},
+      {action:'blocks',label:'스킬블럭 참조',detail:'캔버스의 스킬블럭을 지정합니다.',icon:'canvas'}
+    ];
     if(type==='commands')return [
       {action:'skills',label:'스킬 참조',detail:'사용할 스킬을 지정합니다.',icon:'mention',keywords:'skill @'},
       {action:'blocks',label:'스킬블럭 참조',detail:'캔버스의 스킬블럭을 지정합니다.',icon:'canvas',keywords:'canvas block'},
@@ -283,7 +288,7 @@ export function createComposer({model,onSubmit,onHeightChange,onAttach} = {}) {
     const search=query.trim().toLocaleLowerCase();
     entries=menuItems(type).filter(entry=>!search||[entry.label,entry.detail,entry.id,entry.keywords].some(value=>String(value||'').toLocaleLowerCase().includes(search)));
     picker.hidden=false;editor.setAttribute('aria-expanded','true');
-    for(const [node,kind] of [[mention,'skills'],[canvas,'blocks'],[commands,'commands']])node.setAttribute('aria-expanded',String(type===kind));
+    for(const [node,kind] of [[add,'add'],[mention,'skills'],[canvas,'blocks'],[commands,'commands']])node.setAttribute('aria-expanded',String(type===kind));
     renderMenu();scheduleResize();
   }
   function detectTrigger() {
@@ -411,9 +416,7 @@ export function createComposer({model,onSubmit,onHeightChange,onAttach} = {}) {
     });
     listen(editor,'beforeinput',event=>{if(event.inputType?.startsWith('format'))event.preventDefault();});
     listen(element,'keydown',onElementKeydown);listen(form,'submit',submit);
-    listen(add,'pointerdown',()=>remember());
-    listen(add,'click',()=>{closeMenu();fileInput.click();});
-    for(const [node,type] of [[mention,'skills'],[canvas,'blocks'],[commands,'commands']]){
+    for(const [node,type] of [[add,'add'],[mention,'skills'],[canvas,'blocks'],[commands,'commands']]){
       listen(node,'pointerdown',event=>{openingToolbarMenu=true;remember();if(!coarse())event.preventDefault();});
       listen(node,'pointercancel',()=>{openingToolbarMenu=false;scheduleResize();});
       listen(node,'click',()=>{openingToolbarMenu=false;if(menuType===type){closeMenu();return;}if(coarse())editor.blur();else editor.focus({preventScroll:true});openMenu(type);});
