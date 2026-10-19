@@ -106,6 +106,25 @@ test('workspace restores rich drafts and graph, owns no server traffic, survives
  await page.reload();await page.getByRole('tab',{name:'캔버스',exact:true}).click();
  assert.equal(await page.locator('.canvas-file-preview').innerText(),'<b>일반 텍스트</b>','file previews survive IDB restoration with actual local Blob');
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);assert.deepEqual(api,[]);assert.deepEqual(errors,[]);
+ // External callers use Workspace API, never Canvas DOM or an invented backend IR.
+ const externalBoundary=await page.evaluate(async()=>{
+   const {createWorkspace}=await import('/js/workspace/controller.js');
+   const {createInputManager}=await import('/js/input/inputManager.js');
+   const input=createInputManager(),root=document.createElement('section');document.body.append(root);
+   const data={cache:{read:async()=>null,write:async()=>({written:true}),list:async()=>[]},local:{read:async()=>null,write:async()=>{}}};
+   const workspace=await createWorkspace({root,data,input}),presentation=workspace.getPresentation();
+   root.append(...presentation.slides.map(slide=>slide.element),...presentation.stationary.map(item=>item.element));
+   const commands=workspace.getCanvasCommands();
+   const first=commands.addBlock('write',{x:15,y:30});
+   commands.updateBlock(first.id,{x:55});
+   const exported=JSON.parse(workspace.getDataAccess().exportCanvasJSON());
+   commands.deleteBlock(first.id);
+   const after=JSON.parse(workspace.getDataAccess().exportCanvasJSON());
+   const answer={source:exported.source,format:exported.format,count:exported.snapshot.blocks.length,x:exported.snapshot.blocks[0]?.x,after:after.snapshot.blocks.length};
+   await workspace.flush();workspace.destroy();input.destroy();root.remove();
+   return answer;
+ });
+ assert.deepEqual(externalBoundary,{source:'local-view',format:'beta-local-edit-graph-v1',count:1,x:55,after:0});
  // A successful viewport save must not hide an unsuccessful graph save.
  const failureState=await page.evaluate(async()=>{
    const {createWorkspace}=await import('/js/workspace/controller.js');const {createInputManager}=await import('/js/input/inputManager.js');
