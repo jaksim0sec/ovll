@@ -5,15 +5,19 @@ import { skills, getSkill } from '../skill/catalog.js';
 import { createWorkspaceDataAccess } from './dataAccess.js';
 import { createChat } from './chat.js';
 
-const ROOM = 'beta-local-workspace';
+const DEFAULT_ROOM = 'beta-local-workspace';
 
 /** A single local Workspace. Owns graph/draft persistence and component composition.
  * SERVER INTEGRATION: room selection and validated remote snapshots enter here.
  * No main store, request protocol, offline queue or inferred AI result is used.
  */
-export async function createWorkspace({ root, data, input, skillCatalog, onSubmitRequest, onRunBlock } = {}) {
-  const resolveSkill = skillCatalog?.get ?? getSkill;
-  const listSkills = skillCatalog?.list ?? (() => skills);
+export async function createWorkspace({ root, data, input, roomId = DEFAULT_ROOM, skillCatalog, onSubmitRequest, onRunBlock } = {}) {
+  if (typeof roomId !== 'string' || !roomId.trim()) throw new TypeError('Workspace roomId is required');
+  if (!root || !input || !data?.cache?.read || !data?.cache?.write || !data?.local?.read || !data?.local?.write)
+    throw new TypeError('Workspace requires root, input and a local data store');
+  // Keep the provider as method receiver; providers may use their own state.
+  const resolveSkill = skillCatalog?.get ? id => skillCatalog.get(id) : getSkill;
+  const listSkills = skillCatalog?.list ? () => skillCatalog.list() : () => skills;
   if(typeof resolveSkill!=='function'||typeof listSkills!=='function')throw new TypeError('Invalid Skill catalog provider');
   if((onSubmitRequest !== undefined && typeof onSubmitRequest !== 'function') ||
      (onRunBlock !== undefined && typeof onRunBlock !== 'function')) throw new TypeError('Invalid Workspace request callbacks');
@@ -35,6 +39,7 @@ export async function createWorkspace({ root, data, input, skillCatalog, onSubmi
   const saveState = chatView.saveState;
   let queued = Promise.resolve(), pending = 0, destroyed = false;
   const failedDomains = new Set();
+  function ensureAlive() { if (destroyed) throw new Error('Workspace has been destroyed'); }
   function save(domain, operation) {
     if (destroyed) return;
     pending++; saveState.textContent = '저장 중';
@@ -52,9 +57,9 @@ export async function createWorkspace({ root, data, input, skillCatalog, onSubmi
   }
   let storedGraph = null, storedDraft = null, storedViewport = null;
   const restored = await Promise.allSettled([
-    data.cache.read('canvasState', ROOM, 'state'),
-    data.cache.read('chatDraft', ROOM, 'state'),
-    data.local.read('canvasViewport', ROOM)
+    data.cache.read('canvasState', roomId, 'state'),
+    data.cache.read('chatDraft', roomId, 'state'),
+    data.local.read('canvasViewport', roomId)
   ]);
   if (restored[0].status === 'fulfilled') storedGraph = restored[0].value?.value;
   if (restored[1].status === 'fulfilled') storedDraft = restored[1].value?.value;
@@ -74,7 +79,7 @@ export async function createWorkspace({ root, data, input, skillCatalog, onSubmi
     console.error('Workspace graph restore failed', error);
   }
   if (!storedGraph && !loadFailed) {
-    save('canvas', () => data.cache.write('canvasState', ROOM, 'state', model.getSnapshot(), { source: 'provisional' }));
+    save('canvas', () => data.cache.write('canvasState', roomId, 'state', model.getSnapshot(), { source: 'provisional' }));
   }
   const runUnavailable = () => {
     // SERVER INTEGRATION: connect a validated request/execution adapter here.
@@ -105,27 +110,32 @@ export async function createWorkspace({ root, data, input, skillCatalog, onSubmi
       return { handled: true };
     }
   });
-  const dataAccess = createWorkspaceDataAccess({roomId:ROOM,model,canvas,composer,data,listSkills});
+  const dataAccess = createWorkspaceDataAccess({roomId,model,canvas,composer,data,listSkills,isAlive:()=>!destroyed});
   // Validated local graph operations for callers outside Canvas. Not a server
   // action-plan format, execution IR, authorization check or sync protocol.
   const canvasCommands = Object.freeze({
     addBlock(skillId, options) {
+      ensureAlive();
       canvas.flushPendingEdits();
       return model.addBlock(skillId, options);
     },
     updateBlock(blockId, patch) {
+      ensureAlive();
       canvas.flushPendingEdits();
       return model.updateBlock(blockId, patch);
     },
     deleteBlock(blockId) {
+      ensureAlive();
       canvas.flushPendingEdits();
       return model.deleteBlock(blockId);
     },
     connect(from, to) {
+      ensureAlive();
       canvas.flushPendingEdits();
       return model.connect(from, to);
     },
     disconnect(linkId) {
+      ensureAlive();
       canvas.flushPendingEdits();
       return model.disconnect(linkId);
     }
@@ -135,17 +145,17 @@ export async function createWorkspace({ root, data, input, skillCatalog, onSubmi
   if (storedViewport) canvas.setViewport(storedViewport);
   let hasViewport = Boolean(storedViewport);
   const unsubscribe = model.subscribe(({ snapshot }) => {
-    if (!preserveStoredGraph) save('canvas', () => data.cache.write('canvasState', ROOM, 'state', snapshot, { source: 'provisional' }));
+    if (!preserveStoredGraph) save('canvas', () => data.cache.write('canvasState', roomId, 'state', snapshot, { source: 'provisional' }));
     else announce('저장된 캔버스 보호를 위해 현재 변경은 저장하지 않습니다. 새로고침 후 다시 확인해 주세요.', { persistent: true });
   });
   composer.element.addEventListener('input', () => {
     const draft = composer.getDraft();
-    save('draft', () => data.cache.write('chatDraft', ROOM, 'state', draft, { source: 'provisional' }));
+    save('draft', () => data.cache.write('chatDraft', roomId, 'state', draft, { source: 'provisional' }));
   }, { signal: lifetime.signal });
   canvas.element.addEventListener('canvasviewportchange', event => {
     hasViewport = true;
     const viewport = { ...event.detail };
-    save('viewport', () => data.local.write('canvasViewport', ROOM, viewport));
+    save('viewport', () => data.local.write('canvasViewport', roomId, viewport));
   }, { signal: lifetime.signal });
   saveState.textContent = pending ? '저장 중' : failedDomains.size ? '저장 내용을 확인해 주세요' : '이 기기에 임시 저장됨';
   const resize = new ResizeObserver(() => {
@@ -153,17 +163,19 @@ export async function createWorkspace({ root, data, input, skillCatalog, onSubmi
   });
   resize.observe(composer.element);
   return {
-    getDataAccess: () => dataAccess,
-    getCanvasCommands: () => canvasCommands,
-    setConfirmedChatRecords(value){chatView.setConfirmedRecords(value);},
-    setRequestActivities(value){chatView.setRequestActivities(value);},
-    refreshSkillCatalog(){model.validateCurrent();canvas.refreshCatalog();composer.refreshCatalog();},
-    getPresentation: () => ({
+    getRoomId(){ensureAlive();return roomId;},
+    getDataAccess(){ensureAlive();return dataAccess;},
+    getCanvasCommands(){ensureAlive();return canvasCommands;},
+    setConfirmedChatRecords(value){ensureAlive();chatView.setConfirmedRecords(value);},
+    setRequestActivities(value){ensureAlive();chatView.setRequestActivities(value);},
+    refreshSkillCatalog(){ensureAlive();model.validateCurrent();canvas.refreshCatalog();composer.refreshCatalog();},
+    getPresentation() {ensureAlive();return {
       root, layout: 'immersive', pill: { visible: true },
       slides: [{ id: 'chat', label: '채팅', element: chat, allowContentSwipe: true }, { id: 'canvas', label: '캔버스', element: canvas.element, allowContentSwipe: false }],
       stationary: [{ id: 'composer', slot: 'bottom', element: composer.element }, { id: 'workspace-feedback', slot: 'overlay', element: feedback }]
-    }),
+    };},
     activate({ signal, controller }) {
+      ensureAlive();
       presentation = controller;
       // A graph restored without a local camera can be framed without rewriting its blocks.
       if (!hasViewport && model.getBlocks().length) {
@@ -172,8 +184,8 @@ export async function createWorkspace({ root, data, input, skillCatalog, onSubmi
       }
       canvas.activate({ signal }); composer.activate({ signal });
     },
-    closeTransientUI() { composer.closeMenu(); canvas.closeMenu?.(); },
-    deactivate() { composer.deactivate(); canvas.deactivate(); presentation = null; },
+    closeTransientUI() { if(destroyed)return; composer.closeMenu(); canvas.closeMenu?.(); },
+    deactivate() { if(destroyed)return; composer.deactivate(); canvas.deactivate(); presentation = null; },
     flush: () => queued,
     destroy() {
       if (destroyed) return;
