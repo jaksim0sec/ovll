@@ -5,6 +5,7 @@ import { createInputManager } from './input/inputManager.js';
 import { createLocalDataStore } from './data/localDataStore.js';
 import { createHostedSlides } from './shell/hostedSlides.js';
 import { createWorkspace } from './workspace/controller.js';
+import { createLibraryPage } from './library/controller.js';
 
 const root=document.querySelector('#app');
 const status=document.querySelector('#boot-status');
@@ -16,7 +17,7 @@ themeSelect.value=theme.getTheme();
 themeSelect.addEventListener('change',()=>theme.setTheme(themeSelect.value),{signal:lifetime.signal});
 const releaseTheme=theme.subscribe(value=>{themeSelect.value=value;});
 const data=createLocalDataStore();
-let shell,pages,hosted,workspaceController;
+let shell,pages,hosted,workspaceController,libraryController;
 const validPages=new Set(['workspace','library']);
 let applyingRoute=true;
 function readRoute(){
@@ -47,7 +48,7 @@ function applyRoute(){
 function destroy(){
   lifetime.abort();
   try{pages?.destroy()}finally{
-    hosted?.destroy();shell?.destroy();input.destroy();workspaceController?.destroy();releaseTheme();theme.destroy();
+    hosted?.destroy();shell?.destroy();input.destroy();workspaceController?.destroy();libraryController?.destroy();releaseTheme();theme.destroy();
     // Pending IDB writes finish before closing their adapter.
     Promise.resolve(workspaceController?.flush()).finally(()=>data.destroy());
   }
@@ -62,11 +63,10 @@ try{
     const controller=hosted.activateForPage({...workspaceController.getPresentation(),signal});
     workspaceController.activate({signal,controller});
   },onLeave:()=>workspaceController.deactivate()});
-  const library=document.querySelector('#library-template').content.firstElementChild.cloneNode(true);
-  const libraryContent=library.querySelector('.library-demo-inner');
-  const librarySlide=document.createElement('div');
-  librarySlide.className='demo-library-slide';
-  librarySlide.append(libraryContent);
+  libraryController=createLibraryPage();
+  const library=libraryController.element;
+  const librarySlide=document.createElement('div');librarySlide.className='library-slide';
+  librarySlide.append(library.firstElementChild);
   pages.register('library',{element:library,onEnter:({signal})=>{
     hosted.activateForPage({root:library,layout:'stacked',pill:{visible:false},slides:[{id:'library',label:'라이브러리',element:librarySlide}],signal});
   }});

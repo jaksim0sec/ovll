@@ -1,6 +1,7 @@
 /* Workspace content only. App Shell and Hosted Slides retain all global geometry. */
 .workspace-page{--workspace-composer-clearance:1.35rem}
-.workspace-chat{background:var(--color-bg);overflow:auto;overscroll-behavior:contain;padding:calc(var(--safe-top) + 6rem) 1.3rem calc(var(--workspace-composer-height,5.5rem) + 1.5rem);display:flex;align-items:center;justify-content:center}
+.workspace-chat{background:var(--color-bg);overflow:auto;overscroll-behavior:contain;padding:calc(var(--safe-top) + 6rem) 1.3rem calc(var(--workspace-composer-height,5.5rem) + 1.5rem);display:flex;flex-direction:column;align-items:center;justify-content:center}
+.workspace-chat.has-feed{display:block;padding-top:calc(var(--safe-top) + 5.2rem)}
 .workspace-welcome{width:100%;max-width:36rem;text-align:center;margin-top:-3.5rem}
 .workspace-wordmark{display:inline-flex;align-items:baseline;gap:.5rem;font-size:2.1rem;font-weight:720;letter-spacing:-.075em;line-height:1.2}
 .workspace-wordmark>span{font-size:.59rem;letter-spacing:.09em;color:var(--color-secondary);font-weight:600;text-transform:uppercase}
@@ -14,14 +15,33 @@
 .workspace-composer::before{content:'';position:absolute;left:calc((var(--workspace-composer-max-width) - 100vw)/2);right:calc((var(--workspace-composer-max-width) - 100vw)/2);bottom:-.5rem;height:5.6rem;background:linear-gradient(to top,color-mix(in srgb,var(--color-bg) 24%,transparent),color-mix(in srgb,var(--color-bg) 10%,transparent) 56%,transparent);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);mask-image:linear-gradient(to top,#000 55%,transparent);pointer-events:none;z-index:-1}
 .workspace-feedback{position:absolute;inset:0;pointer-events:none!important;display:flex;align-items:flex-start;justify-content:center;padding:calc(var(--safe-top) + 4.6rem) 1.2rem 0}
 .workspace-notice{max-width:35rem;margin:0;padding:.65rem 1rem;border:1px solid var(--color-line);border-radius:1rem;background:var(--ui-glass-strong);backdrop-filter:blur(1rem);-webkit-backdrop-filter:blur(1rem);color:var(--color-secondary);font-size:.76rem;line-height:1.6;box-shadow:var(--ui-glass-shadow)}
-/* Library remains a navigation placeholder until its own domain is implemented. */
-.demo-library{height:100%;width:100%;overflow:auto;padding:2.25rem 1.5rem;background:var(--color-bg)}
-.library-demo-inner{max-width:42rem;margin:0 auto}
-.demo-eyebrow{font-size:.65rem;font-weight:650;letter-spacing:.1em;color:var(--color-secondary)}
-.library-demo-inner h1{font-size:1.75rem;letter-spacing:-.05em;margin:1rem 0 .7rem}
-.library-demo-inner p{font-size:.85rem;color:var(--color-secondary);line-height:1.7}
-.library-demo-card{display:flex;gap:.85rem;align-items:center;padding:1.1rem;margin:1rem 0;border:1px solid var(--color-line);border-radius:1.2rem;background:var(--color-panel)}
-.library-demo-card small{display:block;margin-top:.3rem;font-size:.75rem;color:var(--color-secondary)}
-.mock-file-icon{font-size:1.5rem;color:var(--color-secondary)}
+/* Chat confirmed records and independent transient request indicators. */
+.workspace-chat-feed{width:100%;max-width:44rem;margin:0 auto}
+.workspace-chat-history{display:flex;flex-direction:column;gap:1.4rem}
+.workspace-message{max-width:100%;display:flex;flex-direction:column;gap:.35rem}
+.workspace-message.is-user{align-items:flex-end}
+.workspace-message-speaker{font-size:.7rem;color:var(--color-secondary);padding:0 .5rem}
+.workspace-message-text{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.7;font-size:.91rem;margin:0;padding:.85rem 1rem;max-width:min(100%,38rem)}
+.workspace-message.is-user .workspace-message-text{background:var(--ui-glass);border:1px solid var(--color-line);border-radius:1rem}
+.workspace-message.is-assistant .workspace-message-text{padding-left:.5rem}
+.workspace-request-activities{display:flex;flex-direction:column;gap:.65rem;margin-top:1.4rem}
+.workspace-request-activity{border:1px dashed var(--color-line);background:var(--ui-glass);border-radius:1rem;padding:.7rem .9rem;color:var(--color-secondary)}
+.workspace-request-activity-label{font-size:.83rem}
+.workspace-request-activity-detail{font-size:.76rem;line-height:1.5;margin:.35rem 0 0}
+.workspace-chat.has-feed .workspace-save-state{text-align:center;margin:1.4rem auto 0}
+/* Library: no invented items, visual-only provider input. */
+.library-page{height:100%;width:100%;background:var(--color-bg)}
+.library-slide{height:100%;width:100%;overflow:auto;background:var(--color-bg);padding:2.25rem 1.5rem}
+.library-page-inner{max-width:43rem;margin:0 auto}
+.library-eyebrow{font-size:.65rem;font-weight:650;letter-spacing:.1em;color:var(--color-secondary)}
+.library-page-inner h1{font-size:1.75rem;letter-spacing:-.05em;margin:1rem 0 .7rem}
+.library-description{font-size:.85rem;color:var(--color-secondary);line-height:1.7}
+.library-empty-state{font-size:.85rem;color:var(--color-secondary);text-align:center;padding:3.2rem 1rem;border:1px dashed var(--color-line);border-radius:1.2rem;margin-top:1.5rem}
+.library-items{display:flex;flex-direction:column;gap:.7rem;margin-top:1.5rem}
+.library-item{padding:1rem 1.1rem;border:1px solid var(--color-line);border-radius:1.1rem;background:var(--color-panel)}
+.library-item-copy{display:flex;flex-direction:column;gap:.25rem}
+.library-item-kind{font-size:.65rem;color:var(--color-secondary)}
+.library-item-title{font-size:.9rem;font-weight:600;overflow-wrap:anywhere}
+.library-item-detail{font-size:.75rem;color:var(--color-secondary);overflow-wrap:anywhere}
 @media(max-width:39rem){.workspace-composer::before{left:-.625rem;right:-.625rem}}
 @media(max-height:520px){.workspace-welcome{margin-top:0}.workspace-wordmark{font-size:1.6rem}.workspace-welcome h1{font-size:1.1rem}.workspace-welcome p,.workspace-save-state{display:none}.workspace-open-canvas{margin-top:.5rem}.workspace-chat{align-items:flex-start}}

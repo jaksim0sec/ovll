@@ -1,9 +1,9 @@
 import { createWorkspaceModel } from './model.js';
 import { createCanvas } from '../canvas/controller.js';
 import { createComposer } from '../composer/controller.js';
-import { icon } from './icons.js';
 import { skills, getSkill } from '../skill/catalog.js';
 import { createWorkspaceDataAccess } from './dataAccess.js';
+import { createChat } from './chat.js';
 
 const ROOM = 'beta-local-workspace';
 
@@ -29,10 +29,10 @@ export async function createWorkspace({ root, data, input, skillCatalog, onSubmi
     if (!persistent) noticeTimer = setTimeout(() => { notice.hidden = true; }, 6000);
   }
 
-  const chat = document.createElement('section');
-  chat.className = 'workspace-chat'; chat.setAttribute('aria-label', '채팅');
-  chat.innerHTML = `<div class="workspace-welcome"><span class="workspace-wordmark">ovll<span>beta</span></span><h1>무엇부터 시작할까요?</h1><p>스킬을 연결하고 작업을 이어가세요.</p><button type="button" class="workspace-open-canvas">${icon('canvas')}<span>캔버스 열기</span></button><small class="workspace-save-state" role="status" data-save-state>불러오는 중</small></div>`;
-  const saveState = chat.querySelector('[data-save-state]');
+  let presentation = null;
+  const chatView = createChat({onOpenCanvas:()=>presentation?.goTo('canvas')});
+  const chat = chatView.element;
+  const saveState = chatView.saveState;
   let queued = Promise.resolve(), pending = 0, destroyed = false;
   const failedDomains = new Set();
   function save(domain, operation) {
@@ -76,7 +76,6 @@ export async function createWorkspace({ root, data, input, skillCatalog, onSubmi
   if (!storedGraph && !loadFailed) {
     save('canvas', () => data.cache.write('canvasState', ROOM, 'state', model.getSnapshot(), { source: 'provisional' }));
   }
-  let presentation = null;
   const runUnavailable = () => {
     // SERVER INTEGRATION: connect a validated request/execution adapter here.
     // A request acceptance must never be fabricated from a local button click.
@@ -124,7 +123,6 @@ export async function createWorkspace({ root, data, input, skillCatalog, onSubmi
     const viewport = { ...event.detail };
     save('viewport', () => data.local.write('canvasViewport', ROOM, viewport));
   }, { signal: lifetime.signal });
-  chat.querySelector('button').addEventListener('click', () => presentation?.goTo('canvas'), { signal: lifetime.signal });
   saveState.textContent = pending ? '저장 중' : failedDomains.size ? '저장 내용을 확인해 주세요' : '이 기기에 임시 저장됨';
   const resize = new ResizeObserver(() => {
     composerHeight(composer.element.getBoundingClientRect().height);
@@ -132,6 +130,8 @@ export async function createWorkspace({ root, data, input, skillCatalog, onSubmi
   resize.observe(composer.element);
   return {
     getDataAccess: () => dataAccess,
+    setConfirmedChatRecords(value){chatView.setConfirmedRecords(value);},
+    setRequestActivities(value){chatView.setRequestActivities(value);},
     refreshSkillCatalog(){model.validateCurrent();canvas.refreshCatalog();composer.refreshCatalog();},
     getPresentation: () => ({
       root, layout: 'immersive', pill: { visible: true },
@@ -154,7 +154,7 @@ export async function createWorkspace({ root, data, input, skillCatalog, onSubmi
       if (destroyed) return;
       composer.deactivate(); canvas.deactivate();
       destroyed = true; clearTimeout(noticeTimer); lifetime.abort(); resize.disconnect(); unsubscribe();
-      composer.destroy(); canvas.destroy(); presentation = null;
+      composer.destroy(); canvas.destroy(); chatView.destroy(); presentation = null;
     }
   };
 }
