@@ -31,6 +31,7 @@ export function createLocalDataStore({ name = "ovll-beta-data", factory = global
     if (opening) return opening;
     opening = new Promise((resolve, reject) => {
       const request = factory.open(name, DB_VERSION);
+      let blocked = false;
       request.onupgradeneeded = () => {
         const database = request.result;
         if (!database.objectStoreNames.contains(STORE_CACHE)) {
@@ -43,12 +44,17 @@ export function createLocalDataStore({ name = "ovll-beta-data", factory = global
         }
       };
       request.onerror = () => reject(request.error);
-      request.onblocked = () => reject(new Error("IndexedDB upgrade is blocked by another tab"));
+      request.onblocked = () => {
+        blocked = true;
+        reject(new Error("IndexedDB upgrade is blocked by another tab"));
+      };
       request.onsuccess = () => {
         const database = request.result;
-        if (destroyed) {
+        // A blocked attempt has already failed to its caller. It must not
+        // install a late connection after a retry has begun.
+        if (destroyed || blocked) {
           database.close();
-          reject(new Error("Local data store is destroyed"));
+          if (destroyed) reject(new Error("Local data store is destroyed"));
           return;
         }
         database.onversionchange = () => {
