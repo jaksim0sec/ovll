@@ -125,6 +125,36 @@ test('workspace restores rich drafts and graph, owns no server traffic, survives
    return answer;
  });
  assert.deepEqual(externalBoundary,{source:'local-view',format:'beta-local-edit-graph-v1',count:1,x:55,after:0});
+ // Two independent rooms must never share graph/cache data or stale external handles.
+ const scopedWorkspaces=await page.evaluate(async()=>{
+   const {createWorkspace}=await import('/js/workspace/controller.js');
+   const {createInputManager}=await import('/js/input/inputManager.js');
+   const input=createInputManager();
+   const roots=[document.createElement('section'),document.createElement('section')];document.body.append(...roots);
+   const stored=new Map();
+   const data={cache:{read:async(k,r,i)=>stored.get([k,r,i].join('/'))??null,
+     write:async(k,r,i,v)=>{stored.set([k,r,i].join('/'),{value:v});return {written:true};},list:async()=>[]},
+     local:{read:async()=>null,write:async()=>{}}};
+   const a=await createWorkspace({root:roots[0],data,input,roomId:'infra-a'});
+   const b=await createWorkspace({root:roots[1],data,input,roomId:'infra-b'});
+   const commands=a.getCanvasCommands(),block=commands.addBlock('write',{x:11,y:22});
+   commands.updateBlock(block.id,{x:45});
+   const graphA=JSON.parse(a.getDataAccess().exportCanvasJSON());
+   const graphB=JSON.parse(b.getDataAccess().exportCanvasJSON());
+   await Promise.all([a.flush(),b.flush()]);
+   const oldReader=a.getDataAccess();a.destroy();
+   let commandRejected=false,readerRejected=false;
+   try{commands.addBlock('write')}catch(error){commandRejected=error.message.includes('destroyed');}
+   try{oldReader.exportCanvasJSON()}catch(error){readerRejected=error.message.includes('destroyed');}
+   const answer={a:graphA.snapshot.blocks.length,b:graphB.snapshot.blocks.length,x:graphA.snapshot.blocks[0].x,
+     roomA:graphA.roomId,roomB:graphB.roomId,
+     storedA:stored.get('canvasState/infra-a/state')?.value.blocks.length,
+     storedB:stored.get('canvasState/infra-b/state')?.value.blocks.length,
+     commandRejected,readerRejected,stillAlive:b.getRoomId()};
+   b.destroy();input.destroy();roots.forEach(root=>root.remove());return answer;
+ });
+ assert.deepEqual(scopedWorkspaces,{a:1,b:0,x:45,roomA:'infra-a',roomB:'infra-b',
+   storedA:1,storedB:0,commandRejected:true,readerRejected:true,stillAlive:'infra-b'});
  // A successful viewport save must not hide an unsuccessful graph save.
  const failureState=await page.evaluate(async()=>{
    const {createWorkspace}=await import('/js/workspace/controller.js');const {createInputManager}=await import('/js/input/inputManager.js');

@@ -76,3 +76,19 @@ test('one-shot Canvas JSON returns latest edits, graph links and no local Blob',
   assert.equal(first.snapshot.blocks[0].values.request,'first');
   assert.equal(flushed,2);
 });
+
+test('acquired Workspace readers reject use after destroy and late cache completion',async()=>{
+  let alive=true,done;
+  const pending=new Promise(resolve=>{done=resolve});
+  const reader=createWorkspaceDataAccess({roomId:'r',
+    model:{getSnapshot:()=>({version:1,blocks:[],links:[]})},canvas:{flushPendingEdits(){}},
+    composer:{getDraft:()=>({parts:[],attachments:[]})},
+    data:{cache:{read:()=>pending,list:async()=>[]}},listSkills:()=>[],isAlive:()=>alive});
+  const inflight=reader.readCached('contextData');
+  alive=false;done({source:'server',value:{text:'stale'}});
+  await assert.rejects(inflight,/destroyed/);
+  assert.throws(()=>reader.readCanvasSnapshot(),/destroyed/);
+  assert.throws(()=>reader.exportCanvasJSON(),/destroyed/);
+  assert.throws(()=>reader.readComposerDraft(),/destroyed/);
+  assert.throws(()=>reader.readSkillCatalog(),/destroyed/);
+});
