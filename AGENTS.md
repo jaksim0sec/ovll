@@ -5,22 +5,82 @@
 - 작업 브랜치: `beta`. `main` 수정·병합·배포는 사용자 명시 승인 전 금지.
 - 대상: 웹/PWA. 네이티브·모바일 전용 프로젝트 임의 추가 금지.
 
-## 경로
-- `back/`: 백엔드. `back/js/`는 서버·API·실행 로직(JS); 실제 책임에 따라 내부 분리.
-- `front/html/`: HTML 문서·페이지 구조. 배포용 진입 파일은 호스팅 요구에 따라 `front/` 루트 허용.
-- `front/js/`: 프론트 로직·렌더링·상호작용.
-- `front/css/`: 스타일·테마·레이아웃.
-- `prompts/`: AI 호출 계층·조립형 지침.
-- `assets/svg/`: SVG 정적 자산.
-- `front/` 루트: 정적 호스팅·PWA 필수 파일(`manifest.webmanifest`, `vercel.json` 등). 실제 필요할 때만 유지; 앱 코드·일반 스타일을 여기에 쌓지 말 것.
-- `tests/`: 자동화 검증·회귀 테스트 전용. 대상 영역별로 정리하며 제품 코드·임시 실험 파일과 혼재 금지.
-- `docs/notes/`: 개발 중 논의·가설·임시 설계·미확정 기록. 필요에 따라 기록하되 확정 명세로 취급 금지.
-- `docs/developing/`: **확정된 실제 개발 명세**. 시스템 구조·모듈 경계·데이터 구조·구현 방법·인터페이스/프로토콜·동작 규칙 등 코드 구현에 필요한 구체적 사실·결정 보관. 일반론·소개문·독자용 튜토리얼 아님.
+## 파일 구조
+
+아래는 `beta` 브랜치의 실제 추적 파일 기준 구조다. 역할 설명은 현재 구현과 구분하며, 파일 추가·삭제 시 현행 트리를 다시 확인한다.
+
+```text
+/
+├── AGENTS.md
+├── assets/svg/                     # 현재 .gitkeep만 존재
+├── back/js/                        # 현재 .gitkeep만 존재
+├── docs/
+│   ├── VISION.md
+│   ├── developing/
+│   │   ├── architecture.md
+│   │   ├── context.md
+│   │   ├── frontend-data.md
+│   │   ├── frontend-global.md
+│   │   ├── frontend-runtime-and-hosted-swipes.md
+│   │   ├── frontend-workspace.md
+│   │   ├── prompt-composition.md
+│   │   └── workrooms.md
+│   ├── notes/request-state-sync.md
+│   └── superpowers/plans/
+│       ├── 2026-10-17-beta-hosted-slides.md
+│       └── 2026-10-17-beta-runtime-foundation.md
+├── front/
+│   ├── index.html
+│   ├── manifest.webmanifest
+│   ├── vercel.json
+│   ├── html/                        # 현재 .gitkeep만 존재
+│   ├── css/
+│   │   ├── base.css
+│   │   ├── canvas.css
+│   │   ├── composer.css
+│   │   ├── hostedSlides.css
+│   │   ├── shell.css
+│   │   └── workspace.css
+│   └── js/
+│       ├── boot.js
+│       ├── canvas/                 # controller.js, files.js, geometry.js
+│       ├── composer/               # controller.js, draft.js
+│       ├── data/localDataStore.js
+│       ├── input/inputManager.js
+│       ├── settings/theme.js
+│       ├── shell/                  # appShell.js, hostedSlides.js,
+│       │                           # pageHost.js, viewportMotion.js
+│       ├── skill/catalog.js
+│       └── workspace/              # controller.js, icons.js, model.js
+├── prompts/
+│   ├── base/                       # corridorInitial, corridorReturn, gate, output
+│   ├── blocks/                     # contextBlockUpdate, contextDataUpdate,
+│   │                               # informationRequest, languageGeneration,
+│   │                               # planGeneration
+│   ├── common/                     # concepts.md, json.md
+│   └── manifest.json
+└── tests/
+    └── frontend/                   # canvas, composer, hosted, input, shell,
+                                    # theme, viewport, workspace 관련 *.test.mjs
+```
+
+## 경로와 역할
+- `back/`: 백엔드. `back/js/`는 서버·API·실행 로직(JS)을 책임에 따라 분리할 위치. **현재 구현 파일 없음**; 프론트 코드가 있다는 이유만으로 백엔드 구현을 가정하지 말 것.
+- `front/`: 웹/PWA 정적 배포 루트. `index.html`은 현재 진입 파일이며 `manifest.webmanifest`, `vercel.json`은 배포·PWA 설정. 필수 루트 파일 외 앱 코드·일반 스타일을 루트에 쌓지 말 것.
+- `front/html/`: 별도 HTML 문서·페이지 구조용 위치. **현재 구현 파일 없음**. 실제 화면 구조는 `front/index.html`에도 존재하므로 이전을 임의 강제하지 말 것.
+- `front/js/`: 부팅(`boot.js`), 셸·페이지 호스트(`shell/`), 캔버스(`canvas/`), 컴포저(`composer/`), 워크스페이스(`workspace/`), 스킬 목록(`skill/`), 로컬 데이터(`data/`), 입력(`input/`), 테마(`settings/`) 등 프론트 로직. 기능 변경 시 해당 영역의 실제 코드와 경계를 확인.
+- `front/css/`: 공통·셸·캔버스·컴포저·워크스페이스·호스팅 슬라이드 스타일. 테마와 레이아웃 수정 전 적용 지점 확인.
+- `prompts/`: AI 호출 계층·조립형 지침. `base/`는 기본 지침, `blocks/`는 조립 블록, `common/`은 공통 규약, `manifest.json`은 구성 목록.
+- `assets/svg/`: SVG 정적 자산용 위치. **현재 자산 파일 없음**.
+- `tests/`: 자동화 검증·회귀 테스트 전용. 현재 검증 파일은 `tests/frontend/`에 집중됨. 제품 코드·임시 실험 파일과 혼재 금지.
+- `docs/notes/`: 개발 중 논의·가설·임시 설계·미확정 기록. 확정 명세로 취급 금지.
+- `docs/developing/`: **확정된 실제 개발 명세**. 시스템 구조·모듈 경계·데이터 구조·구현 방법·인터페이스/프로토콜·동작 규칙 등 구현에 필요한 결정과 사실 보관. 일반론·소개문·독자용 튜토리얼 아님.
+- `docs/superpowers/plans/`: 현재 존재하는 작업 계획 기록 경로. `docs/developing/`의 확정 명세나 `docs/notes/`의 미확정 기록을 대체하지 않으며, 새 문서의 기본 저장소로 자동 선택하지 말 것.
+- `docs/VISION.md`: 제품 비전. 개발 명세·임시 노트와 별개. 경로 미확정 시 다른 비전 문서 임의 신설 금지.
 - 문서 이관: `notes`에서 내용 확정 → 검증·정리해 `developing`의 적절한 문서에 반영 → 해당 임시 노트 삭제. 중복 원본 방치 금지; 미확정 내용을 확정 명세에 섞지 말 것.
-- 제품 비전 문서는 개발 명세·임시 노트와 별개. 경로 미확정 시 임의 신설 금지.
 
 ## 구성·명명
-- **디렉터리=책임 영역 / 파일명=구체적 역할**. 예: `front/js/canvas/engine.js`, `front/js/canvas/camera.js`, `front/js/skill/repository.js`.
+- **디렉터리=책임 영역 / 파일명=구체적 역할**. 기존 `front/js/canvas/controller.js`, `front/js/workspace/model.js`처럼 실제 소속과 역할을 드러낼 것. 예시 경로가 실제 존재한다고 가정하지 말 것.
 - 신규 기능: 기존 파일·책임·공개 API·의존성·중복 구현 확인 → 기존 구조의 적합한 확장 지점 우선. 실제 책임 경계가 필요할 때만 파일·폴더 추가. 기능별 파일·폴더 자동 양산 금지.
 - 기본 `<역할>.js`; 경로 밖에서도 소속 식별이 필요하면 `<소속>.<역할>.js`. 역할 접미사(`engine`, `model`, `renderer`, `controller`, `repository`, `contract` 등)는 해당 책임일 때만 사용.
 - 명칭·용어 일관성 유지. `utils.js`, `functions.js`, `misc.js` 등 의미 불명 이름과 `new`, `final`, `v2` 등 임시 상태명 지양. `core`·`shared`를 잡동사니 폴더로 사용 금지.
@@ -34,7 +94,8 @@
 - 개발 중 `docs` 아무 곳에나 Markdown 추가 금지. `notes` / `developing` / 비전 구분. 내부 문서=우리의 실제 개발 참조 자료: 압축형·정확한 기술 서술, 조건·예외·수치·결정 근거 등 필요한 세부사항 보존. 보고서식 서론·목차·미사여구·가공 사실·과장 금지.
 
 ## 작업 기준
-- 실제 코드·참조 확인 + **관련 `docs/developing/` 명세 반드시 확인** → 기존 설계·계약에 부합하는 변경 → 필요한 검증. 명세가 비었거나 미완성이면 추측해 채우지 말고 불확실성을 명시.
-- 현재 문서와 구현이 다르면 차이를 보고하고, 근거 없이 어느 쪽도 임의로 정답 처리하지 말 것.
+- 실제 코드·참조 확인 + **관련 `docs/developing/` 명세 반드시 확인** → 기존 설계·계약에 부합하는 변경 → 필요한 검증.
+- `docs/developing/`의 파일명·제목을 먼저 훑어 해당 작업에 필요한 문서를 선택해 읽을 것. 새 확정 명세를 작성할 때도 후속 에이전트가 제목만 보고 관련성을 판단할 수 있게 명명할 것.
+- 명세가 비었거나 미완성이면 추측해 채우지 말고 불확실성을 명시. 현재 문서와 구현이 다르면 차이를 보고하고, 근거 없이 어느 쪽도 임의로 정답 처리하지 말 것.
 
-**개발 진행 과정에서의 변화로 AGENTS.md 에 수정이 필요하다 판단될 경우, 유저에게 명확히 알릴것**
+**개발 진행 과정에서의 변화로 AGENTS.md에 수정이 필요하다 판단될 경우, 유저에게 명확히 알릴 것.**
