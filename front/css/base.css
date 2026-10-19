@@ -3,6 +3,8 @@
   color-scheme: dark;
   /* Brand seed. Change this color once; dark/light surfaces and accents derive from it. */
   --brand-color: #969696;
+  /* Single density anchor. Layout typography, rem-based geometry and spacing follow it. */
+  --ui-base-font-size: 15px;
   --theme-canvas: #101012;
   --theme-surface: #1d1d20;
   --theme-ink: #f7f7f9;
@@ -41,7 +43,7 @@
   --motion-duration: .2s;
   --motion-ease: cubic-bezier(.2,.82,.2,1);
   font-family: "Pretendard Variable", "Pretendard", -apple-system, BlinkMacSystemFont, "Noto Sans KR", "Segoe UI", sans-serif;
-  font-size: 16.75px;
+  font-size: var(--ui-base-font-size);
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
   -webkit-font-smoothing: antialiased;
@@ -58,8 +60,8 @@ button:focus-visible{outline:2px solid var(--color-accent);outline-offset:3px}
 button:disabled{opacity:.45;cursor:default}
 svg{display:block;width:1.4rem;height:1.4rem;flex:0 0 auto;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
 #boot-status,noscript{position:fixed;inset:0;display:grid;place-content:center;margin:0;padding:var(--space-6);text-align:center;color:var(--color-secondary)}
-@media(max-width:43.75rem){:root{font-size:16.25px}}
-@media(max-width:26.25rem){:root{font-size:15.75px}}
+/* Narrow screens receive a small readability allowance; tune density at --ui-base-font-size only. */
+@media(max-width:43.75rem){:root{font-size:calc(var(--ui-base-font-size) + 1px)}}
 @media(prefers-reduced-motion:reduce){:root{--motion-duration:0s}}
 
 .app-shell {

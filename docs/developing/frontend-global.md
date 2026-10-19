@@ -177,3 +177,18 @@
 - 최초 로드의 쿼리로 페이지를 활성화하고 슬라이드를 즉시 선택한다. 생략되거나 알 수 없는 값은 기본 Workspace/해당 페이지 첫 슬라이드로 해석해 현재 상태로 URL을 replace한다.
 - 사용자가 페이지 또는 슬라이드를 실제 변경한 경우에만 pushState한다. `popstate`는 활성 페이지·슬라이드를 복구하며 복구 중 History 엔트리를 새로 만들지 않는다. 현재 페이지·슬라이드를 읽고 변경을 알리는 Hosted Slides의 공개 API로만 연결한다.
 - URL은 UI 위치 상태일 뿐 room ID/서버 자산 식별·인증·데이터 동기화 프로토콜이 아니다. 기존 Page Host 수명과 Composer stationary 보존 정책을 변경하지 않는다.
+
+
+### CSS 수정·크기·표면 일관성 기준 (2026-10-19)
+
+적용 범위: `front/css/`의 신규·수정 스타일과 관련 DOM 생성 코드. 개별 컴포넌트의 외형을 이름만 보고 추정해서 수정하지 않는다.
+
+1. **수정 전 구조 확인**: 실제 HTML 및 `front/js/`에서 생성·이동하는 DOM 트리, 부모·자식, 가상 요소, `hidden`/state 클래스, 스타일시트 로드 순서·선택자 우선순위를 확인한다. `getComputedStyle`과 현재 가시 상태로 최종 배경/경계/크기를 확인한다. 특히 `::before`/backdrop-filter/z-index가 겹치는 경우 한 요소의 스크린샷만으로 원인을 추정하지 않는다.
+2. **표면 소유권**: 하나의 연속된 카드·노드·메뉴에는 기본 배경 및 질감을 그리는 소유 계층을 하나만 둔다. 내부 본문·입력·텍스트에는 같은 표면을 투과시키며, 실제로 그룹을 구분해야 할 때만 별도 색/경계를 추가한다. 반투명 부모·가상 요소·자식에 동일 계열 채우기를 반복해 불투명도와 색을 누적하지 않는다.
+3. **색상 계약**: 배경/패널/텍스트/경계/유리/호버·선택은 `base.css`의 의미 토큰을 재사용한다. `--brand-color`는 파생 UI 강조의 씨앗이며, Skill별 의미색 `--block-color`와는 별개. 동일 기능·상태의 컴포넌트는 동일 의미 토큰을 사용한다. 평상시 테두리는 가능한 낮은 대비의 1px 한 겹만 사용하며 hover/focus/selected에만 필요한 강도를 더한다.
+4. **단일 크기 기준**: `:root --ui-base-font-size:15px`이 데스크톱 공통 기준이며 `font-size:var(--ui-base-font-size)`로 모든 `rem` 단위를 제어한다. 좁은 화면(`max-width:43.75rem`)은 루트에 `+1px` 가독성 보정만 적용한다. **전체 밀도를 조절할 때는 `--ui-base-font-size` 한 곳을 먼저 수정**하며, 각 컴포넌트에 새 고정 픽셀 크기를 흩뿌리지 않는다.
+5. **단위 경계**: 일반 폰트·간격·컨트롤·최대폭·반경·아이콘은 `rem` 또는 공통 의미 크기 변수, 부모 비율/화면 맞춤은 `%`, `min/max/clamp`·레이아웃 시스템을 사용한다. 예외로 1px 윤곽선, 실제 화면/포인터 좌표, Canvas world 좌표·SVG 경로, 브라우저 `getBoundingClientRect`/scroll 계측·애니메이션 실측값은 CSS px를 사용해도 된다. 픽셀 좌표는 위치 데이터이며 크기 디자인 토큰이 아니다. 모바일 텍스트 편집기의 16px 최소 글자 크기는 OS 자동 확대 대응 예외다.
+6. **JS와 CSS의 공통 기준**: JS에 시각적 간격 상수를 복제하지 않는다. 레이아웃이 JS 실측값을 필요로 하면 DOM에서 px를 읽고, 추가 여백은 CSS에서 소유하는 `rem` 변수로 계산한다. 예: `Workspace`의 `--workspace-composer-height:calc(<measured px> + var(--workspace-composer-clearance))`. Canvas 위치·줌·포인터의 CSS px 계약과 입력기 측정 코드는 유지한다.
+7. **변경 영향 확인**: 같은 표면의 모든 자식 상태(기본·hover·focus·selected·expanded), 노드 포트의 반가림, 메뉴 열림/닫힘, Composer 축소/확장 및 IME, Shell/Hosted Slides 겹침을 확인한다. 최소 390/820/1280 CSS px 폭, dark/light, 브라우저 줌 및 coarse pointer를 비교한다. CSS가 원인인 경우 JS·DOM 변경으로 우회하지 않는다. 기존 애니메이션/상태 저장 동작이 깨지면 수정 전 원인으로 되돌려 분석한다.
+
+현재 연결: `--ui-base-font-size` → root `font-size` → 모든 `rem` 크기. `.workspace-composer`의 `--workspace-composer-max-width`는 Composer와 popup이 공유하고, `.workspace-page`의 `--workspace-composer-clearance`는 로컬 Chat/Canvas의 하단 실측 여백을 결정한다.

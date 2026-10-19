@@ -83,7 +83,7 @@ export async function createWorkspace({ root, data, input }) {
     }
   });
   function composerHeight(height) {
-    const value = `${height + 22}px`;
+    const value = `calc(${height}px + var(--workspace-composer-clearance))`;
     chat.style.setProperty('--workspace-composer-height', value);
     canvas.element.style.setProperty('--workspace-composer-height', value);
   }

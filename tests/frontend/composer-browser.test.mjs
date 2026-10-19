@@ -105,7 +105,8 @@ test('composer keeps rich drafts safe, handles pickers and preserves rejected re
     await editor.focus();
     await page.getByRole('button',{name:'빠른 명령',exact:true}).click();
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
-    assert.equal(await editor.evaluate(node=>getComputedStyle(node).fontSize),'14.6475px');
+    const fontRatio=await editor.evaluate(node=>parseFloat(getComputedStyle(node).fontSize)/parseFloat(getComputedStyle(document.documentElement).fontSize));
+    assert.ok(Math.abs(fontRatio-.93)<.01,'narrow viewport input size follows the root font');
     assert.equal(await page.getByRole('button',{name:'스킬블럭 참조',exact:true}).isVisible(),false);
     await page.getByRole('button',{name:'스킬 및 스킬블럭 참조',exact:true}).click();
     assert.equal(await page.getByRole('option',{name:'조사하기 1',exact:false}).isVisible(),true);
@@ -118,7 +119,7 @@ test('composer keeps rich drafts safe, handles pickers and preserves rejected re
     await mobile.goto(`http://127.0.0.1:${server.address().port}/fixture`);
     await mobile.evaluate(async()=>{const {createComposer}=await import('/js/composer/controller.js');window.sent=0;window.composer=createComposer({onSubmit:()=>{window.sent++;return {accepted:false};}});document.querySelector('main').append(window.composer.element);window.composer.activate({});});
     const mobileEditor=mobile.getByRole('textbox',{name:'작업 입력'});
-    assert.equal(await mobileEditor.evaluate(node=>getComputedStyle(node).fontSize),'14.6475px');
+    assert.ok(await mobileEditor.evaluate(node=>parseFloat(getComputedStyle(node).fontSize)>=16),'coarse pointer input is at least 16px');
     await mobileEditor.focus();
     await mobile.getByRole('button',{name:'빠른 명령',exact:true}).click();
     assert.equal(await mobileEditor.evaluate(node=>node===document.activeElement),false);

@@ -9,9 +9,9 @@
 .canvas-link-preview{stroke:color-mix(in srgb,var(--color-text) 42%,var(--color-bg));stroke-width:2.2;stroke-dasharray:none;stroke-linecap:round;opacity:1}
 .canvas-link-hit{fill:none;stroke:transparent;stroke-width:16;pointer-events:stroke;cursor:pointer;outline:none}
 .canvas-link-hit:hover+.canvas-link,.canvas-link-hit:focus-visible+.canvas-link{stroke:var(--color-text);stroke-width:2}
-.canvas-block{position:absolute;isolation:isolate;width:12.25rem;min-height:3.35rem;padding:.58rem .82rem;border:1px solid var(--color-line);border-radius:1.3rem;background:var(--ui-glass);color:var(--color-text);box-shadow:var(--ui-glass-shadow),inset 0 1px 0 var(--ui-glass-highlight);cursor:grab;pointer-events:auto;touch-action:none;user-select:none;-webkit-user-select:none}
+.canvas-block{position:absolute;isolation:isolate;width:12.25rem;min-height:3.35rem;padding:.58rem .82rem;border:1px solid var(--color-line);border-radius:1.3rem;background:transparent;color:var(--color-text);box-shadow:var(--ui-glass-shadow);cursor:grab;pointer-events:auto;touch-action:none;user-select:none;-webkit-user-select:none}
 /* Match main: the surface covers the inner half of each port. */
-.canvas-block::before{content:'';position:absolute;inset:-1px;z-index:1;border:1px solid;border-color:inherit;border-radius:inherit;background-color:var(--ui-glass);background-image:var(--ui-glass-sheen);backdrop-filter:blur(.85rem) saturate(1.12);-webkit-backdrop-filter:blur(.85rem) saturate(1.12);pointer-events:none}
+.canvas-block::before{content:'';position:absolute;inset:0;z-index:1;border:0;border-radius:inherit;background-color:var(--ui-glass);background-image:var(--ui-glass-sheen);backdrop-filter:blur(.85rem) saturate(1.12);-webkit-backdrop-filter:blur(.85rem) saturate(1.12);pointer-events:none}
 .canvas-block:hover,.canvas-block.is-expanded{border-color:color-mix(in srgb,var(--color-text) 16%,transparent)}
 .canvas-block.is-selected{border-color:var(--canvas-strong-line)}
 .canvas-block.is-dragging{cursor:grabbing;box-shadow:none;z-index:4}
@@ -29,9 +29,9 @@
 .canvas-block-toggle .canvas-icon svg{width:1.18rem;height:1.18rem;transition:transform .32s cubic-bezier(.22,.8,.25,1)}
 .canvas-block.is-expanded .canvas-block-toggle{background:var(--color-hover);color:var(--color-text)}
 .canvas-block.is-expanded .canvas-block-toggle svg{transform:rotate(180deg)}
-.canvas-block-body{position:relative;z-index:2;margin-top:.18rem;padding:.1rem .12rem;border-radius:.7rem;cursor:default;overflow:hidden;background:linear-gradient(150deg,color-mix(in srgb,var(--color-text) 3%,transparent),color-mix(in srgb,var(--brand-color) 5%,transparent));backdrop-filter:blur(.35rem);-webkit-backdrop-filter:blur(.35rem)}
-.canvas-field{display:block;min-width:0;margin:.55rem 0 0;padding:.45rem .5rem;border:1px solid var(--color-line);border-radius:.6875rem;background:color-mix(in srgb,var(--color-bg) 28%,transparent)}
-.canvas-field:focus-within{border-color:color-mix(in srgb,var(--block-color) 40%,var(--color-line))}
+.canvas-block-body{position:relative;z-index:2;margin-top:.18rem;cursor:default;overflow:hidden;background:transparent}
+.canvas-field{display:block;min-width:0;margin:.55rem 0 0;padding:.45rem .5rem;border:1px solid transparent;border-radius:.6875rem;background:transparent}
+.canvas-field:focus-within{border-color:color-mix(in srgb,var(--block-color) 22%,transparent)}
 .canvas-field-label{display:block;color:var(--color-secondary);font-size:.6rem;font-weight:650;margin-bottom:.35rem}
 .canvas-field textarea,.canvas-field select{display:block;width:100%;min-width:0;margin:0;padding:0;border:0;resize:none;outline:0;background:transparent;color:var(--color-text);font:inherit;font-size:.67rem;line-height:1.65;letter-spacing:-.015em;user-select:text;-webkit-user-select:text;touch-action:auto;cursor:text;max-height:15rem;overflow:auto}
 .canvas-field textarea::placeholder{color:color-mix(in srgb,var(--color-secondary) 72%,transparent)}
