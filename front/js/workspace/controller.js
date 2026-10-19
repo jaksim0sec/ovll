@@ -87,7 +87,7 @@ export async function createWorkspace({ root, data, input, roomId = DEFAULT_ROOM
     announce('저장된 캔버스를 복원하지 못했습니다. 새로고침 후 다시 확인해 주세요.', { persistent: true });
     console.error('Workspace graph restore failed', error);
   }
-  if (!storedGraph && !loadFailed) {
+  if (!storedGraph && !loadFailed && !preserveStoredGraph) {
     save('canvas', () => data.cache.write('canvasState', roomId, 'state', model.getSnapshot(), { source: 'provisional' }));
   }
   const runUnavailable = () => {
