@@ -106,6 +106,30 @@ export async function createWorkspace({ root, data, input, skillCatalog, onSubmi
     }
   });
   const dataAccess = createWorkspaceDataAccess({roomId:ROOM,model,canvas,composer,data,listSkills});
+  // Validated local graph operations for callers outside Canvas. Not a server
+  // action-plan format, execution IR, authorization check or sync protocol.
+  const canvasCommands = Object.freeze({
+    addBlock(skillId, options) {
+      canvas.flushPendingEdits();
+      return model.addBlock(skillId, options);
+    },
+    updateBlock(blockId, patch) {
+      canvas.flushPendingEdits();
+      return model.updateBlock(blockId, patch);
+    },
+    deleteBlock(blockId) {
+      canvas.flushPendingEdits();
+      return model.deleteBlock(blockId);
+    },
+    connect(from, to) {
+      canvas.flushPendingEdits();
+      return model.connect(from, to);
+    },
+    disconnect(linkId) {
+      canvas.flushPendingEdits();
+      return model.disconnect(linkId);
+    }
+  });
   composer.element.classList.add('workspace-composer');
   if (storedDraft) composer.setDraft(storedDraft);
   if (storedViewport) canvas.setViewport(storedViewport);
@@ -130,6 +154,7 @@ export async function createWorkspace({ root, data, input, skillCatalog, onSubmi
   resize.observe(composer.element);
   return {
     getDataAccess: () => dataAccess,
+    getCanvasCommands: () => canvasCommands,
     setConfirmedChatRecords(value){chatView.setConfirmedRecords(value);},
     setRequestActivities(value){chatView.setRequestActivities(value);},
     refreshSkillCatalog(){model.validateCurrent();canvas.refreshCatalog();composer.refreshCatalog();},
