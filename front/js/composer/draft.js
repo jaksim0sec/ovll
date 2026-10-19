@@ -25,3 +25,20 @@ export function normalizeDraft(value = {}) {
 export function hasDraftContent(draft) {
   return Boolean(draft?.attachments?.length || draft?.parts?.some(part => part.type !== 'text' || part.text?.trim()));
 }
+
+
+/** Validate stored input before restoring it: permissive normalization can drop
+ * unknown or malformed parts, which would otherwise overwrite the original.
+ */
+export function isRestorableDraft(value) {
+  if (!value || typeof value !== 'object' || !Array.isArray(value.parts) || !Array.isArray(value.attachments)) return false;
+  const validPart = part => part && (
+    (part.type === 'text' && typeof part.text === 'string') ||
+    (['skill','block'].includes(part.type) && typeof part.id === 'string' && part.id.length > 0 && typeof part.label === 'string')
+  );
+  return value.parts.every(validPart) && value.attachments.every(item =>
+    item && typeof item.name === 'string' &&
+    (item.type === undefined || typeof item.type === 'string') &&
+    (item.size === undefined || (Number.isFinite(item.size) && item.size >= 0))
+  );
+}

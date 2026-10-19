@@ -1,6 +1,7 @@
 import { createWorkspaceModel } from './model.js';
 import { createCanvas } from '../canvas/controller.js';
 import { createComposer } from '../composer/controller.js';
+import { isRestorableDraft } from '../composer/draft.js';
 import { skills, getSkill } from '../skill/catalog.js';
 import { createWorkspaceDataAccess } from './dataAccess.js';
 import { createChat } from './chat.js';
@@ -73,7 +74,13 @@ export async function createWorkspace({ root, data, input, roomId = DEFAULT_ROOM
   }
   let model;
   // A corrupt stored graph is left intact. Do not silently overwrite user work.
-  let preserveStoredGraph = restored[0].status === 'rejected';
+  // A cache record with a missing/null payload is damaged, not a new empty room.
+  let preserveStoredGraph = restored[0].status === 'rejected' ||
+    (restored[0].status === 'fulfilled' && restored[0].value != null && !storedGraph);
+  if(preserveStoredGraph){
+    failedDomains.add('canvas');
+    announce('저장된 캔버스를 안전하게 확인할 수 없어 기존 내용을 보존합니다.', {persistent:true});
+  }
   try { model = createWorkspaceModel({ snapshot: storedGraph || undefined, resolveSkill }); }
   catch (error) {
     model = createWorkspaceModel({ resolveSkill }); preserveStoredGraph = true; failedDomains.add('canvas');
@@ -143,7 +150,24 @@ export async function createWorkspace({ root, data, input, roomId = DEFAULT_ROOM
     }
   });
   composer.element.classList.add('workspace-composer');
-  if (storedDraft) composer.setDraft(storedDraft);
+  // A malformed stored draft must not be quietly normalized to an empty draft
+  // and overwritten by the next keystroke.
+  let preserveStoredDraft = restored[1].status === 'rejected';
+  if(restored[1].status === 'fulfilled' && restored[1].value != null){
+    if(!isRestorableDraft(storedDraft)){
+      preserveStoredDraft = true;
+      failedDomains.add('draft');
+      announce('저장된 입력 초안을 복원하지 못해 원본을 보호합니다.', {persistent:true});
+    }else{
+      try{composer.setDraft(storedDraft);}
+      catch(error){
+        preserveStoredDraft = true;
+        failedDomains.add('draft');
+        announce('저장된 입력 초안을 복원하지 못해 원본을 보호합니다.', {persistent:true});
+        console.error('Workspace draft restore failed',error);
+      }
+    }
+  }
   if (storedViewport) canvas.setViewport(storedViewport);
   let hasViewport = Boolean(storedViewport);
   const unsubscribe = model.subscribe(({ snapshot }) => {
@@ -151,6 +175,10 @@ export async function createWorkspace({ root, data, input, roomId = DEFAULT_ROOM
     else announce('저장된 캔버스 보호를 위해 현재 변경은 저장하지 않습니다. 새로고침 후 다시 확인해 주세요.', { persistent: true });
   });
   composer.element.addEventListener('input', () => {
+    if(preserveStoredDraft){
+      announce('저장된 초안을 보호하기 위해 현재 입력은 저장하지 않습니다.', {persistent:true});
+      return;
+    }
     const draft = composer.getDraft();
     save('draft', () => data.cache.write('chatDraft', roomId, 'state', draft, { source: 'provisional' }));
   }, { signal: lifetime.signal });
