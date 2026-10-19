@@ -122,3 +122,13 @@ Shell은 기능 내부 DOM을 조회하지 않는다. Page Host는 최상위 페
 - 데이터 소유권: Chat의 확정 기록과 Library 자산 원본은 장차 **백엔드**가 관리하고, 프론트는 받아서 표시만 한다. 요청 진행 표시·로컬 선택은 임시 UI다. 현재 `chatRecord` IDB 조회를 자동 Chat 렌더링하지 않는다(정렬/레코드 형식 미정).
 - 기존 `Workspace.save`는 `data.cache.write()`가 `{written:false}`를 반환하거나 예외가 나면 알린 뒤 **후속 저장 큐를 계속 실행**한다. 캐시 거부로 이후 초안·그래프 저장까지 영구 정지하지 않는다.
 - 서버 수명/HTTP/SSE·Chat 기록 정규화·Library 자산 공급·미전송 편집과 server-owned 리비전 충돌 정책은 **여전히 미확정/미구현**이다.
+
+
+## 2026-10-19 요청 시 Canvas JSON 내보내기 — 독립 프론트 경계
+
+- Canvas 사용자의 이동·연결·필드 편집은 `workspace/model.js` 로컬 원본을 즉시 변경한다. 이 작업에 서버의 상시 동기화나 개별 조작 승인을 요구하지 않는다. 기존 IndexedDB 임시 저장은 브라우저 재진입 목적이며 서버 동기화가 아니다.
+- 외부 공개 함수는 `workspaceController.getDataAccess().exportCanvasJSON()`. `workspace/dataAccess.js`의 기존 `readCanvasSnapshot()`을 호출하고 `JSON.stringify`해 **문자열 하나**를 반환한다. 새로운 네트워크 클라이언트·IR 변환기·중복 상태 소유자는 없다.
+- 호출 시 Canvas 필드의 250ms 유예 입력을 먼저 Model에 반영한다. 반환 JSON 객체는 `{roomId,source:'local-view',format:'beta-local-edit-graph-v1',snapshot:{version,blocks,links}}`. 블럭 ID/Skill 참조/설정·좌표·입력값/연결 포함, Blob/미리보기 본문 대신 파일 메타데이터/보유 여부만 포함. 화면 전용 카메라는 제외한다.
+- 이 JSON은 **현재 beta의 로컬 편집 그래프**이지 실행기 IR, 서버가 확정한 자산, 업로드 파일 데이터 또는 Revision이 아니다. 실제 서버의 `need`·IR 해석·검증·사용자 권한·실행은 별도 계약으로 다룬다.
+- 추후 서버가 최신 캔버스를 요청하면 연결된 프론트의 독립된 통신 어댑터가 이 함수를 호출해 제공할 수 있다. 전송 프로토콜/연결 수명은 미구현이다. 브라우저가 끊긴 상태에서 최신 로컬 데이터를 즉시 가져올 수는 없으며, 이 경우 서버가 이미 확보한 요청별 자료를 활용해야 한다.
+- **이번 범위에서 제외:** 조작별 서버 동기화, 서버 승인/거부로 인한 로컬 롤백, Canvas DOM 직접 추출, 가짜 `need` 라우터·HTTP/SSE 엔드포인트.

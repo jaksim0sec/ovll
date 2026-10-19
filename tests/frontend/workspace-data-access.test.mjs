@@ -43,3 +43,36 @@ test('library display items cannot fake duplicate asset identity',()=>{
  assert.deepEqual(normalizeLibraryItems([{id:'one',title:'파일',kind:'자료'}]),[{id:'one',title:'파일',kind:'자료'}]);
  assert.throws(()=>normalizeLibraryItems([{id:'same',title:'A'},{id:'same',title:'B'}]),TypeError);
 });
+
+test('one-shot Canvas JSON returns latest edits, graph links and no local Blob',()=>{
+  let input='first';
+  let flushed=0;
+  const reader=createWorkspaceDataAccess({
+    roomId:'r',
+    model:{getSnapshot:()=>({
+      version:1,
+      blocks:[{id:'one',skillId:'write',x:1,y:2,expanded:false,values:{request:input}},
+        {id:'two',skillId:'file',x:3,y:4,expanded:true,values:{},
+          file:{localId:'f',name:'file.txt',type:'text/plain',size:4,text:'body',blob:new Blob(['body'])}}],
+      links:[{id:'link',from:{blockId:'one',portId:'out'},to:{blockId:'two',portId:'in'}}]
+    })},
+    canvas:{flushPendingEdits(){flushed++}},
+    composer:{getDraft:()=>({parts:[],attachments:[]})},
+    data:{cache:{read:async()=>null,list:async()=>[]}},
+    listSkills:()=>[]
+  });
+  const firstJSON=reader.exportCanvasJSON(),first=JSON.parse(firstJSON);
+  assert.equal(typeof firstJSON,'string');
+  assert.equal(first.source,'local-view');
+  assert.equal(first.format,'beta-local-edit-graph-v1');
+  assert.equal(first.snapshot.blocks[0].values.request,'first');
+  assert.equal(first.snapshot.links[0].from.blockId,'one');
+  assert.equal(first.snapshot.blocks[1].file.localBlobAvailable,true);
+  assert.equal('blob' in first.snapshot.blocks[1].file,false);
+  assert.equal('text' in first.snapshot.blocks[1].file,false);
+  input='updated';
+  const second=JSON.parse(reader.exportCanvasJSON());
+  assert.equal(second.snapshot.blocks[0].values.request,'updated');
+  assert.equal(first.snapshot.blocks[0].values.request,'first');
+  assert.equal(flushed,2);
+});

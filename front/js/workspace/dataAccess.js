@@ -22,6 +22,8 @@ export function createWorkspaceDataAccess({roomId,model,canvas,composer,data,lis
       }),links:snapshot.links
     }};
   }
+  // One-shot JSON export; transport and executable IR are separate responsibilities.
+  function exportCanvasJSON(){return JSON.stringify(readCanvasSnapshot());}
   function readSkillCatalog(){return {source:'local-presentation-catalog',definitions:clone(listSkills())};}
   function readComposerDraft(){
     const draft=composer.getDraft();
@@ -39,5 +41,5 @@ export function createWorkspaceDataAccess({roomId,model,canvas,composer,data,lis
     if(kind==='chatRecord')return clone(await data.cache.list(kind,roomId,{limit}));
     return clone(await data.cache.read(kind,roomId,'state'));
   }
-  return Object.freeze({readCanvasSnapshot,readSkillCatalog,readComposerDraft,readCached});
+  return Object.freeze({readCanvasSnapshot,exportCanvasJSON,readSkillCatalog,readComposerDraft,readCached});
 }

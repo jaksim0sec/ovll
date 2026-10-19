@@ -285,3 +285,20 @@ libraryController.setConfirmedItems([
 **테스트:** 신규 파일 없이 기존 `tests/frontend/workspace-data-access.test.mjs`에 표시 데이터 검증 3건 추가. 별도 JS 환경에서는 채팅 여러 요청 표시·진행 제거·Library 연결 전/빈 상태/자료 표시·위조 중복 ID 거부·Hosted 계층 참조를 추가 점검. 전체 Playwright·실서버 E2E는 환경상 수행하지 않았으므로 미검증으로 남는다.
 
 **계속 지켜야 할 경계:** UI의 `setConfirmed*` 메서드는 **검증된 내용을 표시하는 함수이지 서버 검증기가 아니다**. 서버에서 IR, Gate/Workroom need, Chat/contextBlock/contextData/asset revision, HTTP/SSE/권한을 합의·구현한 뒤에만 실제 응답을 연결한다. UI에 임시 Workroom 완료 메시지를 만들어 영속 기록처럼 채우지 않는다.
+
+
+## 12. 2026-10-19 설계 정정 — 요청 시 Canvas JSON 제공
+
+**최신 범위 결정:** 사용자 Canvas 조작을 서버에 계속 동기화하거나 그때마다 승인받을 필요는 없다. 위 3~8절의 'Canvas 서버 승인·Revision 동기화가 내보내기 기능의 선행조건'이라는 제안은 **현재 적용하지 않는다**. AI가 Canvas를 수정하거나 서버에서 여러 사용자의 변경을 보존하는 정책은 별도 요구 시 논의한다.
+
+**완료된 호출 지점:**
+```js
+const canvasJson = workspaceController.getDataAccess().exportCanvasJSON();
+// JSON.parse(canvasJson) = {roomId,source:'local-view',
+//   format:'beta-local-edit-graph-v1',snapshot:{version,blocks,links}}
+```
+
+- 기존 `front/js/workspace/dataAccess.js`만 확장. 조회 시점의 Model과 Canvas 유예 필드를 읽고 JSON 문자열을 반환한다. 네트워크 전송·상시 동기화·별도 IR 저장소 없음. 파일은 메타데이터만 전달(Blob/로컬 텍스트 미리보기 제외).
+- 책임: **Canvas UI → Workspace Model → Workspace DataAccess.exportCanvasJSON() → (향후 외부 통신 처리자) → 서버**. 이 메서드는 실행기 IR이 아닌 로컬 편집 그래프를 직렬화한다. 서버 `need` 데이터셋명, 인증, JSON 해석, IR 컴파일·검증·실행은 아직 결정/구현되지 않았다.
+- 서버가 연결된 브라우저에 현재 캔버스를 요청하는 기능은 **향후 통신 계층**이 붙으면 호출할 수 있다. 연결이 끊긴 브라우저의 최신 로컬 상태는 즉시 조회할 수 없다. 그 한계를 핑계로 동기화 구조를 자동 생성하지 않는다.
+- 기존 단위 테스트 파일에 최신 입력·연결·파일 메타데이터·JSON 왕복 검사 1개를 추가했으며, Browser E2E·백엔드 요청/응답 테스트는 아직 별개다.
