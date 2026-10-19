@@ -5,7 +5,7 @@ import { normalizeDraft, hasDraftContent } from './draft.js';
 let instanceNumber = 0;
 
 /** Owns editor DOM, selection, menus and its active-page event lifetime. */
-export function createComposer({model,onSubmit,onHeightChange,onAttach} = {}) {
+export function createComposer({model,onSubmit,onHeightChange,onAttach,resolveSkill=getSkill,listSkills=()=>skills} = {}) {
   const doc = document;
   const view = doc.defaultView;
   const prefix = `composer-${++instanceNumber}`;
@@ -112,7 +112,7 @@ export function createComposer({model,onSubmit,onHeightChange,onAttach} = {}) {
     tag.id=`${prefix}-token-${++tokenNumber}`;
     tag.dataset.refKind=part.type;tag.dataset.refId=part.id;tag.dataset.refLabel=part.label;
     tag.tabIndex=0;tag.setAttribute('role','button');tag.setAttribute('aria-label',`${part.label}, ${part.type==='skill'?'스킬':'스킬블럭'} 참조 메뉴`);
-    const definition=part.type==='skill'?getSkill(part.id):getSkill(model?.getBlock?.(part.id)?.skillId);
+    const definition=part.type==='skill'?resolveSkill(part.id):resolveSkill(model?.getBlock?.(part.id)?.skillId);
     const glyph=doc.createElement('span');glyph.className='ovll-rich-ref-icon';glyph.innerHTML=icon(definition?.icon || (part.type==='block'?'canvas':'workflow'));
     const label=doc.createElement('span');label.textContent=part.label;
     tag.append(glyph,label);return tag;
@@ -242,9 +242,9 @@ export function createComposer({model,onSubmit,onHeightChange,onAttach} = {}) {
     scheduleResize();
   }
   function references(type) {
-    const definitions=skills.filter(skill=>skill.id!=='start').map(skill=>({type:'skill',id:skill.id,label:skill.name,detail:skill.description,icon:skill.icon,color:skill.color,group:'기본 스킬'}));
+    const definitions=listSkills().filter(skill=>skill.id!=='start').map(skill=>({type:'skill',id:skill.id,label:skill.name,detail:skill.description,icon:skill.icon,color:skill.color,group:'기본 스킬'}));
     const blocks=(model?.getBlocks?.()||[]).map((block,index)=>{
-      const skill=getSkill(block.skillId);
+      const skill=resolveSkill(block.skillId);
       return {type:'block',id:block.id,label:block.values?.name || `${skill?.name||'스킬블럭'} ${index+1}`,detail:'캔버스에 배치된 스킬블럭',icon:skill?.icon||'canvas',color:skill?.color,group:'스킬블럭'};
     });
     return type==='blocks'?blocks:[...definitions,...blocks];
@@ -448,6 +448,7 @@ export function createComposer({model,onSubmit,onHeightChange,onAttach} = {}) {
     if(resizeFrame)view.cancelAnimationFrame(resizeFrame);resizeFrame=0;
   }
   function destroy(){if(destroyed)return;deactivate();destroyed=true;element.remove();attachments=[];}
+  function refreshCatalog(){if(['skills','blocks'].includes(menuType))openMenu(menuType,menuQuery,triggerRange);}
   update();
-  return {element,editor,getDraft,setDraft,focus(){if(!destroyed)editor.focus({preventScroll:true});},closeMenu,activate,deactivate,destroy};
+  return {element,editor,getDraft,setDraft,refreshCatalog,focus(){if(!destroyed)editor.focus({preventScroll:true});},closeMenu,activate,deactivate,destroy};
 }

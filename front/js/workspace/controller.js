@@ -2,6 +2,8 @@ import { createWorkspaceModel } from './model.js';
 import { createCanvas } from '../canvas/controller.js';
 import { createComposer } from '../composer/controller.js';
 import { icon } from './icons.js';
+import { skills, getSkill } from '../skill/catalog.js';
+import { createWorkspaceDataAccess } from './dataAccess.js';
 
 const ROOM = 'beta-local-workspace';
 
@@ -9,7 +11,10 @@ const ROOM = 'beta-local-workspace';
  * SERVER INTEGRATION: room selection and validated remote snapshots enter here.
  * No main store, request protocol, offline queue or inferred AI result is used.
  */
-export async function createWorkspace({ root, data, input }) {
+export async function createWorkspace({ root, data, input, skillCatalog } = {}) {
+  const resolveSkill = skillCatalog?.get ?? getSkill;
+  const listSkills = skillCatalog?.list ?? (() => skills);
+  if(typeof resolveSkill!=='function'||typeof listSkills!=='function')throw new TypeError('Invalid Skill catalog provider');
   const lifetime = new AbortController();
   const feedback = document.createElement('div');
   feedback.className = 'workspace-feedback';
@@ -59,9 +64,9 @@ export async function createWorkspace({ root, data, input }) {
   let model;
   // A corrupt stored graph is left intact. Do not silently overwrite user work.
   let preserveStoredGraph = restored[0].status === 'rejected';
-  try { model = createWorkspaceModel({ snapshot: storedGraph || undefined }); }
+  try { model = createWorkspaceModel({ snapshot: storedGraph || undefined, resolveSkill }); }
   catch (error) {
-    model = createWorkspaceModel(); preserveStoredGraph = true; failedDomains.add('canvas');
+    model = createWorkspaceModel({ resolveSkill }); preserveStoredGraph = true; failedDomains.add('canvas');
     announce('저장된 캔버스를 복원하지 못했습니다. 새로고침 후 다시 확인해 주세요.', { persistent: true });
     console.error('Workspace graph restore failed', error);
   }
@@ -75,7 +80,7 @@ export async function createWorkspace({ root, data, input }) {
     return { accepted: false, message: '아직 서버에 연결되지 않았습니다. 입력과 캔버스는 유지됩니다.' };
   };
   const canvas = createCanvas({
-    model, input,
+    model, input, resolveSkill, listSkills,
     onRun: runUnavailable,
     onAttach: async (file, { blockId, metadata }) => {
       // Preserve the actual local file for future reads; metadata alone is not a file.
@@ -88,7 +93,7 @@ export async function createWorkspace({ root, data, input }) {
     canvas.element.style.setProperty('--workspace-composer-height', value);
   }
   const composer = createComposer({
-    model, onSubmit: runUnavailable, onHeightChange: composerHeight,
+    model, resolveSkill, listSkills, onSubmit: runUnavailable, onHeightChange: composerHeight,
     onAttach: async files => {
       for (const file of files) {
         const block = await canvas.addFile(file);
@@ -98,6 +103,7 @@ export async function createWorkspace({ root, data, input }) {
       return { handled: true };
     }
   });
+  const dataAccess = createWorkspaceDataAccess({roomId:ROOM,model,canvas,composer,data,listSkills});
   composer.element.classList.add('workspace-composer');
   if (storedDraft) composer.setDraft(storedDraft);
   if (storedViewport) canvas.setViewport(storedViewport);
@@ -122,6 +128,8 @@ export async function createWorkspace({ root, data, input }) {
   });
   resize.observe(composer.element);
   return {
+    getDataAccess: () => dataAccess,
+    refreshSkillCatalog(){model.validateCurrent();canvas.refreshCatalog();composer.refreshCatalog();},
     getPresentation: () => ({
       root, layout: 'immersive', pill: { visible: true },
       slides: [{ id: 'chat', label: '채팅', element: chat, allowContentSwipe: true }, { id: 'canvas', label: '캔버스', element: canvas.element, allowContentSwipe: false }],

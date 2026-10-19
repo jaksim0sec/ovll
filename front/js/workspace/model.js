@@ -1,7 +1,7 @@
 import { getSkill } from '../skill/catalog.js';
 
 /** Editable local graph only. A future server adapter must explicitly validate its own contract. */
-export function createWorkspaceModel({ snapshot } = {}) {
+export function createWorkspaceModel({ snapshot, resolveSkill = getSkill } = {}) {
   const clone = value => structuredClone(value);
   const listeners = new Set();
   let state = { version: 1, blocks: [], links: [] };
@@ -13,10 +13,10 @@ export function createWorkspaceModel({ snapshot } = {}) {
     return block;
   };
   function checkBlock(block) {
-    if (!block || typeof block.id !== 'string' || !block.id || !getSkill(block.skillId)) throw new Error('스킬블럭의 스킬 또는 ID가 올바르지 않습니다');
+    if (!block || typeof block.id !== 'string' || !block.id || !resolveSkill(block.skillId)) throw new Error('스킬블럭의 스킬 또는 ID가 올바르지 않습니다');
     if (!Number.isFinite(block.x) || !Number.isFinite(block.y)) throw new Error('스킬블럭 좌표가 올바르지 않습니다');
     if (typeof block.expanded !== 'boolean' || !block.values || typeof block.values !== 'object' || Array.isArray(block.values)) throw new Error('스킬블럭 설정이 올바르지 않습니다');
-    const fields = getSkill(block.skillId).fields;
+    const fields = resolveSkill(block.skillId).fields;
     for (const [key, value] of Object.entries(block.values)) {
       const field = fields.find(f => f.id === key);
       if (!field || typeof value !== 'string' || value.length > field.maxLength) throw new Error('스킬블럭 입력값이 올바르지 않습니다');
@@ -26,8 +26,8 @@ export function createWorkspaceModel({ snapshot } = {}) {
   function checkLink(source, from, to) {
     if (!from || !to) throw new Error('연결 포트가 필요합니다');
     const a = requireBlock(source, from.blockId), b = requireBlock(source, to.blockId);
-    const output = getSkill(a.skillId).outputs.find(p => p.id === from.portId);
-    const input = getSkill(b.skillId).inputs.find(p => p.id === to.portId);
+    const output = resolveSkill(a.skillId).outputs.find(p => p.id === from.portId);
+    const input = resolveSkill(b.skillId).inputs.find(p => p.id === to.portId);
     if (!output || !input) throw new Error('출력 포트와 입력 포트를 연결해 주세요');
     if (a.id === b.id) throw new Error('같은 스킬블럭으로 연결할 수 없습니다');
     if (source.links.some(l => l.from.blockId === a.id && l.from.portId === from.portId && l.to.blockId === b.id && l.to.portId === to.portId)) throw new Error('이미 연결된 포트입니다');
@@ -62,10 +62,11 @@ export function createWorkspaceModel({ snapshot } = {}) {
   }
   const api = {
     getSnapshot: () => clone(state),
+    validateCurrent: () => { validate(state); return true; },
     getBlocks: () => clone(state.blocks),
     getBlock: key => clone(state.blocks.find(b => b.id === key) || null),
     addBlock(skillId, { x = 0, y = 0, values = {}, expanded = false, file } = {}) {
-      const skill = getSkill(skillId); if (!skill) throw new Error('정의된 스킬을 찾을 수 없습니다');
+      const skill = resolveSkill(skillId); if (!skill) throw new Error('정의된 스킬을 찾을 수 없습니다');
       const block = { id: id('block'), skillId, x, y, expanded, values: { ...Object.fromEntries(skill.fields.map(f => [f.id, f.default || ''])), ...values } };
       if (file !== undefined) block.file = clone(file);
       checkBlock(block); return commit('add-block', next => { next.blocks.push(block); return block; });

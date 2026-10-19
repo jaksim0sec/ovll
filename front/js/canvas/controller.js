@@ -11,7 +11,7 @@ const button=(name,label,className='')=>{const node=el('button',`canvas-button $
 const svgPath=(className,d)=>{const path=document.createElementNS(SVG,'path');path.setAttribute('class',className);path.setAttribute('d',d);path.setAttribute('vector-effect','non-scaling-stroke');return path};
 
 /** Local editable canvas. The workspace model is the only graph owner. */
-export function createCanvas({model,input,onRun,onNotice,onAttach}={}) {
+export function createCanvas({model,input,onRun,onNotice,onAttach,resolveSkill=getSkill,listSkills=()=>skills}={}) {
   if(!model||!input)throw new TypeError('Canvas needs a workspace model and Input Manager');
   const element=el('section','workspace-canvas');element.setAttribute('aria-label','작업 캔버스');
   const surface=el('div','canvas-surface');surface.tabIndex=0;surface.setAttribute('aria-label','스킬블럭 캔버스. 빈 공간을 끌어 이동하고 휠로 확대합니다.');
@@ -63,7 +63,7 @@ export function createCanvas({model,input,onRun,onNotice,onAttach}={}) {
   function clearPickup(){clearTimeout(pickupTimer);pickupTimer=null;pickupCandidate=null}
   function portAt(point,direction){
     const worldPoint=screenToWorld(point,camera);
-    for(const block of model.getBlocks())for(const port of getSkill(block.skillId)[direction==='input'?'inputs':'outputs']){
+    for(const block of model.getBlocks())for(const port of resolveSkill(block.skillId)[direction==='input'?'inputs':'outputs']){
       const endpoint={blockId:block.id,portId:port.id,direction},center=portPoint(endpoint,direction);
       if(center&&Math.abs(center.x-worldPoint.x)<=20&&Math.abs(center.y-worldPoint.y)<=20)return endpoint;
     }return null;
@@ -168,7 +168,7 @@ export function createCanvas({model,input,onRun,onNotice,onAttach}={}) {
   function blockPosition(block) {return layoutPositions.get(block.id)||(preview?.id===block.id?{x:preview.x,y:preview.y}:block)}
   function portPoint(endpoint,direction) {
     const record=blockViews.get(endpoint.blockId),block=model.getBlock(endpoint.blockId);if(!record||!block)return null;
-    const ports=direction==='input'?getSkill(block.skillId).inputs:getSkill(block.skillId).outputs;
+    const ports=direction==='input'?resolveSkill(block.skillId).inputs:resolveSkill(block.skillId).outputs;
     const index=ports.findIndex(port=>port.id===endpoint.portId);if(index<0)return null;
     const position=blockPosition(block),box=record.element,port=box.querySelectorAll(`.canvas-port.is-${direction}`)[index];
     if(!port||!box.isConnected)return null;
@@ -255,8 +255,8 @@ export function createCanvas({model,input,onRun,onNotice,onAttach}={}) {
     for(const [id,view]of blockViews)if(!ids.has(id)){stopExpansion(view);stopEntry(view);resize?.unobserve(view.element);view.element.remove();blockViews.delete(id)}
     if(selected&&!ids.has(selected))selected=null;
     if(pendingPort&&!ids.has(pendingPort.blockId))pendingPort=null;
-    for(const block of blocks){const skill=getSkill(block.skillId);if(!skill)continue;
-      const signature=JSON.stringify([block.skillId,block.file?.localId,block.file?.name,block.file?.type,block.file?.size]);let view=blockViews.get(block.id);
+    for(const block of blocks){const skill=resolveSkill(block.skillId);if(!skill)continue;
+      const signature=JSON.stringify([skill,block.file?.localId,block.file?.name,block.file?.type,block.file?.size]);let view=blockViews.get(block.id);
       if(!view||view.signature!==signature){const node=createBlock(block,skill);if(view){stopExpansion(view);stopEntry(view);resize?.unobserve(view.element);view.element.replaceWith(node)}else nodes.append(node);view={element:node,signature,expanded:block.expanded};blockViews.set(block.id,view);resize?.observe(node)}
       const expanded=preview?.id===block.id&&preview.collapsed?false:block.expanded;
       if(view.expanded!==expanded)setExpanded(view,expanded);
@@ -340,7 +340,7 @@ export function createCanvas({model,input,onRun,onNotice,onAttach}={}) {
     for(const record of linkViews.values())record.path.classList.remove('is-removing');renderSelection();
   }
   function placement(skillId,{expanded=true,file}={}) {
-    const skill=getSkill(skillId),center=screenToWorld({x:surface.clientWidth/2,y:Math.max(130,(surface.clientHeight-bottomSpace())/2)},camera);
+    const skill=resolveSkill(skillId),center=screenToWorld({x:surface.clientWidth/2,y:Math.max(130,(surface.clientHeight-bottomSpace())/2)},camera);
     const sample=createBlock({id:'',skillId,values:{},expanded,file},skill);sample.style.visibility='hidden';nodes.append(sample);
     const rem=parseFloat(getComputedStyle(element).fontSize)||16;
     const size={width:sample.offsetWidth||12.25*rem,height:sample.offsetHeight||3.35*rem};sample.remove();
@@ -367,7 +367,12 @@ export function createCanvas({model,input,onRun,onNotice,onAttach}={}) {
       model.updateBlock(id,{file:enriched||metadata});
     }catch(error){notice(error.message||'파일을 읽지 못했습니다.')}
   }
-  for(const skill of skills){if(skill.id==='start')continue;const option=el('button','canvas-palette-option');option.type='button';option.dataset.skillId=skill.id;option.style.setProperty('--block-color',skill.color);option.append(glyph(skill.icon));const info=el('span','canvas-palette-copy');info.append(el('strong','',skill.name),el('small','',skill.description));option.append(info);paletteList.append(option)}
+  function renderPalette(){
+    paletteList.replaceChildren();
+    for(const skill of listSkills()){if(skill.id==='start')continue;const option=el('button','canvas-palette-option');option.type='button';option.dataset.skillId=skill.id;option.style.setProperty('--block-color',skill.color);option.append(glyph(skill.icon));const info=el('span','canvas-palette-copy');info.append(el('strong','',skill.name),el('small','',skill.description));option.append(info);paletteList.append(option)}
+  }
+  renderPalette();
+  function refreshCatalog(){flushFields();model.validateCurrent();renderPalette();render();}
   function activate({signal}={}) {
     if(destroyed||signal?.aborted)return;deactivate();active=new AbortController();const life=active;
     signal?.addEventListener('abort',deactivate,{once:true});life.signal.addEventListener('abort',()=>signal?.removeEventListener('abort',deactivate),{once:true});
@@ -426,6 +431,6 @@ export function createCanvas({model,input,onRun,onNotice,onAttach}={}) {
   // Resource lifetime outlives input activation so offscreen replacements/deletions revoke URLs.
   const unsubscribeResources=model.subscribe(({snapshot})=>fileResources.sync(snapshot.blocks));
   render();setViewport(camera);
-  return {element,activate,deactivate,destroy,closeMenu,addFile,getViewport:()=>({...camera}),setViewport,focusBlock};
+  return {element,activate,deactivate,destroy,closeMenu,addFile,flushPendingEdits:flushFields,refreshCatalog,getViewport:()=>({...camera}),setViewport,focusBlock};
 }
 function formatBytes(size){return size<1024?`${size} B`:size<1024*1024?`${Math.round(size/1024)} KB`:`${(size/(1024*1024)).toFixed(1)} MB`}

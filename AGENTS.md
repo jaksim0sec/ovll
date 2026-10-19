@@ -51,7 +51,7 @@
 │       ├── shell/                  # appShell.js, hostedSlides.js,
 │       │                           # pageHost.js, viewportMotion.js
 │       ├── skill/catalog.js
-│       └── workspace/              # controller.js, icons.js, model.js
+│       └── workspace/              # controller.js, dataAccess.js, icons.js, model.js
 ├── prompts/
 │   ├── base/                       # corridorInitial, corridorReturn, gate, output
 │   ├── blocks/                     # contextBlockUpdate, contextDataUpdate,
