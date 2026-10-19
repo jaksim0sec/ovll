@@ -41,7 +41,7 @@ export async function createWorkspace({ root, data, input, skillCatalog, onSubmi
     queued = queued.then(operation).then(result => {
       if(result?.written === false) throw new Error(`Workspace ${domain} save skipped: ${result.reason}`);
       failedDomains.delete(domain);
-    }, error => {
+    }).catch(error => {
       failedDomains.add(domain);
       console.error('Workspace local save failed', error);
       announce('이 기기에 저장하지 못했습니다. 새로고침 전에 내용을 보관해 주세요.', { persistent: true });

@@ -1,6 +1,6 @@
 # Workspace · Composer · Canvas — beta 로컬 구현
 
-범위: main `ed2fcdd`의 컴포저·캔버스 로컬 동작과 외형을 beta 소유권 경계로 재구현. Chat은 시작 화면만 존재한다. 모델 호출·실행·업로드·서버 동기화·저장 함수 생성/실행은 미구현. 기존 main 상태/IR/참조 문자열/전역 객체를 연결하지 않는다.
+범위: main `ed2fcdd`의 컴포저·캔버스 로컬 동작과 외형을 beta 소유권 경계로 재구현. Chat은 시작 화면과 외부 공급받은 확정 메시지·요청별 임시 진행 상태의 읽기 전용 표시 기능을 제공한다. 모델 호출·실행·업로드·서버 동기화·저장 함수 생성/실행은 미구현. 기존 main 상태/IR/참조 문자열/전역 객체를 연결하지 않는다.
 
 ## 책임과 결합
 
@@ -9,6 +9,7 @@
 | `workspace/controller.js` | 단일 Workspace 조립, 페이지 활성 수명, 로컬 복원/저장, 파일 첨부와 슬라이드 이동의 공개 API 연결 |
 | `workspace/model.js` | 스킬블럭·연결 원본, 변경 검증, 되돌리기 기록; 선택적 Skill 조회자 |
 | `workspace/dataAccess.js` | 로컬 Workspace·캐시 읽기 전용 조회 (서버 need/IR 아님) |
+| `workspace/chat.js` | 확정 대화 표시와 요청별 임시 진행 표시. 저장·통신·서버 메시지 스키마 소유 안 함 |
 | `skill/catalog.js` | main에서 추출한 정적 표시용 스킬 목록. 실행 스키마 아님 |
 | `workspace/icons.js` | 신뢰된 정적 SVG. 사용자 문자열은 SVG/HTML로 해석하지 않음 |
 | `composer/controller.js`, `composer/draft.js` | 편집 DOM·선택·참조 메뉴·첨부·구조화 초안·입력 높이·활성 이벤트 수명 |
@@ -110,3 +111,14 @@ Shell은 기능 내부 DOM을 조회하지 않는다. Page Host는 최상위 페
 - **Gate/Workroom need 조회는 서버가 권한/버전을 확인한 원본 Canvas/Skill/IR/채팅/맥락 자산에서 해결한다.** 로컬 검사 API는 네트워크 전송도 need datasetName 해석도 하지 않으며 서버 원본이 아니다.
 - IDB 캐시가 `{written:false}`를 반환하면 Workspace는 기존 저장을 성공 처리하지 않고 사용자에게 실패를 알린다. 서버가 소유한 캐시를 provisional 변경으로 덮었다고 주장하지 않는다.
 - 백엔드 실행·HTTP/SSE·실제 Chat·Library·Server IR/Revision·업로드·동시성·오프라인 동기화는 **아직 없음**.
+
+
+## 2026-10-19 추가 — Chat·Library 읽기 전용 표시 계약
+
+- `front/js/workspace/chat.js`: `createChat({onOpenCanvas?})`를 Workspace가 소유하고 Hosted Slides의 Chat 슬라이드로 전달한다. `setConfirmedRecords([{id,role:'user'|'assistant',text,requestId?}])`와 `setRequestActivities([{requestId,label,detail?}])`를 별도로 받아 표시한다. 서로 다른 요청의 진행 상태는 requestId로 식별한다. **임시 활동을 확정 채팅 기록으로 자동 저장하거나 AI 실행 완료로 판단하지 않는다.**
+- Workspace 공개 API: `setConfirmedChatRecords(records)`, `setRequestActivities(activities)`. 표시 전용 스키마이며 **서버 API, DB 채팅 행, 요청처리객체, SSE 이벤트 계약 아님**. 외부에서 검증·정렬한 정보만 넣어야 한다. 현재 Boot에는 공급자가 없으므로 환영 화면만 보이며 가짜 대화 기록은 생성하지 않는다.
+- `front/js/library/controller.js`: `createLibraryPage()` → `{element,setConfirmedItems(items),setLoading(flag),destroy()}`. 현재 Boot는 이를 `Page Host`의 library 페이지와 `Hosted Slides`의 단일 stacked 슬라이드로 배치한다. `setConfirmedItems([{id,title,kind?,detail?}])`는 **표시용 투영**일 뿐 원본 자산 종류·검색·권한·삭제·선택 API가 아니다. 자료 공급 전에는 '연결되지 않았습니다'를 표시하고, **목업 예시 카드 3개를 삭제**했다. 공급자가 검증한 빈 목록은 연결 없는 상태와 구분한다.
+- 화면 문자열은 DOM `textContent`로만 반영해 사용자 제공 HTML을 해석하지 않는다. 중복 ID, 누락된 최소 표시 필드, 미지원 역할은 표시 전 거부한다. Composer와 Canvas UI 내부를 직접 조작하지 않는다.
+- 데이터 소유권: Chat의 확정 기록과 Library 자산 원본은 장차 **백엔드**가 관리하고, 프론트는 받아서 표시만 한다. 요청 진행 표시·로컬 선택은 임시 UI다. 현재 `chatRecord` IDB 조회를 자동 Chat 렌더링하지 않는다(정렬/레코드 형식 미정).
+- 기존 `Workspace.save`는 `data.cache.write()`가 `{written:false}`를 반환하거나 예외가 나면 알린 뒤 **후속 저장 큐를 계속 실행**한다. 캐시 거부로 이후 초안·그래프 저장까지 영구 정지하지 않는다.
+- 서버 수명/HTTP/SSE·Chat 기록 정규화·Library 자산 공급·미전송 편집과 server-owned 리비전 충돌 정책은 **여전히 미확정/미구현**이다.

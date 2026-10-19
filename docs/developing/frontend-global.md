@@ -1,6 +1,6 @@
 # 프론트엔드 글로벌 시스템
 
-범위: `beta`의 App Shell, Page Host, Input Manager, Hosted Slides와 공통 스타일. Workspace에는 **로컬 Composer·Canvas**와 Chat 시작 화면, Library에는 임시 Stacked 페이지가 있다. Workspace 로컬 구현 계약은 `frontend-workspace.md`. AI Chat·서버 API·실행·서비스워커는 미구현이다. 아래 초기 Scaffold/임시 실험 기록은 후반 갱신 절과 현재 Workspace 명세보다 우선하지 않는다.
+범위: `beta`의 App Shell, Page Host, Input Manager, Hosted Slides와 공통 스타일. Workspace에는 **로컬 Composer·Canvas**와 읽기 전용 Chat 표시가 있고, Library에는 데이터 공급 전 빈 상태와 항목 표시를 위한 Stacked 페이지가 있다. Workspace 로컬 구현 계약은 `frontend-workspace.md`. AI Chat·서버 API·실행·서비스워커는 미구현이다. 아래 초기 Scaffold/임시 실험 기록은 후반 갱신 절과 현재 Workspace 명세보다 우선하지 않는다.
 
 ## 진입·참조
 
@@ -192,3 +192,11 @@
 7. **변경 영향 확인**: 같은 표면의 모든 자식 상태(기본·hover·focus·selected·expanded), 노드 포트의 반가림, 메뉴 열림/닫힘, Composer 축소/확장 및 IME, Shell/Hosted Slides 겹침을 확인한다. 최소 390/820/1280 CSS px 폭, dark/light, 브라우저 줌 및 coarse pointer를 비교한다. CSS가 원인인 경우 JS·DOM 변경으로 우회하지 않는다. 기존 애니메이션/상태 저장 동작이 깨지면 수정 전 원인으로 되돌려 분석한다.
 
 현재 연결: `--ui-base-font-size` → root `font-size` → 모든 `rem` 크기. `.workspace-composer`의 `--workspace-composer-max-width`는 Composer와 popup이 공유하고, `.workspace-page`의 `--workspace-composer-clearance`는 로컬 Chat/Canvas의 하단 실측 여백을 결정한다.
+
+
+## 2026-10-19 Chat·Library 페이지 조립 현황
+
+- Library의 기존 예시 카드·`#library-template` UI 테스트 마크업을 제거하고 `createLibraryPage()`에서 실제 페이지 엘리먼트와 빈 상태/목록을 생성한다. Boot가 library 페이지를 Page Host에 등록하고 별도 `library-slide`를 Hosted Slides의 단일 stacked 슬라이드로 제공한다. `libraryController.destroy()`는 Boot 종료 시 호출한다.
+- Workspace가 `createChat()`로 Chat 환영 화면과 확정 레코드·요청별 진행 상태를 관리하고, Boot는 기존 Workspace 공개 `getPresentation()` 구성을 그대로 사용한다. Composer는 고정 bottom 슬롯에 계속 유지된다.
+- Shell/Hosted Slides/Input Manager는 **Chat 메시지와 Library 자산 데이터를 저장하거나 해석하지 않는다**. 표시용 데이터는 각 소유 모듈에서 검증해 DOM textContent로 출력한다. 서버 API/SSE/Library 자산 공급은 아직 없음.
+- 초반의 'Library는 임시 샘플 카드', 'Chat은 시작 화면만' 기술은 **이후 2026-10-19 구현 전 상태**를 설명한다. 현재 동작 판단은 이 절과 실제 소스가 우선한다.

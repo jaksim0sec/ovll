@@ -23,3 +23,23 @@ test('workspace model can inject a local presentation Skill resolver',()=>{
   const block=m.addBlock('custom',{x:5,y:7});assert.equal(block.skillId,'custom');assert.equal(m.validateCurrent(),true);
   const snapshot=m.getSnapshot();snapshot.blocks[0].x=99;assert.equal(m.getBlock(block.id).x,5);
 });
+
+
+// Frontend projections deliberately have no server API/IR schema.
+import {normalizeConfirmedChatRecords,normalizeRequestActivities} from '../../front/js/workspace/chat.js';
+import {normalizeLibraryItems} from '../../front/js/library/controller.js';
+test('chat confirmed records reject duplicate IDs or non-display roles',()=>{
+ const records=normalizeConfirmedChatRecords([{id:'a',role:'user',text:'Hi',requestId:'r'}]);
+ assert.equal(records[0].requestId,'r');
+ assert.throws(()=>normalizeConfirmedChatRecords([{id:'x',role:'user',text:'1'},{id:'x',role:'assistant',text:'2'}]),TypeError);
+ assert.throws(()=>normalizeConfirmedChatRecords([{id:'x',role:'tool',text:'raw'}]),TypeError);
+});
+test('multiple independent request activities do not imply a completed message',()=>{
+ const progress=normalizeRequestActivities([{requestId:'one',label:'계획 생성'},{requestId:'two',label:'작업실',detail:'데이터 조회'}]);
+ assert.equal(progress.length,2);
+ assert.throws(()=>normalizeRequestActivities([{requestId:'one',label:'A'},{requestId:'one',label:'B'}]),TypeError);
+});
+test('library display items cannot fake duplicate asset identity',()=>{
+ assert.deepEqual(normalizeLibraryItems([{id:'one',title:'파일',kind:'자료'}]),[{id:'one',title:'파일',kind:'자료'}]);
+ assert.throws(()=>normalizeLibraryItems([{id:'same',title:'A'},{id:'same',title:'B'}]),TypeError);
+});

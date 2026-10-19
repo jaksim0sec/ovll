@@ -46,12 +46,13 @@
 │       ├── canvas/                 # controller.js, files.js, geometry.js
 │       ├── composer/               # controller.js, draft.js
 │       ├── data/localDataStore.js
+│       ├── library/controller.js
 │       ├── input/inputManager.js
 │       ├── settings/theme.js
 │       ├── shell/                  # appShell.js, hostedSlides.js,
 │       │                           # pageHost.js, viewportMotion.js
 │       ├── skill/catalog.js
-│       └── workspace/              # controller.js, dataAccess.js, icons.js, model.js
+│       └── workspace/              # chat.js, controller.js, dataAccess.js, icons.js, model.js
 ├── prompts/
 │   ├── base/                       # corridorInitial, corridorReturn, gate, output
 │   ├── blocks/                     # contextBlockUpdate, contextDataUpdate,
@@ -68,7 +69,7 @@
 - `back/`: 백엔드. `back/js/`는 서버·API·실행 로직(JS)을 책임에 따라 분리할 위치. **현재 구현 파일 없음**; 프론트 코드가 있다는 이유만으로 백엔드 구현을 가정하지 말 것.
 - `front/`: 웹/PWA 정적 배포 루트. `index.html`은 현재 진입 파일이며 `manifest.webmanifest`, `vercel.json`은 배포·PWA 설정. 필수 루트 파일 외 앱 코드·일반 스타일을 루트에 쌓지 말 것.
 - `front/html/`: 별도 HTML 문서·페이지 구조용 위치. **현재 구현 파일 없음**. 실제 화면 구조는 `front/index.html`에도 존재하므로 이전을 임의 강제하지 말 것.
-- `front/js/`: 부팅(`boot.js`), 셸·페이지 호스트(`shell/`), 캔버스(`canvas/`), 컴포저(`composer/`), 워크스페이스(`workspace/`), 스킬 목록(`skill/`), 로컬 데이터(`data/`), 입력(`input/`), 테마(`settings/`) 등 프론트 로직. 기능 변경 시 해당 영역의 실제 코드와 경계를 확인.
+- `front/js/`: 부팅(`boot.js`), 셸·페이지 호스트(`shell/`), 캔버스(`canvas/`), 컴포저(`composer/`), 워크스페이스(`workspace/`), 라이브러리(`library/`), 스킬 목록(`skill/`), 로컬 데이터(`data/`), 입력(`input/`), 테마(`settings/`) 등 프론트 로직. 기능 변경 시 해당 영역의 실제 코드와 경계를 확인.
 - `front/css/`: 공통·셸·캔버스·컴포저·워크스페이스·호스팅 슬라이드 스타일. 테마와 레이아웃 수정 전 적용 지점 확인.
 - `prompts/`: AI 호출 계층·조립형 지침. `base/`는 기본 지침, `blocks/`는 조립 블록, `common/`은 공통 규약, `manifest.json`은 구성 목록.
 - `assets/svg/`: SVG 정적 자산용 위치. **현재 자산 파일 없음**.

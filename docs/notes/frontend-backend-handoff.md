@@ -10,7 +10,7 @@
 - `Shell`/`Page Host`/`Hosted Slides`/`Input Manager`는 이미 분리·구현됐다. 전면 개편 대상 아님. 페이지 내부 기능은 `Workspace`와 향후 `Library`가 소유한다.
 - **지금은 실제 HTTP/SSE 클라이언트 및 백엔드 엔드포인트가 없다.** `front/js/api/` 폴더와 API 함수 파일 역시 현재 추적 트리에 없다. 아직 정해지지 않은 URL과 이벤트를 붙인 가짜 클라이언트를 만들지 않는다.
 - **기본 Skill Catalog는 7개의 로컬 정적 표시 정의**일 뿐 백엔드 Skill 스키마가 아니다. 동적 Skill을 저장·공급할 인터페이스를 정하기 전 서버가 생성한 Skill Block은 현재 모델에서 검증/복원 불가능할 수 있다.
-- **후속 구현 완료:** Workspace 읽기 전용 데이터 조회·동적 Skill 표시 공급 슬롯·요청/실행 콜백 주입점은 실제 구현됐다. 서버 need·실행 IR·HTTP/SSE는 여전히 미구현이다.
+- **후속 구현 완료:** Workspace 읽기 전용 데이터 조회·동적 Skill 표시 공급 슬롯·요청/실행 콜백 주입점·Chat/Library 읽기 전용 표시 인프라는 실제 구현됐다. 서버 need·실행 IR·HTTP/SSE는 여전히 미구현이다.
 - **로컬 Canvas Model은 영속 서버 모델이 아니다.** 그래프 조작을 즉시 로컬 확정하고 80회 undo를 유지한다. 서버가 확정한 변경과 수동 편집의 승인 과정을 아직 구분하지 않는다.
 - `Chat`은 시작 화면만, `Library`는 데이터가 없는 목업이다. 메시지 스트림과 자산 라이브러리의 도메인 UI/입출력 계약을 앞으로 결정해야 한다.
 - **`docs/notes/request-state-sync.md`는 임시 논의**, `docs/developing/architecture.md`·`workrooms.md` 등은 1014 확정된 *논리적 역할*의 명세. 논리 계층을 고정 HTTP/API 필드로 오해하지 않는다.
@@ -251,3 +251,37 @@ const chatCache = await source.readCached('chatRecord', {limit:50}); // 시간�
 4. 요청의 typed 입력/첨부·대화 기록·중간/최종 발화·HTTP/SSE·재접속/취소/충돌 계약 확정.
 5. **그때 필요한 실제 API 함수 파일만 추가**하고 `onSubmitRequest/onRunBlock` 및 Workspace 공개 데이터 접근 기능을 적절히 연결. 가짜 API, 범용 전역 상태 관리자, main 레거시 변환기 도입 금지.
 6. 서버-프론트 종단간 요청, 파일 참조, 그래프 검증/실행, 동시 요청/중단/재접속, 모바일 실기기 검증 후에만 완성 주장.
+
+
+## 11. 2026-10-19 최신 변경: Chat·Library 데이터 공급 화면
+
+> **최신 구현 기준:** `0~`10`의 'Chat 시작 화면만 / Library 목업' 설명은 당시 사실이었고, 지금은 이 절로 갱신된다. 서버가 실제로 연결됐다는 의미는 아니다.
+
+| 현재 코드 | 준비 완료 | 아직 없는 책임 |
+| --- | --- | --- |
+| `front/js/workspace/chat.js` | 검증된 표시용 레코드와 요청별 진행 상태를 **별도** 렌더, 빈 상태 유지 | 서버 메시지 스키마, 기록 저장/조회, 스트리밍 전달·중간 토큰 처리 |
+| `workspace/controller.js` | `setConfirmedChatRecords(records)` / `setRequestActivities(activities)`, 기존 composer/canvas/dataAccess 연결 보존 | 요청 상태 수명·실제 SSE 연결·Chat 페이지네이션 |
+| `front/js/library/controller.js` | 목록 공급 `setConfirmedItems(items)`, 로딩·연결 전·확정된 빈 목록 표현 | 자산 종류/버전·검색/선택·미리보기·권한·저장·삭제 |
+| `front/js/boot.js` | Library 단일 Stacked 슬라이드 정식 조립, 페이지 종료 수명 정리 | Library 데이터 어댑터·Room/Account 선택 |
+| `front/index.html`, `front/css/workspace.css` | 가짜 파일·문서 예시 카드 삭제, 데이터 반영형 기본 화면 | 최종 UX·자산 세부 화면 |
+| `Workspace.save` | IDB 거부/실패 시 후속 저장 큐를 복구하여 다음 저장 실행 | 서버 충돌·오프라인 전송 큐 |
+
+**프론트 표시용 공개 함수** (서버 JSON/DB 테이블 계약이 아님):
+
+```js
+workspaceController.setConfirmedChatRecords([
+  {id:'message-example',role:'assistant',text:'검증된 답변',requestId:'request-example'}
+]);
+workspaceController.setRequestActivities([
+  {requestId:'request-example',label:'현재 작업실 실행 중',detail:'표시용 임시 상태'}
+]);
+libraryController.setConfirmedItems([
+  {id:'asset-example',title:'실제 저장이 확인된 자산',kind:'파일',detail:'표시용 메타데이터'}
+]);
+```
+
+위 코드는 **인터페이스 설명용 가상 데이터**이며 현재 Boot가 실행하는 데이터 아님. 호출자가 서버 원본의 권한·정렬·확정을 검증한 후에만 실제 자산/기록으로 넣을 것. `setRequestActivities([])`는 진행 표시만 치우며 기존 확정 메시지를 삭제하지 않는다. 동일한 `requestId`의 여러 작업실 활동을 *요청 단위 하나의 설명*으로 표시하는 현재 프론트 한정 투영이다. 서버의 계획/실행/검증 로그 전체를 현재 UI 모델로 강제하지 않는다.
+
+**테스트:** 신규 파일 없이 기존 `tests/frontend/workspace-data-access.test.mjs`에 표시 데이터 검증 3건 추가. 별도 JS 환경에서는 채팅 여러 요청 표시·진행 제거·Library 연결 전/빈 상태/자료 표시·위조 중복 ID 거부·Hosted 계층 참조를 추가 점검. 전체 Playwright·실서버 E2E는 환경상 수행하지 않았으므로 미검증으로 남는다.
+
+**계속 지켜야 할 경계:** UI의 `setConfirmed*` 메서드는 **검증된 내용을 표시하는 함수이지 서버 검증기가 아니다**. 서버에서 IR, Gate/Workroom need, Chat/contextBlock/contextData/asset revision, HTTP/SSE/권한을 합의·구현한 뒤에만 실제 응답을 연결한다. UI에 임시 Workroom 완료 메시지를 만들어 영속 기록처럼 채우지 않는다.
