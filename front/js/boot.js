@@ -43,8 +43,6 @@ function destroy(){
   if(disposed)return closePromise ?? Promise.resolve();
   disposed=true;
   lifetime.abort();
-  let writes;
-  try{writes=workspaceController?.flush();}catch(error){console.error('Workspace flush failed',error);}
   // A failing page leave hook must not leak the remaining application owners.
   for(const [name,dispose] of [
     ['pages',()=>pages?.destroy()],
@@ -58,7 +56,10 @@ function destroy(){
   ]){
     try{dispose();}catch(error){console.error(`Ovll ${name} cleanup failed`,error);}
   }
-  // Drain Workspace writes before closing IndexedDB, even if another owner failed.
+  // Page deactivation / Canvas destroy may commit a final buffered textarea edit.
+  // Read the save queue only after those owners have completed their cleanup.
+  let writes;
+  try{writes=workspaceController?.flush();}catch(error){console.error('Workspace flush failed',error);}
   closePromise=Promise.resolve(writes).catch(error=>{
     console.error('Workspace pending save failed',error);
   }).then(()=>{
