@@ -43,8 +43,9 @@ export function createWorkspaceDataAccess({roomId,model,canvas,composer,data,lis
     assertAlive();
     if(!CACHE_KINDS.has(kind))throw new TypeError('Unsupported Workspace cache kind');
     // Key order != chronological history. The cache is not authoritative.
-    if(kind==='chatRecord')return clone(await data.cache.list(kind,roomId,{limit}));
-    return clone(await data.cache.read(kind,roomId,'state'));
+    const result=kind==='chatRecord' ? await data.cache.list(kind,roomId,{limit}) : await data.cache.read(kind,roomId,'state');
+    assertAlive();
+    return clone(result);
   }
   return Object.freeze({readCanvasSnapshot,exportCanvasJSON,readSkillCatalog,readComposerDraft,readCached});
 }

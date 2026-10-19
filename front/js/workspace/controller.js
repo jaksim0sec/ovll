@@ -15,6 +15,8 @@ export async function createWorkspace({ root, data, input, roomId = DEFAULT_ROOM
   if (typeof roomId !== 'string' || !roomId.trim()) throw new TypeError('Workspace roomId is required');
   if (!root || !input || !data?.cache?.read || !data?.cache?.write || !data?.local?.read || !data?.local?.write)
     throw new TypeError('Workspace requires root, input and a local data store');
+  if (skillCatalog !== undefined && (!skillCatalog || typeof skillCatalog.get !== 'function' || typeof skillCatalog.list !== 'function'))
+    throw new TypeError('Skill catalog must provide get(id) and list()');
   // Keep the provider as method receiver; providers may use their own state.
   const resolveSkill = skillCatalog?.get ? id => skillCatalog.get(id) : getSkill;
   const listSkills = skillCatalog?.list ? () => skillCatalog.list() : () => skills;

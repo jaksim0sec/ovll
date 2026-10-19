@@ -71,8 +71,8 @@ export function createChat({onOpenCanvas}={}){
     if(nearEnd)element.scrollTop=element.scrollHeight;
   }
   return {element,saveState,
-    setConfirmedRecords(value){records=normalizeConfirmedChatRecords(value);render();},
-    setRequestActivities(value){activities=normalizeRequestActivities(value);render();},
+    setConfirmedRecords(value){if(destroyed)throw new Error('Chat view has been destroyed');records=normalizeConfirmedChatRecords(value);render();},
+    setRequestActivities(value){if(destroyed)throw new Error('Chat view has been destroyed');activities=normalizeRequestActivities(value);render();},
     destroy(){if(destroyed)return;destroyed=true;open.removeEventListener('click',openCanvas);
       records=[];activities=[];element.remove();}
   };

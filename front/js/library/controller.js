@@ -42,8 +42,8 @@ export function createLibraryPage(){
       hasSource?'표시할 라이브러리 항목이 없습니다.':'아직 라이브러리 데이터가 연결되지 않았습니다.';
   }
   return {element,
-    setConfirmedItems(value){items=normalizeLibraryItems(value);hasSource=true;loading=false;render();},
-    setLoading(value){if(typeof value!=='boolean')throw new TypeError('Loading must be boolean');loading=value;render();},
+    setConfirmedItems(value){if(destroyed)throw new Error('Library page has been destroyed');items=normalizeLibraryItems(value);hasSource=true;loading=false;render();},
+    setLoading(value){if(destroyed)throw new Error('Library page has been destroyed');if(typeof value!=='boolean')throw new TypeError('Loading must be boolean');loading=value;render();},
     destroy(){if(destroyed)return;destroyed=true;items=[];element.remove();}
   };
 }
