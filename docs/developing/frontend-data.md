@@ -50,3 +50,9 @@ data.destroy();
 기존 임시 uiTest 화면/모듈/CSS는 제거했다. `workspace/controller.js`가 `beta-local-workspace`의 canvasState/chatDraft와 local.canvasViewport를 읽고 저장한다. 스킬블럭·연결, typed 초안 참조, 실제 로컬 Blob/File을 재진입 시 복원한다. itemId는 state, cache source는 provisional. 서버 스키마/Revision으로 확정하지 않는다.
 
 저장 쓰기 순서를 보존하고 영역별 오류를 따로 추적한다. 그래프 복원 실패 시 원본을 자동 덮어쓰지 않는다. 실제 공개 형식·수명·파일 표시/서버 미연결 경계는 `frontend-workspace.md`를 따른다.
+
+## 2026-10-19 읽기 전용 데이터 공급 구현
+
+Workspace `getDataAccess()`는 현재 모델·Composer·기존 IDB 캐시를 읽으며 새 저장 원본이 아니다. `readCanvasSnapshot`, `readSkillCatalog`, `readComposerDraft`, `readCached(kind,{limit?})`를 제공한다. 파일/첨부 본문·Blob, 서버 원본 revision, 실행 IR을 캐시/네트워크 데이터로 가장하지 않는다. `readCached('chatRecord')`는 키 순서이고 실제 시간순 채팅 기록 API가 아니다. `contextBlock`은 요청별 백엔드 상태이므로 프론트에서 임의 생성하지 않는다.
+
+기존 캐시의 `written:false` 반환은 Workspace가 저장 실패로 알린다. **서버 확정 캐시를 provisional 저장이 덮지 않았다는 사실**을 숨기지 않는다.

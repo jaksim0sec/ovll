@@ -7,14 +7,15 @@
 | 모듈 | 소유 |
 |---|---|
 | `workspace/controller.js` | 단일 Workspace 조립, 페이지 활성 수명, 로컬 복원/저장, 파일 첨부와 슬라이드 이동의 공개 API 연결 |
-| `workspace/model.js` | 스킬블럭·연결 원본, 변경 검증, 되돌리기 기록 |
+| `workspace/model.js` | 스킬블럭·연결 원본, 변경 검증, 되돌리기 기록; 선택적 Skill 조회자 |
+| `workspace/dataAccess.js` | 로컬 Workspace·캐시 읽기 전용 조회 (서버 need/IR 아님) |
 | `skill/catalog.js` | main에서 추출한 정적 표시용 스킬 목록. 실행 스키마 아님 |
 | `workspace/icons.js` | 신뢰된 정적 SVG. 사용자 문자열은 SVG/HTML로 해석하지 않음 |
 | `composer/controller.js`, `composer/draft.js` | 편집 DOM·선택·참조 메뉴·첨부·구조화 초안·입력 높이·활성 이벤트 수명 |
 | `canvas/controller.js`, `canvas/geometry.js`, `canvas/files.js` | 블럭 표시·입력 필드·포트·연결 곡선·선택·카메라·제스처 의미·도구·로컬 파일 표시 |
 | `css/composer.css`, `css/canvas.css`, `css/workspace.css` | 개별 기능 스타일 및 Workspace 배치. workspace.css는 기능 CSS 뒤에 로드 |
 
-Boot가 `createWorkspace({root,data,input})`를 생성한다. Page Host `onEnter`가 Workspace 구성 선언을 Hosted Slides에 전달하고 반환된 제어자와 새 `signal`을 Workspace `activate`에 전달한다. 이탈 시 deactivate, 문서 종료 시 destroy. Composer는 Hosted Slides의 bottom stationary 슬롯에 장착되므로 Chat↔Canvas 전환에 DOM·초안이 유지된다. Canvas 본문 `allowContentSwipe:false`, Chat은 true. Shell 메뉴 열림/문서 숨김에는 Workspace 공개 `closeTransientUI()`로 임시 메뉴·드래그·초기화 확인 상태를 종료한다.
+Boot가 `createWorkspace({root,data,input})`를 생성한다. 선택적 Skill 공급자와 요청·실행 콜백은 아직 Boot가 전달하지 않으므로 미연결이다. Page Host `onEnter`가 Workspace 구성 선언을 Hosted Slides에 전달하고 반환된 제어자와 새 `signal`을 Workspace `activate`에 전달한다. 이탈 시 deactivate, 문서 종료 시 destroy. Composer는 Hosted Slides의 bottom stationary 슬롯에 장착되므로 Chat↔Canvas 전환에 DOM·초안이 유지된다. Canvas 본문 `allowContentSwipe:false`, Chat은 true. Shell 메뉴 열림/문서 숨김에는 Workspace 공개 `closeTransientUI()`로 임시 메뉴·드래그·초기화 확인 상태를 종료한다.
 
 Shell은 기능 내부 DOM을 조회하지 않는다. Page Host는 최상위 페이지 ID만, Hosted Slides는 내부 슬라이드 상태만 소유한다. Canvas와 Composer는 서로 import하지 않는다. Workspace가 공개 콜백으로 결합하며 window에 앱 API를 게시하지 않는다.
 
@@ -95,3 +96,17 @@ Shell은 기능 내부 DOM을 조회하지 않는다. Page Host는 최상위 페
 `node --test tests/frontend/*.test.mjs` 실행에 Playwright 개발 환경과 Chromium이 필요하다. 별도 실행 파일은 `CHROMIUM_PATH`로 지정한다. 제품에는 패키지/빌드 도구를 추가하지 않는다.
 
 검증 범위: 모델 무결성·복원·undo/redo·파일 교체, 편집/참조/초안 복원·한글 조합 이벤트·줄바꿈/붙여넣기, 포인터 취소·native mouse·CDP native touch·모바일 핀치·관성/취소·다중 출력 수집/일괄 해제·삽입 시 카메라 불변·펼침 DOM/높이 보간·정리 보간, 메뉴/슬라이드/Library 왕복, IDB 재진입·실패 표시, 모의 VisualViewport 축소/offsetTop, 모바일 여백·테마·화면 크기, 요청 미발생. Android/iOS 실기기 IME·키보드 애니메이션·Safari/Firefox·PWA 물리 환경은 미검증이다. main과의 픽셀 완전일치를 주장하지 않는다.
+
+## 2026-10-19 실제 추가 구현 — 로컬 데이터 조회와 연결 슬롯
+
+- `createWorkspace({root,data,input,skillCatalog?,onSubmitRequest?,onRunBlock?})`: `skillCatalog={get(id),list()}`는 **로컬 프론트 표시/검증용 정의 공급 슬롯**이다. 기본은 `skill/catalog.js` 정적 7종. 서버 Skill 스키마나 자산 revision 계약이 아니다.
+- `createWorkspaceModel({snapshot?,resolveSkill?})`와 `createCanvas({...,resolveSkill?,listSkills?})`, `createComposer({...,resolveSkill?,listSkills?})`로 동일한 공급자를 전달한다. `workspace.refreshSkillCatalog()`는 기존 모델 무결성을 확인한 후 Canvas 팔레트/블럭·열린 Composer 참조 목록을 갱신한다. **실제 서버 동적 Skill 공급·삭제/버전 조정·동기화 미구현**.
+- `onSubmitRequest(draft)` 및 `onRunBlock(blockId)`는 기존 UI 콜백의 선택적 주입점이다. 현재 Boot는 전달하지 않으므로 기본 `{accepted:false}`로 입력을 지키고 실행 완료를 가장하지 않는다. 초안/블럭 ID를 서버용 새로운 요청 본문으로 변환하지 않는다. 요청 **접수**와 작업 **완료**는 다르다.
+- `workspace.getDataAccess()`는 소유 상태를 만들지 않는 읽기 전용 검사 객체다.
+  - `readCanvasSnapshot()` → `{roomId,source:'local-view',format:'beta-local-edit-graph-v1',snapshot:{version,blocks,links}}`. 250ms 지연 입력을 먼저 반영한다. 파일의 Blob·텍스트 본문 대신 메타데이터와 localBlobAvailable/textPreviewAvailable만 담는다. **서버 실행 IR/최종 스냅샷/asset revision 아님**.
+  - `readSkillCatalog()` → `{source:'local-presentation-catalog',definitions:[...]}`.
+  - `readComposerDraft()` → `{roomId,source:'local-unsent-draft',parts,attachments}`. 참조는 typed parts, 첨부는 로컬 File/Blob 없이 메타데이터·보유 여부만.
+  - `readCached(kind,{limit?})` → 기존 `roomInfo/chatRecord/chatDraft/contextData/canvasState` 캐시. `chatRecord`는 IDB **키 순서**(시간순 아님), `contextData`가 없으면 null. 요청별 `contextBlock`은 임의 클라이언트 상태로 생성하지 않는다.
+- **Gate/Workroom need 조회는 서버가 권한/버전을 확인한 원본 Canvas/Skill/IR/채팅/맥락 자산에서 해결한다.** 로컬 검사 API는 네트워크 전송도 need datasetName 해석도 하지 않으며 서버 원본이 아니다.
+- IDB 캐시가 `{written:false}`를 반환하면 Workspace는 기존 저장을 성공 처리하지 않고 사용자에게 실패를 알린다. 서버가 소유한 캐시를 provisional 변경으로 덮었다고 주장하지 않는다.
+- 백엔드 실행·HTTP/SSE·실제 Chat·Library·Server IR/Revision·업로드·동시성·오프라인 동기화는 **아직 없음**.

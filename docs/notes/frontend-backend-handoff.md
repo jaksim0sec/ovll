@@ -9,7 +9,8 @@
 - 프론트를 새 백엔드의 내부 실행 구조에 종속시키지 말 것. 서버는 **요청 실행·검증·자산 원본·버전**을 담당하고, 프론트는 **조작·표현·입력 중 상태·서버 확정값의 투영**을 담당한다.
 - `Shell`/`Page Host`/`Hosted Slides`/`Input Manager`는 이미 분리·구현됐다. 전면 개편 대상 아님. 페이지 내부 기능은 `Workspace`와 향후 `Library`가 소유한다.
 - **지금은 실제 HTTP/SSE 클라이언트 및 백엔드 엔드포인트가 없다.** `front/js/api/` 폴더와 API 함수 파일 역시 현재 추적 트리에 없다. 아직 정해지지 않은 URL과 이벤트를 붙인 가짜 클라이언트를 만들지 않는다.
-- **현재 Skill Catalog는 7개의 로컬 정적 표시 정의**일 뿐 백엔드 Skill 스키마가 아니다. 동적 Skill을 저장·공급할 인터페이스를 정하기 전 서버가 생성한 Skill Block은 현재 모델에서 검증/복원 불가능할 수 있다.
+- **기본 Skill Catalog는 7개의 로컬 정적 표시 정의**일 뿐 백엔드 Skill 스키마가 아니다. 동적 Skill을 저장·공급할 인터페이스를 정하기 전 서버가 생성한 Skill Block은 현재 모델에서 검증/복원 불가능할 수 있다.
+- **후속 구현 완료:** Workspace 읽기 전용 데이터 조회·동적 Skill 표시 공급 슬롯·요청/실행 콜백 주입점은 실제 구현됐다. 서버 need·실행 IR·HTTP/SSE는 여전히 미구현이다.
 - **로컬 Canvas Model은 영속 서버 모델이 아니다.** 그래프 조작을 즉시 로컬 확정하고 80회 undo를 유지한다. 서버가 확정한 변경과 수동 편집의 승인 과정을 아직 구분하지 않는다.
 - `Chat`은 시작 화면만, `Library`는 데이터가 없는 목업이다. 메시지 스트림과 자산 라이브러리의 도메인 UI/입출력 계약을 앞으로 결정해야 한다.
 - **`docs/notes/request-state-sync.md`는 임시 논의**, `docs/developing/architecture.md`·`workrooms.md` 등은 1014 확정된 *논리적 역할*의 명세. 논리 계층을 고정 HTTP/API 필드로 오해하지 않는다.
@@ -202,4 +203,51 @@ boot → App Shell / Page Host / Hosted Slides / Input Manager / Theme
 5. **최소 회귀:** Canvas 블럭/포트 무결성·undo, Composer 참조·IME·초안/첨부, Hosted Slides·메뉴·InputManager, 페이지 전환·데이터 복원·테마. Node/Playwright 기존 `tests/frontend/*.test.mjs`를 필요한 범위에서 재사용한다. 실제 Android/iOS 키보드·Safari/Firefox/PWA는 과거 문서에서 미검증임을 유지한다.
 6. `main` 수정/병합/배포, `back/js/` 가짜 구현, 서비스워커·임시 REST URL, 새 범용 GlobalStore·변환기·호환 계층 자동 생성은 금지. 차후 실제 요구와 계약을 먼저 확인한다.
 
-**이 인수인계 시점의 작업:** 검토 및 문서 한 개 작성만 수행. API·서버·Chat·Library·Canvas 기능 구현, 테스트 실행·배포는 수행하지 않았으며, 완성 상태로 보고하지 않는다.
+**최초 인수인계 작성 당시:** 문서 검토만 수행. 후속 beta 구현 완료 목록은 아래 10절을 참고.
+
+## 10. 최종 구현 인수인계 — 2026-10-19
+
+### 실제 완료한 프론트 준비 사항
+
+| 코드 경로 | 실제 구현 | 범위 제한 |
+| --- | --- | --- |
+| `front/js/workspace/dataAccess.js` | `readCanvasSnapshot()`, `readSkillCatalog()`, `readComposerDraft()`, `readCached(kind,{limit?})` | **읽기 전용 로컬 상태·캐시**. 백엔드 need 조회 또는 실행 IR 생성 아님 |
+| `front/js/workspace/controller.js` | `getDataAccess()`, `refreshSkillCatalog()`, 선택적 `skillCatalog:{get,list}`, `onSubmitRequest(draft)`, `onRunBlock(blockId)` | Boot는 아직 공급자·콜백을 넘기지 않으므로 요청/실행 미연결 |
+| `front/js/workspace/model.js` | 주입된 `resolveSkill`을 사용해 기존 graph 무결성 검사, `validateCurrent()` | 로컬 v1 그래프와 로컬 ID/undo 유지; 서버 원본/Revision 아님 |
+| `front/js/canvas/controller.js` | 주입 Skill로 포트/블럭/팔레트 표시, `flushPendingEdits()`·`refreshCatalog()` | 서버 확정된 변경의 적용/충돌 처리 없음 |
+| `front/js/composer/controller.js` | 주입 Skill로 참조 메뉴 갱신 | 서버 요청 직렬화/첨부 업로드 없음 |
+| `data/localDataStore.js` (기존) | 기존 캐시 source/revision 가드 유지; Workspace가 `written:false`를 저장 실패로 인식 | 네트워크 동기화·DB 원본/오프라인 큐 없음 |
+| `tests/frontend/workspace-data-access.test.mjs` | 파일 Blob 비노출·지연 Canvas 입력 반영·캐시 출처 및 모델 Skill 공급자 검증용 3개 단위 테스트 | 별도 JS 실행 환경 3개 통과; 전체 Chromium·실제 서버/실기기 테스트 미실행 |
+
+### 다음 에이전트가 읽을 수 있는 실제 프론트 데이터
+
+```js
+const source = workspaceController.getDataAccess();
+const currentCanvas = source.readCanvasSnapshot();          // local-view / beta-local-edit-graph-v1
+const skillDefinitions = source.readSkillCatalog();         // local-presentation-catalog
+const unsentDraft = source.readComposerDraft();             // local-unsent-draft
+const contextCache = await source.readCached('contextData'); // 없으면 null
+const chatCache = await source.readCached('chatRecord', {limit:50}); // 시간순이 아닌 키 순서
+```
+
+- Canvas의 미확정 입력 필드는 조회 전에 Model로 반영하지만, **검증된 서버 실행 IR은 반환하지 않는다**. 로컬 그래프 포트/DAG 제약과 `expanded`/`values`/file 형식은 beta 로컬 UI 계약이다.
+- Composer의 typed 초안 `{parts,attachments}`과 `onSubmitRequest(draft)`는 아직 HTTP body가 아니다. 서버 업로드를 완료하지 않은 Blob을 파일 참조로 둔갑시키지 않는다. `onRunBlock(blockId)`의 ID 역시 지금은 로컬 ID다.
+- `readCached('contextData')`는 기존 IDB에 캐시된 내용만. **contextBlock(intent/progress)과 호출별 focus는 백엔드 관리**, contextData와 chatRecord 원본도 서버 관리 예정. 이 필드에 없는 값이나 임시 AI 메시지를 만들어 호출 데이터에 채우지 않는다.
+- **need**: Gate/Workroom은 사용자가 브라우저를 닫아도 계속 실행될 수 있으므로, 서버가 검증한 방/자산 원본(채팅, 맥락, 캔버스, Skill, IR)을 서버 내부 데이터 조회 기능으로 공급해야 한다. 프론트 상태 조회는 *미전송 사용자 편집 사항을 명시적으로 서버에 제출해야 할 때* 활용할 수 있는 보조 수단으로만 사용한다.
+- **IR**: beta 프론트에는 실행 IR 원본/생성기/서버 검증 기록이 존재하지 않는다. `{version:1,blocks,links}`를 그대로 실행 IR 또는 기존 main의 GraphPatch/ModelTurn으로 정하지 않는다. 새 IR의 저장·컴파일·검증·revision/참조 계약은 백엔드가 구현하기 전 협의해야 한다.
+
+### 아직 구현하지 않은 것 (완료 오인 금지)
+
+- 백엔드 Gate/Corridor/Workroom/Output, 독립 요청/호출 수명, 검증된 `need` 데이터셋 레지스트리, 저장 Function, 실행 IR과 DB 원본.
+- HTTP/SSE API 파일·URL·이벤트 스키마, 요청 ID 발급/중단/재연결, 확정 변경 이벤트·자산 revision·다중 요청 충돌 해결.
+- Chat 기록·중간 발화·최종 발화·요청 진행 렌더러/시간순 페이지네이션, 실제 Library 자료 관리/검색·Skill 공급/파일 업로드.
+- `provisional` 로컬 캐시 이관, 사용자 Canvas 수동 편집의 서버 승인/undo 정책, Android/iOS·전체 브라우저 회귀 검증.
+
+### 백엔드 담당자에게 넘기는 결정 순서
+
+1. `AGENTS.md` + `docs/developing` + 이 문서 + 실제 소스를 다시 확인.
+2. Skill/Skill Block/Saved Function/Canvas/IR의 서버 원본·조회 권한·공개 데이터 형식과 자산 버전 확정.
+3. Gate/Workroom `need`의 dataset 목록/파라미터/권한/조회 일관성 확정 (브라우저 직접 호출 불가 원칙).
+4. 요청의 typed 입력/첨부·대화 기록·중간/최종 발화·HTTP/SSE·재접속/취소/충돌 계약 확정.
+5. **그때 필요한 실제 API 함수 파일만 추가**하고 `onSubmitRequest/onRunBlock` 및 Workspace 공개 데이터 접근 기능을 적절히 연결. 가짜 API, 범용 전역 상태 관리자, main 레거시 변환기 도입 금지.
+6. 서버-프론트 종단간 요청, 파일 참조, 그래프 검증/실행, 동시 요청/중단/재접속, 모바일 실기기 검증 후에만 완성 주장.

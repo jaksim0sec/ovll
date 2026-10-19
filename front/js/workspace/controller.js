@@ -11,10 +11,12 @@ const ROOM = 'beta-local-workspace';
  * SERVER INTEGRATION: room selection and validated remote snapshots enter here.
  * No main store, request protocol, offline queue or inferred AI result is used.
  */
-export async function createWorkspace({ root, data, input, skillCatalog } = {}) {
+export async function createWorkspace({ root, data, input, skillCatalog, onSubmitRequest, onRunBlock } = {}) {
   const resolveSkill = skillCatalog?.get ?? getSkill;
   const listSkills = skillCatalog?.list ?? (() => skills);
   if(typeof resolveSkill!=='function'||typeof listSkills!=='function')throw new TypeError('Invalid Skill catalog provider');
+  if((onSubmitRequest !== undefined && typeof onSubmitRequest !== 'function') ||
+     (onRunBlock !== undefined && typeof onRunBlock !== 'function')) throw new TypeError('Invalid Workspace request callbacks');
   const lifetime = new AbortController();
   const feedback = document.createElement('div');
   feedback.className = 'workspace-feedback';
@@ -36,7 +38,8 @@ export async function createWorkspace({ root, data, input, skillCatalog } = {}) 
   function save(domain, operation) {
     if (destroyed) return;
     pending++; saveState.textContent = '저장 중';
-    queued = queued.then(operation).then(() => {
+    queued = queued.then(operation).then(result => {
+      if(result?.written === false) throw new Error(`Workspace ${domain} save skipped: ${result.reason}`);
       failedDomains.delete(domain);
     }, error => {
       failedDomains.add(domain);
@@ -81,7 +84,7 @@ export async function createWorkspace({ root, data, input, skillCatalog } = {}) 
   };
   const canvas = createCanvas({
     model, input, resolveSkill, listSkills,
-    onRun: runUnavailable,
+    onRun: onRunBlock ?? runUnavailable,
     onAttach: async (file, { blockId, metadata }) => {
       // Preserve the actual local file for future reads; metadata alone is not a file.
       return { ...metadata, blob: file };
@@ -93,7 +96,7 @@ export async function createWorkspace({ root, data, input, skillCatalog } = {}) 
     canvas.element.style.setProperty('--workspace-composer-height', value);
   }
   const composer = createComposer({
-    model, resolveSkill, listSkills, onSubmit: runUnavailable, onHeightChange: composerHeight,
+    model, resolveSkill, listSkills, onSubmit: onSubmitRequest ?? runUnavailable, onHeightChange: composerHeight,
     onAttach: async files => {
       for (const file of files) {
         const block = await canvas.addFile(file);
