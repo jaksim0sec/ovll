@@ -10,14 +10,8 @@ import { createLibraryPage } from './library/controller.js';
 const root=document.querySelector('#app');
 const status=document.querySelector('#boot-status');
 const lifetime=new AbortController();
-const input=createInputManager();
-const theme=createThemeSettings();
-const themeSelect=root.querySelector('[data-theme-select]');
-themeSelect.value=theme.getTheme();
-themeSelect.addEventListener('change',()=>theme.setTheme(themeSelect.value),{signal:lifetime.signal});
-const releaseTheme=theme.subscribe(value=>{themeSelect.value=value;});
-const data=createLocalDataStore();
-let shell,pages,hosted,workspaceController,libraryController;
+let input,theme,releaseTheme,data,shell,pages,hosted,workspaceController,libraryController;
+let disposed=false,closePromise=null;
 const validPages=new Set(['workspace','library']);
 let applyingRoute=true;
 function readRoute(){
@@ -46,14 +40,40 @@ function applyRoute(){
   }finally{applyingRoute=false;}
 }
 function destroy(){
+  if(disposed)return closePromise ?? Promise.resolve();
+  disposed=true;
   lifetime.abort();
-  try{pages?.destroy()}finally{
-    hosted?.destroy();shell?.destroy();input.destroy();workspaceController?.destroy();libraryController?.destroy();releaseTheme();theme.destroy();
-    // Pending IDB writes finish before closing their adapter.
-    Promise.resolve(workspaceController?.flush()).finally(()=>data.destroy());
+  let writes;
+  try{writes=workspaceController?.flush();}catch(error){console.error('Workspace flush failed',error);}
+  // A failing page leave hook must not leak the remaining application owners.
+  for(const [name,dispose] of [
+    ['pages',()=>pages?.destroy()],
+    ['hosted',()=>hosted?.destroy()],
+    ['shell',()=>shell?.destroy()],
+    ['input',()=>input?.destroy()],
+    ['workspace',()=>workspaceController?.destroy()],
+    ['library',()=>libraryController?.destroy()],
+    ['theme listener',()=>releaseTheme?.()],
+    ['theme',()=>theme?.destroy()]
+  ]){
+    try{dispose();}catch(error){console.error(`Ovll ${name} cleanup failed`,error);}
   }
+  // Drain Workspace writes before closing IndexedDB, even if another owner failed.
+  closePromise=Promise.resolve(writes).catch(error=>{
+    console.error('Workspace pending save failed',error);
+  }).then(()=>{
+    try{data?.destroy();}catch(error){console.error('Local data cleanup failed',error);}
+  });
+  return closePromise;
 }
 try{
+  input=createInputManager();
+  theme=createThemeSettings();
+  const themeSelect=root.querySelector('[data-theme-select]');
+  themeSelect.value=theme.getTheme();
+  themeSelect.addEventListener('change',()=>theme.setTheme(themeSelect.value),{signal:lifetime.signal});
+  releaseTheme=theme.subscribe(value=>{themeSelect.value=value;});
+  data=createLocalDataStore();
   pages=createPageHost({element:document.querySelector('#page-host'),onChange:id=>{shell.setActivePage(id);if(id)writeRoute();}});
   shell=createAppShell({element:root,onNavigate:id=>{input.cancel('page-change');hosted.cancel('page-change');pages.activate(id)},onMenuOpen:()=>{input.cancel('menu-open');hosted?.cancel('menu-open');workspaceController?.closeTransientUI()}});
   hosted=createHostedSlides({pillHost:root.querySelector('[data-hosted-pill]'),stationaryHost:root.querySelector('[data-hosted-stationary]'),input,onLayout:mode=>shell.setPresentationMode(mode),onPillVisibilityChange:visible=>shell.setHostedPillVisible(visible),onSlideChange:()=>writeRoute(),onSwipePastStart:()=>{if(!shell.getMenuOpen())shell.setMenuOpen(true)},isBlocked:()=>shell.isModalOpen()});
@@ -80,7 +100,7 @@ try{
     else destroy();
   },{signal:lifetime.signal});
 }catch(error){
-  destroy();root.hidden=true;status.hidden=false;
+  void destroy();root.hidden=true;status.hidden=false;
   status.textContent='Ovll을 불러오지 못했습니다. 새로고침해 주세요.';
   console.error('Ovll initialization failed',error);
 }
