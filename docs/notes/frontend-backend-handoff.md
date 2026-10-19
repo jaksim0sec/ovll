@@ -146,3 +146,5 @@ canvas.deleteBlock(block.id);
 - **저장소:** 실패한 IndexedDB 업그레이드가 늦게 성공한 경우 DB를 즉시 닫아 재시도 중인 연결을 덮지 않는다. 기존 서버확정/provisional 가드와 데이터 도메인 분리는 유지.
 - **검증:** Workspace/DataAccess/채팅·Library 투영, 막힌 IndexedDB 단위검사 총 **9개**를 분리 JS 실행 환경에서 검증했고, 모의 Workspace 다중 방/종료·모의 Boot 초기화 실패/정리 순서도 확인했다. 기존 `tests/frontend/workspace-browser.test.mjs`에 roomId 격리와 stale handle 검증을 추가했으나 **실제 Chromium 종단 테스트는 미실행**.
 - **상태 구분:** 이 보강으로 **기본 프론트 소유권/초기화·종료/로컬 방/외부 연결 기반**을 완성한 것이지, 서버 HTTP/SSE/실행 IR/need 조회/실제 Chat·Library 데이터/파일 업로드, PWA 서비스워커, 모바일 실기기 안정성을 완성한 것은 아니다. 그런 미확정 기능을 의도적으로 임의 구현하지 않는다.
+
+- **데이터 보존 보강(추가):** 기존 IDB 행이 존재하면서 Canvas 값이 누락됐거나 그래프가 검증에 실패하면 기본 그래프를 덮어쓰지 않는다. Composer 초안은 저장 구조의 최소 무결성을 검사하고 미지원 typed parts가 있으면 정규화 과정에서 버리지 않고 원본을 보호한다. 화면에 오류를 알리고 해당 도메인의 후속 자동 저장을 제한한다. 브라우저 회귀 테스트에 손상된 두 도메인 동시 복원 사례 추가(실제 브라우저 실행은 별도).

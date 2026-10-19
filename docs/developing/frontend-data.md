@@ -66,3 +66,5 @@ Workspace `getDataAccess()`는 현재 모델·Composer·기존 IDB 캐시를 읽
 - 앱 최종 종료는 Canvas가 유예 중 입력을 모델에 기록한 다음 `Workspace.flush()` 저장 큐를 기다린 뒤 `data.destroy()`로 DB를 닫는다. 종료 과정에서 한 모듈 정리에 예외가 나도 DB 종료를 생략하지 않는다.
 - 개별 Workspace마다 독립 `roomId` 키로 cache/local 데이터에 접근한다. 이것은 한 브라우저의 **로컬 작업 공간 분리**일 뿐, 서버 사용자 인증이나 공동 편집/원격 동기화 계약을 의미하지 않는다.
 - `tests/frontend/local-data-store.test.mjs`는 막힌 업그레이드의 늦은 성공/종료 후 지연 성공이 연결을 남기지 않는지 검사한다.
+
+- 캐시 행은 존재하지만 Canvas 원본 payload가 손상·누락된 경우 자동 기본값으로 덮어쓰지 않는다. Composer 저장 초안도 입력 부품 형식 확인 후 복원하며, 호환되지 않는 구조는 저장 원본 보호 상태로 남긴다. 이 보호는 데이터 마이그레이션 구현이 아니며 기존 기록은 삭제하지 않는다.

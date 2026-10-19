@@ -148,3 +148,7 @@ Shell은 기능 내부 DOM을 조회하지 않는다. Page Host는 최상위 페
 - 주입 `skillCatalog`는 `{get(id),list()}` 두 함수를 모두 제공해야 하며 내부 `this`를 사용하는 객체도 동작하도록 메서드 receiver를 보존한다. 이 공급 슬롯은 프론트 표시 정의일 뿐 서버 Skill 버전 계약이 아니다.
 - `workspace.destroy()` 후 `getCanvasCommands()`의 기존 참조를 포함한 `addBlock/updateBlock/deleteBlock/connect/disconnect`는 명시적으로 실패한다. `getDataAccess()`의 기존 참조로 수행하는 동기·비동기 읽기도 종료 후 결과를 반환하지 않는다. `getPresentation/getRoomId` 및 Chat setter/Skill refresh 역시 종료 후 재사용 불가. `flush()`는 종료 전 큐의 저장 완료를 대기할 용도로 유지한다.
 - `tests/frontend/workspace-browser.test.mjs`에는 **다른 두 roomId**의 모델·캐시 격리, 종료 후 기존 공개 인터페이스 거부를 검증하는 브라우저 회귀 시나리오를 추가했다. `tests/frontend/workspace-data-access.test.mjs`에는 종료 중 비동기 캐시 조회의 늦은 결과 거부를 확인한다. 최신 Chromium 실제 실행은 별도 검증 필요.
+
+
+- **손상된 저장 기록 보존:** Canvas cache 행이 존재하지만 payload가 `null/undefined`이거나 기존 그래프 검증에 실패하면, 빈 그래프로 재시드하지 않고 기존 행을 보호한다. Composer 저장 기록은 `composer/draft.js`의 `isRestorableDraft`로 typed parts/attachments 최소 구조를 검사한다. 알 수 없는/손상된 부분을 permissive `normalizeDraft`로 조용히 누락하고 다음 입력 때 덮어쓰는 일을 막는다. 복원에 실패하면 오류 상태를 알리고 해당 도메인 저장을 차단한다.
+- 검증: `tests/frontend/composer-draft.test.mjs`의 저장 초안 구조 검증, `tests/frontend/workspace-browser.test.mjs`의 손상된 그래프/초안 cache 보호 시나리오 추가. 단위/모의 복원 검증 수행, 실제 Chromium 신규 시나리오 실행은 미검증.
