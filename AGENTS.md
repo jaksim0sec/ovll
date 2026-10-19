@@ -25,7 +25,9 @@
 │   │   ├── frontend-workspace.md
 │   │   ├── prompt-composition.md
 │   │   └── workrooms.md
-│   ├── notes/request-state-sync.md
+│   ├── notes/
+│   │   ├── frontend-backend-handoff.md
+│   │   └── request-state-sync.md
 │   └── superpowers/plans/
 │       ├── 2026-10-17-beta-hosted-slides.md
 │       └── 2026-10-17-beta-runtime-foundation.md
