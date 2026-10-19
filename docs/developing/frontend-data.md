@@ -56,3 +56,5 @@ data.destroy();
 Workspace `getDataAccess()`는 현재 모델·Composer·기존 IDB 캐시를 읽으며 새 저장 원본이 아니다. `readCanvasSnapshot`, `readSkillCatalog`, `readComposerDraft`, `readCached(kind,{limit?})`를 제공한다. 파일/첨부 본문·Blob, 서버 원본 revision, 실행 IR을 캐시/네트워크 데이터로 가장하지 않는다. `readCached('chatRecord')`는 키 순서이고 실제 시간순 채팅 기록 API가 아니다. `contextBlock`은 요청별 백엔드 상태이므로 프론트에서 임의 생성하지 않는다.
 
 기존 캐시의 `written:false` 반환은 Workspace가 저장 실패로 알린다. **서버 확정 캐시를 provisional 저장이 덮지 않았다는 사실**을 숨기지 않는다.
+
+- 요청 시 JSON 내보내기는 `workspace.getDataAccess().exportCanvasJSON()`에서 기존 `readCanvasSnapshot()`의 결과를 직렬화하는 방식이다. 이 조회 자체는 IndexedDB 서버 캐시 조회나 원격 동기화가 아니며, 별도의 실행 IR/서버 상태 원본을 만들지 않는다. `workspace.getCanvasCommands()`는 별도 로컬 그래프 변경 공개 경계로, 서버 저장/업로드/검증 완료가 아니다.

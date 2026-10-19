@@ -36,7 +36,7 @@ Shell은 기능 내부 DOM을 조회하지 않는다. Page Host는 최상위 페
 
 이 형식은 **beta 로컬 편집 스냅샷**이다. 서버 계약·실행 IR·Revision 형식으로 확정하지 않는다. 파일은 `{localId,name,type,size,text?,blob?}`. blob은 실제 로컬 Blob/File이고 URL 문자열을 영속 저장하지 않는다.
 
-`createWorkspaceModel({snapshot?})`: `getSnapshot/getBlocks/getBlock`, `addBlock(skillId,{x,y,values,expanded,file}?)`, `updateBlock(id,patch)`, `deleteBlock`, `connect(from,to)`, `disconnect`, `toggleConnections(pairs)`, `disconnectPort(endpoint,direction)`, `clear`, `arrange`, `undo/redo/canUndo/canRedo`, `replace`, `subscribe`.
+`createWorkspaceModel({snapshot?,resolveSkill?})`: `getSnapshot/getBlocks/getBlock`, `addBlock(skillId,{x,y,values,expanded,file}?)`, `updateBlock(id,patch)`, `deleteBlock`, `connect(from,to)`, `disconnect`, `toggleConnections(pairs)`, `disconnectPort(endpoint,direction)`, `clear`, `arrange`, `undo/redo/canUndo/canRedo`, `replace`, `subscribe`.
 
 - 반환/이벤트 스냅샷은 복제본. 블럭 ID·스킬 참조와 카메라를 혼동하지 않는다.
 - 실제 포트 존재·방향·타입·중복·단일 입력·자기 연결·순환을 검증한다. 기존 연결의 재선택으로 해제하는 UI 정책은 Canvas 책임이다.
@@ -47,7 +47,7 @@ Shell은 기능 내부 DOM을 조회하지 않는다. Page Host는 최상위 페
 
 ## Composer
 
-`createComposer({model,onSubmit,onHeightChange,onAttach})` → `{element,editor,getDraft,setDraft,focus,closeMenu,activate,deactivate,destroy}`.
+`createComposer({model,onSubmit,onHeightChange,onAttach,resolveSkill?,listSkills?})` → `{element,editor,getDraft,setDraft,refreshCatalog,focus,closeMenu,activate,deactivate,destroy}`.
 
 초안은 `{parts,attachments}`. parts는 `{type:'text',text}`, `{type:'skill',id,label}`, `{type:'block',id,label}`. 스킬과 배치 참조를 별도로 보존하고 태그를 문자열 프로토콜로 변환하지 않는다. 초안 복원에는 저장된 HTML을 사용하지 않는다. 첨부는 실제 File/Blob과 이름·MIME·크기·수정시각을 보존한다.
 
@@ -62,7 +62,7 @@ Shell은 기능 내부 DOM을 조회하지 않는다. Page Host는 최상위 페
 
 ## Canvas
 
-`createCanvas({model,input,onRun,onNotice,onAttach})` → `{element,activate,deactivate,closeMenu,destroy,getViewport,setViewport,focusBlock,addFile}`.
+`createCanvas({model,input,onRun,onNotice,onAttach,resolveSkill?,listSkills?})` → `{element,activate,deactivate,closeMenu,destroy,getViewport,setViewport,focusBlock,addFile,flushPendingEdits,refreshCatalog}`.
 
 - 표시/조작: 블럭 추가·확장·요청 입력·이동·삭제, 입력/출력 포트 클릭 또는 드래그 연결, 기존 연결 해제, 연결 선택·삭제, 정리·전체 보기·초기화·undo/redo.
 - 새 일반 블럭은 펼쳐서 추가한다. 실제 펼친 크기를 측정해 주변 빈 위치를 찾는다. **일반/파일 삽입은 카메라 위치·줌을 변경하지 않는다.** 빈 위치가 화면 밖이어도 자동 재정렬하지 않으며 전체 보기/정리/명시적 focusBlock으로 이동한다. main의 compact 크기·아이콘·색·자연어 입력 스타일을 기준으로 한다.
@@ -132,3 +132,11 @@ Shell은 기능 내부 DOM을 조회하지 않는다. Page Host는 최상위 페
 - 이 JSON은 **현재 beta의 로컬 편집 그래프**이지 실행기 IR, 서버가 확정한 자산, 업로드 파일 데이터 또는 Revision이 아니다. 실제 서버의 `need`·IR 해석·검증·사용자 권한·실행은 별도 계약으로 다룬다.
 - 추후 서버가 최신 캔버스를 요청하면 연결된 프론트의 독립된 통신 어댑터가 이 함수를 호출해 제공할 수 있다. 전송 프로토콜/연결 수명은 미구현이다. 브라우저가 끊긴 상태에서 최신 로컬 데이터를 즉시 가져올 수는 없으며, 이 경우 서버가 이미 확보한 요청별 자료를 활용해야 한다.
 - **이번 범위에서 제외:** 조작별 서버 동기화, 서버 승인/거부로 인한 로컬 롤백, Canvas DOM 직접 추출, 가짜 `need` 라우터·HTTP/SSE 엔드포인트.
+
+
+## 2026-10-19 최종 프론트 외부 변경 인터페이스
+
+- `workspaceController.getCanvasCommands()`는 현재 로컬 Workspace Model의 **검증된 명령만** 공개하는 작은 facade다: `addBlock(skillId,options)`, `updateBlock(blockId,patch)`, `deleteBlock(blockId)`, `connect(from,to)`, `disconnect(linkId)`. 명령은 Canvas의 지연 필드 입력을 먼저 적용한 후 기존 `workspace/model.js`를 호출한다. 기본 Model에서 발생하는 무결성 오류·반환 객체를 그대로 사용하고, UI는 Model 구독으로 갱신한다. 원본 상태를 복제해 따로 유지하지 않는다.
+- 이 함수는 **백엔드 Workroom ActionPlan/IR 형식이 아니라 프론트의 로컬 변경 API**다. 서버 모델의 임의 출력이나 검증되지 않은 JSON을 그대로 전달하지 않는다. 통신/권한·작업 수명·상호 편집 충돌·파일 업로드/실행 완료는 후속 백엔드 계약으로 결정한다.
+- 반대 방향의 읽기 함수는 `workspaceController.getDataAccess().exportCanvasJSON()`. 호출마다 현재 그래프를 직렬화하며 서버 승인을 기다리지 않는다. **상시 서버 동기화는 두 함수의 선행조건이 아니다.**
+- **브라우저 결합 확인 경로:** `tests/frontend/workspace-browser.test.mjs`에서 별도 Workspace 인스턴스를 생성해 `getCanvasCommands()`로 블럭 추가·이동·삭제하고 `exportCanvasJSON()`의 동일 상태/변경 후 상태를 검사하도록 회귀 시나리오를 추가했다. 실제 Chromium 실행 성공을 의미하지 않으며 브라우저 E2E는 별도로 실행해야 한다.
