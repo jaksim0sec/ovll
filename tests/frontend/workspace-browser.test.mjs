@@ -155,6 +155,30 @@ test('workspace restores rich drafts and graph, owns no server traffic, survives
  });
  assert.deepEqual(scopedWorkspaces,{a:1,b:0,x:45,roomA:'infra-a',roomB:'infra-b',
    storedA:1,storedB:0,commandRejected:true,readerRejected:true,stillAlive:'infra-b'});
+ // Damaged Canvas/draft cache rows are preserved instead of being replaced by empty data.
+ const protectedRecords=await page.evaluate(async()=>{
+   const {createWorkspace}=await import('/js/workspace/controller.js');
+   const {createInputManager}=await import('/js/input/inputManager.js');
+   const input=createInputManager(),root=document.createElement('section');document.body.append(root);
+   const writes=[];
+   const data={cache:{
+     read:async kind=>kind==='canvasState'?{value:null}:
+       kind==='chatDraft'?{value:{parts:[{type:'legacy',text:'unknown original'}],attachments:[]}}:null,
+     write:async kind=>{writes.push(kind);return {written:true};},
+     list:async()=>[]
+   },local:{read:async()=>null,write:async()=>{}}};
+   const workspace=await createWorkspace({root,data,input,roomId:'damaged-storage'});
+   const presentation=workspace.getPresentation();
+   root.append(...presentation.slides.map(slide=>slide.element),
+      ...presentation.stationary.map(item=>item.element));
+   const composer=presentation.stationary.find(item=>item.id==='composer').element;
+   composer.dispatchEvent(new Event('input',{bubbles:true}));
+   await workspace.flush();
+   const result={writes,status:root.querySelector('[data-save-state]').textContent};
+   workspace.destroy();input.destroy();root.remove();return result;
+ });
+ assert.deepEqual(protectedRecords.writes,[],'damaged source records must not be overwritten');
+ assert.notEqual(protectedRecords.status,'이 기기에 임시 저장됨');
  // A successful viewport save must not hide an unsuccessful graph save.
  const failureState=await page.evaluate(async()=>{
    const {createWorkspace}=await import('/js/workspace/controller.js');const {createInputManager}=await import('/js/input/inputManager.js');

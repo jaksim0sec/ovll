@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeDraft, hasDraftContent } from '../../front/js/composer/draft.js';
+import { normalizeDraft, hasDraftContent, isRestorableDraft } from '../../front/js/composer/draft.js';
 
 test('draft preserves typed references and literal text without a wire representation', () => {
   const draft = normalizeDraft({parts:[{type:'text',text:'<b>안녕</b>'},{type:'skill',id:'research',label:'조사'},{type:'text',text:'\n'},{type:'block',id:'block-1',label:'조사 1'}],attachments:[]});
@@ -15,4 +15,12 @@ test('normalization gives independent records and rejects unknown draft parts', 
   assert.equal(source.parts[3].label,'이름');assert.equal(source.attachments[0].name,'메모.txt');
   assert.equal(hasDraftContent({parts:[{type:'text',text:' \n'}],attachments:[]}),false);
   assert.equal(hasDraftContent({parts:[],attachments:[{name:'file.txt'}]}),true);
+});
+
+test('invalid persisted draft is rejected before permissive normalization could lose content',()=>{
+  assert.equal(isRestorableDraft({parts:[{type:'text',text:'hello'},{type:'skill',id:'write',label:'작성'}],attachments:[]}),true);
+  assert.equal(isRestorableDraft({parts:[{type:'legacy',text:'precious'}],attachments:[]}),false);
+  assert.equal(isRestorableDraft({parts:'not-an-array',attachments:[]}),false);
+  assert.equal(isRestorableDraft({parts:[],attachments:[{name:'file.txt',size:-5}]}),false);
+  assert.equal(isRestorableDraft(null),false);
 });
