@@ -80,7 +80,7 @@ Shell은 기능 내부 DOM을 조회하지 않는다. Page Host는 최상위 페
 
 ## 저장과 미구현 경계
 
-기존 IndexedDB 어댑터를 사용한다. roomId는 임시 단일 방 `beta-local-workspace`, itemId는 `state`.
+기존 IndexedDB 어댑터를 사용한다. `createWorkspace({roomId?})`의 기본 roomId는 `beta-local-workspace`이고, 다른 유효한 문자열을 지정하면 Canvas·초안·Viewport가 별도 키로 보관된다. Boot는 여전히 기본 임시 방 하나만 생성한다. cache itemId는 `state`.
 
 | 데이터 | 저장 |
 |---|---|
@@ -140,3 +140,11 @@ Shell은 기능 내부 DOM을 조회하지 않는다. Page Host는 최상위 페
 - 이 함수는 **백엔드 Workroom ActionPlan/IR 형식이 아니라 프론트의 로컬 변경 API**다. 서버 모델의 임의 출력이나 검증되지 않은 JSON을 그대로 전달하지 않는다. 통신/권한·작업 수명·상호 편집 충돌·파일 업로드/실행 완료는 후속 백엔드 계약으로 결정한다.
 - 반대 방향의 읽기 함수는 `workspaceController.getDataAccess().exportCanvasJSON()`. 호출마다 현재 그래프를 직렬화하며 서버 승인을 기다리지 않는다. **상시 서버 동기화는 두 함수의 선행조건이 아니다.**
 - **브라우저 결합 확인 경로:** `tests/frontend/workspace-browser.test.mjs`에서 별도 Workspace 인스턴스를 생성해 `getCanvasCommands()`로 블럭 추가·이동·삭제하고 `exportCanvasJSON()`의 동일 상태/변경 후 상태를 검사하도록 회귀 시나리오를 추가했다. 실제 Chromium 실행 성공을 의미하지 않으며 브라우저 E2E는 별도로 실행해야 한다.
+
+
+## Workspace 수명·멀티 룸 계약 보강 (2026-10-19)
+
+- `createWorkspace({root,data,input,roomId?,skillCatalog?,onSubmitRequest?,onRunBlock?})`: `root`·`input`·`data` 필수 의존성과 비어 있지 않은 문자열 `roomId`를 먼저 검증한다. `getRoomId()`는 현재 인스턴스에 고정된 식별자를 읽는다. 기본 roomId는 기존 값 유지, 멀티 룸 화면/사용자 계정 정책을 임의 추가하지 않는다.
+- 주입 `skillCatalog`는 `{get(id),list()}` 두 함수를 모두 제공해야 하며 내부 `this`를 사용하는 객체도 동작하도록 메서드 receiver를 보존한다. 이 공급 슬롯은 프론트 표시 정의일 뿐 서버 Skill 버전 계약이 아니다.
+- `workspace.destroy()` 후 `getCanvasCommands()`의 기존 참조를 포함한 `addBlock/updateBlock/deleteBlock/connect/disconnect`는 명시적으로 실패한다. `getDataAccess()`의 기존 참조로 수행하는 동기·비동기 읽기도 종료 후 결과를 반환하지 않는다. `getPresentation/getRoomId` 및 Chat setter/Skill refresh 역시 종료 후 재사용 불가. `flush()`는 종료 전 큐의 저장 완료를 대기할 용도로 유지한다.
+- `tests/frontend/workspace-browser.test.mjs`에는 **다른 두 roomId**의 모델·캐시 격리, 종료 후 기존 공개 인터페이스 거부를 검증하는 브라우저 회귀 시나리오를 추가했다. `tests/frontend/workspace-data-access.test.mjs`에는 종료 중 비동기 캐시 조회의 늦은 결과 거부를 확인한다. 최신 Chromium 실제 실행은 별도 검증 필요.

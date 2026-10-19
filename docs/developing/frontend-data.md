@@ -58,3 +58,11 @@ Workspace `getDataAccess()`는 현재 모델·Composer·기존 IDB 캐시를 읽
 기존 캐시의 `written:false` 반환은 Workspace가 저장 실패로 알린다. **서버 확정 캐시를 provisional 저장이 덮지 않았다는 사실**을 숨기지 않는다.
 
 - 요청 시 JSON 내보내기는 `workspace.getDataAccess().exportCanvasJSON()`에서 기존 `readCanvasSnapshot()`의 결과를 직렬화하는 방식이다. 이 조회 자체는 IndexedDB 서버 캐시 조회나 원격 동기화가 아니며, 별도의 실행 IR/서버 상태 원본을 만들지 않는다. `workspace.getCanvasCommands()`는 별도 로컬 그래프 변경 공개 경계로, 서버 저장/업로드/검증 완료가 아니다.
+
+
+## 저장소 초기화 예외 처리 보강 (2026-10-19)
+
+- IndexedDB 업그레이드가 다른 탭에 막히면 호출에 오류를 반환한다. **이미 오류를 보고한 기존 열기 요청이 나중에 `onsuccess`를 받아도 DB를 즉시 닫고 연결 원본으로 다시 등록하지 않는다.** 실패한 연결과 새로운 재시도 연결이 섞이지 않는다.
+- 앱 최종 종료는 Canvas가 유예 중 입력을 모델에 기록한 다음 `Workspace.flush()` 저장 큐를 기다린 뒤 `data.destroy()`로 DB를 닫는다. 종료 과정에서 한 모듈 정리에 예외가 나도 DB 종료를 생략하지 않는다.
+- 개별 Workspace마다 독립 `roomId` 키로 cache/local 데이터에 접근한다. 이것은 한 브라우저의 **로컬 작업 공간 분리**일 뿐, 서버 사용자 인증이나 공동 편집/원격 동기화 계약을 의미하지 않는다.
+- `tests/frontend/local-data-store.test.mjs`는 막힌 업그레이드의 늦은 성공/종료 후 지연 성공이 연결을 남기지 않는지 검사한다.

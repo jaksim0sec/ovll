@@ -135,3 +135,14 @@ canvas.deleteBlock(block.id);
 - 브라우저 전체 Playwright 실행, 서버 연동 E2E 및 모바일 Safari/Android IME 실기기 검증
 
 **다음 담당자의 실행 순서:** `AGENTS.md` 확인 → 이 문서의 실코드 API 위치 확인 → *서버가 소유하는 데이터와 프론트에 질의할 데이터 구별* → IR 및 need 조회/권한 계약 확정 → 실제 통신/실행 계층 구현 → Workspace 공개 인터페이스로 연결 → 실서버·실기기 검증. **비어 있는 api.js·동기화 매니저·가짜 서버 응답으로 구현 완료를 주장하지 않는다.**
+
+
+## 6. 프론트 인프라 안정성 보강 — 최종 구현 사실 (2026-10-19)
+
+- **방 범위:** `createWorkspace({root,data,input,roomId?})`의 기본 `roomId='beta-local-workspace'`. Workspace 인스턴스별 Model/초안/카메라/IDB 키가 격리된다. `getRoomId()` 조회 제공. Boot는 아직 하나의 로컬 방만 사용; 사용자 방 선택·서버 ID/권한 정책은 정해지지 않았다.
+- **상태/서비스 주입:** 주입 `skillCatalog:{get(id),list()}`는 둘 다 필요하며 객체 메서드의 `this`를 유지한다. 요청/블럭 실행은 기존 `onSubmitRequest(draft)`/`onRunBlock(blockId)`를 선택적 주입한다. 실행/통신은 기본값에서 여전히 연결되지 않는다.
+- **생명주기:** 종료된 Workspace가 외부 명령·조회·Chat setter를 계속 받아 임시 상태를 바꾸는 문제를 막았다. 이전에 획득한 CanvasCommands/DataAccess도 종료 후 거부된다. 캐시 조회가 비동기 완료돼도 종료 후 결과는 반환하지 않는다.
+- **초기화·종료:** `boot.js`의 부분 생성 실패 시 각 소유자를 계속 정리한다. 실제 pagehide에서는 종료 중 Canvas의 마지막 입력 flush → 비동기 저장 완료 → IndexedDB 닫기 순서를 지킨다. BFCache 보존 진입은 앱을 파괴하지 않는다.
+- **저장소:** 실패한 IndexedDB 업그레이드가 늦게 성공한 경우 DB를 즉시 닫아 재시도 중인 연결을 덮지 않는다. 기존 서버확정/provisional 가드와 데이터 도메인 분리는 유지.
+- **검증:** Workspace/DataAccess/채팅·Library 투영, 막힌 IndexedDB 단위검사 총 **9개**를 분리 JS 실행 환경에서 검증했고, 모의 Workspace 다중 방/종료·모의 Boot 초기화 실패/정리 순서도 확인했다. 기존 `tests/frontend/workspace-browser.test.mjs`에 roomId 격리와 stale handle 검증을 추가했으나 **실제 Chromium 종단 테스트는 미실행**.
+- **상태 구분:** 이 보강으로 **기본 프론트 소유권/초기화·종료/로컬 방/외부 연결 기반**을 완성한 것이지, 서버 HTTP/SSE/실행 IR/need 조회/실제 Chat·Library 데이터/파일 업로드, PWA 서비스워커, 모바일 실기기 안정성을 완성한 것은 아니다. 그런 미확정 기능을 의도적으로 임의 구현하지 않는다.

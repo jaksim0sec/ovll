@@ -13,7 +13,7 @@
 
 | 파일 | 소유·책임 |
 |---|---|
-| `front/index.html` | 앱 루트, 글로벌 메뉴·헤더, 빈 페이지를 복제할 두 template, 로딩 상태 |
+| `front/index.html` | 앱 루트, 글로벌 메뉴·헤더, Workspace용 template 하나, 로딩 상태. Library는 JS 컨트롤러 소유 |
 | `front/css/base.css` | 색상·간격·반경·모션·안전 영역 토큰, 시스템 폰트·기본 버튼·아이콘, OS 테마 |
 | `front/css/shell.css` | 메뉴·헤더·페이지 영역 배치, 글로벌 내비게이션 상태, 빈 페이지 표시 |
 | `front/js/boot.js` | 인스턴스 생성·공개 API 연결, 두 빈 페이지 등록, 첫 진입·문서 이탈 정리 |
@@ -96,7 +96,7 @@
 ## 부팅·종료
 
 1. input 생성 → Page Host 생성 → App Shell 생성·콜백 연결.
-2. 두 HTML template의 루트를 복제해 Host에 등록 → 앱 표시 → Workspace 활성화 → 로딩 표시 숨김.
+2. Workspace HTML template을 복제하고 Library 컨트롤러가 생성한 루트를 Host에 등록 → 앱 표시 → Workspace 활성화 → 로딩 표시 숨김.
 3. 초기화 실패 시 생성된 인스턴스를 해제하고 앱 대신 실패 문구 표시·콘솔 오류 기록.
 4. `pagehide.persisted === true`이면 활성 입력만 취소한다. BFCache에서 돌아올 인스턴스는 보존한다.
 5. 일반 pagehide는 boot 리스너 해제 → Host 종료 → Shell 종료 → Input Manager 종료. 등록한 앱 객체·전역 리스너를 남기지 않는다.
@@ -200,3 +200,26 @@
 - Workspace가 `createChat()`로 Chat 환영 화면과 확정 레코드·요청별 진행 상태를 관리하고, Boot는 기존 Workspace 공개 `getPresentation()` 구성을 그대로 사용한다. Composer는 고정 bottom 슬롯에 계속 유지된다.
 - Shell/Hosted Slides/Input Manager는 **Chat 메시지와 Library 자산 데이터를 저장하거나 해석하지 않는다**. 표시용 데이터는 각 소유 모듈에서 검증해 DOM textContent로 출력한다. 서버 API/SSE/Library 자산 공급은 아직 없음.
 - 초반의 'Library는 임시 샘플 카드', 'Chat은 시작 화면만' 기술은 **이후 2026-10-19 구현 전 상태**를 설명한다. 현재 동작 판단은 이 절과 실제 소스가 우선한다.
+
+
+## 프론트 기본 인프라 책임·수명 보강 (2026-10-19)
+
+| 계층 | 상태·책임 소유자 | 공개 연결 / 넘지 말아야 할 경계 |
+| --- | --- | --- |
+| Entry/조립: `boot.js` | 모듈 생성 순서, 페이지/슬라이드 URL·History, 의존성 연결, 전체 종료 | Shell/Canvas DOM을 파헤치지 않으며 서버/IR/Workroom 정책을 소유하지 않음 |
+| Global Shell | 앱 프레임·메뉴·가시 뷰포트·테마 적용 지점 | Page ID·Chat 메시지·Canvas 데이터의 원본 아님 |
+| Page Host | 최상위 `workspace/library` 페이지, 재진입별 AbortSignal | 하위 Hosted Slide/Composer 입력 상태 소유 안 함 |
+| Hosted Slides | 활성 페이지의 slide·pill·stationary 슬롯, 내부 페이지 제스처 | 페이지 정체성·서버 요청·Canvas 편집 원본 소유 안 함 |
+| Input Manager | 포인터 입력의 단일 소유자·취소/해제 | Canvas 편집 의미·Graph/IR를 해석하지 않음 |
+| Theme | `system/dark/light` 사용자 선택과 CSS 입력 | 컴포넌트별 임의 색/레이아웃 원본 아님 |
+| Workspace | Composer·Canvas·Chat 조립, 로컬 방 범위, 외부 공개 인터페이스 | 서버 저장·need·실행 IR·실시간 동기화 금지 |
+| Workspace Model / DataAccess | 모델은 편집 graph·undo를 소유, DataAccess는 호출 시점에 읽고 JSON 반환 | 새 이중 상태/서버 검증기를 두지 않음 |
+| Composer / Canvas / Chat | 각각 편집·제스처/블럭 표시·대화/진행 표시 | 다른 컴포넌트의 DOM 직접 조작 금지 |
+| Library | 공급된 항목의 표시·빈 상태·수명 | 자산 원본·HTTP·저장 Function 처리 아님 |
+| Local Data Store | 임시 cache와 순수 로컬 설정/Viewport 분리 | 서버가 실제 확인한 데이터만 `source:'server'`, 요청 처리/전송 큐 아님 |
+
+- **부팅 실패:** 초기화 중 생성된 소유자는 각각 독립적으로 정리한다. 한 페이지의 `onLeave` 등 정리 오류가 나도 다른 인스턴스 정리를 계속한다. 앱은 실패 상태를 표시하고, 실제 오류는 콘솔에 남긴다.
+- **종료:** `pagehide`에서 BFCache 보존일 경우 입력/임시 UI를 취소하고 앱은 유지한다. 실제 종료 시 page/deactivate·Canvas/Composer의 유예 입력 flush → Workspace 종료 → `Workspace.flush()`의 비동기 저장 완료 → IndexedDB 닫기 순서. 종료는 중복 실행되지 않는다.
+- **멀티 룸 준비:** `createWorkspace({root,data,input,roomId?})`의 기본값은 `beta-local-workspace`. 주입된 유효한 roomId별로 Model/초안/Viewport 저장·조회 키를 분리한다. Boot의 페이지 선택은 아직 한 임시 방만 사용하며 계정/방 선택 UI·서버 Room ID 정책은 없다.
+- **외부 통합:** `workspace.getDataAccess()`, `getCanvasCommands()`, `setConfirmedChatRecords()`, `setRequestActivities()`, `getRoomId()` 및 Library 표시 함수만 사용한다. 작업실 AI 출력/JSON을 무검증으로 이 인터페이스에 직접 적용하지 않는다. 종료된 Workspace/Chat/Library는 이후 외부 명령을 거부하며, 이전에 획득한 DataAccess/CanvasCommands 객체도 더는 현재 상태인 척 조작하지 못한다.
+- **검증 경계:** 로컬 단위·모의 수명 검증과 브라우저 회귀 시나리오 파일을 추가·확인했지만, 최신 변경분의 전체 Chromium·Android/iOS 실기기 실행은 하지 않았다. PWA 서비스워커, 네트워크 연결, 실제 백엔드/IR/need·자산 동기화는 이 기반 작업에서 구현하지 않았다.
