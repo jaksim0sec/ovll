@@ -154,3 +154,7 @@ canvas.deleteBlock(block.id);
 ## 2026-10-23 독립 엔진 갱신
 
 `back/js/request/` 메모리 요청 등록·대기열, `back/js/engine/` 독립 판단 엔진·자료 공급·프롬프트 조립, `back/js/model/gemini.js` 공급자 전용 호출기, `back/js/demo.js` 단일 요청 진입점이 추가되었다. `front/js/workspace/requestInput.js`는 구조화된 Skill/Skill Block 직접 참조를 요청 시작 시 읽는 별도 함수다. 이 변경은 **실제 프론트↔서버 연결을 뜻하지 않는다**. `boot.js`는 연결되지 않았고, HTTP/SSE/DB/Workshop·IR은 여전히 미구현이다. 세부 계약과 테스트: `docs/developing/request-engine.md`.
+
+## 2026-10-23 Render 시험용 HTTP 연결 추가
+
+이 시점 이전에 작성한 ‘Boot 요청 미연결’, ‘백엔드 HTTP 없음’ 설명은 과거 사실이다. 현재 `beta`에서는 `back/js/server.js`와 `httpServer.js`가 동일 origin의 `front/` 정적 파일/인증된 요청 POST·상태 GET을 제공한다. `front/js/workspace/requestBridge.js`와 `boot.js`는 구조화 초안 전송·Gate/Hallway 상태 폴링·Chat 진행/최종 응답을 연결한다. Web Service 환경변수는 `GEMINI_API_KEY`, `GEMINI_MODEL`, `OVLL_TEST_TOKEN`이며 `package.json`, `render.yaml`이 `beta`에 있다. 범위/명세: `docs/developing/render-test-bridge.md`. 이는 실제 Render/Gemini 배포 성공, SSE, 사용자 인증, DB·IR·Workshop 구현을 의미하지 않는다.
