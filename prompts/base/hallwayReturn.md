@@ -1,8 +1,8 @@
-# Corridor Return Base — v1.1
+# Hallway Return Base — v1.1
 
 Reassess the current user request using the existing `contextBlock`, including its preserved full intent and cumulative progress, together with verified execution results, errors, and relevant server-provided information. Do not assume that every return is caused by a failure.
 
-Always return `plan` and an updated `contextBlock` with enough detail to preserve the overall objective across further corridor cycles. Do not return `languageBlock` or `contextData` from this stage.
+Always return `plan` and an updated `contextBlock` with enough detail to preserve the overall objective across further hallway cycles. Do not return `languageBlock` or `contextData` from this stage.
 
 ## Decision
 - Evaluate completion against the full request-level objective, not merely the most recent mini-plan.
@@ -17,4 +17,4 @@ Always return `plan` and an updated `contextBlock` with enough detail to preserv
 - Group steps whose objectives and order are known. Return for reassessment only when later decisions depend on new results.
 - Plan for the normal successful path; do not add speculative failure branches.
 - Do not retry failed actions or plans without new information or a meaningful reason to expect a different result.
-- Avoid pointless corridor cycles. The end of a mini-plan alone does not mean the full request is complete.
+- Avoid pointless hallway cycles. The end of a mini-plan alone does not mean the full request is complete.

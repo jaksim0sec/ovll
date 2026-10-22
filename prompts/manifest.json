@@ -7,18 +7,18 @@
       "common/json.md",
       "blocks/informationRequest.md"
     ],
-    "corridorInitial": [
+    "hallwayInitial": [
       "common/concepts.md",
-      "base/corridorInitial.md",
+      "base/hallwayInitial.md",
       "common/json.md",
       "blocks/languageGeneration.md",
       "blocks/planGeneration.md",
       "blocks/contextBlockUpdate.md",
       "blocks/contextDataUpdate.md"
     ],
-    "corridorReturn": [
+    "hallwayReturn": [
       "common/concepts.md",
-      "base/corridorReturn.md",
+      "base/hallwayReturn.md",
       "common/json.md",
       "blocks/planGeneration.md",
       "blocks/contextBlockUpdate.md"
