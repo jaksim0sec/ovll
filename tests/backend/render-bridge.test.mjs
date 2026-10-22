@@ -64,3 +64,46 @@ test('Chat bridge shows remote Gate and Hallway states before confirmed assistan
   assert.ok(shown.some(s=>s.includes('Gate')));assert.ok(shown.some(s=>s.includes('Hallway')));
  }finally{transport.destroy();}
 });
+
+test('test access token is optional and no-token API accepts requests',async()=>{
+ const scheduler={
+  enqueue(input){return {roomId:input.roomId,requestId:'no-token-request',completion:Promise.resolve()};},
+  get(room,id){return {roomId:room,requestId:id,status:'queued',currentLayer:'gate'};}
+ };
+ const server=createRequestHttpServer({scheduler});
+ await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+ try{
+  const origin='http://127.0.0.1:'+server.address().port;
+  const response=await fetch(origin+'/api/requests',{method:'POST',body:JSON.stringify(request)});
+  assert.equal(response.status,202);
+  const payload=await response.json();
+  assert.equal(payload.requestId,'no-token-request');
+ }finally{await new Promise(resolve=>server.close(resolve));}
+});
+test('bridge only asks for optional test token after server responds 401',async()=>{
+ const plain={parts:[{type:'text',text:'hi'}],attachments:[]};
+ const access={readCanvasSnapshot:()=>({snapshot:{blocks:[]}}),readSkillCatalog:()=>({definitions:[]})};
+ let attempts=0,prompts=0,auths=[];
+ const bridge=createRequestBridge({pollDelay:2000,promptForToken:()=>{prompts++;return 'private-test-key';},fetchImpl:async(url,options)=>{
+  if(url!=='/api/requests')return {ok:true,status:200,json:async()=>({roomId:'r',requestId:'req',status:'queued',currentLayer:'gate'})};
+  attempts++;auths.push(options.headers.authorization);
+  return attempts===1?{ok:false,status:401,json:async()=>({error:'UNAUTHORIZED'})}:{ok:true,status:202,json:async()=>({roomId:'r',requestId:'req'})};
+ }});
+ try{
+  assert.deepEqual(await bridge.submit({draft:plain,roomId:'r',dataAccess:access}),{accepted:true});
+  assert.equal(prompts,1);assert.deepEqual(auths,[undefined,'Bearer private-test-key']);
+ }finally{bridge.destroy();}
+});
+test('without a test token the bridge sends without prompting',async()=>{
+ const plain={parts:[{type:'text',text:'hi'}],attachments:[]};
+ const access={readCanvasSnapshot:()=>({snapshot:{blocks:[]}}),readSkillCatalog:()=>({definitions:[]})};
+ let prompted=false,authorization;
+ const bridge=createRequestBridge({pollDelay:2000,promptForToken:()=>{prompted=true;return 'unused';},fetchImpl:async(url,options)=>{
+  if(url==='/api/requests')authorization=options.headers.authorization;
+  return {ok:true,status:202,json:async()=>({roomId:'r',requestId:'req'})};
+ }});
+ try{
+  assert.deepEqual(await bridge.submit({draft:plain,roomId:'r',dataAccess:access}),{accepted:true});
+  assert.equal(authorization,undefined);assert.equal(prompted,false);
+ }finally{bridge.destroy();}
+});
