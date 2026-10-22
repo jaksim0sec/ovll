@@ -32,14 +32,14 @@ async function readJsonBody(req){
 }
 /** Minimal authenticated, same-origin test boundary; queue belongs to the scheduler. */
 export function createRequestHttpServer({scheduler,testToken,frontRoot=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../../front')}={}){
- if(!scheduler?.enqueue||!scheduler?.get||typeof testToken!=='string'||testToken.length<16)throw new TypeError('Scheduler and test token (16+ chars) required');
+ if(!scheduler?.enqueue||!scheduler?.get||(testToken!==undefined&&typeof testToken!=='string'))throw new TypeError('Scheduler and test token (16+ chars) required');
  const root=path.resolve(frontRoot);let activeCount=0;
  return createServer(async(req,res)=>{
   try{
    const url=new URL(req.url,'http://localhost');const pathname=url.pathname;
    if(pathname==='/api/health'&&req.method==='GET')return json(res,200,{ok:true,service:'ovll-beta',memoryOnly:true});
    if(pathname.startsWith('/api/')){
-    if(!sameString(req.headers.authorization,'Bearer '+testToken))return json(res,401,{error:'UNAUTHORIZED'});
+    if(testToken && !sameString(req.headers.authorization,'Bearer '+testToken))return json(res,401,{error:'UNAUTHORIZED'});
     if(pathname==='/api/requests'&&req.method==='POST'){
      if(activeCount>=6)return json(res,429,{error:'QUEUE_BUSY'});
      const body=await readJsonBody(req);

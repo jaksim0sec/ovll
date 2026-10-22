@@ -18,12 +18,12 @@ export function createRequestBridge({fetchImpl=globalThis.fetch,promptForToken=(
  if(typeof fetchImpl!=='function'||typeof promptForToken!=='function')throw new TypeError('Browser transport requires fetch and token prompt');
  const records=[],activities=new Map(),timers=new Set();let token='',destroyed=false;
  const refresh=()=>{if(!destroyed){onRecords(records.map(x=>({...x})));onActivities([...activities.values()].map(x=>({...x})));}};
- const activate=async()=>{
-  if(token)return true;
+ const authorize=async()=>{
   const typed=await promptForToken();
   if(typeof typed!=='string'||!typed.trim())return false;
   token=typed.trim();return true;
  };
+ const authHeaders=()=>token?{authorization:'Bearer '+token}:{};
  async function readResponse(response){
   try{return await response.json();}catch{return {};}
  }
@@ -36,7 +36,7 @@ export function createRequestBridge({fetchImpl=globalThis.fetch,promptForToken=(
   let next;
   try{
    const response=await fetchImpl('/api/requests/'+encodeURIComponent(requestId)+'?roomId='+encodeURIComponent(roomId),{
-    headers:{authorization:'Bearer '+token},cache:'no-store'
+    headers:authHeaders(),cache:'no-store'
    });
    if(!response.ok){
     if(response.status===401)token='';
@@ -66,13 +66,18 @@ export function createRequestBridge({fetchImpl=globalThis.fetch,promptForToken=(
  }
  async function submit({draft,roomId,dataAccess}){
   if(destroyed)return {accepted:false,message:'작업실이 닫혔습니다.'};
-  if(!await activate())return {accepted:false,message:'테스트 접근키가 없어 전송하지 않았습니다.'};
   let body;
   try{body=prepareRequestInput({draft,dataAccess});}
   catch{return {accepted:false,message:'첨부된 Skill 또는 Canvas 자료를 읽지 못했습니다.'};}
   let response,payload;
   try{
-   response=await fetchImpl('/api/requests',{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+token},body:JSON.stringify({roomId,...body}),cache:'no-store'});
+   const send=()=>fetchImpl('/api/requests',{method:'POST',headers:{'content-type':'application/json',...authHeaders()},body:JSON.stringify({roomId,...body}),cache:'no-store'});
+   response=await send();
+   if(response.status===401){
+    token='';
+    if(!await authorize())return {accepted:false,message:'접근키가 없어 전송하지 않았습니다.'};
+    response=await send();
+   }
    payload=await readResponse(response);
   }catch{return {accepted:false,message:'서버에 연결할 수 없습니다. 잠시 후 다시 전송해 주세요.'};}
   if(destroyed)return {accepted:false,message:'작업실이 닫혔습니다.'};
