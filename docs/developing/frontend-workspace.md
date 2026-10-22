@@ -108,7 +108,7 @@ Shell은 기능 내부 DOM을 조회하지 않는다. Page Host는 최상위 페
   - `readSkillCatalog()` → `{source:'local-presentation-catalog',definitions:[...]}`.
   - `readComposerDraft()` → `{roomId,source:'local-unsent-draft',parts,attachments}`. 참조는 typed parts, 첨부는 로컬 File/Blob 없이 메타데이터·보유 여부만.
   - `readCached(kind,{limit?})` → 기존 `roomInfo/chatRecord/chatDraft/contextData/canvasState` 캐시. `chatRecord`는 IDB **키 순서**(시간순 아님), `contextData`가 없으면 null. 요청별 `contextBlock`은 임의 클라이언트 상태로 생성하지 않는다.
-- **Gate/Workroom need 조회는 서버가 권한/버전을 확인한 원본 Canvas/Skill/IR/채팅/맥락 자산에서 해결한다.** 로컬 검사 API는 네트워크 전송도 need datasetName 해석도 하지 않으며 서버 원본이 아니다.
+- **Gate/Workshop need 조회는 서버가 권한/버전을 확인한 원본 Canvas/Skill/IR/채팅/맥락 자산에서 해결한다.** 로컬 검사 API는 네트워크 전송도 need datasetName 해석도 하지 않으며 서버 원본이 아니다.
 - IDB 캐시가 `{written:false}`를 반환하면 Workspace는 기존 저장을 성공 처리하지 않고 사용자에게 실패를 알린다. 서버가 소유한 캐시를 provisional 변경으로 덮었다고 주장하지 않는다.
 - 백엔드 실행·HTTP/SSE·실제 Chat·Library·Server IR/Revision·업로드·동시성·오프라인 동기화는 **아직 없음**.
 
@@ -137,7 +137,7 @@ Shell은 기능 내부 DOM을 조회하지 않는다. Page Host는 최상위 페
 ## 2026-10-19 최종 프론트 외부 변경 인터페이스
 
 - `workspaceController.getCanvasCommands()`는 현재 로컬 Workspace Model의 **검증된 명령만** 공개하는 작은 facade다: `addBlock(skillId,options)`, `updateBlock(blockId,patch)`, `deleteBlock(blockId)`, `connect(from,to)`, `disconnect(linkId)`. 명령은 Canvas의 지연 필드 입력을 먼저 적용한 후 기존 `workspace/model.js`를 호출한다. 기본 Model에서 발생하는 무결성 오류·반환 객체를 그대로 사용하고, UI는 Model 구독으로 갱신한다. 원본 상태를 복제해 따로 유지하지 않는다.
-- 이 함수는 **백엔드 Workroom ActionPlan/IR 형식이 아니라 프론트의 로컬 변경 API**다. 서버 모델의 임의 출력이나 검증되지 않은 JSON을 그대로 전달하지 않는다. 통신/권한·작업 수명·상호 편집 충돌·파일 업로드/실행 완료는 후속 백엔드 계약으로 결정한다.
+- 이 함수는 **백엔드 Workshop ActionPlan/IR 형식이 아니라 프론트의 로컬 변경 API**다. 서버 모델의 임의 출력이나 검증되지 않은 JSON을 그대로 전달하지 않는다. 통신/권한·작업 수명·상호 편집 충돌·파일 업로드/실행 완료는 후속 백엔드 계약으로 결정한다.
 - 반대 방향의 읽기 함수는 `workspaceController.getDataAccess().exportCanvasJSON()`. 호출마다 현재 그래프를 직렬화하며 서버 승인을 기다리지 않는다. **상시 서버 동기화는 두 함수의 선행조건이 아니다.**
 - **브라우저 결합 확인 경로:** `tests/frontend/workspace-browser.test.mjs`에서 별도 Workspace 인스턴스를 생성해 `getCanvasCommands()`로 블럭 추가·이동·삭제하고 `exportCanvasJSON()`의 동일 상태/변경 후 상태를 검사하도록 회귀 시나리오를 추가했다. 실제 Chromium 실행 성공을 의미하지 않으며 브라우저 E2E는 별도로 실행해야 한다.
 

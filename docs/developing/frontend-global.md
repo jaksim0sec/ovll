@@ -206,7 +206,7 @@
 
 | 계층 | 상태·책임 소유자 | 공개 연결 / 넘지 말아야 할 경계 |
 | --- | --- | --- |
-| Entry/조립: `boot.js` | 모듈 생성 순서, 페이지/슬라이드 URL·History, 의존성 연결, 전체 종료 | Shell/Canvas DOM을 파헤치지 않으며 서버/IR/Workroom 정책을 소유하지 않음 |
+| Entry/조립: `boot.js` | 모듈 생성 순서, 페이지/슬라이드 URL·History, 의존성 연결, 전체 종료 | Shell/Canvas DOM을 파헤치지 않으며 서버/IR/Workshop 정책을 소유하지 않음 |
 | Global Shell | 앱 프레임·메뉴·가시 뷰포트·테마 적용 지점 | Page ID·Chat 메시지·Canvas 데이터의 원본 아님 |
 | Page Host | 최상위 `workspace/library` 페이지, 재진입별 AbortSignal | 하위 Hosted Slide/Composer 입력 상태 소유 안 함 |
 | Hosted Slides | 활성 페이지의 slide·pill·stationary 슬롯, 내부 페이지 제스처 | 페이지 정체성·서버 요청·Canvas 편집 원본 소유 안 함 |
