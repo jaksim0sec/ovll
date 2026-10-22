@@ -13,7 +13,7 @@
 /
 ├── AGENTS.md
 ├── assets/svg/                     # 현재 .gitkeep만 존재
-├── back/js/                        # request/{registry,scheduler}, engine/{promptComposer,dataProvider,engine}, model/gemini, demo.js
+├── back/js/                        # request/{registry,scheduler}, engine/{promptComposer,dataProvider,engine}, model/gemini, demo.js, httpServer.js, server.js
 ├── docs/
 │   ├── VISION.md
 │   ├── developing/
@@ -65,13 +65,13 @@
 │   ├── common/                     # concepts.md, json.md
 │   └── manifest.json
 └── tests/
-    ├── backend/                    # request, engine, Gemini, prompt terminology 회귀 테스트
+    ├── backend/                    # request, engine, Gemini, Render HTTP/Chat 시험
     └── frontend/                   # canvas, composer, hosted, input, shell,
                                     # theme, viewport, workspace 관련 *.test.mjs
 ```
 
 ## 경로와 역할
-- `back/`: 백엔드. `back/js/`는 서버·API·실행 로직(JS)을 책임에 따라 분리할 위치. **Gate → Hallway Initial 독립 요청 엔진 프로토타입 구현**; Gemini 모델 호출기·메모리 등록소/대기열·자료 공급 인터페이스·CLI 시연만 존재. 서버 HTTP/SSE/DB/Workshop 실행·IR은 아직 없음.
+- `back/`: 백엔드. `back/js/`는 서버·API·실행 로직(JS)을 책임에 따라 분리할 위치. **Gate → Hallway Initial 독립 요청 엔진 + Render 시험 HTTP 서버 구현**. 서버는 `back/js/server.js`에서 `front/`와 `/api/requests`를 함께 제공하며 Chat 폴링으로 진행을 표시한다. SSE·DB·정식 사용자 인증·Workshop 실행·IR은 아직 없음.
 - `front/`: 웹/PWA 정적 배포 루트. `index.html`은 현재 진입 파일이며 `manifest.webmanifest`, `vercel.json`은 배포·PWA 설정. 필수 루트 파일 외 앱 코드·일반 스타일을 루트에 쌓지 말 것.
 - `front/html/`: 별도 HTML 문서·페이지 구조용 위치. **현재 구현 파일 없음**. 실제 화면 구조는 `front/index.html`에도 존재하므로 이전을 임의 강제하지 말 것.
 - `front/js/`: 부팅(`boot.js`), 셸·페이지 호스트(`shell/`), 캔버스(`canvas/`), 컴포저(`composer/`), 워크스페이스(`workspace/`), 라이브러리(`library/`), 스킬 목록(`skill/`), 로컬 데이터(`data/`), 입력(`input/`), 테마(`settings/`) 등 프론트 로직. 기능 변경 시 해당 영역의 실제 코드와 경계를 확인.
@@ -109,4 +109,10 @@
 ## 백엔드 독립 프로토타입 (2026-10-23)
 - 구현 명세: `docs/developing/request-engine.md`; 구현 계획: `docs/superpowers/plans/2026-10-23-independent-request-engine.md`.
 - 단위검사: `node --test tests/backend/*.test.mjs`; 실제 Gemini는 `GEMINI_API_KEY`와 `GEMINI_MODEL` 환경변수를 설정한 뒤 `node back/js/demo.js`. 키·모델을 저장소에 기록하지 말 것.
-- `front/js/workspace/requestInput.js`는 직접 참조 Skill/Skill Block의 자료를 추출하는 독립 준비 함수; 현재 `boot.js` 연결과 실서버 HTTP/SSE는 여전히 미구현.
+- `front/js/workspace/requestInput.js`는 직접 참조 Skill/Skill Block의 자료를 추출하는 독립 준비 함수; 현재 `boot.js`는 `requestBridge.js`의 HTTP 요청 전송·상태 폴링에 연결되어 있음. SSE는 미구현.
+
+## Render 단일 웹서비스 시험 (2026-10-23)
+- `beta` 전용 `package.json`/`render.yaml`. `npm start`로 `back/js/server.js` 실행, `GET /api/health`로 준비 상태 확인.
+- `GEMINI_API_KEY`, `GEMINI_MODEL`, `OVLL_TEST_TOKEN`(16자 이상) 환경변수 필수. 테스트 키는 Gemini 키와 다르며 브라우저 JS에 넣지 않음.
+- `front/js/workspace/requestBridge.js`는 `boot.js`가 기존 Composer 콜백·Chat 표시 제어자로 연결. 접수/진행/완료를 서버 HTTP에서만 판정하며 Render의 동일 origin에서 테스트.
+- 구현/제한: `docs/developing/render-test-bridge.md`. 실 Render 배포·Gemini 호출·브라우저 실기기 검증은 별도 확인 필요.
