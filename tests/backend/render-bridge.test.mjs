@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {mkdtemp,writeFile,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
-import {createRequestHttpServer} from '../../back/js/httpServer.js';
+import {createRequestHttpServer,resolveTestToken} from '../../back/js/httpServer.js';
 import {createRequestBridge} from '../../front/js/workspace/requestBridge.js';
 
 const secret='example-access-key-12345678';
@@ -91,7 +91,7 @@ test('bridge only asks for optional test token after server responds 401',async(
  }});
  try{
   assert.deepEqual(await bridge.submit({draft:plain,roomId:'r',dataAccess:access}),{accepted:true});
-  assert.equal(prompts,1);assert.deepEqual(auths,[undefined,'Bearer private-test-key']);
+  assert.equal(prompts,1);assert.deepEqual(auths,['Bearer abcd','Bearer private-test-key']);
  }finally{bridge.destroy();}
 });
 test('without a test token the bridge sends without prompting',async()=>{
@@ -104,6 +104,27 @@ test('without a test token the bridge sends without prompting',async()=>{
  }});
  try{
   assert.deepEqual(await bridge.submit({draft:plain,roomId:'r',dataAccess:access}),{accepted:true});
-  assert.equal(authorization,undefined);assert.equal(prompted,false);
+  assert.equal(authorization,'Bearer abcd');assert.equal(prompted,false);
  }finally{bridge.destroy();}
+});
+
+test('beta test token defaults to abcd and honors an explicit Render override',()=>{
+ assert.equal(resolveTestToken({}),'abcd');
+ assert.equal(resolveTestToken({OVLL_TEST_TOKEN:'abcd'}),'abcd');
+ assert.equal(resolveTestToken({OVLL_TEST_TOKEN:'another-token'}),'another-token');
+});
+test('Composer uses agreed abcd automatically without a token prompt',async()=>{
+ const plain={parts:[{type:'text',text:'안녕'}],attachments:[]};
+ const dataAccess={readCanvasSnapshot:()=>({snapshot:{blocks:[]}}),readSkillCatalog:()=>({definitions:[]})};
+ let authorization,asked=0;
+ const bridge=createRequestBridge({pollDelay:2000,promptForToken:()=>{asked++;return 'unused';},
+   fetchImpl:async (url,options)=>{
+     if(url==='/api/requests') authorization=options.headers.authorization;
+     return {ok:true,status:202,json:async()=>({roomId:'r',requestId:'request-abcd'})};
+   }});
+ try {
+   assert.deepEqual(await bridge.submit({draft:plain,roomId:'r',dataAccess}),{accepted:true});
+   assert.equal(authorization,'Bearer abcd');
+   assert.equal(asked,0);
+ } finally {bridge.destroy();}
 });

@@ -118,6 +118,6 @@
 
 ## Render 단일 웹서비스 시험 (2026-10-23)
 - `beta` 전용 `package.json`/`render.yaml`. `npm start`로 `back/js/server.js` 실행, `GET /api/health`로 준비 상태 확인.
-- `main` Gemini 경로 설정을 공유: `GEMINI_API_KEY` 또는 `OVLL_POINTER_MODEL_API_KEY` / `OVLL_VNEXT_MODEL_API_KEY`는 실제 AI 호출에만 필요. 모델명은 `OVLL_POINTER_MODEL_ID` → `OVLL_VNEXT_MODEL_ID` → `GEMINI_MODEL` → `gemini-3.5-flash-lite`. `OVLL_TEST_TOKEN`은 선택이고 없으면 API 공개. `beta`의 공급자는 Gemini로 고정.
+- `main` Gemini 경로 설정을 공유: `GEMINI_API_KEY` 또는 `OVLL_POINTER_MODEL_API_KEY` / `OVLL_VNEXT_MODEL_API_KEY`는 실제 AI 호출에만 필요. 모델명은 `OVLL_POINTER_MODEL_ID` → `OVLL_VNEXT_MODEL_ID` → `GEMINI_MODEL` → `gemini-3.5-flash-lite`. `OVLL_TEST_TOKEN`은 선택이고 없으면 기본 테스트값 `abcd`로 동작하며 프론트가 자동 전송. 이 값은 소스에 공개되어 인증을 제공하지 않으므로 운영에 부적합. `beta`의 공급자는 Gemini로 고정.
 - `front/js/workspace/requestBridge.js`는 `boot.js`가 기존 Composer 콜백·Chat 표시 제어자로 연결. 접수/진행/완료를 서버 HTTP에서만 판정하며 Render의 동일 origin에서 테스트.
 - 구현/제한: `docs/developing/render-test-bridge.md`. 실 Render 배포·Gemini 호출·브라우저 실기기 검증은 별도 확인 필요.

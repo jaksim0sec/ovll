@@ -164,4 +164,4 @@ Shell은 기능 내부 DOM을 조회하지 않는다. Page Host는 최상위 페
 - 별도 자동 브라우저 회귀 검증: 복수 개체·독립 노드 기능·개체별 기능 전환·Canvas 카메라 좌표 상속·외부 DOM host 재사용·개체 제거. 기존 Canvas 편집 동작과 충돌하지 않아야 한다. 실제 Chromium/모바일 실기기 결과는 실행 전 단정하지 않는다.
 
 ## Render HTTP 시험 연결 — 2026-10-23
-`front/js/workspace/requestBridge.js`가 기존 Composer와 Chat API 사이에서 HTTP POST 접수, 인증된 상태 GET 폴링, Gate/Hallway 진행·최종 응답 투영을 맡는다. Render가 제공하는 동일 origin에서만 사용하며, 선택적 테스트 접근키는 서버가 401을 반환할 때만 묻고 JS 메모리만 보유한다. 서버에 테스트 토큰 설정이 없으면 인증 입력 없이 전송하므로, 공개 Render 배포에서는 토큰 설정을 권장한다. 실행/모델 API는 기존 백엔드 엔진 책임이고 프론트에 Gemini 비밀키를 넣지 않는다. 정확한 계약·범위: `docs/developing/render-test-bridge.md`.
+`front/js/workspace/requestBridge.js`가 기존 Composer와 Chat API 사이에서 HTTP POST 접수, 인증된 상태 GET 폴링, Gate/Hallway 진행·최종 응답 투영을 맡는다. Render가 제공하는 동일 origin에서만 사용하며, Composer는 임시 테스트 기본값 `abcd`를 자동 전송하며, Render에 다른 `OVLL_TEST_TOKEN`이 설정되어 401이 반환될 때만 사용자 입력을 요청한다. `abcd`는 공개 소스에 드러나는 시험값으로 운영용 인증이 아니다. 실행/모델 API는 기존 백엔드 엔진 책임이고 프론트에 Gemini 비밀키를 넣지 않는다. 정확한 계약·범위: `docs/developing/render-test-bridge.md`.

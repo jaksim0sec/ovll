@@ -16,7 +16,7 @@ const describeDraft=draft=>{
 /** Browser-side request/display adapter. Does not own engine or Canvas internals. */
 export function createRequestBridge({fetchImpl=globalThis.fetch,promptForToken=()=>globalThis.prompt('Render에 설정한 OVLL_TEST_TOKEN을 입력하세요.\nGemini API 키가 아닌 별도의 테스트 접근키입니다.'),onRecords=()=>{},onActivities=()=>{},onAccepted=()=>{},pollDelay=900}={}){
  if(typeof fetchImpl!=='function'||typeof promptForToken!=='function')throw new TypeError('Browser transport requires fetch and token prompt');
- const records=[],activities=new Map(),timers=new Set();let token='',destroyed=false;
+ const records=[],activities=new Map(),timers=new Set();let token='abcd',destroyed=false;
  const refresh=()=>{if(!destroyed){onRecords(records.map(x=>({...x})));onActivities([...activities.values()].map(x=>({...x})));}};
  const authorize=async()=>{
   const typed=await promptForToken();

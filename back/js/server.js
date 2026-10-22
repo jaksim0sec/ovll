@@ -5,12 +5,12 @@ import {createPromptComposer} from './engine/promptComposer.js';
 import {createMemoryDataProvider} from './engine/dataProvider.js';
 import {createRequestEngine} from './engine/engine.js';
 import {createConfiguredGeminiCaller} from './model/configuredGemini.js';
-import {createRequestHttpServer} from './httpServer.js';
+import {createRequestHttpServer,resolveTestToken} from './httpServer.js';
 
 // Like main, missing model credentials must not prevent server startup.
 const modelCaller=createConfiguredGeminiCaller();
 const engine=createRequestEngine({composer:createPromptComposer(),dataProvider:createMemoryDataProvider(),modelCaller});
 const scheduler=createRequestScheduler({registry:createRequestRegistry(),execute:(record,options)=>engine.run(record,options)});
-const server=createRequestHttpServer({scheduler,testToken:process.env.OVLL_TEST_TOKEN});
+const server=createRequestHttpServer({scheduler,testToken:resolveTestToken()});
 const port=Number(process.env.PORT)||10000;
 server.listen(port,'0.0.0.0',()=>console.log('Ovll beta HTTP test service listening on '+port));

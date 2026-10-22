@@ -7,6 +7,8 @@ import {timingSafeEqual} from 'node:crypto';
 const MIME={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json; charset=utf-8','.webmanifest':'application/manifest+json','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.ico':'image/x-icon'};
 const json=(res,code,payload)=>{res.writeHead(code,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});res.end(JSON.stringify(payload));};
 const safeRecord=r=>r&&({roomId:r.roomId,requestId:r.requestId,status:r.status,currentLayer:r.currentLayer,...(r.result?{result:r.result}:{}),...(r.error?{error:r.error}:{}),...(r.plan?{plan:r.plan}:{} )});
+/** Beta-only shared test token: explicitly set OVLL_TEST_TOKEN takes priority. */
+export const resolveTestToken=(env=process.env)=>env.OVLL_TEST_TOKEN||'abcd';
 const sameString=(a,b)=>{
  const x=Buffer.from(a||''),y=Buffer.from(b||'');return x.length===y.length&&timingSafeEqual(x,y);
 };
@@ -32,7 +34,7 @@ async function readJsonBody(req){
 }
 /** Minimal authenticated, same-origin test boundary; queue belongs to the scheduler. */
 export function createRequestHttpServer({scheduler,testToken,frontRoot=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../../front')}={}){
- if(!scheduler?.enqueue||!scheduler?.get||(testToken!==undefined&&typeof testToken!=='string'))throw new TypeError('Scheduler and test token (16+ chars) required');
+ if(!scheduler?.enqueue||!scheduler?.get||(testToken!==undefined&&typeof testToken!=='string'))throw new TypeError('Invalid scheduler or test token');
  const root=path.resolve(frontRoot);let activeCount=0;
  return createServer(async(req,res)=>{
   try{
