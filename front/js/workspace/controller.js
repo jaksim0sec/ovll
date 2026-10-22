@@ -8,6 +8,23 @@ import { createChat } from './chat.js';
 import { createMascot } from '../mascot/actor.js';
 import { createCanvasMascotScene } from '../mascot/canvasScene.js';
 
+/** Allow the UI to finish booting if an IndexedDB operation never settles.
+ * Rejected restore slots retain existing overwrite-protection rules.
+ */
+export async function settleInitialWorkspaceReads(reads,{timeoutMs=8000}={}){
+  if(!Array.isArray(reads)||!Number.isInteger(timeoutMs)||timeoutMs<1)throw new TypeError('Invalid workspace restoration');
+  let timer;
+  try{
+    return await Promise.race([
+      Promise.allSettled(reads),
+      new Promise(resolve=>{
+        timer=setTimeout(()=>resolve(reads.map(()=>({status:'rejected',reason:new Error('Workspace storage restore timed out')}))),timeoutMs);
+      })
+    ]);
+  }finally{clearTimeout(timer);}
+}
+
+
 const DEFAULT_ROOM = 'beta-local-workspace';
 
 /** A single local Workspace. Owns graph/draft persistence and component composition.
@@ -61,7 +78,7 @@ export async function createWorkspace({ root, data, input, roomId = DEFAULT_ROOM
     });
   }
   let storedGraph = null, storedDraft = null, storedViewport = null;
-  const restored = await Promise.allSettled([
+  const restored = await settleInitialWorkspaceReads([
     data.cache.read('canvasState', roomId, 'state'),
     data.cache.read('chatDraft', roomId, 'state'),
     data.local.read('canvasViewport', roomId)
