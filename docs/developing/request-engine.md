@@ -20,7 +20,7 @@
 ## 검증
 ```bash
 node --test tests/backend/*.test.mjs
-GEMINI_API_KEY='...' GEMINI_MODEL='your-supported-gemini-model' node back/js/demo.js
+GEMINI_API_KEY='...' node back/js/demo.js  # GEMINI_MODEL은 선택
 ```
 자격증명은 서버 환경변수로만 공급하며 프론트로 전달하거나 저장소에 기록하지 않는다. 실제 Gemini 키/모델이 없다면 모델 실호출은 **미검증**이다. `back/js/demo.js`는 하나의 가상 구조화 요청을 등록해 실행하는 CLI이고, 모의 모델 성공을 출력하지 않는다.
 
