@@ -13,7 +13,7 @@
 /
 ├── AGENTS.md
 ├── assets/svg/                     # 현재 .gitkeep만 존재
-├── back/js/                        # 현재 .gitkeep만 존재
+├── back/js/                        # request/{registry,scheduler}, engine/{promptComposer,dataProvider,engine}, model/gemini, demo.js
 ├── docs/
 │   ├── VISION.md
 │   ├── developing/
@@ -65,12 +65,13 @@
 │   ├── common/                     # concepts.md, json.md
 │   └── manifest.json
 └── tests/
+    ├── backend/                    # request, engine, Gemini, prompt terminology 회귀 테스트
     └── frontend/                   # canvas, composer, hosted, input, shell,
                                     # theme, viewport, workspace 관련 *.test.mjs
 ```
 
 ## 경로와 역할
-- `back/`: 백엔드. `back/js/`는 서버·API·실행 로직(JS)을 책임에 따라 분리할 위치. **현재 구현 파일 없음**; 프론트 코드가 있다는 이유만으로 백엔드 구현을 가정하지 말 것.
+- `back/`: 백엔드. `back/js/`는 서버·API·실행 로직(JS)을 책임에 따라 분리할 위치. **Gate → Hallway Initial 독립 요청 엔진 프로토타입 구현**; Gemini 모델 호출기·메모리 등록소/대기열·자료 공급 인터페이스·CLI 시연만 존재. 서버 HTTP/SSE/DB/Workshop 실행·IR은 아직 없음.
 - `front/`: 웹/PWA 정적 배포 루트. `index.html`은 현재 진입 파일이며 `manifest.webmanifest`, `vercel.json`은 배포·PWA 설정. 필수 루트 파일 외 앱 코드·일반 스타일을 루트에 쌓지 말 것.
 - `front/html/`: 별도 HTML 문서·페이지 구조용 위치. **현재 구현 파일 없음**. 실제 화면 구조는 `front/index.html`에도 존재하므로 이전을 임의 강제하지 말 것.
 - `front/js/`: 부팅(`boot.js`), 셸·페이지 호스트(`shell/`), 캔버스(`canvas/`), 컴포저(`composer/`), 워크스페이스(`workspace/`), 라이브러리(`library/`), 스킬 목록(`skill/`), 로컬 데이터(`data/`), 입력(`input/`), 테마(`settings/`) 등 프론트 로직. 기능 변경 시 해당 영역의 실제 코드와 경계를 확인.
@@ -104,3 +105,8 @@
 - 명세가 비었거나 미완성이면 추측해 채우지 말고 불확실성을 명시. 현재 문서와 구현이 다르면 차이를 보고하고, 근거 없이 어느 쪽도 임의로 정답 처리하지 말 것.
 
 **개발 진행 과정에서의 변화로 AGENTS.md에 수정이 필요하다 판단될 경우, 유저에게 명확히 알릴 것.**
+
+## 백엔드 독립 프로토타입 (2026-10-23)
+- 구현 명세: `docs/developing/request-engine.md`; 구현 계획: `docs/superpowers/plans/2026-10-23-independent-request-engine.md`.
+- 단위검사: `node --test tests/backend/*.test.mjs`; 실제 Gemini는 `GEMINI_API_KEY`와 `GEMINI_MODEL` 환경변수를 설정한 뒤 `node back/js/demo.js`. 키·모델을 저장소에 기록하지 말 것.
+- `front/js/workspace/requestInput.js`는 직접 참조 Skill/Skill Block의 자료를 추출하는 독립 준비 함수; 현재 `boot.js` 연결과 실서버 HTTP/SSE는 여전히 미구현.

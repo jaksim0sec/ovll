@@ -2,6 +2,8 @@
 
 > **읽는 순서:** 이 문서 → `AGENTS.md` → `docs/developing/frontend-workspace.md`·`frontend-data.md` → `architecture.md`·`context.md`·`workshops.md` → 실제 `beta` 코드.
 >
+> **2026-10-23 업데이트:** 2026-10-19 당시 프론트 인수인계 기록이다. 이후 `back/js/`에 Gate → Hallway Initial 독립 프로토타입이 구현됨. 문서 내 '백엔드 없음' 설명은 당시 기준이며, 현황은 `docs/developing/request-engine.md`가 우선이다.
+>
 > **상태:** 실제 구현/미구현/미확정의 구분을 위한 인수인계. 새 백엔드 API/IR 명세가 아니다. `docs/notes/`에 위치하므로 여기의 미확정 항목을 구현 계약으로 자동 승격하지 않는다. **브랜치 `beta`만 수정. `main`은 참조용, 수정·병합·배포 금지.**
 
 ## 0. 2분 요약 — 프론트 준비 상태
@@ -148,3 +150,7 @@ canvas.deleteBlock(block.id);
 - **상태 구분:** 이 보강으로 **기본 프론트 소유권/초기화·종료/로컬 방/외부 연결 기반**을 완성한 것이지, 서버 HTTP/SSE/실행 IR/need 조회/실제 Chat·Library 데이터/파일 업로드, PWA 서비스워커, 모바일 실기기 안정성을 완성한 것은 아니다. 그런 미확정 기능을 의도적으로 임의 구현하지 않는다.
 
 - **데이터 보존 보강(추가):** 기존 IDB 행이 존재하면서 Canvas 값이 누락됐거나 그래프가 검증에 실패하면 기본 그래프를 덮어쓰지 않는다. Composer 초안은 저장 구조의 최소 무결성을 검사하고 미지원 typed parts가 있으면 정규화 과정에서 버리지 않고 원본을 보호한다. 화면에 오류를 알리고 해당 도메인의 후속 자동 저장을 제한한다. 브라우저 회귀 테스트에 손상된 두 도메인 동시 복원 사례 추가(실제 브라우저 실행은 별도).
+
+## 2026-10-23 독립 엔진 갱신
+
+`back/js/request/` 메모리 요청 등록·대기열, `back/js/engine/` 독립 판단 엔진·자료 공급·프롬프트 조립, `back/js/model/gemini.js` 공급자 전용 호출기, `back/js/demo.js` 단일 요청 진입점이 추가되었다. `front/js/workspace/requestInput.js`는 구조화된 Skill/Skill Block 직접 참조를 요청 시작 시 읽는 별도 함수다. 이 변경은 **실제 프론트↔서버 연결을 뜻하지 않는다**. `boot.js`는 연결되지 않았고, HTTP/SSE/DB/Workshop·IR은 여전히 미구현이다. 세부 계약과 테스트: `docs/developing/request-engine.md`.
