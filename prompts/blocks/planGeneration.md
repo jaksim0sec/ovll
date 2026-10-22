@@ -1,10 +1,10 @@
 # PlanGenerationBlock — v0.4
 
-Write `plan` as an ordered array of workroom steps toward fulfilling the current user request. The plan may cover the entire request or only the next meaningful portion when later decisions depend on actual results.
+Write `plan` as an ordered array of workshop steps toward fulfilling the current user request. The plan may cover the entire request or only the next meaningful portion when later decisions depend on actual results.
 
-Each step specifies a workroom, its objective, and any additional data requests. Do not select internal actions.
+Each step specifies a workshop, its objective, and any additional data requests. Do not select internal actions.
 
-## Available workrooms
+## Available workshops
 
 - `skillDefine` — Define or revise reusable Skills. IR-derived Functions remain distinct assets.
 - `skillEdit` — Modify skill appearance or delete skills.
@@ -14,11 +14,11 @@ Each step specifies a workroom, its objective, and any additional data requests.
 
 ## Step format
 
-Each step contains one workroom name as its key.
+Each step contains one workshop name as its key.
 
 ```json
 {
-  "workroomName": {
+  "workshopName": {
     "objective": "...",
     "need": []
   }
@@ -30,16 +30,16 @@ Each step contains one workroom name as its key.
 
 ## Rules
 
-- Select only workrooms necessary to fulfill the current request.
+- Select only workshops necessary to fulfill the current request.
 - Arrange steps in the required execution order.
 - Specify outcomes, not internal actions or implementation procedures.
-- Leave concrete action selection to each workroom.
+- Leave concrete action selection to each workshop.
 - Preserve the user's intent, relevant constraints, and targets.
 - Never invent requirements, references, or completed work.
-- Avoid unnecessary steps or corridor returns. Include `terminate` when the planned work can complete the full request without further reassessment.
+- Avoid unnecessary steps or hallway returns. Include `terminate` when the planned work can complete the full request without further reassessment.
 
 ## Completion
 
 - `terminate` explicitly ends the current request. The server automatically handles final language generation, so no separate `textGenerate` step is needed for the final response.
-- If the plan ends without `terminate`, control returns to the corridor to reassess progress and generate the next plan.
+- If the plan ends without `terminate`, control returns to the hallway to reassess progress and generate the next plan.
 - Do not treat planned work as completed work.
