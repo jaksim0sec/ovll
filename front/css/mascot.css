@@ -1,0 +1,31 @@
+/* Scene actors are in host-local coordinates. Parent transforms handle pan/zoom. */
+.ovll-actor{
+  position:absolute;left:0;top:0;z-index:3;
+  width:var(--ovll-actor-size,34px);height:var(--ovll-actor-size,34px);
+  pointer-events:none;will-change:transform;
+}
+.ovll-actor-body{
+  --ovll-eye-x:0px;--ovll-eye-y:0px;--ovll-lean:0deg;
+  position:relative;display:grid;place-items:center;width:100%;height:100%;
+  border:1px solid color-mix(in srgb,#fff 11%,transparent);border-radius:50%;
+  background:var(--ovll-body-color,#202120);
+  box-shadow:0 3px 12px rgb(0 0 0 / 17%),inset 0 1px 1px rgb(255 255 255 / 11%);
+  cursor:grab;touch-action:none;pointer-events:auto;user-select:none;
+  transform:rotate(var(--ovll-lean));
+  transition:transform .22s cubic-bezier(.2,.8,.2,1),box-shadow .2s;
+  animation:ovll-actor-float 5.6s ease-in-out infinite;
+}
+.ovll-actor-body:active{cursor:grabbing}
+.ovll-actor-body:hover{
+  box-shadow:0 4px 16px rgb(0 0 0 / 22%),0 0 0 3px color-mix(in srgb,var(--brand-color) 14%,transparent);
+}
+.ovll-actor-body:focus-visible{outline:2px solid var(--color-accent);outline-offset:3px}
+.ovll-actor-body.is-poked{animation:ovll-actor-poke .38s cubic-bezier(.2,.8,.2,1)}
+.ovll-actor-eyes{display:flex;gap:4px;align-items:center;transform:translate(var(--ovll-eye-x),var(--ovll-eye-y));transition:transform .12s linear;pointer-events:none}
+.ovll-actor-eyes i{display:block;width:5px;height:8px;border-radius:45%;background:#f2f2ef;box-shadow:0 0 1px rgb(255 255 255 / 28%);transform:rotate(-5deg)}
+.ovll-actor-eyes i:last-child{transform:rotate(5deg)}
+@keyframes ovll-actor-float{0%,100%{translate:0 0}50%{translate:0 -3px}}
+@keyframes ovll-actor-poke{0%,100%{scale:1}46%{scale:1.14 .87}}
+@media(prefers-reduced-motion:reduce){
+  .ovll-actor-body,.ovll-actor-eyes{animation:none!important;transition:none!important}
+}

@@ -152,3 +152,13 @@ Shell은 기능 내부 DOM을 조회하지 않는다. Page Host는 최상위 페
 
 - **손상된 저장 기록 보존:** Canvas cache 행이 존재하지만 payload가 `null/undefined`이거나 기존 그래프 검증에 실패하면, 빈 그래프로 재시드하지 않고 기존 행을 보호한다. Composer 저장 기록은 `composer/draft.js`의 `isRestorableDraft`로 typed parts/attachments 최소 구조를 검사한다. 알 수 없는/손상된 부분을 permissive `normalizeDraft`로 조용히 누락하고 다음 입력 때 덮어쓰는 일을 막는다. 복원에 실패하면 오류 상태를 알리고 해당 도메인 저장을 차단한다.
 - 검증: `tests/frontend/composer-draft.test.mjs`의 저장 초안 구조 검증, `tests/frontend/workspace-browser.test.mjs`의 손상된 그래프/초안 cache 보호 시나리오 추가. 단위/모의 복원 검증 수행, 실제 Chromium 신규 시나리오 실행은 미검증.
+
+## 2026-10-22 — 독립 Ovll Scene Actor (beta)
+
+- `front/js/mascot/actor.js`: `createMascot({host,scene?,id?,position?,size?,color?,capabilities?})`는 DOM 호스트 로컬 좌표에 개체를 생성한다. 개체별 독립 상태/수명과 `activate/deactivate/destroy`, `moveTo({x,y})`, `setPosition({x,y})`, `setCapabilities(patch)`, `getCapabilities/getPosition/getFocusedTarget`를 제공한다. 다중 개체가 전역 위치·선택·RAF 상태를 공유하지 않는다.
+- 생성 옵션 `capabilities`: `mouseReaction`(호스트 포인터에 시선/기울기 반응), `movement`(독립적인 목표 좌표 이동), `drag`(마스코트 자체 드래그), `nodeInteraction`(선택한 개체만 Scene 노드 선택·위치 구독). 네 기능의 기본값은 모두 false. 실행 중 `setCapabilities`로 개체별 변경할 수 있고 노드 기능만 유효한 Scene Adapter가 필수다. `nodeInteraction:true,movement:false`이면 대상 노드를 응시하되 스스로 이동하지 않는다.
+- 부모 DOM이 좌표계다. Canvas에서는 Actor host가 `.canvas-world`이고 기존 camera transform을 그대로 상속한다. 줌/팬 제스처 핸들러를 Actor에 복제하지 않는다. `host.clientToLocal(event)`는 포인터 좌표를 개별 호스트의 로컬 공간에 변환하며 Canvas가 책임진다. Canvas 외의 화면도 자신의 호스트를 제공해 동일 Actor를 재사용한다.
+- `front/js/mascot/canvasScene.js`: Canvas의 공개 `getActorHost/getBlockBounds/getSelectedBlockId/focusBlock` 및 `canvasblockfocus` 이벤트를 결합하는 선택적 Scene Adapter. Actor는 `.canvas-block` 등을 조회하거나 Canvas 카메라 내부 상태를 소유하지 않는다. 노드가 삭제되면 추종 중단. 노드 위치 추종은 `nodeInteraction && movement`에서만 수행된다.
+- 현재 Workspace 프론트 데모의 Canvas에는 2개를 생성한다: `ovll-guide`(노드·포인터·이동·드래그 모두 활성), `ovll-companion`(노드 비활성, 나머지 활성). Workspace 진입/이탈/종료에서 함께 활성화/일시정지/파괴한다. 위치는 임시 시연 값이며 기존 IndexedDB 그래프/초안/카메라 저장에 포함하지 않는다.
+- 시각은 과거 main의 작은 어두운 원형 몸체와 밝은 눈 아이덴티티를 CSS로 재현한다. 과거 `front/js/mascot.js` 전체 복붙/호환 코드는 사용하지 않는다. Reduced Motion, 화면 비표시 일시정지, DOM 이벤트 수명 정리, Actor 고유 클릭/포인터 제어를 적용한다.
+- 별도 자동 브라우저 회귀 검증: 복수 개체·독립 노드 기능·개체별 기능 전환·Canvas 카메라 좌표 상속·외부 DOM host 재사용·개체 제거. 기존 Canvas 편집 동작과 충돌하지 않아야 한다. 실제 Chromium/모바일 실기기 결과는 실행 전 단정하지 않는다.

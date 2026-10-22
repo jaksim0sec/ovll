@@ -154,7 +154,9 @@ export function createCanvas({model,input,onRun,onNotice,onAttach,resolveSkill=g
     clearTimeout(noticeTimer);status.textContent='';
     safe(()=>existing?model.disconnect(existing.id):model.connect({blockId:from.blockId,portId:from.portId},{blockId:to.blockId,portId:to.portId}));
   }
-  function selectBlock(id) {selected=id;selectedLink=null;linkDelete.hidden=true;renderSelection()}
+  function selectBlock(id) {selected=id;selectedLink=null;linkDelete.hidden=true;renderSelection();
+    element.dispatchEvent(new CustomEvent('canvasblockfocus',{detail:{blockId:id}}));
+  }
   function renderSelection() {
     const connected=new Set();for(const link of model.getSnapshot().links){connected.add(`output/${link.from.blockId}/${link.from.portId}`);connected.add(`input/${link.to.blockId}/${link.to.portId}`)}
     for(const [id,record]of blockViews){record.element.classList.toggle('is-selected',id===selected);for(const p of record.element.querySelectorAll('.canvas-port')){
@@ -431,6 +433,24 @@ export function createCanvas({model,input,onRun,onNotice,onAttach,resolveSkill=g
   // Resource lifetime outlives input activation so offscreen replacements/deletions revoke URLs.
   const unsubscribeResources=model.subscribe(({snapshot})=>fileResources.sync(snapshot.blocks));
   render();setViewport(camera);
-  return {element,activate,deactivate,destroy,closeMenu,addFile,flushPendingEdits:flushFields,refreshCatalog,getViewport:()=>({...camera}),setViewport,focusBlock};
+  // Canvas owns untransformed geometry and provides the coordinate host.
+  // Its world DOM transform automatically moves scene actors on pan/zoom.
+  function getBlockBounds(id) {
+    if(destroyed)return null;
+    const block=model.getBlock(id),view=blockViews.get(id)?.element;
+    if(!block||!view)return null;
+    const at=blockPosition(block);
+    return {x:at.x,y:at.y,width:view.offsetWidth,height:view.offsetHeight};
+  }
+  const actorHost=Object.freeze({
+    element:world,pointerElement:surface,
+    clientToLocal(event) {
+      const rect=surface.getBoundingClientRect();
+      return screenToWorld({x:event.clientX-rect.left,y:event.clientY-rect.top},camera);
+    }
+  });
+  return {element,activate,deactivate,destroy,closeMenu,addFile,flushPendingEdits:flushFields,refreshCatalog,
+    getViewport:()=>({...camera}),setViewport,focusBlock,getBlockBounds,
+    getSelectedBlockId:()=>selected,getActorHost:()=>actorHost};
 }
 function formatBytes(size){return size<1024?`${size} B`:size<1024*1024?`${Math.round(size/1024)} KB`:`${(size/(1024*1024)).toFixed(1)} MB`}

@@ -39,6 +39,7 @@
 │   ├── css/
 │   │   ├── base.css
 │   │   ├── canvas.css
+│   │   ├── mascot.css
 │   │   ├── composer.css
 │   │   ├── hostedSlides.css
 │   │   ├── shell.css
@@ -48,6 +49,7 @@
 │       ├── canvas/                 # controller.js, files.js, geometry.js
 │       ├── composer/               # controller.js, draft.js
 │       ├── data/localDataStore.js
+│       ├── mascot/                # actor.js, canvasScene.js
 │       ├── library/controller.js
 │       ├── input/inputManager.js
 │       ├── settings/theme.js

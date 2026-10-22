@@ -8,7 +8,7 @@ const require=createRequire(import.meta.url);
 const {chromium}=require('playwright');
 let port;
 const root=fileURLToPath(new URL('../../',import.meta.url));
-const harness=`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/front/css/base.css"><link rel="stylesheet" href="/front/css/canvas.css"><style>html,body,#host{width:100%;height:100%;margin:0}#host{position:relative}</style></head><body><div id="host"></div><script type="module">
+const harness=`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/front/css/base.css"><link rel="stylesheet" href="/front/css/canvas.css"><link rel="stylesheet" href="/front/css/mascot.css"><style>html,body,#host{width:100%;height:100%;margin:0}#host{position:relative}</style></head><body><div id="host"></div><script type="module">
 import {createCanvas} from '/front/js/canvas/controller.js';
 import {createWorkspaceModel} from '/front/js/workspace/model.js';
 import {createInputManager} from '/front/js/input/inputManager.js';
@@ -320,4 +320,55 @@ test('new block and palette reveal gradually and interrupted collapse keeps its 
  await page.getByRole('button',{name:'스킬블럭 추가',exact:true}).evaluate(n=>n.click());await page.waitForTimeout(240);await page.evaluate(()=>canvas.closeMenu());
  assert.equal(await page.locator('.canvas-palette').evaluate(n=>n.inert),true);await page.waitForTimeout(250);assert.equal(await page.locator('.canvas-palette').isVisible(),false);
  await page.emulateMedia({reducedMotion:'reduce'});await page.getByRole('button',{name:'스킬블럭 추가',exact:true}).click();assert.equal(await page.locator('.canvas-palette').evaluate(n=>n.getAnimations().length),0);await context.close();
+});
+
+
+test('mascot actors inherit parent Canvas geometry and opt into nodes independently',async()=>{
+ const {page,context,errors}=await setup();
+ try{
+   const data=await page.evaluate(async()=>{
+     const {createMascot}=await import('/front/js/mascot/actor.js');
+     const {createCanvasMascotScene}=await import('/front/js/mascot/canvasScene.js');
+     const scene=createCanvasMascotScene(canvas);
+     window.actorA=createMascot({host:scene.host,scene,id:'test-A',position:{x:10,y:25},
+       capabilities:{mouseReaction:true,movement:true,nodeInteraction:true,drag:true}});
+     window.actorB=createMascot({host:scene.host,scene,id:'test-B',position:{x:250,y:95},
+       capabilities:{mouseReaction:true,movement:true,nodeInteraction:false}});
+     actorA.activate();actorB.activate();canvas.focusBlock(model.getBlocks()[0].id);
+     return {count:document.querySelectorAll('.ovll-actor').length,
+       selected:model.getBlocks()[0].id,focusA:actorA.getFocusedTarget(),focusB:actorB.getFocusedTarget()};
+   });
+   assert.equal(data.count,2);assert.equal(data.focusA,data.selected);assert.equal(data.focusB,null);
+   const before=await page.locator('[data-actor-id="test-B"]').boundingBox();
+   await page.evaluate(()=>{
+     const camera=canvas.getViewport();canvas.setViewport({...camera,x:camera.x+110,y:camera.y+45});
+   });
+   const after=await page.locator('[data-actor-id="test-B"]').boundingBox();
+   assert.ok(Math.abs(after.x-before.x-110)<2&&Math.abs(after.y-before.y-45)<2,
+     'world child inherits camera pan without a gesture listener');
+   const toggled=await page.evaluate(()=>{
+     actorB.setCapabilities({nodeInteraction:true});
+     const enabled=actorB.getFocusedTarget();actorB.setCapabilities({nodeInteraction:false});
+     return {enabled,disabled:actorB.getFocusedTarget(),other:actorA.getFocusedTarget()};
+   });
+   assert.equal(toggled.enabled,data.selected);assert.equal(toggled.disabled,null);
+   assert.equal(toggled.other,data.selected,'switching one actor never affects another');
+   const other=await page.evaluate(async()=>{
+     const {createMascot}=await import('/front/js/mascot/actor.js');
+     const local=document.createElement('div');
+     local.style.cssText='position:relative;width:300px;height:200px';
+     document.body.append(local);
+     const person=createMascot({id:'elsewhere',host:{element:local,pointerElement:local,
+       clientToLocal:e=>({x:e.clientX,y:e.clientY})},
+       position:{x:4,y:8},capabilities:{movement:true,mouseReaction:true}});
+     person.activate();const moved=person.moveTo({x:90,y:55});
+     const parent=person.element.parentElement===local,features=person.getCapabilities();
+     person.deactivate();person.destroy();
+     return {moved,parent,features,removed:!local.querySelector('.ovll-actor')};
+   });
+   assert.equal(other.moved,true);assert.equal(other.parent,true);assert.equal(other.removed,true);
+   assert.equal(other.features.nodeInteraction,false);
+   await page.evaluate(()=>{actorA.destroy();actorB.destroy()});
+   assert.equal(await page.locator('.ovll-actor').count(),0);assert.deepEqual(errors,[]);
+ }finally{await context.close()}
 });

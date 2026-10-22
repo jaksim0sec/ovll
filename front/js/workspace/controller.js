@@ -5,6 +5,8 @@ import { isRestorableDraft } from '../composer/draft.js';
 import { skills, getSkill } from '../skill/catalog.js';
 import { createWorkspaceDataAccess } from './dataAccess.js';
 import { createChat } from './chat.js';
+import { createMascot } from '../mascot/actor.js';
+import { createCanvasMascotScene } from '../mascot/canvasScene.js';
 
 const DEFAULT_ROOM = 'beta-local-workspace';
 
@@ -103,6 +105,17 @@ export async function createWorkspace({ root, data, input, roomId = DEFAULT_ROOM
       return { ...metadata, blob: file };
     }
   });
+  // Each scene actor has its own feature flags, motion and lifecycle.
+  // Both live under the world DOM so normal Canvas gestures transform them.
+  const mascotScene=createCanvasMascotScene(canvas);
+  const mascots=[
+    createMascot({host:mascotScene.host,scene:mascotScene,id:'ovll-guide',
+      position:{x:26,y:26},size:36,
+      capabilities:{mouseReaction:true,movement:true,nodeInteraction:true,drag:true}}),
+    createMascot({host:mascotScene.host,scene:mascotScene,id:'ovll-companion',
+      position:{x:276,y:80},size:29,color:'#303137',
+      capabilities:{mouseReaction:true,movement:true,nodeInteraction:false,drag:true}})
+  ];
   function composerHeight(height) {
     const value = `calc(${height}px + var(--workspace-composer-clearance))`;
     chat.style.setProperty('--workspace-composer-height', value);
@@ -212,14 +225,14 @@ export async function createWorkspace({ root, data, input, roomId = DEFAULT_ROOM
         const frame = root.getBoundingClientRect();
         canvas.setViewport({ x: Math.max(60, frame.width / 2 - 100), y: Math.max(115, frame.height / 2 - 70), zoom: 1 });
       }
-      canvas.activate({ signal }); composer.activate({ signal });
+      canvas.activate({ signal }); mascots.forEach(actor=>actor.activate()); composer.activate({ signal });
     },
     closeTransientUI() { if(destroyed)return; composer.closeMenu(); canvas.closeMenu?.(); },
-    deactivate() { if(destroyed)return; composer.deactivate(); canvas.deactivate(); presentation = null; },
+    deactivate() { if(destroyed)return; mascots.forEach(actor=>actor.deactivate()); composer.deactivate(); canvas.deactivate(); presentation = null; },
     flush: () => queued,
     destroy() {
       if (destroyed) return;
-      composer.deactivate(); canvas.deactivate();
+      mascots.forEach(actor=>actor.destroy()); composer.deactivate(); canvas.deactivate();
       destroyed = true; clearTimeout(noticeTimer); lifetime.abort(); resize.disconnect(); unsubscribe();
       composer.destroy(); canvas.destroy(); chatView.destroy(); presentation = null;
     }
