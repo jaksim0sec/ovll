@@ -1,6 +1,7 @@
+<!-- 최신 연결 상태: 2026-10-23. 아래 이전 시점의 미연결 서술보다 이 기록과 docs/developing/render-test-bridge.md를 우선한다. -->
 # 프론트엔드 글로벌 시스템
 
-범위: `beta`의 App Shell, Page Host, Input Manager, Hosted Slides와 공통 스타일. Workspace에는 **로컬 Composer·Canvas**와 읽기 전용 Chat 표시가 있고, Library에는 데이터 공급 전 빈 상태와 항목 표시를 위한 Stacked 페이지가 있다. Workspace 로컬 구현 계약은 `frontend-workspace.md`. AI Chat·서버 API·실행·서비스워커는 미구현이다. 아래 초기 Scaffold/임시 실험 기록은 후반 갱신 절과 현재 Workspace 명세보다 우선하지 않는다.
+범위: `beta`의 App Shell, Page Host, Input Manager, Hosted Slides와 공통 스타일. Workspace에는 **로컬 Composer·Canvas**와 읽기 전용 Chat 표시가 있고, Library에는 데이터 공급 전 빈 상태와 항목 표시를 위한 Stacked 페이지가 있다. Workspace 로컬 구현 계약은 `frontend-workspace.md`. Render 시험 한정 Chat HTTP 접수·상태 조회 및 Gate/Hallway 직접 응답은 연결됐다. Workshop 실행·SSE·서비스워커는 미구현이다. 아래 초기 Scaffold/임시 실험 기록은 후반 갱신 절과 현재 Workspace 명세보다 우선하지 않는다.
 
 ## 진입·참조
 
@@ -223,3 +224,6 @@
 - **멀티 룸 준비:** `createWorkspace({root,data,input,roomId?})`의 기본값은 `beta-local-workspace`. 주입된 유효한 roomId별로 Model/초안/Viewport 저장·조회 키를 분리한다. Boot의 페이지 선택은 아직 한 임시 방만 사용하며 계정/방 선택 UI·서버 Room ID 정책은 없다.
 - **외부 통합:** `workspace.getDataAccess()`, `getCanvasCommands()`, `setConfirmedChatRecords()`, `setRequestActivities()`, `getRoomId()` 및 Library 표시 함수만 사용한다. 작업실 AI 출력/JSON을 무검증으로 이 인터페이스에 직접 적용하지 않는다. 종료된 Workspace/Chat/Library는 이후 외부 명령을 거부하며, 이전에 획득한 DataAccess/CanvasCommands 객체도 더는 현재 상태인 척 조작하지 못한다.
 - **검증 경계:** 로컬 단위·모의 수명 검증과 브라우저 회귀 시나리오 파일을 추가·확인했지만, 최신 변경분의 전체 Chromium·Android/iOS 실기기 실행은 하지 않았다. PWA 서비스워커, 네트워크 연결, 실제 백엔드/IR/need·자산 동기화는 이 기반 작업에서 구현하지 않았다.
+
+## 2026-10-23 연결 이후 상태
+`front/js/boot.js`가 `createRequestBridge`를 생성하고 `createWorkspace({onSubmitRequest})`에 연결한다. 기존 Hosted Slides 구조는 유지하며 요청이 HTTP 202로 접수되면 Chat 슬라이드로 이동한다. 서버 상태는 기존 `setConfirmedChatRecords`/`setRequestActivities` 표시 계약만 사용한다. Render 동일 origin 시험 경로 외에 일반 운영 서버 API·정식 계정 인증은 없다. `docs/developing/render-test-bridge.md` 참조.
