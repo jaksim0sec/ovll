@@ -5,12 +5,13 @@ import { createInputManager } from './input/inputManager.js';
 import { createLocalDataStore } from './data/localDataStore.js';
 import { createHostedSlides } from './shell/hostedSlides.js';
 import { createWorkspace } from './workspace/controller.js';
+import { createRequestBridge } from './workspace/requestBridge.js';
 import { createLibraryPage } from './library/controller.js';
 
 const root=document.querySelector('#app');
 const status=document.querySelector('#boot-status');
 const lifetime=new AbortController();
-let input,theme,releaseTheme,data,shell,pages,hosted,workspaceController,libraryController;
+let input,theme,releaseTheme,data,shell,pages,hosted,workspaceController,libraryController,requestBridge;
 let disposed=false,closePromise=null;
 const validPages=new Set(['workspace','library']);
 let applyingRoute=true;
@@ -49,6 +50,7 @@ function destroy(){
     ['hosted',()=>hosted?.destroy()],
     ['shell',()=>shell?.destroy()],
     ['input',()=>input?.destroy()],
+    ['request bridge',()=>requestBridge?.destroy()],
     ['workspace',()=>workspaceController?.destroy()],
     ['library',()=>libraryController?.destroy()],
     ['theme listener',()=>releaseTheme?.()],
@@ -79,7 +81,17 @@ try{
   shell=createAppShell({element:root,onNavigate:id=>{input.cancel('page-change');hosted.cancel('page-change');pages.activate(id)},onMenuOpen:()=>{input.cancel('menu-open');hosted?.cancel('menu-open');workspaceController?.closeTransientUI()}});
   hosted=createHostedSlides({pillHost:root.querySelector('[data-hosted-pill]'),stationaryHost:root.querySelector('[data-hosted-stationary]'),input,onLayout:mode=>shell.setPresentationMode(mode),onPillVisibilityChange:visible=>shell.setHostedPillVisible(visible),onSlideChange:()=>writeRoute(),onSwipePastStart:()=>{if(!shell.getMenuOpen())shell.setMenuOpen(true)},isBlocked:()=>shell.isModalOpen()});
   const workspace=document.querySelector('#workspace-template').content.firstElementChild.cloneNode(true);
-  workspaceController=await createWorkspace({root:workspace,data,input});
+  requestBridge=createRequestBridge({
+    onRecords:records=>workspaceController?.setConfirmedChatRecords(records),
+    onActivities:items=>workspaceController?.setRequestActivities(items),
+    onAccepted:()=>{try{if(hosted?.hasSlide('chat'))hosted.goTo('chat');}catch(error){console.warn('Unable to show chat slide',error);}}
+  });
+  workspaceController=await createWorkspace({
+    root:workspace,data,input,
+    onSubmitRequest:draft=>requestBridge.submit({
+      draft,roomId:workspaceController.getRoomId(),dataAccess:workspaceController.getDataAccess()
+    })
+  });
   pages.register('workspace',{element:workspace,onEnter:({signal})=>{
     const controller=hosted.activateForPage({...workspaceController.getPresentation(),signal});
     workspaceController.activate({signal,controller});
