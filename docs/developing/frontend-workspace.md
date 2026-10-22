@@ -16,7 +16,7 @@
 | `canvas/controller.js`, `canvas/geometry.js`, `canvas/files.js` | 블럭 표시·입력 필드·포트·연결 곡선·선택·카메라·제스처 의미·도구·로컬 파일 표시 |
 | `css/composer.css`, `css/canvas.css`, `css/workspace.css` | 개별 기능 스타일 및 Workspace 배치. workspace.css는 기능 CSS 뒤에 로드 |
 
-Boot가 `createWorkspace({root,data,input})`를 생성한다. 선택적 Skill 공급자와 요청·실행 콜백은 아직 Boot가 전달하지 않으므로 미연결이다. Page Host `onEnter`가 Workspace 구성 선언을 Hosted Slides에 전달하고 반환된 제어자와 새 `signal`을 Workspace `activate`에 전달한다. 이탈 시 deactivate, 문서 종료 시 destroy. Composer는 Hosted Slides의 bottom stationary 슬롯에 장착되므로 Chat↔Canvas 전환에 DOM·초안이 유지된다. Canvas 본문 `allowContentSwipe:false`, Chat은 true. Shell 메뉴 열림/문서 숨김에는 Workspace 공개 `closeTransientUI()`로 임시 메뉴·드래그·초기화 확인 상태를 종료한다.
+Boot는 `createWorkspace({root,data,input,onSubmitRequest})`를 생성하고 Render 시험용 `requestBridge.js`의 실제 HTTP 접수 콜백을 전달한다. 블럭 실행 콜백(`onRunBlock`)은 아직 미연결이다. Page Host `onEnter`가 Workspace 구성 선언을 Hosted Slides에 전달하고 반환된 제어자와 새 `signal`을 Workspace `activate`에 전달한다. 이탈 시 deactivate, 문서 종료 시 destroy. Composer는 Hosted Slides의 bottom stationary 슬롯에 장착되므로 Chat↔Canvas 전환에 DOM·초안이 유지된다. Canvas 본문 `allowContentSwipe:false`, Chat은 true. Shell 메뉴 열림/문서 숨김에는 Workspace 공개 `closeTransientUI()`로 임시 메뉴·드래그·초기화 확인 상태를 종료한다.
 
 Shell은 기능 내부 DOM을 조회하지 않는다. Page Host는 최상위 페이지 ID만, Hosted Slides는 내부 슬라이드 상태만 소유한다. Canvas와 Composer는 서로 import하지 않는다. Workspace가 공개 콜백으로 결합하며 window에 앱 API를 게시하지 않는다.
 
@@ -57,7 +57,7 @@ Shell은 기능 내부 DOM을 조회하지 않는다. Page Host는 최상위 페
 - PC Enter는 전송, Shift+Enter는 줄바꿈, coarse 입력의 Enter는 편집으로 남긴다. IME 조합 중 전송/메뉴 선택을 실행하지 않는다. 붙여넣기/텍스트 드롭은 일반 텍스트만 삽입한다.
 - 입력 높이·IME·메뉴 위치는 Composer 책임이다. 앱 프레임/브라우저 키보드를 조작하지 않는다. picker는 form의 backdrop 컨텍스트 바깥 형제 DOM이다.
 - 편집은 element의 bubbling `input`으로 Workspace에 알린다. setDraft는 복원용이며 변경 이벤트를 발생시키지 않는다.
-- `onSubmit`은 명시적 `{accepted:true}`에서만 초안을 비운다. 제출 중 새 편집이 생겼으면 최신 입력을 보존한다. 현재 Workspace 콜백은 accepted:false를 반환하므로 실제 전송·실행 성공을 주장하지 않는다.
+- `onSubmit`은 명시적 `{accepted:true}`에서만 초안을 비운다. 제출 중 새 편집이 생겼으면 최신 입력을 보존한다. Render 시험 연결에서는 HTTP 202 접수 확인 시에만 `accepted:true`를 반환하며, 실행 완료는 이후 상태 조회 결과로 별도 확정한다.
 - `onAttach(files)`가 `{handled:true}`를 반환하면 외부 소유자가 파일을 처리한 것으로 보고 초안 첨부를 중복 생성하지 않는다. 기본/미처리·실패 시 로컬 첨부로 보존한다. Workspace는 Canvas.addFile로 파일 스킬블럭을 만들고 캔버스로 전환한다.
 
 ## Canvas
@@ -102,7 +102,7 @@ Shell은 기능 내부 DOM을 조회하지 않는다. Page Host는 최상위 페
 
 - `createWorkspace({root,data,input,skillCatalog?,onSubmitRequest?,onRunBlock?})`: `skillCatalog={get(id),list()}`는 **로컬 프론트 표시/검증용 정의 공급 슬롯**이다. 기본은 `skill/catalog.js` 정적 7종. 서버 Skill 스키마나 자산 revision 계약이 아니다.
 - `createWorkspaceModel({snapshot?,resolveSkill?})`와 `createCanvas({...,resolveSkill?,listSkills?})`, `createComposer({...,resolveSkill?,listSkills?})`로 동일한 공급자를 전달한다. `workspace.refreshSkillCatalog()`는 기존 모델 무결성을 확인한 후 Canvas 팔레트/블럭·열린 Composer 참조 목록을 갱신한다. **실제 서버 동적 Skill 공급·삭제/버전 조정·동기화 미구현**.
-- `onSubmitRequest(draft)` 및 `onRunBlock(blockId)`는 기존 UI 콜백의 선택적 주입점이다. 현재 Boot는 전달하지 않으므로 기본 `{accepted:false}`로 입력을 지키고 실행 완료를 가장하지 않는다. 초안/블럭 ID를 서버용 새로운 요청 본문으로 변환하지 않는다. 요청 **접수**와 작업 **완료**는 다르다.
+- `onSubmitRequest(draft)` 및 `onRunBlock(blockId)`는 기존 UI 콜백의 선택적 주입점이다. 현재 Boot는 `onSubmitRequest`를 Render HTTP 시험 어댑터에 주입한다. `onRunBlock`은 미연결로 유지한다. 구조화 초안은 `prepareRequestInput`에서 참조 블럭과 Skill 메타데이터만 요청 시작 자료로 정리한다. 요청 **접수**와 작업 **완료**는 다르다.
 - `workspace.getDataAccess()`는 소유 상태를 만들지 않는 읽기 전용 검사 객체다.
   - `readCanvasSnapshot()` → `{roomId,source:'local-view',format:'beta-local-edit-graph-v1',snapshot:{version,blocks,links}}`. 250ms 지연 입력을 먼저 반영한다. 파일의 Blob·텍스트 본문 대신 메타데이터와 localBlobAvailable/textPreviewAvailable만 담는다. **서버 실행 IR/최종 스냅샷/asset revision 아님**.
   - `readSkillCatalog()` → `{source:'local-presentation-catalog',definitions:[...]}`.
@@ -110,13 +110,13 @@ Shell은 기능 내부 DOM을 조회하지 않는다. Page Host는 최상위 페
   - `readCached(kind,{limit?})` → 기존 `roomInfo/chatRecord/chatDraft/contextData/canvasState` 캐시. `chatRecord`는 IDB **키 순서**(시간순 아님), `contextData`가 없으면 null. 요청별 `contextBlock`은 임의 클라이언트 상태로 생성하지 않는다.
 - **Gate/Workshop need 조회는 서버가 권한/버전을 확인한 원본 Canvas/Skill/IR/채팅/맥락 자산에서 해결한다.** 로컬 검사 API는 네트워크 전송도 need datasetName 해석도 하지 않으며 서버 원본이 아니다.
 - IDB 캐시가 `{written:false}`를 반환하면 Workspace는 기존 저장을 성공 처리하지 않고 사용자에게 실패를 알린다. 서버가 소유한 캐시를 provisional 변경으로 덮었다고 주장하지 않는다.
-- 백엔드 실행·HTTP/SSE·실제 Chat·Library·Server IR/Revision·업로드·동시성·오프라인 동기화는 **아직 없음**.
+- HTTP 접수·상태 폴링과 Gate/Hallway 직접 응답 Chat 표시는 Render 시험 전용으로 연결됨. SSE·Library 서버 자료·Workshop 행동·Server IR/Revision·실제 파일 업로드·오프라인 동기화는 **아직 없음**.
 
 
 ## 2026-10-19 추가 — Chat·Library 읽기 전용 표시 계약
 
 - `front/js/workspace/chat.js`: `createChat({onOpenCanvas?})`를 Workspace가 소유하고 Hosted Slides의 Chat 슬라이드로 전달한다. `setConfirmedRecords([{id,role:'user'|'assistant',text,requestId?}])`와 `setRequestActivities([{requestId,label,detail?}])`를 별도로 받아 표시한다. 서로 다른 요청의 진행 상태는 requestId로 식별한다. **임시 활동을 확정 채팅 기록으로 자동 저장하거나 AI 실행 완료로 판단하지 않는다.**
-- Workspace 공개 API: `setConfirmedChatRecords(records)`, `setRequestActivities(activities)`. 표시 전용 스키마이며 **서버 API, DB 채팅 행, 요청처리객체, SSE 이벤트 계약 아님**. 외부에서 검증·정렬한 정보만 넣어야 한다. 현재 Boot에는 공급자가 없으므로 환영 화면만 보이며 가짜 대화 기록은 생성하지 않는다.
+- Workspace 공개 API: `setConfirmedChatRecords(records)`, `setRequestActivities(activities)`. 표시 전용 스키마이며 **서버 API, DB 채팅 행, 요청처리객체, SSE 이벤트 계약 아님**. 외부에서 검증·정렬한 정보만 넣어야 한다. 현재 Boot는 실제 HTTP 접수를 확인한 사용자 메시지와 엔진이 검증한 직접 답변, 서버 요청 상태를 이 두 API로 표시한다. 기록은 메모리 UI 상태일 뿐 DB 영속 저장은 아니다.
 - `front/js/library/controller.js`: `createLibraryPage()` → `{element,setConfirmedItems(items),setLoading(flag),destroy()}`. 현재 Boot는 이를 `Page Host`의 library 페이지와 `Hosted Slides`의 단일 stacked 슬라이드로 배치한다. `setConfirmedItems([{id,title,kind?,detail?}])`는 **표시용 투영**일 뿐 원본 자산 종류·검색·권한·삭제·선택 API가 아니다. 자료 공급 전에는 '연결되지 않았습니다'를 표시하고, **목업 예시 카드 3개를 삭제**했다. 공급자가 검증한 빈 목록은 연결 없는 상태와 구분한다.
 - 화면 문자열은 DOM `textContent`로만 반영해 사용자 제공 HTML을 해석하지 않는다. 중복 ID, 누락된 최소 표시 필드, 미지원 역할은 표시 전 거부한다. Composer와 Canvas UI 내부를 직접 조작하지 않는다.
 - 데이터 소유권: Chat의 확정 기록과 Library 자산 원본은 장차 **백엔드**가 관리하고, 프론트는 받아서 표시만 한다. 요청 진행 표시·로컬 선택은 임시 UI다. 현재 `chatRecord` IDB 조회를 자동 Chat 렌더링하지 않는다(정렬/레코드 형식 미정).
@@ -162,3 +162,6 @@ Shell은 기능 내부 DOM을 조회하지 않는다. Page Host는 최상위 페
 - 현재 Workspace 프론트 데모의 Canvas에는 2개를 생성한다: `ovll-guide`(노드·포인터·이동·드래그 모두 활성), `ovll-companion`(노드 비활성, 나머지 활성). Workspace 진입/이탈/종료에서 함께 활성화/일시정지/파괴한다. 위치는 임시 시연 값이며 기존 IndexedDB 그래프/초안/카메라 저장에 포함하지 않는다.
 - 시각은 과거 main의 작은 어두운 원형 몸체와 밝은 눈 아이덴티티를 CSS로 재현한다. 과거 `front/js/mascot.js` 전체 복붙/호환 코드는 사용하지 않는다. Reduced Motion, 화면 비표시 일시정지, DOM 이벤트 수명 정리, Actor 고유 클릭/포인터 제어를 적용한다.
 - 별도 자동 브라우저 회귀 검증: 복수 개체·독립 노드 기능·개체별 기능 전환·Canvas 카메라 좌표 상속·외부 DOM host 재사용·개체 제거. 기존 Canvas 편집 동작과 충돌하지 않아야 한다. 실제 Chromium/모바일 실기기 결과는 실행 전 단정하지 않는다.
+
+## Render HTTP 시험 연결 — 2026-10-23
+`front/js/workspace/requestBridge.js`가 기존 Composer와 Chat API 사이에서 HTTP POST 접수, 인증된 상태 GET 폴링, Gate/Hallway 진행·최종 응답 투영을 맡는다. Render가 제공하는 동일 origin에서만 사용하며, 임시 테스트 접근키는 첫 요청 때 묻고 JS 메모리만 보유한다. 실행/모델 API는 기존 백엔드 엔진 책임이고 프론트에 Gemini 비밀키를 넣지 않는다. 정확한 계약·범위: `docs/developing/render-test-bridge.md`.
