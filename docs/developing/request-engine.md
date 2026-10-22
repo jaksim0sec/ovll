@@ -27,7 +27,7 @@ GEMINI_API_KEY='...' GEMINI_MODEL='your-supported-gemini-model' node back/js/dem
 ## Render 시험 연결
 - `back/js/httpServer.js`: `front/` 동일 origin 정적 호스팅, `POST /api/requests` 202 접수, `GET /api/requests/:id?roomId=...` 상태 조회, `GET /api/health` 건강 확인. `OVLL_TEST_TOKEN` Bearer 비밀키로 요청 API를 보호한다. 일반 사용자 인증은 아니다.
 - `back/js/server.js`: 독립 엔진·요청 큐·Gemini 호출기를 만들어 `0.0.0.0:PORT`에서 Web Service로 실행한다. `front/js/workspace/requestBridge.js`는 채팅에서 약 900ms 간격 HTTP 폴링으로 실제 상태와 직접 응답을 표시한다.
-- 실험 설정·제한은 `docs/developing/render-test-bridge.md` 참조. 실제 Gemini API 키를 통한 Render 실호출 성공은 아직 확인하지 않았다.
+- Render 환경변수는 `main` Gemini 경로의 키·모델 우선순위를 사용하며 모델명과 테스트 접근키는 시작 필수가 아니다. 키가 없다면 서버는 시작하지만 모델 호출은 실패한다. 실험 설정·제한은 `docs/developing/render-test-bridge.md` 참조. 실제 Gemini API 키를 통한 Render 실호출 성공은 아직 확인하지 않았다.
 
 ## 아직 없는 기능
 SSE, 정식 사용자 인증, DB 영속 저장·재시작 복구·중단, 실물 파일 업로드, 사용자별 요청 접근 제어, Workshop 실행·Function Calling·IR, Hallway Return 실호출, Output 실호출, 서버 확정 Canvas 원본 관리. 프로토타입의 자료 완전성 표기는 인증이나 악의적 입력에 대한 신뢰 검증을 대신하지 않는다.
