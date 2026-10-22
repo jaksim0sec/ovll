@@ -14,3 +14,6 @@ Write `need` as `[[datasetName, ...parameters], ...]`.
 - Prefer exact names/IDs; otherwise, use `skillList` to identify candidates.
 - Keep `n` small. Use `[]` when no additional data is needed.
 - Never invent identifiers.
+
+- Inspect the initial resources and their completeness before adding a need. Never request the same complete Skill or Skill Block already supplied with the current request.
+- Presentation-only Skill metadata cannot substitute for a missing full execution definition.

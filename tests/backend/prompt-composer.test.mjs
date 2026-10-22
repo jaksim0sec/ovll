@@ -1,0 +1,20 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {mkdtemp,mkdir,writeFile} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import path from 'node:path';
+import {createPromptComposer} from '../../back/js/engine/promptComposer.js';
+test('composer follows manifest order and validates bindings',async()=>{
+  const root=await mkdtemp(path.join(tmpdir(),'ovll-prompt-'));
+  await mkdir(path.join(root,'common'));await mkdir(path.join(root,'base'));await mkdir(path.join(root,'blocks'));
+  await writeFile(path.join(root,'manifest.json'),JSON.stringify({layers:{gate:['common/concepts.md','base/gate.md','blocks/language.md'],hallwayInitial:['base/hallwayInitial.md']}}));
+  await writeFile(path.join(root,'common/concepts.md'),'CONCEPT');await writeFile(path.join(root,'base/gate.md'),'GATE');
+  await writeFile(path.join(root,'blocks/language.md'),'LANG:${languageSettings}:${interfaceSyntax}');
+  await writeFile(path.join(root,'base/hallwayInitial.md'),'HALLWAY');
+  const composer=createPromptComposer({promptsRoot:root});
+  const text=await composer.compose('gate',{languageSettings:'ko',interfaceSyntax:'none'});
+  assert.ok(text.indexOf('CONCEPT')<text.indexOf('GATE'));assert.ok(text.indexOf('GATE')<text.indexOf('LANG:ko:none'));
+  assert.equal((await composer.compose('hallwayInitial')).trim(),'HALLWAY');
+  await assert.rejects(composer.compose('gate',{languageSettings:'ko'}),/interfaceSyntax/);
+  await assert.rejects(composer.compose('unknown'),/layer/i);
+});

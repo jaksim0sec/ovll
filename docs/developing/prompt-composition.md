@@ -9,7 +9,7 @@
 - 서버가 `need` 조회, 응답 검증, 실행, 지침 합성, ID/참조·상태·`focus` 관리를 담당.
 
 ## Gate
-입력: 현재 사용자 요청 원문 + 기존 세션 `contextData`.
+입력: 현재 사용자 요청 원문 + 기존 세션 `contextData` + 요청 시점에 첨부된 Skill/Skill Block 초기 자료(출처·완전성·누락 포함). 표시용 Skill 메타데이터는 실행 정의가 아님. 초기 자료로 충분한지 판단하고 부족한 `need`만 요청.
 조립: `common/concepts → base/gate → common/json → blocks/informationRequest`.
 출력: `{"need":[...]}`. 없으면 `{"need":[]}`.
 동작: 자료 조회 후 최초 Hallway로 전달. Gate는 계획·실행·초기 `contextBlock` 생성하지 않음.
