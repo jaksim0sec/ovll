@@ -12,6 +12,8 @@
 ```text
 /
 ├── AGENTS.md
+├── package.json                     # Render beta Node ESM 시작·테스트 명령
+├── render.yaml                      # beta 전용 Render Web Service Blueprint
 ├── assets/svg/                     # 현재 .gitkeep만 존재
 ├── back/js/                        # request/{registry,scheduler}, engine/{promptComposer,dataProvider,engine}, model/gemini, demo.js, httpServer.js, server.js
 ├── docs/
@@ -24,6 +26,8 @@
 │   │   ├── frontend-runtime-and-hosted-swipes.md
 │   │   ├── frontend-workspace.md
 │   │   ├── prompt-composition.md
+│   │   ├── request-engine.md
+│   │   ├── render-test-bridge.md
 │   │   └── workshops.md
 │   ├── notes/
 │   │   ├── frontend-backend-handoff.md
@@ -56,7 +60,8 @@
 │       ├── shell/                  # appShell.js, hostedSlides.js,
 │       │                           # pageHost.js, viewportMotion.js
 │       ├── skill/catalog.js
-│       └── workspace/              # chat.js, controller.js, dataAccess.js, icons.js, model.js
+│       └── workspace/              # chat.js, controller.js, dataAccess.js,
+│       │                           # icons.js, model.js, requestInput.js, requestBridge.js
 ├── prompts/
 │   ├── base/                       # hallwayInitial, hallwayReturn, gate, output
 │   ├── blocks/                     # contextBlockUpdate, contextDataUpdate,
@@ -78,7 +83,7 @@
 - `front/css/`: 공통·셸·캔버스·컴포저·워크스페이스·호스팅 슬라이드 스타일. 테마와 레이아웃 수정 전 적용 지점 확인.
 - `prompts/`: AI 호출 계층·조립형 지침. `base/`는 기본 지침, `blocks/`는 조립 블록, `common/`은 공통 규약, `manifest.json`은 구성 목록.
 - `assets/svg/`: SVG 정적 자산용 위치. **현재 자산 파일 없음**.
-- `tests/`: 자동화 검증·회귀 테스트 전용. 현재 검증 파일은 `tests/frontend/`에 집중됨. 제품 코드·임시 실험 파일과 혼재 금지.
+- `tests/`: 자동화 검증·회귀 테스트 전용. 검증 파일은 `tests/backend/`와 `tests/frontend/`에 있으며, Render HTTP·Chat 시험은 백엔드 테스트에 포함됨. 제품 코드·임시 실험 파일과 혼재 금지.
 - `docs/notes/`: 개발 중 논의·가설·임시 설계·미확정 기록. 확정 명세로 취급 금지.
 - `docs/developing/`: **확정된 실제 개발 명세**. 시스템 구조·모듈 경계·데이터 구조·구현 방법·인터페이스/프로토콜·동작 규칙 등 구현에 필요한 결정과 사실 보관. 일반론·소개문·독자용 튜토리얼 아님.
 - `docs/superpowers/plans/`: 현재 존재하는 작업 계획 기록 경로. `docs/developing/`의 확정 명세나 `docs/notes/`의 미확정 기록을 대체하지 않으며, 새 문서의 기본 저장소로 자동 선택하지 말 것.
