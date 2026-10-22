@@ -165,3 +165,8 @@ Shell은 기능 내부 DOM을 조회하지 않는다. Page Host는 최상위 페
 
 ## Render HTTP 시험 연결 — 2026-10-23
 `front/js/workspace/requestBridge.js`가 기존 Composer와 Chat API 사이에서 HTTP POST 접수, 인증된 상태 GET 폴링, Gate/Hallway 진행·최종 응답 투영을 맡는다. Render가 제공하는 동일 origin에서만 사용하며, Composer는 임시 테스트 기본값 `abcd`를 자동 전송하며, Render에 다른 `OVLL_TEST_TOKEN`이 설정되어 401이 반환될 때만 사용자 입력을 요청한다. `abcd`는 공개 소스에 드러나는 시험값으로 운영용 인증이 아니다. 실행/모델 API는 기존 백엔드 엔진 책임이고 프론트에 Gemini 비밀키를 넣지 않는다. 정확한 계약·범위: `docs/developing/render-test-bridge.md`.
+
+## 2026-10-23 초기 복원 무한 대기 제한
+- `createWorkspace` 초기 `canvasState`, `chatDraft`, `canvasViewport`의 IndexedDB 읽기가 하나라도 영구 대기하면 `Promise.allSettled`가 완료되지 않아 `boot.js`의 `await createWorkspace`도 끝나지 않았다.
+- `settleInitialWorkspaceReads(reads,{timeoutMs:8000})`를 추가해 8초 뒤에는 세 복원 슬롯을 `rejected`로 반환한다. 실패 슬롯은 기존 `failedDomains`, `preserveStoredGraph`, `preserveStoredDraft`의 덮어쓰기 방지 정책을 그대로 적용한다. 정상 복원은 타이머 전에 즉시 완료하며 실제 데이터를 유지한다.
+- Node 기반 `tests/frontend/workspace-init-timeout.test.mjs`를 추가했고 브라우저·실 Render 환경은 테스트하지 않았다. 실제 사용자 Render 부트 중단의 정확한 원인은 별도 확인이 필요하다.
