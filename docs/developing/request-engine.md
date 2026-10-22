@@ -1,5 +1,5 @@
 # 독립 요청 엔진 — beta 최초 실행 범위
-상태: 2026-10-23 구현 사실. 실서버/API/배포가 아니라 Node 프로세스 내부 프로토타입.
+상태: 2026-10-23 구현 사실. 핵심 엔진은 독립 Node 프로세스 내부 프로토타입이며 **Render HTTP 시험 통로·프론트 Chat 연결**을 추가 구현했다. 실제 Render 배포 및 Gemini 실호출 검증 여부는 별도.
 
 ## 컴포넌트와 실행
 - `back/js/request/registry.js`: `createRequestRegistry({createId?})` → `register({roomId,request,contextData,initialResources?})`, `get(roomId,requestId)`, `transition(roomId,requestId,changes)`. 메모리에 요청별 상태를 기록하고 외부에는 복제된 스냅샷을 반환한다.
@@ -8,7 +8,7 @@
 - `back/js/engine/dataProvider.js`: `createMemoryDataProvider({fixtures?})` → `resolveNeed({roomId,requestId,need,availableResources,request,contextData})`. `need`는 기존 originalReq/chatContext/skillDef/canvasSkill/skillList 문법을 사용하며, 이미 있는 완전 자료를 재조회하지 않고 메타데이터만 있는 자료는 정의 완료로 보지 않는다. 부족한 자료를 `missing`으로 되돌린다.
 - `back/js/engine/engine.js`: `createRequestEngine({composer,modelCaller,dataProvider})` → `run(requestSnapshot,{onStage?})`. Gate JSON `{need:[...]}` 검증 후 자료 조회, Hallway Initial 직접 응답 `{languageBlock,contextBlock,contextData}`만 `completed`. 계획 분기는 `{plan,contextBlock}`로 검증해 `unsupported_workshop`에 남긴다. **Output 추가 호출 없음.**
 - `back/js/model/gemini.js`: `createGeminiCaller({apiKey,model,fetchImpl?})`의 `generate({layer,prompt,context,format:'json',signal?})`가 `{jsonText}` 반환. 모델/인증/REST 형식은 호출기만 알고 엔진은 공급자별 타입을 import하지 않는다. 이 단계에서는 동일한 한 모델로 모든 호출을 실행한다.
-- `front/js/workspace/requestInput.js`: `prepareRequestInput({draft,dataAccess})` → `{request,initialResources}`. 직접 첨부한 Skill/Skill Block만 읽으며 Block이면 해당 배치 인스턴스와 참조 Skill 메타데이터를 처음부터 전달한다. 연결된 전체 Canvas는 수집하지 않는다. 프론트의 정적 Skill 카탈로그는 **표시용 메타데이터**이며 실행 지침이 아님. 파일 Blob은 전달하지 않는다. 아직 `boot.js`의 전송 콜백과 연결하지 않았다.
+- `front/js/workspace/requestInput.js`: `prepareRequestInput({draft,dataAccess})` → `{request,initialResources}`. 직접 첨부한 Skill/Skill Block만 읽으며 Block이면 해당 배치 인스턴스와 참조 Skill 메타데이터를 처음부터 전달한다. 연결된 전체 Canvas는 수집하지 않는다. 프론트의 정적 Skill 카탈로그는 **표시용 메타데이터**이며 실행 지침이 아님. 파일 Blob은 전달하지 않는다. `front/js/workspace/requestBridge.js`에서 호출하고 `boot.js`에 요청 전송 콜백을 연결했다. 초기 참조 준비 함수의 범위/완전성은 유지한다.
 
 ## 요청 상태
 `queued → running → completed | unsupported_workshop | failed`.
@@ -24,5 +24,10 @@ GEMINI_API_KEY='...' GEMINI_MODEL='your-supported-gemini-model' node back/js/dem
 ```
 자격증명은 서버 환경변수로만 공급하며 프론트로 전달하거나 저장소에 기록하지 않는다. 실제 Gemini 키/모델이 없다면 모델 실호출은 **미검증**이다. `back/js/demo.js`는 하나의 가상 구조화 요청을 등록해 실행하는 CLI이고, 모의 모델 성공을 출력하지 않는다.
 
+## Render 시험 연결
+- `back/js/httpServer.js`: `front/` 동일 origin 정적 호스팅, `POST /api/requests` 202 접수, `GET /api/requests/:id?roomId=...` 상태 조회, `GET /api/health` 건강 확인. `OVLL_TEST_TOKEN` Bearer 비밀키로 요청 API를 보호한다. 일반 사용자 인증은 아니다.
+- `back/js/server.js`: 독립 엔진·요청 큐·Gemini 호출기를 만들어 `0.0.0.0:PORT`에서 Web Service로 실행한다. `front/js/workspace/requestBridge.js`는 채팅에서 약 900ms 간격 HTTP 폴링으로 실제 상태와 직접 응답을 표시한다.
+- 실험 설정·제한은 `docs/developing/render-test-bridge.md` 참조. 실제 Gemini API 키를 통한 Render 실호출 성공은 아직 확인하지 않았다.
+
 ## 아직 없는 기능
-프론트 전송 API/HTTP/SSE, 서버 인증, DB 영속 저장·재시작 복구·중단, 실물 파일 업로드, 사용자별 요청 접근 제어, Workshop 실행·Function Calling·IR, Hallway Return 실호출, Output 실호출, 서버 확정 Canvas 원본 관리. 프로토타입의 자료 완전성 표기는 인증이나 악의적 입력에 대한 신뢰 검증을 대신하지 않는다.
+SSE, 정식 사용자 인증, DB 영속 저장·재시작 복구·중단, 실물 파일 업로드, 사용자별 요청 접근 제어, Workshop 실행·Function Calling·IR, Hallway Return 실호출, Output 실호출, 서버 확정 Canvas 원본 관리. 프로토타입의 자료 완전성 표기는 인증이나 악의적 입력에 대한 신뢰 검증을 대신하지 않는다.
