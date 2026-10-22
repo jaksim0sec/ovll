@@ -75,6 +75,7 @@ export function createRequestBridge({fetchImpl=globalThis.fetch,promptForToken=(
    response=await fetchImpl('/api/requests',{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+token},body:JSON.stringify({roomId,...body}),cache:'no-store'});
    payload=await readResponse(response);
   }catch{return {accepted:false,message:'서버에 연결할 수 없습니다. 잠시 후 다시 전송해 주세요.'};}
+  if(destroyed)return {accepted:false,message:'작업실이 닫혔습니다.'};
   if(!response.ok){
    if(response.status===401)token='';
    return {accepted:false,message:response.status===401?'접근키가 일치하지 않습니다. 다시 입력해 주세요.':response.status===429?'서버 대기열이 가득 찼습니다.':'요청 접수 실패 ('+(payload.error||response.status)+')'};
@@ -82,7 +83,7 @@ export function createRequestBridge({fetchImpl=globalThis.fetch,promptForToken=(
   if(payload.roomId!==roomId||typeof payload.requestId!=='string'||!payload.requestId)return {accepted:false,message:'서버 접수 응답이 올바르지 않습니다.'};
   records.push({id:payload.requestId+':user',requestId:payload.requestId,role:'user',text:describeDraft(draft)});
   activities.set(payload.requestId,{requestId:payload.requestId,label:'대기열에 등록됨',detail:'서버 응답을 기다리고 있습니다.'});
-  refresh();onAccepted();schedule(()=>poll(roomId,payload.requestId));
+  refresh();try{onAccepted();}catch{/* UI navigation must not undo server acceptance. */}schedule(()=>poll(roomId,payload.requestId));
   return {accepted:true};
  }
  return Object.freeze({submit,destroy(){destroyed=true;for(const timer of timers)clearTimeout(timer);timers.clear();token='';activities.clear();records.length=0;}});
