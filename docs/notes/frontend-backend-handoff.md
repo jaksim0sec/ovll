@@ -1,6 +1,6 @@
 # Ovll beta — 프론트·백엔드 연결 인수인계 (2026-10-19)
 
-> **읽는 순서:** 이 문서 → `AGENTS.md` → `docs/developing/frontend-workspace.md`·`frontend-data.md` → `architecture.md`·`context.md`·`workrooms.md` → 실제 `beta` 코드.
+> **읽는 순서:** 이 문서 → `AGENTS.md` → `docs/developing/frontend-workspace.md`·`frontend-data.md` → `architecture.md`·`context.md`·`workshops.md` → 실제 `beta` 코드.
 >
 > **상태:** 실제 구현/미구현/미확정의 구분을 위한 인수인계. 새 백엔드 API/IR 명세가 아니다. `docs/notes/`에 위치하므로 여기의 미확정 항목을 구현 계약으로 자동 승격하지 않는다. **브랜치 `beta`만 수정. `main`은 참조용, 수정·병합·배포 금지.**
 
@@ -12,7 +12,7 @@
 4. **외부 → 프론트 Canvas 변경:** `workspaceController.getCanvasCommands()`로 기존 모델의 검증된 로컬 `addBlock/updateBlock/deleteBlock/connect/disconnect`를 사용한다. 이는 **작업실 명령 스키마, IR 컴파일러, 실행기가 아니다.**
 5. **외부 → Chat·Library 표시:** Workspace의 `setConfirmedChatRecords`·`setRequestActivities`, Library의 `setConfirmedItems`·`setLoading`. 검증된 정보를 **표시만** 하며 가짜 응답/자산을 생성하지 않는다.
 6. **프론트 → 요청/실행:** `createWorkspace({...,onSubmitRequest?,onRunBlock?})`라는 선택적 콜백 슬롯이 있다. 현재 `boot.js`는 실제 서버를 전달하지 않아 두 동작은 `accepted:false`다.
-7. **없는 것:** 백엔드 서버/DB, 실행 IR, 요청·호출 수명 구현, Gate/Corridor/Workroom/Output 런타임, 권한/HTTP/SSE/업로드, 실제 Chat·Library 데이터 공급, 원격 자산 프로토콜. **프론트 연결 지점 준비 완료 ≠ 서버 통합 완료.**
+7. **없는 것:** 백엔드 서버/DB, 실행 IR, 요청·호출 수명 구현, Gate/Hallway/Workshop/Output 런타임, 권한/HTTP/SSE/업로드, 실제 Chat·Library 데이터 공급, 원격 자산 프로토콜. **프론트 연결 지점 준비 완료 ≠ 서버 통합 완료.**
 
 ## 1. 실제 책임·호출 구조
 
@@ -33,7 +33,7 @@ front/index.html → front/js/boot.js
   └─ library/controller.js         공급받은 자산의 표시·빈 상태
 
 백엔드 (미구현)
-  Gate / Corridor / Workroom / Output, 요청/호출 수명,
+  Gate / Hallway / Workshop / Output, 요청/호출 수명,
   서버 검증/저장/IR/need 조회, HTTP/SSE, 인증·파일 업로드.
 ```
 
@@ -80,7 +80,7 @@ canvas.deleteBlock(block.id);
 
 - 호출자가 기존 프론트 Model의 **실제 Skill·포트·필드 ID**를 준다는 전제의 사용 예시다. `getCanvasCommands()`는 `addBlock(skillId,options)`, `updateBlock(id,patch)`, `deleteBlock(id)`, `connect(from,to)`, `disconnect(linkId)`만 노출한다. 필드 입력의 지연 버퍼를 먼저 반영하고 기존 Model 메서드를 호출한다.
 - 유효하지 않은 Skill·연결 등은 Model의 기존 오류가 발생한다. UI는 Model 구독을 통해 반영한다. 연결되거나 삭제됐다는 모델 변경 사실과 **서버 실행/파일 업로드 성공**은 별개다.
-- Workroom `canvasEdit`의 의미·행동과 대응할 수 있지만, **모델/서버가 전송할 action-plan JSON이나 외부 호출 권한 규칙을 정한 것이 아니다**. 이를 그대로 신뢰할 수 없는 외부 요청/모델 출력에 노출하지 말고 실제 서버 통신 계층에서 필요한 검증을 구현해야 한다. 원격 동시 수정/AI 편집 충돌·undo 정책은 여전히 미확정이다.
+- Workshop `canvasEdit`의 의미·행동과 대응할 수 있지만, **모델/서버가 전송할 action-plan JSON이나 외부 호출 권한 규칙을 정한 것이 아니다**. 이를 그대로 신뢰할 수 없는 외부 요청/모델 출력에 노출하지 말고 실제 서버 통신 계층에서 필요한 검증을 구현해야 한다. 원격 동시 수정/AI 편집 충돌·undo 정책은 여전히 미확정이다.
 
 ### C. 요청 접수, Chat, Library
 
@@ -99,16 +99,16 @@ canvas.deleteBlock(block.id);
 
 ## 3. 요청·작업실·맥락/IR — 백엔드 작업자가 반드시 분리할 것
 
-`docs/developing/architecture.md`, `context.md`, `workrooms.md`의 현재 확정된 **논리적 의미**:
+`docs/developing/architecture.md`, `context.md`, `workshops.md`의 현재 확정된 **논리적 의미**:
 
-- 서버 요청 흐름: Gate → Corridor Initial → (즉시 응답 또는 Workroom 실행·검증 → 필요 시 Corridor Return → terminate → Output). 순환/조건부이며 매 계층마다 LLM 1회 호출을 강제하지 않음.
+- 서버 요청 흐름: Gate → Hallway Initial → (즉시 응답 또는 Workshop 실행·검증 → 필요 시 Hallway Return → terminate → Output). 순환/조건부이며 매 계층마다 LLM 1회 호출을 강제하지 않음.
 - `need`: `[[datasetName,...parameters],...]` 형태의 계획 필요자료 표현. **서버가 이미 가진 방/요청/자산·IR·대화·맥락 정보는 서버 내부에서 조회**한다. 항상 자동 공급되는 자료의 중복 조회를 강제하지 않는다.
 - **프론트에서만 존재하는 최신 Canvas 편집 상태가 필요할 때:** 연결이 있는 브라우저에 데이터를 요청하도록 *향후 실제 통신 계층*을 설계하고, 그 접점에서 `exportCanvasJSON()`을 호출한다. 브라우저가 꺼져 있으면 최신 로컬 편집 결과는 그 시점에 제공 불가. 서버가 이미 받은 기존 스냅샷은 별도로 사용할 수 있다. 이를 이유로 상시 Canvas 동기화를 임의 도입하지 않는다.
 - `contextBlock`: 해당 요청의 `intent/progress` 및 매 호출마다 서버가 제공하는 `focus`. 프론트가 별도 생성·갱신하지 않는다.
 - `contextData`: 방/세션 전반의 지속 맥락. 서버 실행 원본과 프론트의 기존 캐시 영역은 다르며 `readCached('contextData')`는 있는 캐시만 제공.
 - `chatRecord`: 메시지/요청 기록 원본 구조·조회/페이지네이션은 미정. 프론트의 표시용 `setConfirmedChatRecords` 타입을 DB 스키마로 복제하지 않는다.
 - **IR**: 현재 beta에는 백엔드 실행 IR의 생성기·원본·검증 기록이 없다. `{version:1,blocks,links}`는 편집용 그래프. 옛 `main`의 `GraphPatch/ModelTurn` 형식을 새 표준으로 복제하지 않는다.
-- Skill 정의 ≠ Canvas Skill Block ≠ IR에서 만든 Saved Function. Workroom `skillDefine/skillEdit/canvasEdit/textGenerate`와 `terminate` 의미 보존. `execute` 독립 작업실은 임의로 추가하지 않는다.
+- Skill 정의 ≠ Canvas Skill Block ≠ IR에서 만든 Saved Function. Workshop `skillDefine/skillEdit/canvasEdit/textGenerate`와 `terminate` 의미 보존. `execute` 독립 작업실은 임의로 추가하지 않는다.
 - 모델의 완료 발화 ≠ 서버 검증 완료. 상태·참조·검증·실행 및 실제 성공 여부는 백엔드가 결정한다.
 
 ## 4. 로컬 보존·전송 정책
@@ -129,7 +129,7 @@ canvas.deleteBlock(block.id);
 - 로컬 영속 저장 가드, 가짜 서버 실행 방지. 코드·테스트·문서 변경은 `beta`에만 반영
 
 **백엔드 설계/구현 전이라 의도적으로 미완료:**
-- 요청별 인스턴스/호출 수명, Gate/Corridor/Workroom/Output 동작과 검증, IR/실행/Stored Function, `need` 실제 데이터 제공 목록
+- 요청별 인스턴스/호출 수명, Gate/Hallway/Workshop/Output 동작과 검증, IR/실행/Stored Function, `need` 실제 데이터 제공 목록
 - HTTP/SSE 계약·인증·서버 재접속/중단·파일 업로드, 요청/메시지/자산 ID·Revision
 - Chat·Library 실제 서버 데이터 취득, 기록 정렬·페이지네이션, 사용자/AI 원격 Canvas 변경 권한/충돌
 - 브라우저 전체 Playwright 실행, 서버 연동 E2E 및 모바일 Safari/Android IME 실기기 검증

@@ -4,7 +4,7 @@
 
 ## 0. 이 문서의 위치 및 확정 수준
 
-- **[합의된 방향]** 1014의 논리적 계층(Gate, Corridor, Workroom, Output), 맥락체, 맥락데이터, 조립식 지침을 새로운 아키텍처의 기준으로 사용한다.
+- **[합의된 방향]** 1014의 논리적 계층(Gate, Hallway, Workshop, Output), 맥락체, 맥락데이터, 조립식 지침을 새로운 아키텍처의 기준으로 사용한다.
 - **[합의된 방향]** 구형 main의 백엔드/프론트 데이터 구조는 동일하게 재현할 대상이 아니다. 실행 검증, 참조 무결성, IR, 스케줄링, 오류 복구 등의 경험을 추출하는 **참조 구현체/경험 창고**로 본다. 불필요한 용어 변환 계층을 새 설계에 다시 만들지 않는다.
 - **[합의된 방향]** 스킬은 정의된 행동 자체다. **스킬블록**은 캔버스에 배치된 스킬 인스턴스다. 둘은 다른 객체이며, 저장 함수도 별도 자산이다. 기존 코드의 node/skill 같은 변수명으로 개념을 자동 대응시키지 않는다.
 - **[합의된 방향]** 요청 실행을 관리하는 **공통 기반을 최소한 먼저 만들고**, 작업실을 실제로 연결하면서 점진적으로 검증한다. 공통 기반 전체를 과도하게 완성한 뒤 작업실을 시작하거나, 작업실에 세션/통신 책임을 먼저 집어넣는 방식은 피한다.
@@ -64,7 +64,7 @@
 - intent/progress는 **해당 조립 지침이 포함된 호출에서만 갱신**한다. 매 작업실 호출마다 자동 재생성하지 않는다.
 - 맥락체 생성기는 focus의 존재를 알 필요가 없으며 intent/progress만 작성한다.
 - contextData는 여러 요청에 의해 참조될 수 있으므로 저장/갱신 시 **세션 수준의 충돌 방지**가 필요하다.
-- 정상 종결 시 Output은 실제 결과에 기초하여 최종 contextBlock과 contextData를 갱신한다. 최초 Corridor의 즉시 응답은 기존 1014 조립서대로 그 한 호출에서 languageBlock/contextBlock/contextData를 반환하며 동일 결과를 위한 불필요한 Output 호출을 반복하지 않는다.
+- 정상 종결 시 Output은 실제 결과에 기초하여 최종 contextBlock과 contextData를 갱신한다. 최초 Hallway의 즉시 응답은 기존 1014 조립서대로 그 한 호출에서 languageBlock/contextBlock/contextData를 반환하며 동일 결과를 위한 불필요한 Output 호출을 반복하지 않는다.
 - **[미확정]** 중단·실패 시 새 모델 호출로 맥락데이터를 갱신할지, 기존에 유효하게 갱신된 값과 확인된 사실만 보존할지의 세부 정책. 중단된 사실을 임의 성공으로 바꾸거나 갱신하지 않은 맥락체를 최신 생성값이라고 표현해서는 안 된다.
 
 ## 3. 전체 요청 처리 흐름
@@ -76,7 +76,7 @@
          |
          v
     서버의 계층 진행 제어
-    Gate / Corridor / Workroom / Output
+    Gate / Hallway / Workshop / Output
          |       ^
          |       | 필요시 복도회귀·재계획
          v       |
@@ -340,7 +340,7 @@
 - docs/developing/architecture.md — 전체 계층과 조립 지침의 합의된 원칙
 - docs/developing/context.md — contextBlock의 intent/progress/focus 소유 범위
 - docs/developing/prompt-composition.md — 정상 종결 Output에서 언어·맥락체·맥락데이터 생성
-- docs/developing/workrooms.md — 작업실 책임과 행동 구분
+- docs/developing/workshops.md — 작업실 책임과 행동 구분
 - docs/developing/prompt-composition.md — 계획, 회귀, terminate 경로
 
 이 노트는 **요청·데이터·상태·전송 설계 대화의 임시 기록**이다. 특히 중단/실패 경로의 Output 호출 및 맥락데이터 갱신 정책, DB 상세 스키마, 이벤트 프로토콜 등은 아직 합의되지 않았으므로, 이를 이미 구현된 결정으로 해석하지 않는다.
@@ -405,4 +405,4 @@
 - `skillDefine`의 직접 Skill 정의와 IR→저장 Function 추출의 자산/실행 인터페이스.
 - `execute`의 계획 표현, 실제 실행 검증, 종결 연결 방식.
 - 복도회귀 반환 데이터, 계획 재작성의 구체적 제어, 실패·중단·질문 대기 처리.
-- `prompts/manifest.json`은 Gate/Corridor Initial/Corridor Return/Output만 등록. Workroom 조립 등록은 후속 설계.
+- `prompts/manifest.json`은 Gate/Hallway Initial/Hallway Return/Output만 등록. Workshop 조립 등록은 후속 설계.

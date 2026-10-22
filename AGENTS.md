@@ -24,7 +24,7 @@
 │   │   ├── frontend-runtime-and-hosted-swipes.md
 │   │   ├── frontend-workspace.md
 │   │   ├── prompt-composition.md
-│   │   └── workrooms.md
+│   │   └── workshops.md
 │   ├── notes/
 │   │   ├── frontend-backend-handoff.md
 │   │   └── request-state-sync.md
@@ -58,7 +58,7 @@
 │       ├── skill/catalog.js
 │       └── workspace/              # chat.js, controller.js, dataAccess.js, icons.js, model.js
 ├── prompts/
-│   ├── base/                       # corridorInitial, corridorReturn, gate, output
+│   ├── base/                       # hallwayInitial, hallwayReturn, gate, output
 │   ├── blocks/                     # contextBlockUpdate, contextDataUpdate,
 │   │                               # informationRequest, languageGeneration,
 │   │                               # planGeneration
