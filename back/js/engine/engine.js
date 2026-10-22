@@ -15,10 +15,10 @@ export function createRequestEngine({composer,modelCaller,dataProvider}={}){
   const blockValid=x=>strings(x,['intent','progress']);
   const dataValid=x=>strings(x,['overallFlow','currentTopic','details']);
   const allowedWorkshops=new Set(['skillDefine','skillEdit','canvasEdit','textGenerate','terminate']);
-  const planValid=plan=>Array.isArray(plan)&&plan.length>0&&plan.every(step=>{
+  const planValid=plan=>Array.isArray(plan)&&plan.length>0&&plan.every((step,index)=>{
     if(!isObj(step)||Object.keys(step).length!==1)return false;
     const [name]=Object.keys(step);const d=step[name];
-    return allowedWorkshops.has(name)&&isObj(d)&&exact(d,['objective','need'])&&typeof d.objective==='string'&&needValid(d.need);
+    return allowedWorkshops.has(name)&&(name!=='terminate'||index===plan.length-1)&&isObj(d)&&exact(d,['objective','need'])&&typeof d.objective==='string'&&needValid(d.need);
   });
   async function call(layer,context){
     const prompt=await composer.compose(layer,{languageSettings:'',interfaceSyntax:''});

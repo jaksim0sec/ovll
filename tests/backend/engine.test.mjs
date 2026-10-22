@@ -43,3 +43,9 @@ test('registry scheduler and engine isolate terminal results',async()=>{
  assert.equal(a.status,'completed');assert.equal(b.status,'failed');assert.equal(b.error.code,'ENGINE_OUTPUT_INVALID');
  await scheduler.whenIdle();
 });
+
+test('terminate cannot precede later Workshop steps',async()=>{
+ const invalidPlan={plan:[{terminate:{objective:'complete',need:[]}},{textGenerate:{objective:'later action',need:[]}}],contextBlock:{intent:'test',progress:'pending'}};
+ const engine=createRequestEngine({composer:compose,modelCaller:{generate:async ({layer})=>asText(layer==='gate'?{need:[]}:invalidPlan)},dataProvider:createMemoryDataProvider()});
+ await assert.rejects(engine.run(snapshot),e=>e.code==='ENGINE_OUTPUT_INVALID');
+});
