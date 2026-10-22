@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: ovll-beta
+    runtime: node
+    plan: free
+    branch: beta
+    buildCommand: npm install --ignore-scripts
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        sync: false
+      - key: OVLL_TEST_TOKEN
+        sync: false
