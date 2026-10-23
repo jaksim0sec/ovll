@@ -8,6 +8,7 @@
   },
   "scripts": {
     "start": "node back/js/server.js",
-    "test": "node --test tests/backend/*.test.mjs"
+    "test": "node --test tests/backend/*.test.mjs",
+    "test:frontend:unit": "node --test tests/frontend/canvas-geometry.test.mjs tests/frontend/composer-draft.test.mjs tests/frontend/hosted-contracts.test.mjs tests/frontend/input-manager.test.mjs tests/frontend/sidebar-boundary.test.mjs tests/frontend/workspace-model.test.mjs"
   }
 }
