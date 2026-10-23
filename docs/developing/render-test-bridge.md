@@ -49,3 +49,7 @@ node --test tests/frontend/*.test.mjs
 - 기존 main의 `front/js/boot.js`는 `/api/version`을 호출하고 `/sw.js`를 등록한다. beta 엔진은 `/api/version`을 구현하지 않고 실험 API에 `OVLL_TEST_TOKEN` 검사를 적용하므로 옛 스크립트가 실행되면 401이 나며, 옛 `ui.js`/`ovllPresence.js`/`app.js`는 beta의 HTML에 없는 DOM 요소를 찾으려다 실패한다.
 - main `front/sw.js`의 `ovll-shell-*` CacheStorage가 같은 origin에 남은 경우 beta HTML/JS와 옛 파일이 섞일 수 있다. `beta/front/sw.js`는 **전환용 1회성 서비스워커**: 설치→즉시 활성화→오래된 `ovll-shell-*` 캐시만 삭제→자신을 등록 해제→동일 origin의 열려 있는 창을 새로고침한다. beta 자체는 서비스워커를 등록하지 않는다. 별도 Render beta 서비스/URL 사용을 우선 권장한다.
 - 확인 기준: beta `front/index.html`은 `./js/boot.js`를 ES module로 로드한다. 버전 API 체크 및 옛 Astra UI는 포함하지 않는다. 실제 Render에서 서비스워커 갱신 결과는 별도로 확인해야 한다.
+
+## 2026-10-23 요청별 진단 개선
+- 프론트 진행 카드에는 해당 요청의 사용자 문장(100자 이내)과 requestId 앞부분을 함께 표시한다. 다른 요청이 성공해도 이전 실패 카드는 해당 ID로 남으므로 혼동하지 않아야 한다.
+- `DATA_UNAVAILABLE`은 확인된 `error.missing`의 dataset/key를 보여준다. 인식·공급에 실패한 데이터는 가짜 성공 응답으로 변경하지 않는다.

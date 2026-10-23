@@ -18,6 +18,15 @@ export function createRequestBridge({fetchImpl=globalThis.fetch,promptForToken=(
  if(typeof fetchImpl!=='function'||typeof promptForToken!=='function')throw new TypeError('Browser transport requires fetch and token prompt');
  const records=[],activities=new Map(),timers=new Set();let token='abcd',destroyed=false;
  const refresh=()=>{if(!destroyed){onRecords(records.map(x=>({...x})));onActivities([...activities.values()].map(x=>({...x})));}};
+ const requestLabel=id=>(records.find(record=>record.id===id+':user')?.text||'구조화 요청').split('\n')[0].slice(0,100);
+ const report=(id,label,detail)=>activities.set(id,{requestId:id,label:label+' · '+id.slice(0,8),detail:'요청: '+requestLabel(id)+' · '+detail});
+ const diagnostic=error=>{
+   if(error?.code==='DATA_UNAVAILABLE'&&Array.isArray(error.missing)){
+     const missing=error.missing.slice(0,8).filter(x=>Array.isArray(x)&&x.length===2).map(x=>x[0]+': '+x[1]);
+     return missing.length?'필요한 자료 없음 ('+missing.join(', ')+')':'자료를 찾을 수 없습니다 (DATA_UNAVAILABLE)';
+   }
+   return (error?.code?error.code+' · ':'')+(error?.message||'서버 오류');
+ };
  const authorize=async()=>{
   const typed=await promptForToken();
   if(typeof typed!=='string'||!typed.trim())return false;
@@ -47,19 +56,19 @@ export function createRequestBridge({fetchImpl=globalThis.fetch,promptForToken=(
    if(next.requestId!==requestId||next.roomId!==roomId||typeof next.status!=='string')throw new Error('요청 상태 응답이 올바르지 않습니다.');
   }catch(error){
    if(destroyed)return;
-   activities.set(requestId,{requestId,label:error.permanent?'상태 조회 불가':'서버 연결 재확인 중',detail:error.message});refresh();
+   report(requestId,error.permanent?'상태 조회 불가':'서버 연결 재확인 중',error.message);refresh();
    if(!error.permanent)schedule(()=>poll(roomId,requestId,retry+1));
    return;
   }
   if(destroyed)return;
   if(next.status==='completed'){
    if(typeof next.result?.languageBlock==='string')records.push({id:requestId+':assistant',requestId,role:'assistant',text:next.result.languageBlock});
-   else activities.set(requestId,{requestId,label:'응답 검증 실패',detail:'완료 상태에 응답 본문이 없습니다.'});
+   else report(requestId,'응답 검증 실패','완료 상태에 응답 본문이 없습니다.');
    if(typeof next.result?.languageBlock==='string')activities.delete(requestId);
   }else if(['failed','unsupported_workshop'].includes(next.status)){
-   activities.set(requestId,{requestId,label:stageLabel(next),detail:next.status==='failed'?(next.error?.message||'서버 오류'):'계획은 인식했지만 실제 Workshop 작업은 실행하지 않았습니다.'});
+   report(requestId,stageLabel(next),next.status==='failed'?diagnostic(next.error):'계획은 인식했지만 실제 Workshop 작업은 실행하지 않았습니다.');
   }else{
-   activities.set(requestId,{requestId,label:stageLabel(next),detail:'요청 '+requestId.slice(0,8)+' · '+(next.currentLayer||'queued')});
+   report(requestId,stageLabel(next),next.currentLayer||'queued');
    schedule(()=>poll(roomId,requestId));
   }
   refresh();
@@ -87,7 +96,7 @@ export function createRequestBridge({fetchImpl=globalThis.fetch,promptForToken=(
   }
   if(payload.roomId!==roomId||typeof payload.requestId!=='string'||!payload.requestId)return {accepted:false,message:'서버 접수 응답이 올바르지 않습니다.'};
   records.push({id:payload.requestId+':user',requestId:payload.requestId,role:'user',text:describeDraft(draft)});
-  activities.set(payload.requestId,{requestId:payload.requestId,label:'대기열에 등록됨',detail:'서버 응답을 기다리고 있습니다.'});
+  report(payload.requestId,'대기열에 등록됨','서버 응답을 기다리고 있습니다.');
   refresh();try{onAccepted();}catch{/* UI navigation must not undo server acceptance. */}schedule(()=>poll(roomId,payload.requestId));
   return {accepted:true};
  }
