@@ -33,7 +33,7 @@ async function readJsonBody(req){
  try{return JSON.parse(Buffer.concat(chunks).toString('utf8'));}catch{throw Object.assign(new Error('invalid json'),{statusCode:400});}
 }
 /** Minimal authenticated, same-origin test boundary; queue belongs to the scheduler. */
-export function createRequestHttpServer({scheduler,assets,testToken,frontRoot=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../../front')}={}){
+export function createRequestHttpServer({scheduler,assets,sessions,testToken,frontRoot=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../../front')}={}){
  if(!scheduler?.enqueue||!scheduler?.get||(testToken!==undefined&&typeof testToken!=='string'))throw new TypeError('Invalid scheduler or test token');
  const root=path.resolve(frontRoot);let activeCount=0;
  return createServer(async(req,res)=>{
@@ -46,6 +46,12 @@ export function createRequestHttpServer({scheduler,assets,testToken,frontRoot=pa
     if(assetsMatch&&req.method==='GET'){
       if(!assets?.read)return json(res,501,{error:'ASSETS_UNAVAILABLE'});
       return json(res,200,assets.read({scope:assetsMatch[1]}));
+    }
+    const historyMatch=/^\/api\/rooms\/([a-zA-Z0-9._-]+)\/history$/.exec(pathname);
+    if(historyMatch&&req.method==='GET'){
+      if(!sessions?.load)return json(res,501,{error:'HISTORY_UNAVAILABLE'});
+      const current=sessions.load({scope:historyMatch[1]});
+      return json(res,200,{roomId:historyMatch[1],revision:current.revision,entries:current.history.map(({requestId,request,assistantResponse,verifiedResults})=>({requestId,request,assistantResponse,verifiedResults}))});
     }
     const answerMatch=/^\/api\/requests\/([a-zA-Z0-9._-]+)\/answer$/.exec(pathname);
     if(answerMatch&&req.method==='POST'){
