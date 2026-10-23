@@ -71,7 +71,10 @@ export function createRequestBridge({fetchImpl=globalThis.fetch,promptForToken=(
    activities.set(requestId,{requestId,label:'사용자 답변 대기 · '+requestId.slice(0,8),detail:'요청: '+requestLabel(requestId),waiting:next.waiting});
    void loadAssets(roomId).catch(()=>{});
   }else if(['failed','unsupported_workshop'].includes(next.status)){
-   report(requestId,stageLabel(next),next.status==='failed'?diagnostic(next.error):'계획은 인식했지만 실제 Workshop 작업은 실행하지 않았습니다.');
+   void loadAssets(roomId).catch(()=>{});
+   const applied=Array.isArray(next.verifiedResults)&&next.verifiedResults.some(x=>x.outcome?.status==='applied');
+   const detail=(next.status==='failed'?diagnostic(next.error):'Workshop을 실행할 수 없습니다.')+(applied?' · 일부 자산 변경은 실제 적용됐어.':'');
+   report(requestId,stageLabel(next),detail);
   }else{
    report(requestId,stageLabel(next),next.currentLayer||'queued');
    schedule(()=>poll(roomId,requestId));
