@@ -64,5 +64,10 @@ node --test tests/frontend/*.test.mjs
 - UI는 요청별 `waiting.id` 질문 폼과 최종 응답 재시도 버튼을 지원한다. Canvas는 서버 확정 자산을 반영하되 기존 로컬과 충돌하면 덮어쓰지 않는다. Beta 공유 테스트 토큰은 정식 인증이 아니다.
 - 현재 실제 Render 재배포, Gemini 호출 및 브라우저 렌더링은 검증되지 않았고 API의 메모리 상태는 재시작하면 지워질 수 있다.
 
-- 2026-10-23 신뢰성 검증: GitHub Actions Node 22 `npm test` 57/57 통과. 독립 실제 Gemini 모델 통화 및 브라우저·Render 환경에서의 전체 E2E 동작은 별도 확인 필요.
+- 2026-10-23 신뢰성 검증: GitHub Actions Node 22 `npm test` 65/65 통과. 독립 실제 Gemini 모델 통화 및 브라우저·Render 환경에서의 전체 E2E 동작은 별도 확인 필요.
 - 동일 방에서 서버 확정 Skill 정의는 `GET /api/rooms/:roomId/assets`로 직접 재조회 가능하다. 채팅의 '서버에서 확인된 작업' 카드에는 적용 결과가 있는 행동만 표시하고, 실제 생성된 Skill은 채팅 자산 목록과 라이브러리에 노출한다. 서버 상태와 다른 로컬 캔버스는 자동으로 덮어쓰지 않는다.
+
+## 2026-10-23 비IR Workshop 재시도
+- Workshop 허용 목록 이외 행동은 1회 교정하며 이후에는 구체적 실패 행동을 보여준다. 노드 생성 시 verified addBlock 결과까지 확인한다.
+- 서버 메모리에 실패한 요청도 남기며 후속 재지시에 원본을 제공한다. 재시작 시 기록은 사라질 수 있다.
+- Node CI npm test 65개 통과. 실제 Render/Gemini·브라우저 인터랙션은 별도로 검증해야 한다.
