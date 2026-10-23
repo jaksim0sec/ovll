@@ -21,3 +21,24 @@ test('a provider failure marks the individual call failed',async()=>{
  assert.equal(manager.listCalls({roomId:'r',requestId:'one'})[0].status,'failed');
  assert.deepEqual(manager.listCalls({roomId:'r',requestId:'two'}),[]);
 });
+
+test('Workshop Function Calling gets a routed call ID but applies nothing',async()=>{
+ const seen=[];
+ const manager=createCallManager({composer:{compose:async layer=>'prompt '+layer},modelCaller:{
+  generate:async()=>({jsonText:'{"need":[]}'}),
+  generateFunction:async input=>{seen.push(input);return {kind:'function_proposal',name:'define_direct',args:{name:'Plant'}};}
+ }});
+ const args={roomId:'room',requestId:'request',requestRevision:0,
+  route:{layer:'workshop',workshop:'skillDefine',action:'defineDirect'},
+  context:{contextBlock:{intent:'plant',progress:'planned'}},
+  tool:{name:'define_direct',description:'Define a Skill',parameters:{type:'object',properties:{name:{type:'string'}},required:['name']}}};
+ const result=await manager.invokeFunction(args);
+ assert.match(result.callId,/^[A-Za-z0-9_-]+$/);
+ assert.equal(result.proposal.args.name,'Plant');
+ const [call]=manager.listCalls({roomId:'room',requestId:'request'});
+ assert.equal(call.path,result.callId+'.workshop.skillDefine.defineDirect');
+ assert.equal(call.status,'completed');
+ assert.equal(seen[0].prompt,'prompt workshop.skillDefine.defineDirect');
+ assert.equal(seen[0].context.contextBlock.focus,'skillDefine.defineDirect');
+ assert.equal('args' in call,false);
+});
