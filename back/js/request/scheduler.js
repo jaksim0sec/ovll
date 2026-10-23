@@ -24,9 +24,12 @@ export function createRequestScheduler({registry,execute,resume,retryOutput,sess
           const stored=registry.get(item.roomId,item.requestId);
           const state=session(item.roomId,stored.contextData);
           const snapshot={...stored,contextData:clone(state.contextData),chatHistory:clone(state.history)};
-          const result=await (item.retryOutput?retryOutput(snapshot,{onStage:layer=>{if(!item.controller.signal.aborted)registry.transition(item.roomId,item.requestId,{currentLayer:layer});},signal:item.controller.signal}):item.resumeArgs?resume(snapshot,item.resumeArgs,{onStage:layer=>registry.transition(item.roomId,item.requestId,{currentLayer:layer})}):execute(snapshot,{
-            onStage:layer=>registry.transition(item.roomId,item.requestId,{currentLayer:layer})
-          }));
+          const options={
+            onStage:layer=>{if(!item.controller.signal.aborted)registry.transition(item.roomId,item.requestId,{currentLayer:layer});},
+            signal:item.controller.signal
+          };
+          const result=await (item.retryOutput?retryOutput(snapshot,options):
+            item.resumeArgs?resume(snapshot,item.resumeArgs,options):execute(snapshot,options));
           if(!['completed','awaiting_input','unsupported_workshop','failed'].includes(result?.status))throw Object.assign(new Error('Invalid result'),{code:'ENGINE_OUTPUT_INVALID'});
           if(item.controller.signal.aborted){item.resolve(registry.transition(item.roomId,item.requestId,{status:'stopped'}));return;}
           const {status,currentLayer,contextBlock,contextData,result:answer,plan,planCursor,waiting,verifiedResults,error,handoff}=result;
