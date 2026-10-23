@@ -88,3 +88,18 @@ test('an affirmative answer to a previously offered Skill creation requires a re
  await assert.rejects(engine.run(input),err=>err.code==='WORK_REQUIRED');
  assert.equal(calls,2);
 });
+
+test('a Workshop that merely says done without any applied action cannot produce a fake Skill success',async()=>{
+ const assets=createMemoryAssets(),cp=createMemoryCheckpoints();let outputCalled=false;
+ const modelCaller={generate:async ({layer})=>{
+  if(layer==='gate')return toText({need:[]});
+  if(layer==='hallwayInitial')return toText({plan:[{skillDefine:{objective:'Create named Skill',need:[]}},{terminate:{objective:'finish',need:[]}}],contextBlock:block});
+  if(layer==='workshop')return toText({done:true});
+  if(layer==='output'){outputCalled=true;return toText({languageBlock:'스킬 생성 완료',contextBlock:block,contextData});}
+ }};
+ const composer={compose:async x=>x},engine=createRequestEngine({composer,modelCaller,dataProvider:createMemoryDataProvider({assets}),workshopExecutor:createWorkshopExecutor({composer,modelCaller,assets}),checkpoints:cp});
+ const result=await engine.run(request('문장 정리기 스킬 만들어줘'));
+ assert.notEqual(result.status,'completed');
+ assert.equal(assets.read({scope:'r'}).skills.length,0);
+ assert.equal(outputCalled,false);
+});
