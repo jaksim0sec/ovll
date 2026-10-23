@@ -18,7 +18,8 @@
 입력: 사용자 요청 원문 + Gate가 조회한 자료. 직접 답변 분기에서 `contextData`를 갱신하므로 **기존 세션 맥락데이터 입력 필요**.
 조립: `common/concepts → base/hallwayInitial → common/json → blocks/languageGeneration → blocks/planGeneration → blocks/contextBlockUpdate → blocks/contextDataUpdate`.
 분기:
-- **즉시 응답 가능**(스킬·행동·추가 절차 불필요): `{"languageBlock":"...","contextBlock":{"intent":"...","progress":"..."},"contextData":{"overallFlow":"...","currentTopic":"...","details":"..."}}`. 이 호출에서 종결; Output 추가 호출 금지.
+- **즉시 응답 가능**(별도 Workshop 행동·추가 자료 불필요): `{"languageBlock":"...","contextBlock":{"intent":"...","progress":"..."},"contextData":{"overallFlow":"...","currentTopic":"...","details":"..."}}`. 이 호출에서 종결; Output 추가 호출 금지.
+- `textGenerate(need: []) → terminate`만으로 종료할 수 있는 요청은 즉시 응답 분기로 축약한다. 대화 말투 변경·지속 지시의 `contextData` 갱신도 별도 Workshop 실행이 아니다. 다른 Workshop 행동이나 필요한 데이터 조회가 있으면 이 규칙으로 무조건 축약하지 않는다.
 - **작업 필요**: `{"plan":[...],"contextBlock":{"intent":"...","progress":"..."}}`. `languageBlock`·`contextData` 반환 금지. `contextBlock`은 원 요청을 다시 읽지 않고 회귀 가능한 깊이 유지.
 - `plan: []` 예시는 구조 표시에 쓰일 수 있으나 작업 분기의 권장 빈 계획이 아님.
 - 최초 계획: 가능한 연속 목표를 묶되 이후 판단이 검증 결과에 달리면 의미 있는 체크포인트에서 멈추고 `terminate` 없이 반환. 성공 가정 계획에 가상 복구 작업 추가 금지.

@@ -9,7 +9,7 @@ Each step specifies a workshop, its objective, and any additional data requests.
 - `skillDefine` — Define or revise reusable Skills. IR-derived Functions remain distinct assets.
 - `skillEdit` — Modify skill appearance or delete skills.
 - `canvasEdit` — Create, modify, remove, or connect Skill Blocks (Skill Nodes) on the Canvas.
-- `textGenerate` — Generate user-facing text or questions.
+- `textGenerate` — Generate user-facing text or questions as a **separate Workshop operation**, not the Hallway's own immediate final reply.
 - `terminate` — Explicitly end the current request.
 
 ## Step format
@@ -31,6 +31,7 @@ Each step contains one workshop name as its key.
 ## Rules
 
 - Select only workshops necessary to fulfill the current request.
+- If the whole plan would be `textGenerate` with `need: []` followed by `terminate`, do not plan it in Hallway Initial: directly return `languageBlock`, `contextBlock` and `contextData` instead. This applies only when no other Workshop operation or required data lookup exists.
 - Arrange steps in the required execution order.
 - Specify outcomes, not internal actions or implementation procedures.
 - Leave concrete action selection to each workshop.

@@ -3,8 +3,10 @@
 Assess the current user request, its overall intent, and the information provided by the Gate.
 
 ## Decision
-- If the request can be fulfilled directly without actions, skill usage, or further procedures, return only `languageBlock`, a concise final-state `contextBlock`, and updated `contextData`. Do not return `plan`.
-- Otherwise, return only `plan` and a sufficiently detailed `contextBlock` that preserves the full request's objective and constraints for later hallway cycles. Do not return `languageBlock` or `contextData` in this branch.
+- **Direct completion first:** If the entire request can be satisfied by writing a response and/or updating conversational `contextData`, return only `languageBlock`, final `contextBlock`, and updated `contextData`. Do not return `plan`.
+- **No empty-work detour:** A plan consisting only of `textGenerate` with `need: []` followed by `terminate` is equivalent to direct completion. Produce the direct-completion JSON instead, in this Hallway call.
+- Use a `plan` only when a distinct Workshop action or information-dependent procedure must actually run. Then return only `plan` and `contextBlock`, preserving the original objective and constraints; do not return `languageBlock` or `contextData`.
+- Changing speech style, acknowledging instructions, and preserving ongoing conversation preferences in `contextData` do **not** require a Workshop.
 
 ## Planning
 - Aim to fulfill the entire user request, but do not require a single plan to cover every remaining step.
