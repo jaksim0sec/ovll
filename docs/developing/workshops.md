@@ -63,3 +63,5 @@
 - 작업실별 모델 출력: `{action, args}` 또는 `{done:true}`. `prompts/base/workshop.md`와 `prompts/blocks/workshopActions.md`로 허용 행동·인수·판단 규칙을 제공한다. 작업실 결정은 자산을 직접 변경하지 않으며 실제 변경은 `memoryAssets` 어댑터에서 검증·적용한다.
 - `defineDirect`/`revise`/`editAppearance`/`delete`, Canvas 5행동, `basicText`/`question` 총 11종 지원. `defineFromIR` 미지원 명시적 거절. `terminate`는 Output 단계로 가는 비행동 계획 항목.
 - 서버 메모리 자산의 revision, 참조중 Skill 삭제 거절, 연결 무결성, 재사용 operation ID 중복 적용 방지; action 결과를 읽어야 실제 완료가 확정된다. `question`은 응답을 기다리므로 별도 HTTP `/answer` 경로로 원래 요청을 재개한다.
+
+- 검증된 결과 없이 Workshop이 `{done:true}`로 작업 완료를 주장하면 엔진은 `WORK_NOT_APPLIED`로 거절한다. 각 계획 단계에서 실제 적용된 행동 또는 중간 발화 기록이 존재해야 해당 Workshop이 완료된다. 사용자 요청이 단순 직접 응답이라면 Workshop 진입 없이 최초 Hallway에서 완료한다.
