@@ -15,6 +15,7 @@ export function createEngine({composer,modelCaller,dataProvider,actionShell,regi
   submit:input=>scheduler.enqueue({...input,contextData:input.contextData??{overallFlow:'',currentTopic:'',details:''}}),
   getRequest:({roomId,requestId})=>scheduler.get(roomId,requestId),
   whenIdle:()=>scheduler.whenIdle(),
+  cancel:({roomId,requestId})=>{const state=scheduler.cancel(roomId,requestId);if(state?.status==='stopping'||state?.status==='stopped')callManager.cancelRequest({roomId,requestId});return state;},
   getCall:args=>callManager.getCall(args),
   listCalls:args=>callManager.listCalls(args),
   // Existing HTTP bridge uses the scheduler-shaped facade.

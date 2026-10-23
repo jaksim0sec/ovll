@@ -3,8 +3,18 @@ import {createActionShell} from './actionShell.js';
 export function createCallManager({callRegistry=createCallRegistry(),composer,modelCaller,maxModelCalls=2,actionShell=createActionShell()}={}){
  if(!composer?.compose||!modelCaller?.generate||!Number.isInteger(maxModelCalls)||maxModelCalls<1)throw new TypeError('Invalid call manager');
  let active=0;const waiting=[];
- async function slot(){if(active<maxModelCalls){active++;return;}await new Promise(resolve=>waiting.push(resolve));}
- function free(){const next=waiting.shift();if(next)next();else active--;}
+ const aborted=()=>Object.assign(new Error('Cancelled model call'),{code:'MODEL_CANCELLED'});
+ async function slot(signal){
+  if(signal?.aborted)throw aborted();
+  if(active<maxModelCalls){active++;return;}
+  await new Promise((resolve,reject)=>{
+   const waiter={resolve,reject,signal};
+   const onAbort=()=>{const pos=waiting.indexOf(waiter);if(pos>=0)waiting.splice(pos,1);reject(aborted());};
+   waiter.onAbort=onAbort;signal?.addEventListener('abort',onAbort,{once:true});waiting.push(waiter);
+  });
+  if(signal?.aborted){free();throw aborted();}
+ }
+ function free(){const next=waiting.shift();if(next){next.signal?.removeEventListener('abort',next.onAbort);next.resolve();}else active--;}
  async function invoke({roomId,requestId,requestRevision=0,route,context={},bindings={},format='json',signal}={}){
   const record=callRegistry.register({roomId,requestId,requestRevision,route});
   const started=callRegistry.start({roomId,requestId,callId:record.callId});
@@ -14,13 +24,15 @@ export function createCallManager({callRegistry=createCallRegistry(),composer,mo
   let held=false;
   try{
    const prompt=await composer.compose(layer,bindings);
-   await slot();held=true;
+   await slot(signal);held=true;
+   if(signal?.aborted)throw aborted();
    const out=await modelCaller.generate({layer,prompt,context:frame,format,signal});
+   if(signal?.aborted)throw aborted();
    callRegistry.finish({roomId,requestId,callId:record.callId,status:'completed',expectedRevision:started.revision});
    return {...out,callId:record.callId};
   }catch(error){
    const current=callRegistry.get({roomId,requestId,callId:record.callId});
-   if(current?.status==='running')callRegistry.finish({roomId,requestId,callId:record.callId,status:'failed',expectedRevision:current.revision});
+   if(current?.status==='running')callRegistry.finish({roomId,requestId,callId:record.callId,status:signal?.aborted?'cancelled':'failed',expectedRevision:current.revision});
    throw error;
   }finally{if(held)free();}
  }
@@ -38,5 +50,8 @@ export function createCallManager({callRegistry=createCallRegistry(),composer,mo
    throw error;
   }
  }
- return Object.freeze({invoke,enterAction,getCall:q=>callRegistry.get(q),listCalls:q=>callRegistry.list(q),callRegistry});
+ function cancelRequest({roomId,requestId}){
+  for(const row of callRegistry.list({roomId,requestId}))if(row.status==='queued'||row.status==='running')callRegistry.cancel({roomId,requestId,callId:row.callId});
+ }
+ return Object.freeze({invoke,enterAction,cancelRequest,getCall:q=>callRegistry.get(q),listCalls:q=>callRegistry.list(q),callRegistry});
 }
