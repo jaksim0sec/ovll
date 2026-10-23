@@ -32,3 +32,17 @@ test('provider failures are sanitized and configured caller exposes the function
  const configured=createConfiguredGeminiCaller({env:{GEMINI_API_KEY:'test-secret',GEMINI_MODEL:'gemini-example'},fetchImpl:async()=>response([{functionCall:{name:'define_direct',args:{name:'Test'}}}])});
  assert.deepEqual(await configured.generateFunction({prompt:'Do it',context:{},tool}),{kind:'function_proposal',name:'define_direct',args:{name:'Test'}});
 });
+
+test('dynamic Canvas field values are described with JSON Schema, not OpenAPI Schema',async()=>{
+ let sent;
+ const gemini=caller(async (_url,init)=>{sent=JSON.parse(init.body);return response([{functionCall:{name:'add_block',args:{skillId:'skill-real',x:100,y:100,expanded:true,values:{request:'test'}}}}]);});
+ const tool={name:'add_block',description:'Place a Block',
+  parametersJsonSchema:{type:'object',properties:{
+   skillId:{type:'string'},values:{type:'object',additionalProperties:{type:'string'}}
+  },required:['skillId','values']}};
+ const got=await gemini.generateFunction({prompt:'Place a block',context:{},tool});
+ assert.equal(got.name,'add_block');
+ const declaration=sent.tools[0].functionDeclarations[0];
+ assert.equal('parameters' in declaration,false);
+ assert.deepEqual(declaration.parametersJsonSchema.properties.values.additionalProperties,{type:'string'});
+});

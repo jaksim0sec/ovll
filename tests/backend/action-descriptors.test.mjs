@@ -36,3 +36,9 @@ test('Block arguments reference an existing server Skill, not a fabricated ID',(
  assert.throws(()=>d.validateArgs({...input,values:{undefined:'hi'}},state),e=>e.code==='ACTION_ARGS_INVALID');
  assert.throws(()=>d.validateArgs({...input,x:Infinity},state),e=>e.code==='ACTION_ARGS_INVALID');
 });
+
+test('addBlock declares flexible field values with parametersJsonSchema',()=>{
+ const tool=getActionDescriptor('canvasEdit.addBlock').tool;
+ assert.equal('parameters' in tool,false);
+ assert.deepEqual(tool.parametersJsonSchema.properties.values.additionalProperties,{type:'string'});
+});
