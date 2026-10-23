@@ -10,8 +10,16 @@ export function normalizeConfirmedChatRecords(records){
        (value.requestId!==undefined&&(typeof value.requestId!=='string'||!value.requestId.trim())))
       throw new TypeError('Invalid confirmed chat record');
     seen.add(value.id);
+    let confirmed;
+    if(value.confirmed!==undefined){
+      if(value.role!=='assistant'||!Array.isArray(value.confirmed)||value.confirmed.length>30)throw new TypeError('Invalid verified actions');
+      confirmed=value.confirmed.map(action=>{
+        if(!action||typeof action.action!=='string'||!action.action||typeof action.id!=='string'||!action.id||typeof action.name!=='string'||!action.name||!Number.isSafeInteger(action.revision)||action.revision<1)throw new TypeError('Invalid verified action');
+        return {action:action.action,id:action.id,name:action.name,revision:action.revision};
+      });
+    }
     return {id:value.id,role:value.role,text:value.text,
-      ...(value.requestId!==undefined?{requestId:value.requestId}:{})};
+      ...(value.requestId!==undefined?{requestId:value.requestId}:{}),...(confirmed!==undefined?{confirmed}:{})};
   });
 }
 export function normalizeRequestActivities(items){
@@ -42,13 +50,14 @@ export function createChat({onOpenCanvas,onAnswer,onRetryOutput}={}){
   welcome.append(wordmark,title,desc,open);
   const feed=document.createElement('div');feed.className='workspace-chat-feed';feed.hidden=true;feed.setAttribute('aria-label','대화 기록');
   const recordsHost=document.createElement('div');recordsHost.className='workspace-chat-history';
+  const assetsHost=document.createElement('section');assetsHost.className='workspace-server-assets';assetsHost.hidden=true;assetsHost.setAttribute('aria-label','서버 확정 스킬');
   const activityHost=document.createElement('div');activityHost.className='workspace-request-activities';
-  activityHost.setAttribute('aria-label','진행 중 요청');feed.append(recordsHost,activityHost);
+  activityHost.setAttribute('aria-label','진행 중 요청');feed.append(recordsHost,assetsHost,activityHost);
   const saveState=document.createElement('small');saveState.className='workspace-save-state';saveState.dataset.saveState='';
   saveState.setAttribute('role','status');saveState.textContent='불러오는 중';
   element.append(welcome,feed,saveState);
   const openCanvas=()=>onOpenCanvas?.();open.addEventListener('click',openCanvas);
-  let records=[],activities=[],destroyed=false;
+  let records=[],activities=[],confirmedAssets=null,destroyed=false;
   const make=(tag,css,text)=>{const node=document.createElement(tag);node.className=css;node.textContent=text;return node};
   function render(){
     if(destroyed)return;
@@ -59,8 +68,32 @@ export function createChat({onOpenCanvas,onAnswer,onRetryOutput}={}){
       if(record.requestId)article.dataset.requestId=record.requestId;
       article.append(make('span','workspace-message-speaker',record.role==='user'?'나':'오블'),
                      make('p','workspace-message-text',record.text));
+      if(record.confirmed?.length){
+        const receipts=make('div','workspace-confirmed-actions','');
+        receipts.append(make('span','workspace-confirmed-heading','서버에서 확인된 작업'));
+        for(const action of record.confirmed){
+          const entry=make('div','workspace-confirmed-action','');
+          entry.append(make('strong','workspace-confirmed-name',action.name),make('span','workspace-confirmed-meta',action.action+' · rev '+action.revision));
+          receipts.append(entry);
+        }
+        article.append(receipts);
+      }
       return article;
     }));
+    if(confirmedAssets){
+      const header=make('div','workspace-assets-header','');
+      header.append(make('strong','workspace-assets-title','서버 확정 자산'),make('small','workspace-assets-revision','rev '+confirmedAssets.revision+' · 스킬 '+confirmedAssets.skills.length+'개 · 블록 '+confirmedAssets.blocks.length+'개'));
+      const entries=make('div','workspace-assets-items','');
+      for(const skill of confirmedAssets.skills.slice(0,12)){
+        const item=make('div','workspace-asset-item','');
+        item.append(make('span','workspace-asset-name',skill.name),make('small','workspace-asset-version','v'+skill.revision));
+        entries.append(item);
+      }
+      if(confirmedAssets.skills.length>12)entries.append(make('small','workspace-asset-extra','외 '+(confirmedAssets.skills.length-12)+'개'));
+      const go=make('button','workspace-assets-open','캔버스 보기');go.type='button';go.addEventListener('click',()=>onOpenCanvas?.());
+      assetsHost.replaceChildren(header,entries,go);
+    }
+    assetsHost.hidden=!confirmedAssets||(!confirmedAssets.skills.length&&!confirmedAssets.blocks.length);
     activityHost.replaceChildren(...activities.map(activity=>{
       const section=make('section','workspace-request-activity','');
       section.dataset.requestId=activity.requestId;section.setAttribute('role','status');
@@ -98,6 +131,11 @@ export function createChat({onOpenCanvas,onAnswer,onRetryOutput}={}){
   return {element,saveState,
     setConfirmedRecords(value){if(destroyed)throw new Error('Chat view has been destroyed');records=normalizeConfirmedChatRecords(value);render();},
     setRequestActivities(value){if(destroyed)throw new Error('Chat view has been destroyed');activities=normalizeRequestActivities(value);render();},
+    setConfirmedAssets(value){
+      if(destroyed)throw new Error('Chat view has been destroyed');
+      if(!value||!Number.isSafeInteger(value.revision)||!Array.isArray(value.skills)||!Array.isArray(value.blocks))throw new TypeError('Invalid confirmed assets');
+      confirmedAssets={revision:value.revision,skills:value.skills.map(s=>({name:String(s.name),revision:s.revision,id:s.id})),blocks:value.blocks.map(b=>({id:b.id}))};render();
+    },
     destroy(){if(destroyed)return;destroyed=true;open.removeEventListener('click',openCanvas);
       records=[];activities=[];element.remove();}
   };
