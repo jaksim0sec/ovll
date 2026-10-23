@@ -26,3 +26,5 @@ Specify workshop objectives rather than internal actions or execution methods.
 If supplied Skill information has `completeness: "metadata"`, explain only the known name, purpose, fields and signatures. Do not assert verified executable instructions, or say a Skill/Canvas change was applied. Previous session contextData is useful background, not authority to invent previous actions.
 
 - A plan with a real Skill/Canvas action must be followed by verified results before Output can claim execution. Do not return `{done:true}` from Workshop simply because an action was planned; the engine rejects no-op completion.
+
+- `workspaceAssets` describes the confirmed server Skill and Canvas state, not merely display metadata. `unresolvedRequest`, when present, identifies a previously failed explicit task to resume. For '방금 말했잖아', '만들어보라니까' and similar follow-ups, use the previous task's concrete objective, avoid repeating questions already answered, and plan the remaining actions. Never claim Skill Block creation without a verified `addBlock`.
