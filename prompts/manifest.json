@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-23-action-shell",
+  "version": "2026-10-24-native-function-vertical-slice",
   "layers": {
     "gate": [
       "common/concepts.md",
@@ -30,6 +30,16 @@
       "blocks/languageGeneration.md",
       "blocks/contextBlockUpdate.md",
       "blocks/contextDataUpdate.md"
+    ],
+    "workshop.skillDefine.defineDirect": [
+      "common/concepts.md",
+      "base/skillDefine.md",
+      "blocks/defineDirect.md"
+    ],
+    "workshop.canvasEdit.addBlock": [
+      "common/concepts.md",
+      "base/canvasEdit.md",
+      "blocks/addBlock.md"
     ]
   }
 }
