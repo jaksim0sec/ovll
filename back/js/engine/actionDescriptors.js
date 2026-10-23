@@ -54,7 +54,7 @@ const fieldSchema={type:'object',properties:{
 const defineTool={
  name:'define_direct',
  description:'Propose the complete definition of a reusable Skill. This declaration does not run the Skill.',
- parameters:{type:'object',properties:{
+ inputSchema:{type:'object',properties:{
  name:{type:'string'},description:{type:'string'},instruction:{type:'string'},icon:{type:'string',enum:[...icons]},
  color:{type:'string'},inputs:{type:'array',items:portSchema},outputs:{type:'array',items:portSchema},
  fields:{type:'array',items:fieldSchema}
@@ -62,7 +62,7 @@ const defineTool={
 };
 const addTool={
  name:'add_block',description:'Propose a Canvas Skill Block referencing an already confirmed Skill ID.',
- parametersJsonSchema:{type:'object',properties:{
+ inputSchema:{type:'object',properties:{
  skillId:{type:'string'},x:{type:'number'},y:{type:'number'},expanded:{type:'boolean'},
  values:{type:'object',additionalProperties:{type:'string'}}
  },required:['skillId','x','y','expanded','values']}
