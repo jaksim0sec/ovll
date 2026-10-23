@@ -233,6 +233,7 @@ export async function createWorkspace({ root, data, input, roomId = DEFAULT_ROOM
     applyServerAssets(snapshot){
       ensureAlive();
       if(!snapshot||!Array.isArray(snapshot.skills)||!Array.isArray(snapshot.blocks)||!Array.isArray(snapshot.links)||!Number.isSafeInteger(snapshot.revision))throw new TypeError('Invalid confirmed assets');
+      serverSkills.clear();
       for(const skill of snapshot.skills)if(typeof skill?.id==='string'&&Array.isArray(skill.fields))serverSkills.set(skill.id,structuredClone(skill));
       canvas.refreshCatalog();composer.refreshCatalog();
       const local=model.getSnapshot();
