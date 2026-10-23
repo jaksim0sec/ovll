@@ -111,7 +111,7 @@
 
 **개발 진행 과정에서의 변화로 AGENTS.md에 수정이 필요하다 판단될 경우, 유저에게 명확히 알릴 것.**
 
-## 2026-10-23 현재: Action Shell 경계
+## 2026-10-23: Action Shell 도입 기록 (2026-10-24 현행 사항은 아래)
 - **현재 유효 구조:** Gate → Hallway Initial(정확한 행동 이름으로 plan 생성) → Action Shell(첫 행동 껍데기 진입 및 미구현 상태 보고). 계획된 행동은 실행하지 않음.
 - Plan key 예: `skillDefine.defineDirect`, `canvasEdit.addBlock`, `skillEdit.editAppearance`, `textGenerate.question`. `terminate`는 제어 표식. 범주 이름만으로 된 `skillDefine`/ `canvasEdit` 계획은 거부.
 - `back/js/engine/{engine,actionShell,promptComposer,dataProvider}.js` 사용. 과거 비IR Workshop의 `workshop.js`, `memoryAssets.js`, `checkpoints.js` 및 Workshop 전용 프롬프트·회귀 시험 제거. 실행 방법/도구 스키마는 추후 계약 확정 대상.
@@ -120,3 +120,13 @@
 - Gate/Hallway 직접 대화 분기 및 room 기반 완료 맥락 기록은 유지. Hallway Return, Output, IR 실행, 행동별 지침·네이티브 Function Calling·질문 응답의 실제 실행 연결은 이번 단계 미구현.
 - `AGENTS.md`의 이전 2026-10-23 비IR Workshop 연결 기록은 이 현행 구조로 대체됨. `main`은 손대지 않음.
 - 자동 검증: `npm test` (Node 22 CI). 실 Gemini·Render 브라우저 시험과 분리해서 보고.
+
+## 2026-10-24 현재: 다중 요청 Engine · Call Manager (Stage 1)
+- 제품 엔진은 `back/js/engine/engine.js`의 `createEngine()`. 한 요청 전용 Gate/Hallway 처리는 `requestRunner.js`에 분리했으며 `createRequestEngine`은 이전 단위테스트용 얇은 alias임. `server.js`는 `createEngine` 하나를 만들고 HTTP에 같은 인스턴스를 전달.
+- `request/scheduler.js`는 요청 FIFO와 최대 동시 요청 수를 관리(엔진 기본 3), `engine/callManager.js`는 별도 Gemini 모델 호출 동시 수를 관리(기본 2). 같은 요청의 Gate → Hallway → 첫 Action Shell은 순차적으로 진행. 여러 요청은 동시에 관리 가능.
+- `request/callRegistry.js`에 매 호출마다 고유 `callId`, 구조화 `route`, 파생 `callId.route`와 `queued/running/completed/failed/cancelled/unsupported` 이력을 관리. 각 Call은 `roomId`, `requestId`에 귀속되며 Gemini 호출 데이터·시스템 프롬프트를 CallRecord에 저장하지 않는다.
+- Call Manager는 호출마다 `contextBlock.focus`를 **임시 입력에만 추가**. 요청 원본 `contextBlock.intent/progress`와 방별 `contextData`의 수명을 유지.
+- `registry.transition(...,{expectedRevision})`으로 요청 revision 충돌을 검출할 수 있음. 같은 방의 확정 대화 맥락은 `memorySessions.commit(expectedRevision)`으로 CAS 확인 후 적용. 취소는 queued → stopped 또는 running → stopping → stopped로 전이; 늦은 모델 응답으로 취소 요청을 완료시키지 않음.
+- 계획 첫 행동은 `CallRecord`로 등록 후 `unsupported`으로 끝내며 `handoff.callId`와 `planCursor:0` 반환. 후속 행동, Function Calling, 자산 변경은 여전히 **미구현**.
+- `GET /api/requests/:id/calls?roomId=...`가 해당 요청의 최근 호출 기록 최대 100개 중 `callId,path,route,status`만 반환. 테스트용 공용 토큰은 사용자별 인증이 아니므로 프로덕션 격리 보장 불가.
+- 모두 프로세스 메모리 기반. 서버 재시작, 분산 워커, 영속 CallRecord/operationId, 실제 취소 가능한 Gemini 작업 수행은 이 단계의 보장 범위가 아님. 실제 Gemini·Render 환경/브라우저 실검증은 CI와 별도.

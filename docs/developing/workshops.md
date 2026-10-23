@@ -19,3 +19,8 @@
 - **미구현**: 개별 행동 프롬프트, 실행 인수 구성, Gemini 네이티브 Function Calling, 행동 효과 적용·수정·저장, 재계획, 작업 완료 판정, 질문 답변 연계.
 - 서버는 행동 성공을 주장하지 않는다. 상태 `unsupported_workshop`은 API 호환 상태명이며 의미는 'Action Shell 도달·실행 미구현'이다.
 - 이전 `workshop.js`의 JSON 선택→검증→메모리 `apply` 루프와 임시 자산·체크포인트는 삭제됐다.
+
+## 2026-10-24 호출 ID를 가진 첫 Action Shell
+- `requestRunner.js`에서 Hallway plan의 첫 `skillDefine.defineDirect`를 선택하면 `callManager.enterAction`이 `callRegistry.register({route:{layer:'workshop',workshop:'skillDefine',action:'defineDirect'}})`로 별도 `callId`를 부여한다.
+- Call은 `unsupported` 상태로 끝나며 요청은 `unsupported_workshop` 상태. `handoff.callId`와 `planCursor:0`을 공개하고 실제 Skill/Canvas 변경은 없다. 두 번째 행동은 실행되지 않는다.
+- 기존 문서의 `back/js/engine/engine.js`가 직접 작업실에 진입한다는 표현은 개념적 흐름이다. 실제 호출은 `engine.js` Facade → `requestRunner.js` → `callManager.js` → `actionShell.js` 순서이다.

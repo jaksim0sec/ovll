@@ -1,6 +1,6 @@
 # 맥락체·맥락데이터
 
-상태: 1014 설계 계약. 2026-10-23 단일 프로세스·FIFO 방별 `contextData` 연속성, 요청별 `contextBlock`, 계획된 행동은 Action Shell에서 멈추며 Workshop 복귀·Output 연결은 미구현. DB 영속화·다중 인스턴스·트랜잭션은 미구현.
+상태: 1014 설계 계약. 2026-10-24 단일 프로세스·복수 요청 FIFO 방별 `contextData` 연속성, 요청별 `contextBlock`, 계획된 행동은 Action Shell에서 멈추며 Workshop 복귀·Output 연결은 미구현. DB 영속화·다중 인스턴스·트랜잭션은 미구현.
 
 ## 범위·작성자
 | 구분 | 수명·소유 | 필드·작성 |
@@ -40,7 +40,7 @@
 ## 2026-10-23 부분 구현 기록
 - `back/js/request/memorySessions.js`는 roomId별 맥락데이터와 최근 완료 요청 8개의 원문·오블의 실제 답변·검증 행동·맥락체·맥락데이터를 **메모리**에 보관하고 `scheduler.js`가 이를 주입받는다. 요청이 큐에서 실제 실행될 때 최신 맥락을 주입하며, 완료 후에만 세션을 갱신한다. 실패·미지원 계획은 세션 성공으로 기록하지 않는다.
 - `back/js/engine/dataProvider.js`의 `originalReq`와 `chatContext`는 위 완료 기록으로 해결된다. 범위를 벗어난 기록은 `DATA_UNAVAILABLE`로 처리하고 실제로 없는 기록을 생성하지 않는다.
-- 요청별 `contextBlock`은 Hallway Initial에서 생성하고 계획 단계에서는 Action Shell handoff에 전달한다. `focus`는 Workshop/Output 등 호출별 임시 입력에 생성하지만 모든 계층에서 완전히 통일된 서버 생성 정책은 여전히 개선 대상이다. DB 동시성·영속성은 없다.
+- 요청별 `contextBlock`은 Hallway Initial에서 생성하고 계획 단계에서는 Action Shell handoff에 전달한다. `focus`는 Workshop/Output 등 호출별 임시 입력에 생성하지만 모든 계층에서 완전히 통일된 서버 생성 정책은 여전히 개선 대상이다. 메모리 저장의 revision 충돌 검출은 있으나 DB 동시성·영속성은 없다.
 
 ## 2026-10-23 Action Shell 연결
 - 기존 실행기·체크포인트·질문 대기·Output 재시도 경로는 폐기. 현재 계획된 행동은 Action Shell 미구현 상태로 반환한다.
@@ -54,3 +54,8 @@
 ## 2026-10-23 실패 요청의 대화 연속성
 - memorySessions.recordFailure는 실패 원본 요청을 복구용 방 이력에 기록하지만 확정 contextData는 덮어쓰지 않는다.
 - Gate·Hallway는 직전 실패한 작업 및 검증된 완료 기록을 보고 '만들어보라니까?', '방금 말했잖아' 같은 재지시를 해석한다. 실패 사실을 완료 사실로 승격하지 않는다.
+
+## 2026-10-24 호출별 focus 투영
+- `callManager.invoke`는 모델 호출 직전에 전달받은 컨텍스트의 복사본에만 `contextBlock.focus`를 합성(현재 Gate 또는 Hallway route). 원본 요청 상태에 저장하지 않는다.
+- 요청별 두 Call은 `callId`가 달라지고 자체 `CallRecord`를 갖는다. 프로세스 메모리 호출 로그에는 프롬프트 전문과 Gemini 원문을 남기지 않는다.
+- `memorySessions`의 동일 방 contextData 업데이트는 revision CAS로 충돌 감지. 동시 요청의 의미적 자동 병합은 구현하지 않았고 충돌 요청은 `SESSION_CONFLICT`로 실패한다.

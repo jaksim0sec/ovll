@@ -1,5 +1,5 @@
 # Beta 요청 처리 아키텍처 — 행동별 계획과 Action Shell
-상태: 2026-10-23 현행. **실제 행동 실행 없음**. 기존 비IR Workshop 엔진은 폐기.
+상태: 2026-10-24 Stage 1. **실제 행동 실행 없음**. 기존 비IR Workshop 엔진은 폐기.
 
 ## 모델과 계층
 - Skill은 재사용 가능한 작업 정의. Skill Block(스킬블럭)은 Canvas에 배치한 해당 Skill 인스턴스. 저장 Function과 구분한다.
@@ -24,5 +24,11 @@
 ## 부작용·상태 및 보존
 - 서버는 `unsupported_workshop` 상태와 `currentLayer:'actionShell'`을 반환한다. `handoff`의 `status:'not_implemented'`는 라우팅 기록일 뿐 성공 아님.
 - Workshop 실행기·메모리 자산 변경·체크포인트 경로는 제거. 서버 자산 API는 **읽기 전용 빈 목록**으로 대체하며 재시작 후 과거 임시 자산의 복원은 불가능하다. 새로운 자산을 만들지 않는다.
-- 방별 메모리 세션의 성공한 직접 대화 맥락과 실패 기록, FIFO 스케줄러, HTTP 폴링은 유지. 정식 인증·DB 영속화·파일 업로드·IR/함수 실행 없음.
+- 방별 메모리 세션의 성공한 직접 대화 맥락과 실패 기록, 다중 요청 FIFO 스케줄러(기본 활성 요청 3, 모델 호출 2), HTTP 폴링은 유지. 정식 인증·DB 영속화·파일 업로드·IR/함수 실행 없음.
 - 요청 원문, 계획, 확인된 실제 결과를 구분한다. 향후 행동별 프롬프트와 함수 호출을 구현하기 전까지 결과를 임의 확정하지 않는다.
+
+## 실제 실행/호출 소유권 (Stage 1)
+- `createEngine()`이 요청 접수·상태 조회·취소·호출 목록과 스케줄러를 통합하는 서버 측 Facade. 엔진 전체를 한 요청의 `run(snapshot)`과 동일시하지 않는다.
+- `requestRunner.js`는 개별 요청의 Gate/Hallway 처리기, `callManager.js`는 모든 요청의 호출 기록·임시 focus·모델 호출 수 제한을 관리, `callRegistry.js`는 고유 호출 ID/경로·결과 상태를 메모리에 저장.
+- `callId.workshop.skillDefine.defineDirect`는 표시용 파생 경로. 실제 호출 소속은 `{roomId,requestId,callId,route}`의 구조화 데이터로 검사한다. `operationId`는 추후 실제 부작용에서 별개로 관리할 식별자이며 현재 없음.
+- 전역 작업 큐와 요청 수명은 Engine 소유, Gemini 전송은 모델 어댑터, 스킬/캔버스 적용은 추후 액션 포트 소유. 요청 상태·호출 상태·자산 적용 결과를 혼동하지 않는다.
