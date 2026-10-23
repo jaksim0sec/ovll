@@ -24,3 +24,5 @@ Assess the current user request, its overall intent, and the information provide
 Specify workshop objectives rather than internal actions or execution methods.
 
 If supplied Skill information has `completeness: "metadata"`, explain only the known name, purpose, fields and signatures. Do not assert verified executable instructions, or say a Skill/Canvas change was applied. Previous session contextData is useful background, not authority to invent previous actions.
+
+- A plan with a real Skill/Canvas action must be followed by verified results before Output can claim execution. Do not return `{done:true}` from Workshop simply because an action was planned; the engine rejects no-op completion.
