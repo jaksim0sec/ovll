@@ -76,7 +76,7 @@
 ```
 
 ## 경로와 역할
-- `back/`: 백엔드. `back/js/`는 서버·API·실행 로직(JS)을 책임에 따라 분리할 위치. **Gate → Hallway Initial 독립 요청 엔진 + Render 시험 HTTP 서버 구현**. 서버는 `back/js/server.js`에서 `front/`와 `/api/requests`를 함께 제공하며 Chat 폴링으로 진행을 표시한다. SSE·DB·정식 사용자 인증·Workshop 실행·IR은 아직 없음.
+- `back/`: 백엔드. `back/js/`는 서버·API·실행 로직(JS)을 책임에 따라 분리할 위치. **Gate → Hallway Initial → 비IR Workshop → Hallway Return / Output 엔진 + Render 시험 HTTP 서버 구현**. 서버는 `back/js/server.js`에서 `front/`와 `/api/requests`를 함께 제공하며 Chat 폴링으로 진행을 표시한다. SSE·DB·정식 사용자 인증·IR은 아직 없음. Workshop은 비IR 11행동만 실행하며 메모리 어댑터를 사용.
 - `front/`: 웹/PWA 정적 배포 루트. `index.html`은 현재 진입 파일이며 `manifest.webmanifest`, `vercel.json`은 배포·PWA 설정. 필수 루트 파일 외 앱 코드·일반 스타일을 루트에 쌓지 말 것.
 - `front/html/`: 별도 HTML 문서·페이지 구조용 위치. **현재 구현 파일 없음**. 실제 화면 구조는 `front/index.html`에도 존재하므로 이전을 임의 강제하지 말 것.
 - `front/js/`: 부팅(`boot.js`), 셸·페이지 호스트(`shell/`), 캔버스(`canvas/`), 컴포저(`composer/`), 워크스페이스(`workspace/`), 라이브러리(`library/`), 스킬 목록(`skill/`), 로컬 데이터(`data/`), 입력(`input/`), 테마(`settings/`) 등 프론트 로직. 기능 변경 시 해당 영역의 실제 코드와 경계를 확인.
@@ -122,3 +122,9 @@
 - `main` Gemini 경로 설정을 공유: `GEMINI_API_KEY` 또는 `OVLL_POINTER_MODEL_API_KEY` / `OVLL_VNEXT_MODEL_API_KEY`는 실제 AI 호출에만 필요. 모델명은 `OVLL_POINTER_MODEL_ID` → `OVLL_VNEXT_MODEL_ID` → `GEMINI_MODEL` → `gemini-3.5-flash-lite`. `OVLL_TEST_TOKEN`은 선택이고 없으면 기본 테스트값 `abcd`로 동작하며 프론트가 자동 전송. 이 값은 소스에 공개되어 인증을 제공하지 않으므로 운영에 부적합. `beta`의 공급자는 Gemini로 고정.
 - `front/js/workspace/requestBridge.js`는 `boot.js`가 기존 Composer 콜백·Chat 표시 제어자로 연결. 접수/진행/완료를 서버 HTTP에서만 판정하며 Render의 동일 origin에서 테스트.
 - 구현/제한: `docs/developing/render-test-bridge.md`. 실 Render 배포·Gemini 호출·브라우저 실기기 검증은 별도 확인 필요.
+
+## 비IR Workshop 구현 연결 (2026-10-23)
+- 설계: `docs/superpowers/specs/2026-10-23-non-ir-workshop-engine-design.md`; 구현 계획: `docs/superpowers/plans/2026-10-23-non-ir-workshop-engine.md`.
+- `back/js/engine/{memoryAssets,checkpoints,workshop,engine}.js`에 버전 자산·체크포인트·행동 결정·실행 루프. `back/js/request/{registry,scheduler}.js`에 `awaiting_input`·resume·output-only retry.
+- 외부 HTTP와 UI는 본문 조회·대기 입력·최종 응답 재시도를 통해 서버 확정 결과를 표시. 원본이 다른 로컬 캔버스를 무조건 덮어쓰지 않는다. `main`은 변경하지 않는다.
+- 구현된 것은 **서버 메모리 기반 Beta 실험**이다. 실 Gemini, Render, 브라우저 및 완전한 Node 백엔드 전체 테스트는 별도 검증 필요. DB 영속성·사용자별 인증·IR 실행 없음.
