@@ -7,6 +7,17 @@ const stageLabel=record=>{
  if(record.status==='failed')return record.currentLayer==='output'?'Output · 최종 응답 생성 실패':'요청 처리 실패';
  return '요청 처리 중';
 };
+const confirmedActionReceipts=result=>{
+ const receipts=[];
+ for(const entry of result?.verifiedResults??[]){
+   if(entry?.outcome?.status!=='applied'||!Array.isArray(entry.outcome.artifacts))continue;
+   const artifact=entry.outcome.artifacts[0];
+   if(!artifact||typeof artifact.id!=='string'||!artifact.id)continue;
+   const name=typeof artifact.name==='string'&&artifact.name?artifact.name:artifact.id;
+   receipts.push({action:entry.action,id:artifact.id,name,revision:Number.isSafeInteger(artifact.revision)&&artifact.revision>0?artifact.revision:entry.outcome.revision});
+ }
+ return receipts.filter(x=>typeof x.action==='string'&&Number.isSafeInteger(x.revision)&&x.revision>0);
+};
 const describeDraft=draft=>{
  const description=draft.parts.map(part=>part.type==='text'?part.text:'@'+part.label).join('').trim();
  const attached=draft.attachments.map(x=>x.name).filter(Boolean);
@@ -26,7 +37,7 @@ export function createRequestBridge({fetchImpl=globalThis.fetch,promptForToken=(
      const missing=error.missing.slice(0,8).filter(x=>Array.isArray(x)&&x.length===2).map(x=>x[0]+': '+x[1]);
      return missing.length?'필요한 자료 없음 ('+missing.join(', ')+')':'자료를 찾을 수 없습니다 (DATA_UNAVAILABLE)';
    }
-   return (error?.code?error.code+' · ':'')+(error?.message||'서버 오류');
+   return (error?.code?error.code+' · ':'')+(error?.message||'서버 오류')+(error?.detail?' · '+error.detail:'');
  };
  const authorize=async()=>{
   const typed=await promptForToken();
@@ -64,7 +75,11 @@ export function createRequestBridge({fetchImpl=globalThis.fetch,promptForToken=(
   if(destroyed)return;
   if(next.status==='completed'){
    void loadAssets(roomId).catch(()=>{});
-   if(typeof next.result?.languageBlock==='string')records.push({id:requestId+':assistant',requestId,role:'assistant',text:next.result.languageBlock});
+   if(typeof next.result?.languageBlock==='string'){
+     const id=requestId+':assistant';
+     const confirmed=confirmedActionReceipts(next.result);
+     if(!records.some(record=>record.id===id))records.push({id,requestId,role:'assistant',text:next.result.languageBlock,...(confirmed.length?{confirmed}:{})});
+   }
    else report(requestId,'응답 검증 실패','완료 상태에 응답 본문이 없습니다.');
    if(typeof next.result?.languageBlock==='string')activities.delete(requestId);
   }else if(next.status==='awaiting_input'){
