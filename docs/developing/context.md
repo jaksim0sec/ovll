@@ -1,6 +1,6 @@
 # 맥락체·맥락데이터
 
-상태: 1014 설계 계약. 2026-10-23 기준 `contextData`의 **단일 프로세스·단일 FIFO 방별 메모리 연속성만 부분 구현**. DB 영속화, 작업실 회귀, `focus`는 아직 미연결.
+상태: 1014 설계 계약. 2026-10-23 단일 프로세스·FIFO 방별 `contextData` 연속성, 요청별 `contextBlock`, Workshop 복귀 및 Output 갱신을 부분 구현. DB 영속화·다중 인스턴스·트랜잭션은 미구현.
 
 ## 범위·작성자
 | 구분 | 수명·소유 | 필드·작성 |
@@ -41,3 +41,7 @@
 - `back/js/request/scheduler.js`는 roomId별 맥락데이터와 최근 완료 요청 8개의 원문·맥락체·맥락데이터를 **메모리**에 보관한다. 요청이 큐에서 실제 실행될 때 최신 맥락을 주입하며, 완료 후에만 세션을 갱신한다. 실패·미지원 계획은 세션 성공으로 기록하지 않는다.
 - `back/js/engine/dataProvider.js`의 `originalReq`와 `chatContext`는 위 완료 기록으로 해결된다. 범위를 벗어난 기록은 `DATA_UNAVAILABLE`로 처리하고 실제로 없는 기록을 생성하지 않는다.
 - 현재 `contextBlock`은 요청마다 생성·보관되지만 세션 기록의 일부로 활용되는 범위만 확인됐다. 서버 생성 `focus`와 Hallway Return/Output, DB 동시성 정책은 이 단계에 포함되지 않는다.
+
+## 2026-10-23 Workshop 연결
+- 최초 Hallway에서 생긴 `contextBlock`은 개별 요청의 체크포인트와 함께 유지하며, Hallway Return과 Output이 실제 검증 결과를 보고 갱신한다. `focus`는 호출 인수에 일시적으로 결합되며 persistent contextBlock에는 넣지 않는다.
+- 질문으로 대기한 요청이 재개되면 스케줄러에서 최신 room `contextData`를 받아 Output에 전달한다. 다중 서버에서의 충돌 방지·영속 원본 확인은 별도 구현이 필요하다.
