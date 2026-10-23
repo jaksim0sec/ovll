@@ -5,9 +5,9 @@ import {createMemorySessions} from '../request/memorySessions.js';
 import {createCallManager} from './callManager.js';
 
 /** Product-level managed Engine, not the runner of one request. */
-export function createEngine({composer,modelCaller,dataProvider,actionShell,registry=createRequestRegistry(),sessions=createMemorySessions(),policy={}}={}){
+export function createEngine({composer,modelCaller,dataProvider,actionShell,registry=createRequestRegistry(),sessions=createMemorySessions(),actionStore,policy={}}={}){
  const callManager=createCallManager({composer,modelCaller,maxModelCalls:policy.maxModelCalls??2,actionShell});
- const runner=createRequestRunner({composer,modelCaller,dataProvider,actionShell,callManager});
+ const runner=createRequestRunner({composer,modelCaller,dataProvider,actionShell,callManager,actionStore});
  const maxConcurrent=policy.maxActiveRequests??3;
  if(!Number.isSafeInteger(maxConcurrent)||maxConcurrent<1)throw new TypeError('Invalid request concurrency limit');
  const scheduler=createRequestScheduler({registry,sessions,maxConcurrent,execute:(record,options)=>runner.run(record,options)});

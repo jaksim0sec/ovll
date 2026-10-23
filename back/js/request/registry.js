@@ -21,7 +21,7 @@ export function createRequestRegistry({createId = () => crypto.randomUUID()} = {
     if (!current) throw new Error('Unknown request');
     if(expectedRevision!==undefined&&current.revision!==expectedRevision)throw Object.assign(new Error('Stale request revision'),{code:'CHECKPOINT_CONFLICT'});
     if (!changes || typeof changes !== 'object' || Array.isArray(changes)) throw new TypeError('Invalid transition');
-    const allowed=new Set(['status','currentLayer','contextBlock','contextData','result','plan','planCursor','activeCallId','error','waiting','verifiedResults','handoff']);
+    const allowed=new Set(['status','currentLayer','contextBlock','contextData','result','plan','planCursor','activeCallId','pendingOperation','error','waiting','verifiedResults','handoff']);
     if (Object.keys(changes).some(name=>!allowed.has(name))) throw new TypeError('Unknown request field');
     if ('status' in changes && !states[current.status]?.has(changes.status)) throw new Error('Invalid request status transition');
     const next=clone({...current,...changes,revision:current.revision+1});

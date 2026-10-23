@@ -1,7 +1,9 @@
 /** Gate -> Hallway -> Action shell coordinator. Mutating Workshop execution intentionally absent. */
 import {createActionShell} from './actionShell.js';
 import {createCallManager} from './callManager.js';
-export function createRequestRunner({composer,modelCaller,dataProvider,actionShell=createActionShell(),callManager}={}){
+import {getActionDescriptor} from './actionDescriptors.js';
+import {randomUUID} from 'node:crypto';
+export function createRequestRunner({composer,modelCaller,dataProvider,actionShell=createActionShell(),callManager,actionStore}={}){
  const calls=callManager??createCallManager({composer,modelCaller});
  if(!composer?.compose||!modelCaller?.generate||!dataProvider?.resolveNeed||!actionShell?.accepts||!actionShell?.enter)throw new TypeError('Engine ports required');
  const invalid=(code='ENGINE_OUTPUT_INVALID')=>Object.assign(new Error(code),{code});
@@ -60,7 +62,7 @@ export function createRequestRunner({composer,modelCaller,dataProvider,actionShe
   if(lookup.missing.length)throw Object.assign(new Error('Required data unavailable'),{code:'DATA_UNAVAILABLE',missing:lookup.missing});
   return lookup.resources;
  }
- async function run(snapshot,{onStage=()=>{},signal}={}){
+ async function run(snapshot,{onStage=()=>{},onCheckpoint=()=>{},signal}={}){
   if(!snapshot?.request||!Array.isArray(snapshot.initialResources)||typeof onStage!=='function')throw invalid();
   const request=copy(snapshot.request),contextData=copy(snapshot.contextData),initialResources=copy(snapshot.initialResources),chatHistory=copy(snapshot.chatHistory??[]),recentConversation=recent(chatHistory),unresolved=unresolvedRequest(request,chatHistory);
   const gate=await call('gate',{userRequest:request,contextData,initialResources,availableHistory:{completedRequests:chatHistory.length},recentConversation,unresolvedRequest:unresolved},snapshot,signal);
@@ -83,14 +85,71 @@ export function createRequestRunner({composer,modelCaller,dataProvider,actionShe
    return {status:'completed',currentLayer:'hallwayInitial',result:{languageBlock:reply.languageBlock},contextBlock:reply.contextBlock,contextData:reply.contextData};
   }
   if(!exact(reply,['plan','contextBlock'])||!planValid(reply.plan)||!blockValid(reply.contextBlock))throw Object.assign(new Error('Invalid Hallway output'),{code:'ENGINE_OUTPUT_INVALID',detail:'hallwayInitial: plan must contain qualified actions'});
-  const [action,detail]=Object.entries(reply.plan[0])[0];
-  if(action==='terminate')throw Object.assign(new Error('Cannot terminate unexecuted plan'),{code:'WORK_REQUIRED',detail:'No verified action was executed'});
+  const [firstAction]=Object.keys(reply.plan[0]);
+  if(firstAction==='terminate')throw Object.assign(new Error('Cannot terminate unexecuted plan'),{code:'WORK_REQUIRED',detail:'No verified action was executed'});
   if(requiresWork&&!reply.plan.some(step=>Object.keys(step)[0]!=='terminate'&&!Object.keys(step)[0].startsWith('textGenerate.')))
    throw Object.assign(new Error('No mutation action planned'),{code:'WORK_REQUIRED',detail:'Skill/Canvas change requires an action'});
-  const available=requireLookup(await dataProvider.resolveNeed({roomId:snapshot.roomId,requestId:snapshot.requestId,need:detail.need,availableResources:resources,request,contextData,chatHistory}));
-  onStage('actionShell');
-  const {handoff}=await calls.enterAction({roomId:snapshot.roomId,requestId:snapshot.requestId,requestRevision:snapshot.revision??0,action,objective:detail.objective,need:detail.need,resources:available});
-  return {status:'unsupported_workshop',currentLayer:'actionShell',plan:copy(reply.plan),planCursor:0,handoff:copy(handoff),contextBlock:copy(reply.contextBlock)};
+  const fullPlan=copy(reply.plan),initialContext=copy(reply.contextBlock),verifiedResults=[];
+  const selectResources=async detail=>requireLookup(await dataProvider.resolveNeed({
+   roomId:snapshot.roomId,requestId:snapshot.requestId,need:detail.need,
+   availableResources:resources,request,contextData,chatHistory
+  }));
+  if(!actionStore){
+   const [action,detail]=Object.entries(fullPlan[0])[0],available=await selectResources(detail);
+   onStage('actionShell');
+   const {handoff}=await calls.enterAction({roomId:snapshot.roomId,requestId:snapshot.requestId,
+    requestRevision:snapshot.revision??0,action,objective:detail.objective,need:detail.need,resources:available});
+   return {status:'unsupported_workshop',currentLayer:'actionShell',plan:fullPlan,planCursor:0,
+    handoff:copy(handoff),contextBlock:initialContext};
+  }
+  let cursor=0,terminated=false;
+  onCheckpoint({plan:fullPlan,planCursor:cursor,contextBlock:initialContext,verifiedResults:[]});
+  for(const step of fullPlan){
+   const [action,detail]=Object.entries(step)[0];
+   if(action==='terminate'){terminated=true;break;}
+   const available=await selectResources(detail),descriptor=getActionDescriptor(action);
+   if(!descriptor){
+    onStage('actionShell');
+    const {handoff}=await calls.enterAction({roomId:snapshot.roomId,requestId:snapshot.requestId,
+     requestRevision:snapshot.revision??0,action,objective:detail.objective,need:detail.need,resources:available});
+    return {status:'unsupported_workshop',currentLayer:'actionShell',plan:fullPlan,planCursor:cursor,
+     handoff:copy(handoff),contextBlock:initialContext,verifiedResults:copy(verifiedResults)};
+   }
+   if(signal?.aborted)throw Object.assign(new Error('Cancelled'),{code:'MODEL_CANCELLED'});
+   const state=actionStore.read({scope:snapshot.roomId});
+   onStage('workshop');
+   const [workshop,name]=action.split('.');
+   const {callId,proposal}=await calls.invokeFunction({
+    roomId:snapshot.roomId,requestId:snapshot.requestId,requestRevision:snapshot.revision??0,
+    route:{layer:'workshop',workshop,action:name},
+    context:{userRequest:request,objective:detail.objective,contextBlock:initialContext,contextData,
+     resources:available,verifiedResults:copy(verifiedResults),assets:state},
+    tool:descriptor.tool,signal
+   });
+   const args=descriptor.validateArgs(proposal.args,state);
+   if(signal?.aborted)throw Object.assign(new Error('Cancelled'),{code:'MODEL_CANCELLED'});
+   const operationId=randomUUID();
+   onCheckpoint({pendingOperation:{operationId,action,expectedRevision:state.revision,args:copy(args),callId},
+    plan:fullPlan,planCursor:cursor,contextBlock:initialContext,verifiedResults:copy(verifiedResults)});
+   if(signal?.aborted)throw Object.assign(new Error('Cancelled'),{code:'MODEL_CANCELLED'});
+   const outcome=actionStore.apply({scope:snapshot.roomId,requestId:snapshot.requestId,operationId,action,
+    args,expectedRevision:state.revision});
+   if(outcome.status!=='applied')throw Object.assign(new Error('Asset revision conflict'),{code:'ACTION_CONFLICT'});
+   verifiedResults.push({action:name,qualifiedAction:action,callId,outcome:copy(outcome)});
+   cursor++;
+   onCheckpoint({pendingOperation:null,planCursor:cursor,verifiedResults:copy(verifiedResults)});
+  }
+  if(!terminated)return {status:'unsupported_workshop',currentLayer:'hallwayReturn',plan:fullPlan,planCursor:cursor,
+   handoff:{action:'hallwayReturn',status:'not_implemented'},contextBlock:initialContext,verifiedResults:copy(verifiedResults)};
+  if(signal?.aborted)throw Object.assign(new Error('Cancelled'),{code:'MODEL_CANCELLED'});
+  onStage('output');
+  const output=await call('output',{userRequest:request,contextBlock:initialContext,contextData,
+   verifiedResults:copy(verifiedResults),plan:fullPlan},snapshot,signal);
+  if(!finalValid(output))throw Object.assign(new Error('Invalid Output response'),{code:'ENGINE_OUTPUT_INVALID'});
+  return {status:'completed',currentLayer:'output',contextBlock:copy(output.contextBlock),
+   contextData:copy(output.contextData),verifiedResults:copy(verifiedResults),plan:fullPlan,planCursor:cursor,
+   result:{languageBlock:output.languageBlock,verifiedResults:copy(verifiedResults)}};
+
  }
  return Object.freeze({run});
 }

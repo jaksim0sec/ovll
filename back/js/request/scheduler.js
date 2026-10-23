@@ -11,7 +11,7 @@ export function createRequestScheduler({registry,execute,resume,retryOutput,sess
   function session(roomId,initialContext){
     return sessions.load({scope:roomId,initialContext});
   }
-  const publicCodes=new Set(['MODEL_ERROR','MODEL_AUTH','MODEL_RATE_LIMIT','MODEL_NETWORK','MODEL_INVALID_RESPONSE','DATA_UNAVAILABLE','ENGINE_OUTPUT_INVALID','UNSUPPORTED_DATASET','UNSUPPORTED_ACTION','ENGINE_BUDGET_EXCEEDED','CHECKPOINT_CONFLICT','SESSION_CONFLICT','WORK_REQUIRED','WORK_NOT_APPLIED']);
+  const publicCodes=new Set(['MODEL_ERROR','MODEL_AUTH','MODEL_RATE_LIMIT','MODEL_NETWORK','MODEL_INVALID_RESPONSE','DATA_UNAVAILABLE','ENGINE_OUTPUT_INVALID','UNSUPPORTED_DATASET','UNSUPPORTED_ACTION','ENGINE_BUDGET_EXCEEDED','CHECKPOINT_CONFLICT','SESSION_CONFLICT','WORK_REQUIRED','WORK_NOT_APPLIED','ACTION_ARGS_INVALID','ACTION_CONFLICT','OPERATION_ID_REUSED']);
   const messageFor=code=>({MODEL_AUTH:'Model authentication failed',MODEL_RATE_LIMIT:'Model rate limit exceeded',MODEL_NETWORK:'Model connection failed',DATA_UNAVAILABLE:'Required data unavailable',ENGINE_OUTPUT_INVALID:'Engine output validation failed',MODEL_INVALID_RESPONSE:'Invalid model response',UNSUPPORTED_DATASET:'Unsupported data request',WORK_REQUIRED:'Requested action was not planned or executed',WORK_NOT_APPLIED:'Workshop reported done without a verified action'})[code]||'Request execution failed';
   function notifyIdle(){if(running===0 && queue.length===0){for(const resolve of idleWaiters.splice(0))resolve();}}
   function pump(){
@@ -26,6 +26,7 @@ export function createRequestScheduler({registry,execute,resume,retryOutput,sess
           const snapshot={...stored,contextData:clone(state.contextData),chatHistory:clone(state.history)};
           const options={
             onStage:layer=>{if(!item.controller.signal.aborted)registry.transition(item.roomId,item.requestId,{currentLayer:layer});},
+            onCheckpoint:patch=>{if(item.controller.signal.aborted)throw Object.assign(new Error('Cancelled checkpoint'),{code:'MODEL_CANCELLED'});registry.transition(item.roomId,item.requestId,patch);},
             signal:item.controller.signal
           };
           const result=await (item.retryOutput?retryOutput(snapshot,options):
@@ -47,7 +48,7 @@ export function createRequestScheduler({registry,execute,resume,retryOutput,sess
           const code=publicCodes.has(e?.code)?e.code:'MODEL_ERROR';
           if(typeof sessions.recordFailure==='function'){
             const failed=registry.get(item.roomId,item.requestId);
-            sessions.recordFailure({scope:item.roomId,requestId:item.requestId,request:failed.request,contextBlock:failed.contextBlock??null,error:{code,detail:typeof e?.detail==='string'?e.detail.slice(0,160):''}});
+            sessions.recordFailure({scope:item.roomId,requestId:item.requestId,request:failed.request,contextBlock:failed.contextBlock??null,verifiedResults:failed.verifiedResults??[],error:{code,detail:typeof e?.detail==='string'?e.detail.slice(0,160):''}});
           }
           const missing=code==='DATA_UNAVAILABLE'&&Array.isArray(e?.missing)?
             e.missing.slice(0,20).filter(x=>Array.isArray(x)&&x.length===2&&x.every(v=>typeof v==='string'&&v.length<=200)):[];
