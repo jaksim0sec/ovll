@@ -89,6 +89,9 @@ export function createRequestRunner({composer,modelCaller,dataProvider,actionShe
   if(firstAction==='terminate')throw Object.assign(new Error('Cannot terminate unexecuted plan'),{code:'WORK_REQUIRED',detail:'No verified action was executed'});
   if(requiresWork&&!reply.plan.some(step=>Object.keys(step)[0]!=='terminate'&&!Object.keys(step)[0].startsWith('textGenerate.')))
    throw Object.assign(new Error('No mutation action planned'),{code:'WORK_REQUIRED',detail:'Skill/Canvas change requires an action'});
+  // Bound a single plan before entering any action, regardless of model output size.
+  if(reply.plan.filter(step=>!Object.hasOwn(step,'terminate')).length>24)
+   throw Object.assign(new Error('Action plan exceeds per-request budget'),{code:'ENGINE_BUDGET_EXCEEDED'});
   const fullPlan=copy(reply.plan),initialContext=copy(reply.contextBlock),verifiedResults=[];
   const selectResources=async detail=>requireLookup(await dataProvider.resolveNeed({
    roomId:snapshot.roomId,requestId:snapshot.requestId,need:detail.need,

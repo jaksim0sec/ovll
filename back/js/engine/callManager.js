@@ -1,8 +1,16 @@
 import {createCallRegistry} from '../request/callRegistry.js';
 import {createActionShell} from './actionShell.js';
-export function createCallManager({callRegistry=createCallRegistry(),composer,modelCaller,maxModelCalls=2,actionShell=createActionShell()}={}){
- if(!composer?.compose||!modelCaller?.generate||!Number.isInteger(maxModelCalls)||maxModelCalls<1)throw new TypeError('Invalid call manager');
- let active=0;const waiting=[];
+export function createCallManager({callRegistry=createCallRegistry(),composer,modelCaller,maxModelCalls=2,maxCallsPerRequest=40,actionShell=createActionShell()}={}){
+ if(!composer?.compose||!modelCaller?.generate||!Number.isInteger(maxModelCalls)||maxModelCalls<1||!Number.isSafeInteger(maxCallsPerRequest)||maxCallsPerRequest<1)throw new TypeError('Invalid call manager');
+ let active=0;const waiting=[],requestCalls=new Map();
+ const requestKey=(roomId,requestId)=>JSON.stringify([roomId,requestId]);
+ function registerModelCall({roomId,requestId,requestRevision,route}){
+  const key=requestKey(roomId,requestId),used=requestCalls.get(key)??0;
+  if(used>=maxCallsPerRequest)throw Object.assign(new Error('Per-request model call budget exhausted'),{code:'ENGINE_BUDGET_EXCEEDED'});
+  const record=callRegistry.register({roomId,requestId,requestRevision,route});
+  requestCalls.set(key,used+1);
+  return record;
+ }
  const aborted=()=>Object.assign(new Error('Cancelled model call'),{code:'MODEL_CANCELLED'});
  async function slot(signal){
   if(signal?.aborted)throw aborted();
@@ -16,7 +24,7 @@ export function createCallManager({callRegistry=createCallRegistry(),composer,mo
  }
  function free(){const next=waiting.shift();if(next){next.signal?.removeEventListener('abort',next.onAbort);next.resolve();}else active--;}
  async function invoke({roomId,requestId,requestRevision=0,route,context={},bindings={},format='json',signal}={}){
-  const record=callRegistry.register({roomId,requestId,requestRevision,route});
+  const record=registerModelCall({roomId,requestId,requestRevision,route});
   const started=callRegistry.start({roomId,requestId,callId:record.callId});
   const layer=route.layer==='hallway'?'hallway'+(route.phase==='initial'?'Initial':'Return'):route.layer;
   const frame=structuredClone(context);
@@ -39,7 +47,7 @@ export function createCallManager({callRegistry=createCallRegistry(),composer,mo
  async function invokeFunction({roomId,requestId,requestRevision=0,route,context={},tool,bindings={},signal}={}){
   if(route?.layer!=='workshop'||!tool?.name||typeof modelCaller.generateFunction!=='function')
    throw Object.assign(new Error('Native Workshop model port unavailable'),{code:'UNSUPPORTED_ACTION'});
-  const record=callRegistry.register({roomId,requestId,requestRevision,route});
+  const record=registerModelCall({roomId,requestId,requestRevision,route});
   const started=callRegistry.start({roomId,requestId,callId:record.callId});
   const layer='workshop.'+route.workshop+'.'+route.action;
   const frame=structuredClone(context);
