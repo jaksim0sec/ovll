@@ -19,7 +19,7 @@ export function createRequestEngine({composer,modelCaller,dataProvider,workshopE
  const recent=history=>history.slice(-4).map(({request,assistantResponse,contextBlock,verifiedResults=[]})=>({request,assistantResponse:assistantResponse??'',contextBlock,verifiedResults:verifiedResults.filter(x=>x?.outcome?.status==='applied').map(x=>({action:x.action,artifacts:x.outcome.artifacts}))}));
  const workIntent=(request,history=[])=>{
    const text=(request?.parts??[]).filter(x=>x.type==='text').map(x=>x.text).join(' ').trim();
-   const action=/만들까\?|만들어\s*(줘|주세요|봐|달라)|생성해\s*(줘|주세요)|정의해\s*(줘|주세요)|추가해\s*(줘|주세요)|배치해\s*(줘|주세요)|수정해\s*(줘|주세요)|삭제해\s*(줘|주세요)|바꿔\s*(줘|주세요)|옮겨\s*(줘|주세요)|(?:create|add|edit|delete|remove|update)\b/i;
+   const action=/만들어\s*(줘|주세요|봐|달라)|생성해\s*(줘|주세요)|정의해\s*(줘|주세요)|추가해\s*(줘|주세요)|배치해\s*(줘|주세요)|수정해\s*(줘|주세요)|삭제해\s*(줘|주세요)|바꿔\s*(줘|주세요)|옮겨\s*(줘|주세요)|(?:create|add|edit|delete|remove|update)\b/i;
    const target=/(?:스킬|skill|캔버스|블록|block|노드|node)/i;
    const explicit=target.test(text)&&action.test(text)&&!/(?:방법|예시|설명|알려|어떻게|가능해|can you|how to)/i.test(text);
    if(explicit)return true;
@@ -27,7 +27,7 @@ export function createRequestEngine({composer,modelCaller,dataProvider,workshopE
    const last=history.at(-1);
    const asked=last?.assistantResponse??'';
    const previous=(last?.request?.parts??[]).filter(x=>x.type==='text').map(x=>x.text).join(' ');
-   return /(?:할까\?|해\s*줄까\?|진행할까\?|만들까\?|shall i\?|should i\?)/i.test(asked)&&target.test(previous+' '+asked)&&action.test(previous+' '+asked);
+   return /(?:할까\?|해\s*줄까\?|진행할까\?|만들까\?|shall i\?|should i\?)/i.test(asked)&&target.test(previous+' '+asked)&&(action.test(previous+' '+asked)||/만들까\?/.test(asked));
  };
  const planValid=plan=>Array.isArray(plan)&&plan.length>0&&plan.every((step,index)=>{
   if(!obj(step)||Object.keys(step).length!==1)return false;
