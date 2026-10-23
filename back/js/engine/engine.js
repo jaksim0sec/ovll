@@ -16,6 +16,19 @@ export function createRequestEngine({composer,modelCaller,dataProvider,workshopE
  const blockValid=x=>strings(x,['intent','progress']);
  const dataValid=x=>strings(x,['overallFlow','currentTopic','details']);
  const types=new Set(['skillDefine','skillEdit','canvasEdit','textGenerate','terminate']);
+ const recent=history=>history.slice(-4).map(({request,assistantResponse,contextBlock,verifiedResults=[]})=>({request,assistantResponse:assistantResponse??'',contextBlock,verifiedResults:verifiedResults.filter(x=>x?.outcome?.status==='applied').map(x=>({action:x.action,artifacts:x.outcome.artifacts}))}));
+ const workIntent=(request,history=[])=>{
+   const text=(request?.parts??[]).filter(x=>x.type==='text').map(x=>x.text).join(' ').trim();
+   const action=/만들어\s*(줘|주세요|봐|달라)|생성해\s*(줘|주세요)|정의해\s*(줘|주세요)|추가해\s*(줘|주세요)|배치해\s*(줘|주세요)|수정해\s*(줘|주세요)|삭제해\s*(줘|주세요)|바꿔\s*(줘|주세요)|옮겨\s*(줘|주세요)|(?:create|add|edit|delete|remove|update)\b/i;
+   const target=/(?:스킬|skill|캔버스|블록|block|노드|node)/i;
+   const explicit=target.test(text)&&action.test(text)&&!/(?:방법|예시|설명|알려|어떻게|가능해|can you|how to)/i.test(text);
+   if(explicit)return true;
+   if(!/^(?:응|ㅇㅇ|그래|좋아|네|예|yes|yep|do it|해줘|진행해)$/i.test(text))return false;
+   const last=history.at(-1);
+   const asked=last?.assistantResponse??'';
+   const previous=(last?.request?.parts??[]).filter(x=>x.type==='text').map(x=>x.text).join(' ');
+   return /(?:할까\?|해\s*줄까\?|진행할까\?|만들까\?|shall i\?|should i\?)/i.test(asked)&&target.test(previous+' '+asked)&&action.test(previous+' '+asked);
+ };
  const planValid=plan=>Array.isArray(plan)&&plan.length>0&&plan.every((step,index)=>{
   if(!obj(step)||Object.keys(step).length!==1)return false;
   const [name]=Object.keys(step),detail=step[name];
@@ -108,14 +121,25 @@ export function createRequestEngine({composer,modelCaller,dataProvider,workshopE
  }
  async function run(snapshot,{onStage=()=>{}}={}){
   if(!snapshot?.request||!Array.isArray(snapshot.initialResources)||typeof onStage!=='function')throw invalid();
-  const request=copy(snapshot.request),contextData=copy(snapshot.contextData),initialResources=copy(snapshot.initialResources),chatHistory=copy(snapshot.chatHistory??[]);
-  const gate=await call('gate',{userRequest:request,contextData,initialResources,availableHistory:{completedRequests:chatHistory.length}});
+  const request=copy(snapshot.request),contextData=copy(snapshot.contextData),initialResources=copy(snapshot.initialResources),chatHistory=copy(snapshot.chatHistory??[]),recentConversation=recent(chatHistory);
+  const gate=await call('gate',{userRequest:request,contextData,initialResources,availableHistory:{completedRequests:chatHistory.length},recentConversation});
   if(!exact(gate,['need'])||!needValid(gate.need))throw invalid();
   const resources=requireLookup(await resolved({roomId:snapshot.roomId,requestId:snapshot.requestId,need:gate.need,resources:initialResources,request,contextData,chatHistory}));
   onStage('hallwayInitial');
-  const reply=await call('hallwayInitial',{userRequest:request,contextData,resources});
-  if(finalValid(reply))return {status:'completed',currentLayer:'hallwayInitial',result:{languageBlock:reply.languageBlock},contextBlock:reply.contextBlock,contextData:reply.contextData};
-  if(!exact(reply,['plan','contextBlock'])||!planValid(reply.plan)||!blockValid(reply.contextBlock))throw invalid();
+  const requiresWork=workIntent(request,chatHistory);
+  let reply=await call('hallwayInitial',{userRequest:request,contextData,resources,recentConversation,requiresVerifiedWork:requiresWork});
+  // One corrective model call, never accept a promise as evidence of a mutation.
+  if((requiresWork&&finalValid(reply))||(!finalValid(reply)&&(!exact(reply,['plan','contextBlock'])||!planValid(reply.plan)||!blockValid(reply.contextBlock)))){
+    const reason=requiresWork&&finalValid(reply)?'This request requires an actual verified Workshop action. A promise or acknowledgment is NOT completion.':'Return exactly one valid shape: languageBlock+contextBlock+contextData OR plan+contextBlock; all required fields must be present.';
+    reply=await call('hallwayInitial',{userRequest:request,contextData,resources,recentConversation,requiresVerifiedWork:requiresWork,correction:reason});
+  }
+  if(finalValid(reply)){
+    if(requiresWork)throw Object.assign(new Error('A verified action is required'),{code:'WORK_REQUIRED',detail:'hallwayInitial: direct reply cannot complete a requested Skill/Canvas change'});
+    return {status:'completed',currentLayer:'hallwayInitial',result:{languageBlock:reply.languageBlock},contextBlock:reply.contextBlock,contextData:reply.contextData};
+  }
+  if(!exact(reply,['plan','contextBlock'])||!planValid(reply.plan)||!blockValid(reply.contextBlock))throw Object.assign(new Error('Invalid Hallway output'),{code:'ENGINE_OUTPUT_INVALID',detail:'hallwayInitial: expected plan+contextBlock or languageBlock+contextBlock+contextData'});
+  if(requiresWork&&!reply.plan.some(step=>Object.keys(step)[0]!=='textGenerate'&&Object.keys(step)[0]!=='terminate'))throw Object.assign(new Error('No executable action planned'),{code:'WORK_REQUIRED',detail:'hallwayInitial: requested Skill/Canvas change has no corresponding Workshop'});
+
   if(!workshopExecutor||!checkpoints)return {status:'unsupported_workshop',currentLayer:'hallwayInitial',plan:reply.plan,contextBlock:reply.contextBlock};
   const state={roomId:snapshot.roomId,requestId:snapshot.requestId,request,contextData,chatHistory,resources,contextBlock:reply.contextBlock,plan:reply.plan,planCursor:0,actionCursor:0,callCount:2,actionCount:0,returnCount:0,verifiedResults:[],stage:'workshop',status:'running',waiting:null,pendingOperation:null};
   write(state);return progress(state,onStage);
