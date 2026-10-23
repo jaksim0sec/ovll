@@ -37,8 +37,13 @@ test('Block arguments reference an existing server Skill, not a fabricated ID',(
  assert.throws(()=>d.validateArgs({...input,x:Infinity},state),e=>e.code==='ACTION_ARGS_INVALID');
 });
 
-test('addBlock declares flexible field values with parametersJsonSchema',()=>{
- const tool=getActionDescriptor('canvasEdit.addBlock').tool;
- assert.equal('parameters' in tool,false);
- assert.deepEqual(tool.parametersJsonSchema.properties.values.additionalProperties,{type:'string'});
+test('engine action descriptors use provider-neutral JSON Schema for both actions',()=>{
+ const define=getActionDescriptor('skillDefine.defineDirect').tool;
+ const add=getActionDescriptor('canvasEdit.addBlock').tool;
+ for(const tool of [define,add]){
+  assert.ok(tool.inputSchema?.type==='object');
+  assert.equal('parameters' in tool,false);
+  assert.equal('parametersJsonSchema' in tool,false);
+ }
+ assert.deepEqual(add.inputSchema.properties.values.additionalProperties,{type:'string'});
 });

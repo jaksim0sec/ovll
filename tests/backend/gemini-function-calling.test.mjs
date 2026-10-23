@@ -46,3 +46,16 @@ test('dynamic Canvas field values are described with JSON Schema, not OpenAPI Sc
  assert.equal('parameters' in declaration,false);
  assert.deepEqual(declaration.parametersJsonSchema.properties.values.additionalProperties,{type:'string'});
 });
+
+test('Gemini adapter translates provider-neutral inputSchema into a provider FunctionDeclaration',async()=>{
+ let sent;
+ const schema={type:'object',properties:{skillId:{type:'string'},values:{type:'object',additionalProperties:{type:'string'}}},required:['skillId','values']};
+ const tool={name:'add_block',description:'Place a confirmed Skill Block',inputSchema:schema};
+ const gemini=caller(async(_url,init)=>{sent=JSON.parse(init.body);return response([{functionCall:{name:'add_block',args:{skillId:'real',values:{request:'oak'}}}}]);});
+ const output=await gemini.generateFunction({prompt:'Place existing Skill',context:{},tool});
+ assert.equal(output.name,'add_block');
+ const declared=sent.tools[0].functionDeclarations[0];
+ assert.deepEqual(declared.parametersJsonSchema,schema);
+ assert.equal('inputSchema' in declared,false);
+ assert.equal('parameters' in declared,false);
+});
