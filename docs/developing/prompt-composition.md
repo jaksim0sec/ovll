@@ -45,3 +45,7 @@
 - `docs/developing/workshops.md`: 작업실 행동 책임.
 - `docs/developing/context.md`: 맥락 수명·필드 소유권.
 - `prompts/manifest.json`: 지침 상대 경로와 순서.
+
+## 2026-10-23 비IR Workshop 모델 계층
+- `prompts/manifest.json`에 `workshop` 계층(공통 개념 → `base/workshop` → 공통 JSON → `blocks/workshopActions`)이 추가되었다. `{action:string,args:{...}} | {done:true}`만 허용하며 Workshop은 `contextBlock`/`contextData`를 직접 생성하지 않는다.
+- 단순 직접 응답은 Hallway Initial의 `{languageBlock,contextBlock,contextData}`로 종결한다. 실행된 작업이 있는 경우 `terminate`는 Output의 최종 언어/맥락 확정을 유도한다. 계획 소진 시 Hallway Return으로 복귀한다.
