@@ -30,12 +30,18 @@ export function createRequestScheduler({registry,execute,resume,retryOutput,sess
           if(status==='completed'&&contextData!==undefined){
             const saved=sessions.commit({scope:item.roomId,expectedRevision:state.revision,requestId:item.requestId,request:snapshot.request,contextBlock,contextData,assistantResponse:answer?.languageBlock??'',verifiedResults:answer?.verifiedResults??verifiedResults??[]});
             if(saved.status!=='committed')throw Object.assign(new Error('Session context conflict'),{code:'SESSION_CONFLICT'});
+          }else if(status==='failed'&&typeof sessions.recordFailure==='function'){
+            sessions.recordFailure({scope:item.roomId,requestId:item.requestId,request:snapshot.request,contextBlock,error,verifiedResults});
           }
           const updated=registry.transition(item.roomId,item.requestId,{status,currentLayer,contextBlock,
             ...(contextData===undefined?{}:{contextData}),...(answer===undefined?{}:{result:answer}),...(plan===undefined?{}:{plan}),...(waiting===undefined?{}:{waiting}),...(verifiedResults===undefined?{}:{verifiedResults}),...(error===undefined?{}:{error})});
           item.resolve(updated);
         } catch(e){
           const code=publicCodes.has(e?.code)?e.code:'MODEL_ERROR';
+          if(typeof sessions.recordFailure==='function'){
+            const failed=registry.get(item.roomId,item.requestId);
+            sessions.recordFailure({scope:item.roomId,requestId:item.requestId,request:failed.request,contextBlock:failed.contextBlock??null,error:{code,detail:typeof e?.detail==='string'?e.detail.slice(0,160):''}});
+          }
           const missing=code==='DATA_UNAVAILABLE'&&Array.isArray(e?.missing)?
             e.missing.slice(0,20).filter(x=>Array.isArray(x)&&x.length===2&&x.every(v=>typeof v==='string'&&v.length<=200)):[];
           item.resolve(registry.transition(item.roomId,item.requestId,{status:'failed',error:{code,message:messageFor(code),...(missing.length?{missing}:{}),...(typeof e?.detail==='string'&&e.detail.length<=160?{detail:e.detail}:{})}}));
