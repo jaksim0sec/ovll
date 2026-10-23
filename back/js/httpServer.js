@@ -6,7 +6,7 @@ import {timingSafeEqual} from 'node:crypto';
 
 const MIME={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json; charset=utf-8','.webmanifest':'application/manifest+json','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.ico':'image/x-icon'};
 const json=(res,code,payload)=>{res.writeHead(code,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});res.end(JSON.stringify(payload));};
-const safeRecord=r=>r&&({roomId:r.roomId,requestId:r.requestId,status:r.status,currentLayer:r.currentLayer,...(r.result?{result:r.result}:{}),...(r.error?{error:r.error}:{}),...(r.plan?{plan:r.plan}:{} )});
+const safeRecord=r=>r&&({roomId:r.roomId,requestId:r.requestId,status:r.status,currentLayer:r.currentLayer,...(r.result?{result:r.result}:{}),...(r.error?{error:r.error}:{}),...(r.plan?{plan:r.plan}:{}),...(r.waiting?{waiting:r.waiting}:{}),...(r.verifiedResults?{verifiedResults:r.verifiedResults}:{} )});
 /** Beta-only shared test token: explicitly set OVLL_TEST_TOKEN takes priority. */
 export const resolveTestToken=(env=process.env)=>env.OVLL_TEST_TOKEN||'abcd';
 const sameString=(a,b)=>{
@@ -33,7 +33,7 @@ async function readJsonBody(req){
  try{return JSON.parse(Buffer.concat(chunks).toString('utf8'));}catch{throw Object.assign(new Error('invalid json'),{statusCode:400});}
 }
 /** Minimal authenticated, same-origin test boundary; queue belongs to the scheduler. */
-export function createRequestHttpServer({scheduler,testToken,frontRoot=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../../front')}={}){
+export function createRequestHttpServer({scheduler,assets,testToken,frontRoot=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../../front')}={}){
  if(!scheduler?.enqueue||!scheduler?.get||(testToken!==undefined&&typeof testToken!=='string'))throw new TypeError('Invalid scheduler or test token');
  const root=path.resolve(frontRoot);let activeCount=0;
  return createServer(async(req,res)=>{
@@ -42,6 +42,23 @@ export function createRequestHttpServer({scheduler,testToken,frontRoot=path.reso
    if(pathname==='/api/health'&&req.method==='GET')return json(res,200,{ok:true,service:'ovll-beta',memoryOnly:true});
    if(pathname.startsWith('/api/')){
     if(testToken && !sameString(req.headers.authorization,'Bearer '+testToken))return json(res,401,{error:'UNAUTHORIZED'});
+    const assetsMatch=/^\/api\/rooms\/([a-zA-Z0-9._-]+)\/assets$/.exec(pathname);
+    if(assetsMatch&&req.method==='GET'){
+      if(!assets?.read)return json(res,501,{error:'ASSETS_UNAVAILABLE'});
+      return json(res,200,assets.read({scope:assetsMatch[1]}));
+    }
+    const answerMatch=/^\/api\/requests\/([a-zA-Z0-9._-]+)\/answer$/.exec(pathname);
+    if(answerMatch&&req.method==='POST'){
+      const body=await readJsonBody(req);
+      if(!body||typeof body.roomId!=='string'||! /^[a-zA-Z0-9._-]{1,100}$/.test(body.roomId)||typeof body.waitingId!=='string'||body.waitingId.length>180||typeof body.text!=='string'||!body.text.trim()||body.text.length>8000)return json(res,400,{error:'INVALID_ANSWER'});
+      const current=scheduler.get(body.roomId,answerMatch[1]);
+      if(current?.status!=='awaiting_input'||current.waiting?.id!==body.waitingId)return json(res,409,{error:'REQUEST_NOT_WAITING'});
+      if(typeof scheduler.resume!=='function')return json(res,501,{error:'RESUME_UNAVAILABLE'});
+      let resumed;
+      try{resumed=scheduler.resume(body.roomId,answerMatch[1],{waitingId:body.waitingId,text:body.text});}
+      catch{return json(res,409,{error:'REQUEST_NOT_WAITING'});}
+      return json(res,202,{roomId:resumed.roomId,requestId:resumed.requestId,status:'running'});
+    }
     if(pathname==='/api/requests'&&req.method==='POST'){
      if(activeCount>=6)return json(res,429,{error:'QUEUE_BUSY'});
      const body=await readJsonBody(req);
