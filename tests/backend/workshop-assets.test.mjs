@@ -46,3 +46,14 @@ test('checkpoint CAS protects waiting and operation state',()=>{
  assert.equal(cp.save({scope,requestId,expectedRevision:0,next:{status:'completed'}}).status,'conflict');
  assert.equal(cp.load({scope,requestId}).state.planCursor,0);
 });
+
+test('reusing an operationId for a different action never replays unrelated success',()=>{
+ const a=setup(),first={scope:'room',requestId:'req',operationId:'same',action:'defineDirect',args:{definition:def('First')},expectedRevision:0};
+ const created=a.apply(first);assert.equal(created.status,'applied');
+ const skillId=a.read({scope:'room'}).skills[0].id;
+ const mixed=a.apply({...first,action:'addBlock',args:{skillId,x:40,y:80}});
+ assert.equal(mixed.status,'rejected');
+ assert.equal(mixed.code,'OPERATION_ID_CONFLICT');
+ assert.equal(a.read({scope:'room'}).blocks.length,0);
+ assert.deepEqual(a.apply(first),created);
+});
