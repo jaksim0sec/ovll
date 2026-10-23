@@ -40,6 +40,13 @@ export function createRequestEngine({composer,modelCaller,dataProvider,workshopE
    const previous=(last?.request?.parts??[]).filter(x=>x.type==='text').map(x=>x.text).join(' ');
    return /(?:할까\?|해\s*줄까\?|진행할까\?|만들까\?|shall i\?|should i\?)/i.test(asked)&&target.test(previous+' '+asked)&&(action.test(previous+' '+asked)||/만들까\?/.test(asked));
  };
+ const missingOutcomes=state=>{
+   const original=state.unresolvedRequest?.request??state.request;
+   const words=(original?.parts??[]).filter(p=>p.type==='text').map(p=>p.text).join(' ').trim();
+   const nodeCreate=/(노드|블록|node|skill block)/i.test(words)&&/(만들어|생성|추가|배치|create|add)/i.test(words)&&!/(?:만들까\?|어떻게|방법|설명|예시|가능해|how to)/i.test(words);
+   const confirmed=state.verifiedResults.filter(x=>x?.outcome?.status==='applied');
+   return nodeCreate&&!confirmed.some(x=>x.action==='addBlock')?['canvasEdit.addBlock (place the requested Skill Block on the Canvas)']:[];
+ };
  const planValid=plan=>Array.isArray(plan)&&plan.length>0&&plan.every((step,index)=>{
   if(!obj(step)||Object.keys(step).length!==1)return false;
   const [name]=Object.keys(step),detail=step[name];
@@ -74,7 +81,7 @@ export function createRequestEngine({composer,modelCaller,dataProvider,workshopE
   onStage('hallwayReturn');
   state.stage='hallwayReturn';write(state);
   state.callCount++;
-  const reply=await call('hallwayReturn',{userRequest:state.request,unresolvedRequest:state.unresolvedRequest??null,contextBlock:{...state.contextBlock,focus:'Review verified steps and unmet objectives'},verifiedResults:state.verifiedResults,resources:state.resources,contextData:state.contextData,workspaceAssets:workshopExecutor?.read({scope:state.roomId})??null});
+  const reply=await call('hallwayReturn',{userRequest:state.request,unresolvedRequest:state.unresolvedRequest??null,contextBlock:{...state.contextBlock,focus:'Review verified steps and unmet objectives'},unmetRequirements:missingOutcomes(state),verifiedResults:state.verifiedResults,resources:state.resources,contextData:state.contextData,workspaceAssets:workshopExecutor?.read({scope:state.roomId})??null});
   if(!exact(reply,['plan','contextBlock'])||!planValid(reply.plan)||!blockValid(reply.contextBlock))throw invalid();
   state.plan=reply.plan;state.contextBlock=reply.contextBlock;state.planCursor=0;state.actionCursor=0;state.stepStartResultIndex=state.verifiedResults.length;state.stage='workshop';write(state);
  }
@@ -93,7 +100,10 @@ export function createRequestEngine({composer,modelCaller,dataProvider,workshopE
     if(state.callCount>=40||state.actionCount>=24)throw invalid('ENGINE_BUDGET_EXCEEDED');
     if(state.planCursor>=state.plan.length){await nextPlan(state,onStage);continue;}
     const step=state.plan[state.planCursor],workshop=Object.keys(step)[0],detail=step[workshop];
-    if(workshop==='terminate')return await finish(state,onStage);
+    if(workshop==='terminate'){
+      if(missingOutcomes(state).length){await nextPlan(state,onStage);continue;}
+      return await finish(state,onStage);
+    }
     onStage('workshop');state.stage='workshop';
     const looked=await resolved({roomId:state.roomId,requestId:state.requestId,need:detail.need,resources:state.resources,request:state.request,contextData:state.contextData,chatHistory:state.chatHistory});
     const stepResources=requireLookup(looked);
