@@ -122,3 +122,15 @@ test('Hallway retries one malformed JSON response instead of abandoning an execu
  assert.equal(hallwayCalls,2);
  assert.equal(calledOutput,true);
 });
+
+test('asking whether to make a Skill is a discussion, not an authorized mutation',async()=>{
+ let turns=0;
+ const modelCaller={generate:async ({layer})=>{
+  if(layer==='gate')return toText({need:[]});
+  turns++;return toText({languageBlock:'아이디어부터 정해 보자.',contextBlock:{intent:'discuss skill idea',progress:'answered'},contextData});
+ }};
+ const engine=createRequestEngine({composer:{compose:async x=>x},modelCaller,dataProvider:createMemoryDataProvider()});
+ const result=await engine.run(request('이런 스킬 만들까?'));
+ assert.equal(result.status,'completed');
+ assert.equal(turns,1);
+});
