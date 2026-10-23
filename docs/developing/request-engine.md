@@ -31,7 +31,7 @@ GEMINI_API_KEY='...' node back/js/demo.js  # GEMINI_MODEL은 선택
 - Render 환경변수는 `main` Gemini 경로의 키·모델 우선순위를 사용하며 모델명과 테스트 접근키는 시작 필수가 아니다. 키가 없다면 서버는 시작하지만 모델 호출은 실패한다. 실험 설정·제한은 `docs/developing/render-test-bridge.md` 참조. 실제 Gemini API 키를 통한 Render 실호출 성공은 아직 확인하지 않았다.
 
 ## 아직 없는 기능
-SSE, 정식 사용자 인증, DB 영속 저장·재시작 복구·중단, 실물 파일 업로드, 사용자별 요청 접근 제어, Workshop 실행·Function Calling·IR, Hallway Return 실호출, Output 실호출, 서버 확정 Canvas 원본 관리. 프로토타입의 자료 완전성 표기는 인증이나 악의적 입력에 대한 신뢰 검증을 대신하지 않는다.
+SSE, 정식 사용자 인증·사용자별 요청 접근 제어, DB 영속 저장·재시작 복구·지속 실행, 실물 파일 업로드, IR·Saved Function 실행, 공급자 네이티브 Function Calling, 로컬 Canvas와 서버 원본의 양방향 정식 편집 동기화. 프로토타입의 자료 완전성 표기는 인증이나 악의적 입력에 대한 신뢰 검증을 대신하지 않는다.
 
 - Gate는 `availableHistory.completedRequests`(0~8)를 입력받아 이전 대화 조회 가능 범위를 판단한다. 범위를 넘겨 요청한 자료는 결코 생성하거나 성공으로 가장하지 않는다.
 
@@ -39,6 +39,12 @@ SSE, 정식 사용자 인증, DB 영속 저장·재시작 복구·중단, 실물
 - `back/js/engine/workshop.js`: 모델-neutral Workshop decision과 행동별 검증. `back/js/engine/memoryAssets.js`: 메모리 Skill/Canvas 버전 자산·원자적 변경·동일 operationId 멱등 결과. `back/js/engine/checkpoints.js`: revisioned 요청 체크포인트.
 - `createRequestEngine`은 `workshopExecutor`, `checkpoints` 포트를 주입받아 `.run`, `.resume`, `.retryOutput`을 제공한다. Workshop 결과마다 확정 상태를 기록하고 실패·일부 성공을 구분한다. 메모리 어댑터는 영구 저장이 아니며 서버 재시작 시 손실될 수 있다.
 - Beta HTTP 추가: `GET /api/rooms/:roomId/assets`, `POST /api/requests/:requestId/answer`, `POST /api/requests/:requestId/retry-output`. 기존 접수/상태 조회는 유지. UI는 질문 입력과 Output 재시도를 제공하며, 서버 확정 자산이 로컬 작업과 충돌하면 자동 덮어쓰지 않는다.
-- 검증: 자산·스케줄러·엔진·프론트 브리지 로직 26개 집중/기존 시나리오를 JS 호환 실행 환경에서 확인했으나, **전체 Node npm test·실제 Render/Gemini/브라우저 통합 검증은 별도**.
+- 검증: GitHub Actions `Ovll beta tests`의 Node.js 22 실제 `npm test` 55개 전부 통과(2026-10-23). 실제 Render 배포, Gemini 실호출, 브라우저 렌더링 시험은 별도.
 
 - `back/js/request/memorySessions.js`는 스케줄러의 방별 맥락 메모리 구현을 분리한 교체 포트로, `load`/revision-CAS `commit`을 사용한다. 요청이 완료될 때 session commit 성공을 먼저 확인한 후 `completed` 상태를 기록한다. `createRequestScheduler({sessions?})`로 다른 저장 어댑터 주입 가능.
+
+## 2026-10-23 요청 실행·화면 결과 신뢰성 보강
+- `back/js/engine/engine.js`: 새 Skill/Canvas 변경 의도가 명확하면 Hallway가 단순 수락·미래 약속만으로 `completed` 처리하지 못하게 검사. 잘못된 직접 응답/JSON은 1회 복구 요청 후에도 틀리면 `WORK_REQUIRED` 또는 `ENGINE_OUTPUT_INVALID`로 실패를 공개한다. 계획에 실제 Workshop이 없는 경우도 차단한다. 대상 행동의 확인 기록 없이 Workshop `{done:true}`만으로 넘어가지 못하며 `WORK_NOT_APPLIED`로 실패한다. 이 규칙은 명시적인 변경 요청 및 짧은 승인 발화 일부에 대한 보수적 검사이며 모든 언어·의도를 완벽하게 분류한다는 뜻은 아니다.
+- `back/js/request/memorySessions.js`: 완료된 요청당 원문 요청·최종 assistantResponse·verifiedResults 및 기존 contextBlock/contextData를 같은 방 최대 8개 메모리 기록으로 보관한다. 최근 4개 완료 대화는 Gate·Hallway에 `recentConversation`으로 직접 전달되며, 별도 `chatContext`가 요청되면 기존 데이터 조회 문법대로 동작한다. 실제 적용되지 않은 약속과 확정 자산은 서로 다르게 취급한다.
+- `GET /api/rooms/:roomId/history`: 동일 시험 토큰으로 해당 room의 완료된 최근 8개 user/assistant 턴과 확인된 행동 내역만 반환. `requestBridge.loadHistory()`는 새로고침 후 해당 턴을 중복 없이 채팅에 복원한다. **서버 재시작 시 사라지는 메모리 이력**이며 영속 저장은 아니다.
+- `requestBridge`는 `result.verifiedResults[].outcome.status === 'applied'`인 결과에 대해서만 채팅의 작업 확인 카드를 만든다. `GET /api/rooms/:roomId/assets`의 서버 자산 상태를 Workspace·라이브러리에 전달하고, 채팅에는 현재 확정 Skill/Block 수 및 Skill 목록을 표시한다. 로컬 Canvas와 서버가 다르면 충돌을 표시하고 로컬 작업을 묵시적으로 덮어쓰지 않는다.
