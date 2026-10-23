@@ -7,12 +7,14 @@ const sample=roomId=>({roomId,request:{parts:[{type:'text',text:'안녕'}],attac
 const direct={languageBlock:'응답',contextBlock:{intent:'인사',progress:'완료'},contextData:{overallFlow:'done',currentTopic:'hi',details:''}};
 async function until(fn){for(let i=0;i<200;i++){if(fn())return;await new Promise(resolve=>setImmediate(resolve));}throw Error('timeout');}
 test('running cancellation ignores a late model reply and does not commit context',async()=>{
- const waiting=pause();let started=false;
- const engine=createEngine({composer:{compose:async()=>''},dataProvider:createMemoryDataProvider(),modelCaller:{generate:async ({layer})=>{if(layer==='gate'){started=true;await waiting.promise;}return {jsonText:JSON.stringify(layer==='gate'?{need:[]}:direct)};}}});
+ const waiting=pause();let started=false,receivedSignal;
+ const engine=createEngine({composer:{compose:async()=>''},dataProvider:createMemoryDataProvider(),modelCaller:{generate:async ({layer,signal})=>{if(layer==='gate'){receivedSignal=signal;started=true;await waiting.promise;}return {jsonText:JSON.stringify(layer==='gate'?{need:[]}:direct)};}}});
  const job=engine.submit(sample('r'));
  await until(()=>started);
  const marked=engine.cancel({roomId:'r',requestId:job.requestId});
  assert.equal(marked.status,'stopping');
+ assert.ok(receivedSignal instanceof AbortSignal);
+ assert.equal(receivedSignal.aborted,true);
  waiting.resolve();
  const result=await job.completion;
  assert.equal(result.status,'stopped');
