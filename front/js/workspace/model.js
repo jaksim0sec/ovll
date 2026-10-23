@@ -95,6 +95,7 @@ export function createWorkspaceModel({ snapshot, resolveSkill = getSkill } = {})
       if(!['input','output'].includes(direction))throw new Error('포트 방향이 올바르지 않습니다');
       return commit('disconnect-port',next=>{next.links=next.links.filter(link=>{const end=direction==='input'?link.to:link.from;return end.blockId!==endpoint.blockId||end.portId!==endpoint.portId});});
     },
+    replaceConfirmedSnapshot(snapshot) { const next=validate(snapshot);return commit('server-confirmed',state=>{state.version=next.version;state.blocks=next.blocks;state.links=next.links;}); },
     clear() { return commit('clear', next => { next.blocks = []; next.links = []; }); },
     arrange() {
       return commit('arrange', next => {
