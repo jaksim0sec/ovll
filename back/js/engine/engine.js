@@ -16,8 +16,19 @@ export function createRequestEngine({composer,modelCaller,dataProvider,workshopE
  const blockValid=x=>strings(x,['intent','progress']);
  const dataValid=x=>strings(x,['overallFlow','currentTopic','details']);
  const types=new Set(['skillDefine','skillEdit','canvasEdit','textGenerate','terminate']);
- const recent=history=>history.slice(-4).map(({request,assistantResponse,contextBlock,verifiedResults=[]})=>({request,assistantResponse:assistantResponse??'',contextBlock,verifiedResults:verifiedResults.filter(x=>x?.outcome?.status==='applied').map(x=>({action:x.action,artifacts:x.outcome.artifacts}))}));
+ const recent=history=>history.slice(-4).map(({request,assistantResponse,contextBlock,verifiedResults=[],status,error})=>({request,assistantResponse:assistantResponse??'',status:status??'completed',error:error?{code:error.code??'FAILED'}:null,contextBlock,verifiedResults:verifiedResults.filter(x=>x?.outcome?.status==='applied').map(x=>({action:x.action,artifacts:x.outcome.artifacts}))}));
+ const unresolvedRequest=(request,history=[])=>{
+   const text=(request?.parts??[]).filter(p=>p.type==='text').map(p=>p.text).join(' ').trim();
+   const last=history.at(-1);
+   if(last?.status!=='failed'||!last.request)return null;
+   // A follow-up explicitly pointing to the failed attempt resumes that objective.
+   // Diagnostic questions remain direct questions; they must not execute a retry.
+   if(/(?:왜|어떻게|무슨|원인|실패\s*이유|why|how|what)/i.test(text))return null;
+   if(!/(?:방금|아까|그거|그걸|말했잖아|했잖아|라니까|보라니까|다시\s*해|재시도|try again|do it again)/i.test(text))return null;
+   return {request:copy(last.request),requestId:last.requestId??null,error:last.error??null,verifiedResults:copy(last.verifiedResults??[])};
+ };
  const workIntent=(request,history=[])=>{
+   if(unresolvedRequest(request,history))return true;
    const text=(request?.parts??[]).filter(x=>x.type==='text').map(x=>x.text).join(' ').trim();
    const action=/만들어\s*(줘|주세요|봐|달라)|생성해\s*(줘|주세요)|정의해\s*(줘|주세요)|추가해\s*(줘|주세요)|배치해\s*(줘|주세요)|수정해\s*(줘|주세요)|삭제해\s*(줘|주세요)|바꿔\s*(줘|주세요)|옮겨\s*(줘|주세요)|(?:create|add|edit|delete|remove|update)\b/i;
    const target=/(?:스킬|skill|캔버스|블록|block|노드|node)/i;
@@ -48,7 +59,7 @@ export function createRequestEngine({composer,modelCaller,dataProvider,workshopE
   if(lookup.missing.length)throw Object.assign(new Error('Required data unavailable'),{code:'DATA_UNAVAILABLE',missing:lookup.missing});
   return lookup.resources;
  }
- const errorResult=(error,stage,state)=>({status:'failed',currentLayer:stage,error:{code:error?.code||'MODEL_ERROR',message:String(error?.code||'Execution failed')},contextBlock:state?.contextBlock,verifiedResults:state?.verifiedResults||[]});
+ const errorResult=(error,stage,state)=>({status:'failed',currentLayer:stage,error:{code:error?.code||'MODEL_ERROR',message:String(error?.code||'Execution failed'),...(typeof error?.detail==='string'?{detail:error.detail.slice(0,200)}:{})},contextBlock:state?.contextBlock,verifiedResults:state?.verifiedResults||[]});
  const roomArgs=state=>({scope:state.roomId,requestId:state.requestId});
  function write(state){
   if(!checkpoints?.save)throw invalid('CHECKPOINT_UNAVAILABLE');
@@ -63,14 +74,14 @@ export function createRequestEngine({composer,modelCaller,dataProvider,workshopE
   onStage('hallwayReturn');
   state.stage='hallwayReturn';write(state);
   state.callCount++;
-  const reply=await call('hallwayReturn',{contextBlock:{...state.contextBlock,focus:'Review verified steps and unmet objectives'},verifiedResults:state.verifiedResults,resources:state.resources,contextData:state.contextData});
+  const reply=await call('hallwayReturn',{userRequest:state.request,unresolvedRequest:state.unresolvedRequest??null,contextBlock:{...state.contextBlock,focus:'Review verified steps and unmet objectives'},verifiedResults:state.verifiedResults,resources:state.resources,contextData:state.contextData,workspaceAssets:workshopExecutor?.read({scope:state.roomId})??null});
   if(!exact(reply,['plan','contextBlock'])||!planValid(reply.plan)||!blockValid(reply.contextBlock))throw invalid();
   state.plan=reply.plan;state.contextBlock=reply.contextBlock;state.planCursor=0;state.actionCursor=0;state.stepStartResultIndex=state.verifiedResults.length;state.stage='workshop';write(state);
  }
  async function finish(state,onStage){
   onStage('output');state.stage='output';write(state);
   state.callCount++;
-  const result=await call('output',{userRequest:state.request,contextBlock:{...state.contextBlock,focus:'Finalize verified outcomes'},contextData:state.contextData,verifiedResults:state.verifiedResults,resources:state.resources});
+  const result=await call('output',{userRequest:state.request,unresolvedRequest:state.unresolvedRequest??null,contextBlock:{...state.contextBlock,focus:'Finalize verified outcomes'},contextData:state.contextData,verifiedResults:state.verifiedResults,resources:state.resources});
   if(!finalValid(result))throw invalid();
   state.stage='completed';state.contextBlock=result.contextBlock;state.contextData=result.contextData;
   state.answer=result.languageBlock;write(state);
@@ -87,7 +98,7 @@ export function createRequestEngine({composer,modelCaller,dataProvider,workshopE
     const looked=await resolved({roomId:state.roomId,requestId:state.requestId,need:detail.need,resources:state.resources,request:state.request,contextData:state.contextData,chatHistory:state.chatHistory});
     const stepResources=requireLookup(looked);
     state.callCount++;
-    const selection=await workshopExecutor.decide({workshop,objective:detail.objective,scope:state.roomId,request:state.request,contextBlock:state.contextBlock,resources:stepResources,verifiedResults:state.verifiedResults,answer:state.lastAnswer??null,focus:'Workshop '+workshop+' step '+state.planCursor});
+    const selection=await workshopExecutor.decide({workshop,objective:detail.objective,scope:state.roomId,request:state.unresolvedRequest?.request??state.request,contextBlock:state.contextBlock,resources:stepResources,verifiedResults:state.verifiedResults,answer:state.lastAnswer??null,focus:'Workshop '+workshop+' step '+state.planCursor});
     state.lastAnswer=null;
     if(selection.done){
       const actual=state.verifiedResults.slice(state.stepStartResultIndex??0).some(x=>x.workshop===workshop&&(x.outcome?.status==='applied'||x.status==='applied'));
@@ -123,24 +134,26 @@ export function createRequestEngine({composer,modelCaller,dataProvider,workshopE
  }
  async function run(snapshot,{onStage=()=>{}}={}){
   if(!snapshot?.request||!Array.isArray(snapshot.initialResources)||typeof onStage!=='function')throw invalid();
-  const request=copy(snapshot.request),contextData=copy(snapshot.contextData),initialResources=copy(snapshot.initialResources),chatHistory=copy(snapshot.chatHistory??[]),recentConversation=recent(chatHistory);
-  const gate=await call('gate',{userRequest:request,contextData,initialResources,availableHistory:{completedRequests:chatHistory.length},recentConversation});
+  const request=copy(snapshot.request),contextData=copy(snapshot.contextData),initialResources=copy(snapshot.initialResources),chatHistory=copy(snapshot.chatHistory??[]),recentConversation=recent(chatHistory),unresolved=unresolvedRequest(request,chatHistory);
+  const workspaceAssets=workshopExecutor?.read({scope:snapshot.roomId})??null;
+  const gate=await call('gate',{userRequest:request,contextData,initialResources,availableHistory:{completedRequests:chatHistory.length},recentConversation,unresolvedRequest:unresolved,workspaceAssets});
   if(!exact(gate,['need'])||!needValid(gate.need))throw invalid();
   const resources=requireLookup(await resolved({roomId:snapshot.roomId,requestId:snapshot.requestId,need:gate.need,resources:initialResources,request,contextData,chatHistory}));
   onStage('hallwayInitial');
   const requiresWork=workIntent(request,chatHistory);
+  const hallwayContext={userRequest:request,unresolvedRequest:unresolved,contextData,resources,recentConversation,workspaceAssets,requiresVerifiedWork:requiresWork};
   let reply;
   let retried=false;
-  try{reply=await call('hallwayInitial',{userRequest:request,contextData,resources,recentConversation,requiresVerifiedWork:requiresWork});}
+  try{reply=await call('hallwayInitial',hallwayContext);}
   catch(error){
     if(error?.code!=='ENGINE_OUTPUT_INVALID')throw error;
     retried=true;
-    reply=await call('hallwayInitial',{userRequest:request,contextData,resources,recentConversation,requiresVerifiedWork:requiresWork,correction:'Return a single valid JSON object with exactly plan+contextBlock or languageBlock+contextBlock+contextData. Use an actual Workshop plan for Skill/Canvas mutations.'});
+    reply=await call('hallwayInitial',{...hallwayContext,correction:'Return a single valid JSON object with exactly plan+contextBlock or languageBlock+contextBlock+contextData. Use an actual Workshop plan for Skill/Canvas mutations.'});
   }
   // One corrective model call, never accept a promise as evidence of a mutation.
   if(!retried&&((requiresWork&&finalValid(reply))||(!finalValid(reply)&&(!exact(reply,['plan','contextBlock'])||!planValid(reply.plan)||!blockValid(reply.contextBlock))))){
     const reason=requiresWork&&finalValid(reply)?'This request requires an actual verified Workshop action. A promise or acknowledgment is NOT completion.':'Return exactly one valid shape: languageBlock+contextBlock+contextData OR plan+contextBlock; all required fields must be present.';
-    reply=await call('hallwayInitial',{userRequest:request,contextData,resources,recentConversation,requiresVerifiedWork:requiresWork,correction:reason});
+    reply=await call('hallwayInitial',{...hallwayContext,correction:reason});
   }
   if(finalValid(reply)){
     if(requiresWork)throw Object.assign(new Error('A verified action is required'),{code:'WORK_REQUIRED',detail:'hallwayInitial: direct reply cannot complete a requested Skill/Canvas change'});
@@ -150,7 +163,7 @@ export function createRequestEngine({composer,modelCaller,dataProvider,workshopE
   if(requiresWork&&!reply.plan.some(step=>Object.keys(step)[0]!=='textGenerate'&&Object.keys(step)[0]!=='terminate'))throw Object.assign(new Error('No executable action planned'),{code:'WORK_REQUIRED',detail:'hallwayInitial: requested Skill/Canvas change has no corresponding Workshop'});
 
   if(!workshopExecutor||!checkpoints)return {status:'unsupported_workshop',currentLayer:'hallwayInitial',plan:reply.plan,contextBlock:reply.contextBlock};
-  const state={roomId:snapshot.roomId,requestId:snapshot.requestId,request,contextData,chatHistory,resources,contextBlock:reply.contextBlock,plan:reply.plan,planCursor:0,actionCursor:0,stepStartResultIndex:0,callCount:2,actionCount:0,returnCount:0,verifiedResults:[],stage:'workshop',status:'running',waiting:null,pendingOperation:null};
+  const state={roomId:snapshot.roomId,requestId:snapshot.requestId,request,unresolvedRequest:unresolved,contextData,chatHistory,resources,contextBlock:reply.contextBlock,plan:reply.plan,planCursor:0,actionCursor:0,stepStartResultIndex:0,callCount:2,actionCount:0,returnCount:0,verifiedResults:[],stage:'workshop',status:'running',waiting:null,pendingOperation:null};
   write(state);return progress(state,onStage);
  }
  async function resume(snapshot,{waitingId,text,onStage=()=>{}}={}){
