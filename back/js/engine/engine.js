@@ -116,7 +116,9 @@ export function createRequestEngine({composer,modelCaller,dataProvider,workshopE
       state.planCursor++;state.actionCursor=0;state.stepStartResultIndex=state.verifiedResults.length;write(state);continue;
     }
     state.actionCount++;
-    const operationId=state.requestId+':'+state.planCursor+':'+state.actionCursor++;
+    state.actionCursor++;
+    // Monotonic for the whole request. Hallway Return resets planCursor, not operation identity.
+    const operationId=state.requestId+':op:'+state.actionCount;
     state.pendingOperation={operationId,action:selection.action,args:copy(selection.args)};
     write(state); // intent before side effects
     if(selection.action==='question'||selection.action==='basicText'){
