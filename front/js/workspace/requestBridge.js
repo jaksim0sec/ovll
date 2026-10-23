@@ -3,7 +3,7 @@ import {prepareRequestInput} from './requestInput.js';
 const stageLabel=record=>{
  if(record.status==='queued')return '대기열에 등록됨';
  if(record.status==='running')return ({gate:'Gate · 필요한 정보 확인 중',hallwayInitial:'Hallway · 응답 판단 중',workshop:'Workshop · 작업 수행 중',actionShell:'Action Shell · 선택 행동 전달',hallwayReturn:'Hallway · 후속 작업 판단 중',output:'Output · 결과 정리 중'})[record.currentLayer]||'요청 처리 중';
- if(record.status==='unsupported_workshop')return '선택 행동 전달 완료 · 실행 미구현';
+ if(record.status==='unsupported_workshop')return (record.verifiedResults??[]).some(x=>x?.outcome?.status==='applied')?'일부 작업 적용 · 다음 행동 미지원':'선택 행동 미지원';
  if(record.status==='failed')return record.currentLayer==='output'?'Output · 최종 응답 생성 실패':'요청 처리 실패';
  return '요청 처리 중';
 };
@@ -109,9 +109,12 @@ export function createRequestBridge({fetchImpl=globalThis.fetch,promptForToken=(
    activities.set(requestId,{requestId,label:'사용자 답변 대기 · '+requestId.slice(0,8),detail:'요청: '+requestLabel(requestId),waiting:next.waiting});
    void loadAssets(roomId).catch(()=>{});
   }else if(['failed','unsupported_workshop'].includes(next.status)){
-   if(next.status==='failed')void loadAssets(roomId).catch(()=>{});
-   const applied=Array.isArray(next.verifiedResults)&&next.verifiedResults.some(x=>x.outcome?.status==='applied');
-   const detail=(next.status==='failed'?diagnostic(next.error):next.handoff?.action?'행동: '+next.handoff.action+' · 작업실 껍데기 도달, 실행·저장은 미구현':'선택 행동 실행 미구현')+(applied?' · 일부 자산 변경은 실제 적용됐어.':'');
+   const applied=Array.isArray(next.verifiedResults)&&next.verifiedResults.some(x=>x?.outcome?.status==='applied');
+   // Partial success is a real side effect even if the overall plan cannot finish.
+   if(next.status==='failed'||applied)void loadAssets(roomId).catch(()=>{});
+   const reason=next.status==='failed'?diagnostic(next.error):
+     next.handoff?.action?'미지원 행동: '+next.handoff.action:'선택한 행동 미지원';
+   const detail=reason+(applied?' · 이전 작업 일부는 실제 적용됨.':' · 이 행동은 실행되지 않음.');
    activities.set(requestId,{requestId,label:stageLabel(next)+' · '+requestId.slice(0,8),detail:'요청: '+requestLabel(requestId)+' · '+detail,...(next.status==='failed'&&next.currentLayer==='output'?{retryOutput:true}:{})});
   }else{
    report(requestId,stageLabel(next),next.currentLayer||'queued');
