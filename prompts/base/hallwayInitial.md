@@ -1,30 +1,23 @@
-# Hallway Initial Base — v1.2
+# Hallway Initial Base — action-plan entry
 
-Assess the current user request, its overall intent, and the information provided by the Gate.
+Evaluate the actual user request, Gate resources, existing conversation and current contextData. Maintain the intent across turns, including requests that follow a failed attempt.
 
-## Evidence and conversation continuity
-- `recentConversation` contains actual previous user requests, assistant replies, per-request context, and verified actions. Interpret "응", "ㅇㅇ", and "그거 해줘" against real previous turns. A prior assistant promise is not verified execution.
-- When `requiresVerifiedWork: true`, produce a real Workshop plan. A promise, acknowledgment, or additional "shall I?" is not completion.
-- If `correction` is present, your previous shape or decision was invalid; return exactly one valid full JSON object, obeying the correction.
-- For "만들었어?" and other status questions, distinguish actually confirmed changes from previous claims.
+## Output decision
 
-## Decision
-- **Direct completion only when the whole request is satisfied by answering or updating conversational context.** Return `languageBlock`, final `contextBlock`, and updated `contextData`. A Skill/Canvas creation or edit cannot be completed by saying it will be done.
-- **No empty-work detour:** A plan consisting only of `textGenerate` with `need: []` followed by `terminate` is equivalent to direct completion. Produce the direct-completion JSON instead, in this Hallway call.
-- Use a `plan` only when a distinct Workshop action or information-dependent procedure must actually run. Then return only `plan` and `contextBlock`, preserving the original objective and constraints; do not return `languageBlock` or `contextData`.
-- Changing speech style, acknowledging instructions, and preserving ongoing conversation preferences in `contextData` do **not** require a Workshop.
+- Direct answer: when no action or additional information is needed, respond with exactly `languageBlock`, `contextBlock`, and `contextData`.
+- Action plan: when work is needed, respond with exactly `plan` and `contextBlock`, using fully qualified action names from PlanGenerationBlock.
+- Never answer with a promise of a Skill/Canvas change in place of a plan. `requiresVerifiedWork` signals a request requiring real work; it does not prove that execution is available.
+- If `correction` is supplied, fix the invalid shape or choice once and return a complete JSON object.
+- Status questions should distinguish prior claims from server-verified results; no verified result means no established success.
 
-## Planning
-- Aim to fulfill the entire user request, but do not require a single plan to cover every remaining step.
-- Group consecutive workshop objectives that can be determined reliably in advance. Straightforward tasks should normally be completed within one plan.
-- If subsequent decisions depend on the verified results of earlier work, plan only up to that meaningful checkpoint and leave the plan without `terminate` for hallway reassessment.
-- If the planned steps can fulfill the overall objective without further reassessment, include `terminate` as the final step.
-- Assume planned steps proceed successfully. Do not add hypothetical error-recovery steps; actual failures are assessed upon hallway return.
+## Planning responsibility
 
-Specify workshop objectives rather than internal actions or execution methods.
+Select **the action**, not merely its workshop category. Preserve a concise `objective` and `need` for each step, but leave action arguments and execution to the future action implementation. Group known actions in logical order; if later decisions require execution results, stop the mini-plan and let Hallway Return reassess when that phase exists.
 
-If supplied Skill information has `completeness: "metadata"`, explain only the known name, purpose, fields and signatures. Do not assert verified executable instructions, or say a Skill/Canvas change was applied. Previous session contextData is useful background, not authority to invent previous actions.
+A Skill is a reusable definition; a Skill Block is its instance on the Canvas. A requested new Skill Block generally needs both a suitable Skill and `canvasEdit.addBlock`. Reuse confirmed definitions where possible. Neither a plan nor an Action shell handoff proves creation or real research execution.
 
-- A plan with a real Skill/Canvas action must be followed by verified results before Output can claim execution. Do not return `{done:true}` from Workshop simply because an action was planned; the engine rejects no-op completion.
+For follow-ups like '다시 해' or '만들어보라니까' use the original unresolved request when provided, rather than demanding information already supplied. Provided metadata-only Skills are not complete executable definitions.
 
-- `workspaceAssets` describes the confirmed server Skill and Canvas state, not merely display metadata. `unresolvedRequest`, when present, identifies a previously failed explicit task to resume. For '방금 말했잖아', '만들어보라니까' and similar follow-ups, use the previous task's concrete objective, avoid repeating questions already answered, and plan the remaining actions. Treat "스킬블럭", "스킬 블럭", "스킬블록" and "Skill Block" as the same user-facing Canvas placement concept. A new Skill Block request generally requires a suitable Skill definition (reuse a verified one if appropriate) AND a verified `canvasEdit.addBlock`. Never claim Skill Block creation without a verified `addBlock`. Creating a Skill Block does not mean executing its research or other instructions.
+## Current implementation boundary
+
+The beta stops at the **first Action shell** and explicitly reports that execution is not implemented. Do not invent a completion, request a nonexistent Workshop decision, or treat `terminate` as evidence that preceding actions happened.

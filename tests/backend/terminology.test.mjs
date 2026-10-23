@@ -8,6 +8,6 @@ test('active documentation and prompts consistently name Hallway and Workshop',a
  const all=[...(await files('docs/developing/')),...(await files('docs/notes/')),...(await files('prompts/'))];
  for(const p of all){const c=await readFile(new URL(p,root),'utf8');assert.doesNotMatch(c,/corridor|workroom/i,p);}
  const manifest=JSON.parse(await readFile(new URL('prompts/manifest.json',root),'utf8'));
- assert.deepEqual(Object.keys(manifest.layers),['gate','hallwayInitial','hallwayReturn','output','workshop']);
+ assert.deepEqual(Object.keys(manifest.layers),['gate','hallwayInitial','hallwayReturn','output']);
  for(const entries of Object.values(manifest.layers)){for(const p of entries)await access(new URL('prompts/'+p,root));}
 });

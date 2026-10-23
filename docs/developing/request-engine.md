@@ -1,65 +1,26 @@
-# 독립 요청 엔진 — beta 최초 실행 범위
-상태: 2026-10-23 구현 사실. 단일 Render 웹서비스에서 비IR Workshop 11행동까지 모델 결정→검증→메모리 적용→Hallway Return→Output 경로를 추가했다. 실제 Render 배포·Gemini 실호출·브라우저 검증 여부는 별도.
+# Beta 독립 요청 엔진 — Action Shell 단계
+상태: 2026-10-23. 이전 비IR 11행동 실행 구현은 **폐기**했고 이 문서는 현재 동작을 기록한다.
 
-## 컴포넌트와 실행
-- `back/js/request/registry.js`: `createRequestRegistry({createId?})` → `register({roomId,request,contextData,initialResources?})`, `get(roomId,requestId)`, `transition(roomId,requestId,changes)`. 메모리에 요청별 상태를 기록하고 외부에는 복제된 스냅샷을 반환한다.
-- `back/js/request/scheduler.js`: `createRequestScheduler({registry,execute,maxConcurrent=1})` → `enqueue(input)`, `get(roomId,requestId)`, `whenIdle()`. FIFO, 기본 동시 실행 1개. 실패해도 다음 요청을 실행하며 실패 내용은 코드별 안전한 메시지만 기록한다.
-- `back/js/engine/promptComposer.js`: `createPromptComposer({promptsRoot?})` → `compose(layer,bindings)`. `prompts/manifest.json` 순서를 기준으로 지침을 읽는다. 사용자 원문과 자료는 프롬프트 문자열에 끼워 넣지 않고 모델 호출의 별도 `context`로 보낸다. 지원 manifest 레이어: gate/hallwayInitial/hallwayReturn/output; 최초 런타임에서 앞의 둘만 실행.
-- `back/js/engine/dataProvider.js`: `createMemoryDataProvider({fixtures?})` → `resolveNeed({roomId,requestId,need,availableResources,request,contextData,chatHistory?})`. `need`는 기존 originalReq/chatContext/skillDef/canvasSkill/skillList 문법을 사용하며, 이미 있는 완전 자료를 재조회하지 않고 메타데이터만 있는 자료는 정의 완료로 보지 않는다. 최근 완료 기록에서 `originalReq`(현재=0, 과거=1..8), `chatContext`(최근 n개)를 제공하고, 부족한 자료를 `missing`으로 되돌린다. 실제 실행용 스킬 정의와 표시용 메타데이터는 구별한다.
-- `back/js/engine/engine.js`: `createRequestEngine({composer,modelCaller,dataProvider})` → `run(requestSnapshot,{onStage?})`. Gate JSON `{need:[...]}` 검증 후 자료 조회, Hallway Initial 직접 응답은 Output 없이 `completed`. 계획 분기는 Workshop 11행동의 검증·적용 이후 `terminate`면 Output, 계획 소진이면 Hallway Return; Workshop 포트 미설정 시에만 `unsupported_workshop`을 유지한다.
-- `back/js/model/gemini.js`: `createGeminiCaller({apiKey,model,fetchImpl?})`의 `generate({layer,prompt,context,format:'json',signal?})`가 `{jsonText}` 반환. 모델/인증/REST 형식은 호출기만 알고 엔진은 공급자별 타입을 import하지 않는다. 이 단계에서는 동일한 한 모델로 모든 호출을 실행한다.
-- `front/js/workspace/requestInput.js`: `prepareRequestInput({draft,dataAccess})` → `{request,initialResources}`. 직접 첨부한 Skill/Skill Block만 읽으며 Block이면 해당 배치 인스턴스와 참조 Skill 메타데이터를 처음부터 전달한다. 연결된 전체 Canvas는 수집하지 않는다. 프론트의 정적 Skill 카탈로그는 **표시용 메타데이터**이며 실행 지침이 아님. 파일 Blob은 전달하지 않는다. `front/js/workspace/requestBridge.js`에서 호출하고 `boot.js`에 요청 전송 콜백을 연결했다. 초기 참조 준비 함수의 범위/완전성은 유지한다.
+## 런타임
+- `request/registry.js`: 방·요청별 큐/진행/완료·미구현 상태 기록. `handoff` 필드 보존.
+- `request/scheduler.js`: FIFO, 같은 방 최근 완료 맥락 인계, 실행 실패 진단, HTTP 상태 스냅샷.
+- `engine/promptComposer.js`: manifest 순서 기반 조립; 사용자 정보는 context로 별도 전달.
+- `engine/dataProvider.js`: need 조회; 대화 이력·요청 원본·초기 참조. 서버에서 조회용 비어 있는 자산 카탈로그를 넣어 `skillList`는 빈 목록으로 조회 가능.
+- `engine/engine.js`: Gate→Hallway Initial→선택된 첫 Action Shell, 또는 Hallway 즉시 언어 응답. 계획 후 추가 AI 호출 없음.
+- `engine/actionShell.js`: 12개 자격 행동 검증 및 `not_implemented` 접수 객체. **실행 함수 없음**.
+- `model/gemini.js` & `model/configuredGemini.js`: Gate/Hallway JSON 생성. Gemini 네이티브 Function Calling 사용하지 않음.
+- `back/js/server.js`: Render Web Service, 정적 front + API, room 메모리, 읽기 전용 빈 자산 카탈로그.
 
-## 요청 상태
-`queued → running → awaiting_input → running → completed | unsupported_workshop | failed` (대기 없이 완료·실패 가능).
-- Registry는 roomId와 requestId로 조회한다. 대기 중/완료 상태와 등록소 보관 수명은 별개다.
-- 각 AI 모델 호출의 응답·프롬프트는 요청 등록소 공개 스냅샷과 분리된다.
-- 직접 응답 및 검증된 Workshop 행동의 Output 응답만 완료로 취급한다. 모델 단독 성공 주장은 자산 변경으로 인정하지 않는다.
-- 기본 FIFO(`maxConcurrent=1`)에서는 **요청 등록 시점이 아니라 실제 실행 직전**에 같은 roomId의 마지막 `completed` 맥락데이터를 읽는다. 완료 후 검증된 contextData와 요청·contextBlock을 서버 메모리에 저장해 다음 요청의 Gate/정보 요청 단계에 제공한다. 최신 완료 기록 8개까지만 조회 가능하며 다른 방과 격리한다. `failed`/`unsupported_workshop`은 완료로 간주하지 않으며 맥락 갱신을 하지 않는다. 서버 재시작/다중 인스턴스/동시 처리 충돌은 아직 지원하지 않는다.
+## 상태
+- 직접 답변: `completed`, Hallway Initial에서 생성한 `languageBlock`.
+- 행동 계획: `unsupported_workshop` / `currentLayer=actionShell`, `plan`과 `handoff` 반환. `handoff.status=not_implemented`; 실제 스킬/블럭 생성 없음.
+- 잘못된 응답 형태/미등록 행동: `ENGINE_OUTPUT_INVALID`; 실작업 요청을 말로만 완료하려 하면 교정 1회 뒤 `WORK_REQUIRED`; 자료 누락은 `DATA_UNAVAILABLE`.
+- 모델이 `terminate` 계획을 생성해도 선행 작업의 적용 기록이 없으면 성공으로 전이하지 않는다.
+- 세션 `contextData`는 완료된 직접 답변에서만 갱신. 서버 재시작 시 소실됨. 영속 자산이 없고 사용자 인증·IR·Saved Function 실행도 없음.
 
-## 검증
-```bash
-node --test tests/backend/*.test.mjs
-GEMINI_API_KEY='...' node back/js/demo.js  # GEMINI_MODEL은 선택
-```
-자격증명은 서버 환경변수로만 공급하며 프론트로 전달하거나 저장소에 기록하지 않는다. 실제 Gemini 키/모델이 없다면 모델 실호출은 **미검증**이다. `back/js/demo.js`는 하나의 가상 구조화 요청을 등록해 실행하는 CLI이고, 모의 모델 성공을 출력하지 않는다.
-
-## Render 시험 연결
-- `DATA_UNAVAILABLE`인 경우 서버는 실제 Gate 조회에서 부족한 dataset/key 목록을 `error.missing`으로 응답한다(최대 20개). Chat은 관련 요청 텍스트·requestId를 함께 보여 주며 다른 요청이 성공했다고 기존 실패를 지우지 않는다.
-- `back/js/httpServer.js`: `front/` 동일 origin 정적 호스팅, `POST /api/requests` 202 접수, `GET /api/requests/:id?roomId=...` 상태 조회, `GET /api/health` 건강 확인. `OVLL_TEST_TOKEN` Bearer 비밀키로 요청 API를 보호한다. 일반 사용자 인증은 아니다.
-- `back/js/server.js`: 독립 엔진·요청 큐·Gemini 호출기를 만들어 `0.0.0.0:PORT`에서 Web Service로 실행한다. `front/js/workspace/requestBridge.js`는 채팅에서 약 900ms 간격 HTTP 폴링으로 실제 상태와 직접 응답을 표시한다.
-- Render 환경변수는 `main` Gemini 경로의 키·모델 우선순위를 사용하며 모델명과 테스트 접근키는 시작 필수가 아니다. 키가 없다면 서버는 시작하지만 모델 호출은 실패한다. 실험 설정·제한은 `docs/developing/render-test-bridge.md` 참조. 실제 Gemini API 키를 통한 Render 실호출 성공은 아직 확인하지 않았다.
-
-## 아직 없는 기능
-SSE, 정식 사용자 인증·사용자별 요청 접근 제어, DB 영속 저장·재시작 복구·지속 실행, 실물 파일 업로드, IR·Saved Function 실행, 공급자 네이티브 Function Calling, 로컬 Canvas와 서버 원본의 양방향 정식 편집 동기화. 프로토타입의 자료 완전성 표기는 인증이나 악의적 입력에 대한 신뢰 검증을 대신하지 않는다.
-
-- Gate는 `availableHistory.completedRequests`(0~8)를 입력받아 이전 대화 조회 가능 범위를 판단한다. 범위를 넘겨 요청한 자료는 결코 생성하거나 성공으로 가장하지 않는다.
-
-## 신규 실행 모듈·범위
-- `back/js/engine/workshop.js`: 모델-neutral Workshop decision과 행동별 검증. `back/js/engine/memoryAssets.js`: 메모리 Skill/Canvas 버전 자산·원자적 변경·동일 operationId 멱등 결과. `back/js/engine/checkpoints.js`: revisioned 요청 체크포인트.
-- `createRequestEngine`은 `workshopExecutor`, `checkpoints` 포트를 주입받아 `.run`, `.resume`, `.retryOutput`을 제공한다. Workshop 결과마다 확정 상태를 기록하고 실패·일부 성공을 구분한다. 메모리 어댑터는 영구 저장이 아니며 서버 재시작 시 손실될 수 있다.
-- Beta HTTP 추가: `GET /api/rooms/:roomId/assets`, `POST /api/requests/:requestId/answer`, `POST /api/requests/:requestId/retry-output`. 기존 접수/상태 조회는 유지. UI는 질문 입력과 Output 재시도를 제공하며, 서버 확정 자산이 로컬 작업과 충돌하면 자동 덮어쓰지 않는다.
-- 검증: GitHub Actions `Ovll beta tests`의 Node.js 22 실제 `npm test` 65개 전부 통과(2026-10-23). 실제 Render 배포, Gemini 실호출, 브라우저 렌더링 시험은 별도.
-
-- `back/js/request/memorySessions.js`는 스케줄러의 방별 맥락 메모리 구현을 분리한 교체 포트로, `load`/revision-CAS `commit`을 사용한다. 요청이 완료될 때 session commit 성공을 먼저 확인한 후 `completed` 상태를 기록한다. `createRequestScheduler({sessions?})`로 다른 저장 어댑터 주입 가능.
-
-## 2026-10-23 요청 실행·화면 결과 신뢰성 보강
-- `back/js/engine/engine.js`: 새 Skill/Canvas 변경 의도가 명확하면 Hallway가 단순 수락·미래 약속만으로 `completed` 처리하지 못하게 검사. 잘못된 직접 응답/JSON은 1회 복구 요청 후에도 틀리면 `WORK_REQUIRED` 또는 `ENGINE_OUTPUT_INVALID`로 실패를 공개한다. 계획에 실제 Workshop이 없는 경우도 차단한다. 대상 행동의 확인 기록 없이 Workshop `{done:true}`만으로 넘어가지 못하며 `WORK_NOT_APPLIED`로 실패한다. 이 규칙은 명시적인 변경 요청 및 짧은 승인 발화 일부에 대한 보수적 검사이며 모든 언어·의도를 완벽하게 분류한다는 뜻은 아니다.
-- `back/js/request/memorySessions.js`: 완료된 요청당 원문 요청·최종 assistantResponse·verifiedResults 및 기존 contextBlock/contextData를 같은 방 최대 8개 메모리 기록으로 보관한다. 최근 4개 완료 대화는 Gate·Hallway에 `recentConversation`으로 직접 전달되며, 별도 `chatContext`가 요청되면 기존 데이터 조회 문법대로 동작한다. 실제 적용되지 않은 약속과 확정 자산은 서로 다르게 취급한다.
-- `GET /api/rooms/:roomId/history`: 동일 시험 토큰으로 해당 room의 완료된 최근 8개 user/assistant 턴과 확인된 행동 내역만 반환. `requestBridge.loadHistory()`는 새로고침 후 해당 턴을 중복 없이 채팅에 복원한다. **서버 재시작 시 사라지는 메모리 이력**이며 영속 저장은 아니다.
-- `requestBridge`는 `result.verifiedResults[].outcome.status === 'applied'`인 결과에 대해서만 채팅의 작업 확인 카드를 만든다. `GET /api/rooms/:roomId/assets`의 서버 자산 상태를 Workspace·라이브러리에 전달하고, 채팅에는 현재 확정 Skill/Block 수 및 Skill 목록을 표시한다. 로컬 Canvas와 서버가 다르면 충돌을 표시하고 로컬 작업을 묵시적으로 덮어쓰지 않는다.
-
-- 동일 실제 HTTP 통합 테스트(`tests/backend/confirmed-e2e.test.mjs`)는 요청 접수→Hallway의 실행 없는 약속 교정→Workshop Skill 저장→Output→서버 자산/대화 조회→프론트 확정 카드→후속 '만들긴 한 거야?' 맥락 인식을 검증한다. 실제 Gemini API 응답 안정성을 검증하는 테스트는 아니다.
-- `workIntent` 검사는 Skill을 '만들까?'라고 물어보는 단순 제안과 '만들어줘'라는 변경 지시를 구별한다. 후속 '응/ㅇㅇ'는 바로 전 오블의 실제 제안에 연결해 판단한다.
-
-## 2026-10-23 실사용 장애 복구
-- 미지원 Workshop 행동(예: createNode) 선택 시 availableActions와 거부된 행동명을 포함해 최대 1회 교정하고, 재차 잘못되면 UNSUPPORTED_ACTION 및 구체적 진단으로 실패한다. 알 수 없는 행동을 자동 실행하지 않는다.
-- 실행 ID가 Hallway Return 이후 planCursor 초기화 때문에 충돌하던 오류를 수정: requestId:op:actionCount 형식으로 전체 요청에서 단조 증가한다. 메모리 자산 포트는 같은 ID의 서로 다른 입력에 OPERATION_ID_CONFLICT를 반환하며, 동일 입력의 재전송은 기존 결과를 보존한다.
-- 실패한 요청은 sessions.recordFailure로 방 이력에 남기되 확정 contextData는 변경하지 않는다. 짧은 재지시에서 직전 실패의 원문을 unresolvedRequest로 전달한다. 실패 이유를 묻는 질문은 자동 재실행하지 않는다.
-- 노드/블록 생성 요청의 완료에는 확인된 canvasEdit.addBlock이 필요하다. Skill 정의만 하고 terminate하면 Hallway Return에서 남은 배치를 재계획한다.
-- Node 22 전체 CI npm test 65개 통과(2026-10-23). 실 Gemini 호출 및 Render 브라우저 시험은 미검증이다.
-
-## 2026-10-23 스킬블럭 표기·확정 표시 회귀 보강
-- 사용자가 `스킬블럭`/`스킬 블럭`/`스킬블록`/`블럭`으로 명시한 생성·배치는 Canvas Skill Block 작업이다. `workIntent` 및 `missingOutcomes`가 이 표기를 인식하며, 생성 요청은 `canvasEdit.addBlock` 실제 적용 전 종료할 수 없다. 기존 `노드` 표현의 호환 인식은 유지한다.
-- Chat의 확인 카드는 `addBlock` 산출물의 `skillId`를 같은 서버 결과의 `changeSet.skills`와 대조해 Skill 이름과 `스킬블럭`을 표시한다. 내부 ID는 이름 조회가 불가능할 때만 보조 표시한다. 정의 생성과 배치, 스킬 실행은 계속 별개다.
-- 회귀는 `tests/backend/real-node-recovery.test.mjs`의 여러 한국어 표기·잘못된 직접 완료 교정·Canvas 배치 확인과 `tests/backend/confirmed-e2e.test.mjs`의 HTTP→프론트 확정 카드·자산 수신을 사용한다. 실제 Gemini/Render/브라우저 실사용은 별도로 검증해야 한다.
+## API·프론트
+- `POST /api/requests`, `GET /api/requests/:id?roomId=...`; 결과 상태에 `handoff`가 포함될 수 있다.
+- `GET /api/rooms/:roomId/assets`는 rev 0/빈 자산만 반환. 확인된 새 작업으로 표시하지 않는다.
+- 프론트는 Action Shell 도달과 미구현 상태/선택 행동명을 진행 카드에 표시. 완료 답변으로 위조하지 않는다.
+- 기존 테스트 전용 `/answer`, `/retry-output` 라우트는 서버에 남아 있으나 실행기에 resume/retryOutput을 제공하지 않으므로 이 단계에서 진행 불가능.
+- 테스트: `npm test` (Node 22). 실제 Gemini 모델 응답·Render 브라우저 검증과는 구분.

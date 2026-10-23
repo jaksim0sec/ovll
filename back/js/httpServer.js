@@ -6,7 +6,7 @@ import {timingSafeEqual} from 'node:crypto';
 
 const MIME={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json; charset=utf-8','.webmanifest':'application/manifest+json','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.ico':'image/x-icon'};
 const json=(res,code,payload)=>{res.writeHead(code,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});res.end(JSON.stringify(payload));};
-const safeRecord=r=>r&&({roomId:r.roomId,requestId:r.requestId,status:r.status,currentLayer:r.currentLayer,...(r.result?{result:r.result}:{}),...(r.error?{error:r.error}:{}),...(r.plan?{plan:r.plan}:{}),...(r.waiting?{waiting:r.waiting}:{}),...(r.verifiedResults?{verifiedResults:r.verifiedResults}:{} )});
+const safeRecord=r=>r&&({roomId:r.roomId,requestId:r.requestId,status:r.status,currentLayer:r.currentLayer,...(r.result?{result:r.result}:{}),...(r.error?{error:r.error}:{}),...(r.plan?{plan:r.plan}:{}),...(r.handoff?{handoff:r.handoff}:{}),...(r.waiting?{waiting:r.waiting}:{}),...(r.verifiedResults?{verifiedResults:r.verifiedResults}:{} )});
 /** Beta-only shared test token: explicitly set OVLL_TEST_TOKEN takes priority. */
 export const resolveTestToken=(env=process.env)=>env.OVLL_TEST_TOKEN||'abcd';
 const sameString=(a,b)=>{

@@ -76,7 +76,7 @@
 ```
 
 ## 경로와 역할
-- `back/`: 백엔드. `back/js/`는 서버·API·실행 로직(JS)을 책임에 따라 분리할 위치. **Gate → Hallway Initial → 비IR Workshop → Hallway Return / Output 엔진 + Render 시험 HTTP 서버 구현**. 서버는 `back/js/server.js`에서 `front/`와 `/api/requests`를 함께 제공하며 Chat 폴링으로 진행을 표시한다. SSE·DB·정식 사용자 인증·IR은 아직 없음. Workshop은 비IR 11행동만 실행하며 메모리 어댑터를 사용.
+- `back/`: 백엔드. `back/js/`는 서버·API·요청 처리 로직(JS)을 책임에 따라 분리할 위치. **Gate → Hallway Initial → 선택 행동 Action Shell 엔진 + Render 시험 HTTP 서버 구현**. 서버는 `back/js/server.js`에서 `front/`와 `/api/requests`를 함께 제공하며 Chat 폴링으로 진행을 표시한다. SSE·DB·정식 사용자 인증·IR은 아직 없음. 기존 비IR Workshop 실행기·자산 변경기는 폐기. 행동 실행·Function Calling은 미구현.
 - `front/`: 웹/PWA 정적 배포 루트. `index.html`은 현재 진입 파일이며 `manifest.webmanifest`, `vercel.json`은 배포·PWA 설정. 필수 루트 파일 외 앱 코드·일반 스타일을 루트에 쌓지 말 것.
 - `front/html/`: 별도 HTML 문서·페이지 구조용 위치. **현재 구현 파일 없음**. 실제 화면 구조는 `front/index.html`에도 존재하므로 이전을 임의 강제하지 말 것.
 - `front/js/`: 부팅(`boot.js`), 셸·페이지 호스트(`shell/`), 캔버스(`canvas/`), 컴포저(`composer/`), 워크스페이스(`workspace/`), 라이브러리(`library/`), 스킬 목록(`skill/`), 로컬 데이터(`data/`), 입력(`input/`), 테마(`settings/`) 등 프론트 로직. 기능 변경 시 해당 영역의 실제 코드와 경계를 확인.
@@ -111,34 +111,12 @@
 
 **개발 진행 과정에서의 변화로 AGENTS.md에 수정이 필요하다 판단될 경우, 유저에게 명확히 알릴 것.**
 
-## 백엔드 독립 프로토타입 (2026-10-23)
-- 구현 명세: `docs/developing/request-engine.md`; 구현 계획: `docs/superpowers/plans/2026-10-23-independent-request-engine.md`.
-- 단위검사: `node --test tests/backend/*.test.mjs`; CLI도 Render와 동일한 Gemini 환경변수 우선순위를 사용하며, 기본 모델을 지정하므로 `GEMINI_MODEL`은 선택. AI 호출에는 지원되는 API 키가 필요하다. 실행: `node back/js/demo.js`. 키·모델을 저장소에 기록하지 말 것.
-- `front/js/workspace/requestInput.js`는 직접 참조 Skill/Skill Block의 자료를 추출하는 독립 준비 함수; 현재 `boot.js`는 `requestBridge.js`의 HTTP 요청 전송·상태 폴링에 연결되어 있음. SSE는 미구현.
-- 시험용 FIFO에서 **같은 roomId의 직전 완료 맥락데이터 + 최근 8개 완료 기록**을 서버 메모리로 이어 전달한다. `DATA_UNAVAILABLE`은 부족한 데이터명을 노출하고, 프론트 실패 상태는 해당 요청 식별자/문장에 귀속된다. 모델 평가용 부분 구현이며 DB 영속 저장은 없다.
-
-## Render 단일 웹서비스 시험 (2026-10-23)
-- `beta` 전용 `package.json`/`render.yaml`. `npm start`로 `back/js/server.js` 실행, `GET /api/health`로 준비 상태 확인.
-- `main` Gemini 경로 설정을 공유: `GEMINI_API_KEY` 또는 `OVLL_POINTER_MODEL_API_KEY` / `OVLL_VNEXT_MODEL_API_KEY`는 실제 AI 호출에만 필요. 모델명은 `OVLL_POINTER_MODEL_ID` → `OVLL_VNEXT_MODEL_ID` → `GEMINI_MODEL` → `gemini-3.5-flash-lite`. `OVLL_TEST_TOKEN`은 선택이고 없으면 기본 테스트값 `abcd`로 동작하며 프론트가 자동 전송. 이 값은 소스에 공개되어 인증을 제공하지 않으므로 운영에 부적합. `beta`의 공급자는 Gemini로 고정.
-- `front/js/workspace/requestBridge.js`는 `boot.js`가 기존 Composer 콜백·Chat 표시 제어자로 연결. 접수/진행/완료를 서버 HTTP에서만 판정하며 Render의 동일 origin에서 테스트.
-- 구현/제한: `docs/developing/render-test-bridge.md`. 실 Render 배포·Gemini 호출·브라우저 실기기 검증은 별도 확인 필요.
-
-## 비IR Workshop 구현 연결 (2026-10-23)
-- 설계: `docs/superpowers/specs/2026-10-23-non-ir-workshop-engine-design.md`; 구현 계획: `docs/superpowers/plans/2026-10-23-non-ir-workshop-engine.md`.
-- `back/js/engine/{memoryAssets,checkpoints,workshop,engine}.js`에 버전 자산·체크포인트·행동 결정·실행 루프. `back/js/request/{registry,scheduler}.js`에 `awaiting_input`·resume·output-only retry.
-- 외부 HTTP와 UI는 본문 조회·대기 입력·최종 응답 재시도를 통해 서버 확정 결과를 표시. 원본이 다른 로컬 캔버스를 무조건 덮어쓰지 않는다. `main`은 변경하지 않는다.
-- 구현된 것은 **서버 메모리 기반 Beta 실험**이다. GitHub Actions Node 22 전체 `npm test` 65개 통과(2026-10-23). 실 Gemini, Render, 브라우저 UI 실사용은 별도 검증 필요. DB 영속성·사용자별 인증·IR 실행 없음.
-
-- 방 전체의 맥락/기록은 `back/js/request/memorySessions.js` 어댑터가 소유하고 스케줄러가 주입받는다. 서버/DB 교체 시 직접 엔진 소스에 DB 로직을 넣지 말 것.
-
-## 요청 신뢰성·프론트 확인 경로 (2026-10-23)
-- 새 Skill/Canvas 변경 요청은 최초 Hallway의 수락 문장으로 완료되지 않으며, 실제 Workshop 적용 결과가 필요하다. 명확한 변경 지시에는 재판정 후에도 작업 없는 완료를 `WORK_REQUIRED`로 거절하며 행동 없이 `{done:true}`만 반환하면 `WORK_NOT_APPLIED` 처리한다.
-- 완료된 요청의 **실제 assistantResponse와 user request, verifiedResults**가 메모리 세션에 기록된다. Gate·Hallway는 최신 4개 확인된 턴을 직접 참조한다. `contextBlock`/`contextData` 수명 및 분리는 유지한다.
-- 프론트는 서버 자산 API와 완료 기록 API(`/api/rooms/:roomId/assets`, `/api/rooms/:roomId/history`)를 통해 Skill을 **채팅의 확정 내역·현재 자산 목록·라이브러리**에 반영한다. 기존 로컬 Canvas 충돌이면 덮어쓰지 않고 경고한다. 서버 재시작·배포 후 메모리 기반 자산 및 최근 대화는 소실될 수 있다.
-- CI: `.github/workflows/beta-tests.yml`이 beta 푸시마다 Node 22 `npm test` 실행. 실제 Gemini API·브라우저 E2E 검증과 별개로 다룬다.
-
-## 2026-10-23 실사용 노드 생성 오류 수정
-- Workshop 미지원 행동은 허용 행동 목록을 제공해 1회 교정하고, 재차 위반하면 행동명 포함 실패로 종료. 정의 생성과 Canvas Block 배치를 혼동하지 말 것.
-- Hallway Return 뒤 planCursor 초기화와 무관하게 요청 내 operationId를 유일하게 생성한다. idempotent port는 다른 입력의 동일 ID를 거부한다.
-- 실패한 요청은 contextData를 변경하지 않고 대화 이력에 남겨 다음 짧은 재지시가 원래 목표를 찾도록 한다. 관련 회귀: tests/backend/real-node-recovery.test.mjs 및 workshop-assets.test.mjs.
-- Node 22 전체 CI 65/65 검증. 실제 Gemini·Render UI는 별도 실사용 검증이다.
+## 2026-10-23 현재: Action Shell 경계
+- **현재 유효 구조:** Gate → Hallway Initial(정확한 행동 이름으로 plan 생성) → Action Shell(첫 행동 껍데기 진입 및 미구현 상태 보고). 계획된 행동은 실행하지 않음.
+- Plan key 예: `skillDefine.defineDirect`, `canvasEdit.addBlock`, `skillEdit.editAppearance`, `textGenerate.question`. `terminate`는 제어 표식. 범주 이름만으로 된 `skillDefine`/ `canvasEdit` 계획은 거부.
+- `back/js/engine/{engine,actionShell,promptComposer,dataProvider}.js` 사용. 과거 비IR Workshop의 `workshop.js`, `memoryAssets.js`, `checkpoints.js` 및 Workshop 전용 프롬프트·회귀 시험 제거. 실행 방법/도구 스키마는 추후 계약 확정 대상.
+- Action Shell은 어떤 Skill/Canvas 상태도 변경하지 않으며 Function Calling을 수행하지 않음. `status:unsupported_workshop`, `currentLayer:actionShell`, `handoff:{action,workshop,objective,need,status:not_implemented}`로 미구현 상태를 공개. **성공·적용 결과가 아님**.
+- `back/js/server.js`는 조회 전용 빈 자산 목록을 사용하여 Gate의 `skillList` 조회와 HTTP 자산 조회를 지원하되, 어떤 행동도 적용하지 않음. 이것은 영속 DB나 기존 Beta 자산 복원이 아님.
+- Gate/Hallway 직접 대화 분기 및 room 기반 완료 맥락 기록은 유지. Hallway Return, Output, IR 실행, 행동별 지침·네이티브 Function Calling·질문 응답의 실제 실행 연결은 이번 단계 미구현.
+- `AGENTS.md`의 이전 2026-10-23 비IR Workshop 연결 기록은 이 현행 구조로 대체됨. `main`은 손대지 않음.
+- 자동 검증: `npm test` (Node 22 CI). 실 Gemini·Render 브라우저 시험과 분리해서 보고.

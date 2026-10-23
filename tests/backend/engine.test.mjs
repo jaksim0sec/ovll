@@ -17,10 +17,10 @@ test('Gate sees initial resources, deduplicates need, Hallway directly completes
  assert.equal(got.status,'completed');assert.equal(got.result.languageBlock,'안녕하세요');
  assert.deepEqual(snapshot.contextData,{overallFlow:'',currentTopic:'',details:''});
 });
-test('unimplemented Workshop remains unsupported',async()=>{
- const e=createRequestEngine({composer:compose,modelCaller:{generate:async ({layer})=>asText(layer==='gate'?{need:[]}:{plan:[{textGenerate:{objective:'write',need:[]}}],contextBlock:{intent:'write',progress:'pending'}})},dataProvider:createMemoryDataProvider()});
+test('planned Action reaches the shell without executing',async()=>{
+ const e=createRequestEngine({composer:compose,modelCaller:{generate:async ({layer})=>asText(layer==='gate'?{need:[]}:{plan:[{'textGenerate.basicText':{objective:'write',need:[]}}],contextBlock:{intent:'write',progress:'pending'}})},dataProvider:createMemoryDataProvider()});
  const result=await e.run(snapshot);
- assert.equal(result.status,'unsupported_workshop');assert.equal(result.plan[0].textGenerate.objective,'write');assert.ok(!result.result);
+ assert.equal(result.status,'unsupported_workshop');assert.equal(result.currentLayer,'actionShell');assert.equal(result.handoff.action,'textGenerate.basicText');assert.equal(result.handoff.status,'not_implemented');assert.ok(!result.result);
 });
 test('invalid conditional output and unresolved data fail explicitly',async()=>{
  const bad=createRequestEngine({composer:compose,modelCaller:{generate:async ({layer})=>asText(layer==='gate'?{need:[]}:{...direct,plan:[]})},dataProvider:createMemoryDataProvider()});
@@ -45,7 +45,7 @@ test('registry scheduler and engine isolate terminal results',async()=>{
 });
 
 test('terminate cannot precede later Workshop steps',async()=>{
- const invalidPlan={plan:[{terminate:{objective:'complete',need:[]}},{textGenerate:{objective:'later action',need:[]}}],contextBlock:{intent:'test',progress:'pending'}};
+ const invalidPlan={plan:[{terminate:{objective:'complete',need:[]}},{'textGenerate.basicText':{objective:'later action',need:[]}}],contextBlock:{intent:'test',progress:'pending'}};
  const engine=createRequestEngine({composer:compose,modelCaller:{generate:async ({layer})=>asText(layer==='gate'?{need:[]}:invalidPlan)},dataProvider:createMemoryDataProvider()});
  await assert.rejects(engine.run(snapshot),e=>e.code==='ENGINE_OUTPUT_INVALID');
 });

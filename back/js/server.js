@@ -1,24 +1,17 @@
-/** Render Web Service entry: one origin serves both beta UI and request APIs. */
+/** Single-origin beta: Gate -> Hallway -> Action shell; no Workshop actions execute. */
 import {createRequestRegistry} from './request/registry.js';
 import {createRequestScheduler} from './request/scheduler.js';
 import {createPromptComposer} from './engine/promptComposer.js';
 import {createMemoryDataProvider} from './engine/dataProvider.js';
 import {createRequestEngine} from './engine/engine.js';
 import {createConfiguredGeminiCaller} from './model/configuredGemini.js';
-import {createMemoryAssets} from './engine/memoryAssets.js';
-import {createMemoryCheckpoints} from './engine/checkpoints.js';
 import {createMemorySessions} from './request/memorySessions.js';
-import {createWorkshopExecutor} from './engine/workshop.js';
 import {createRequestHttpServer,resolveTestToken} from './httpServer.js';
-
-// Like main, missing model credentials must not prevent server startup.
-const modelCaller=createConfiguredGeminiCaller();
-const composer=createPromptComposer();
-const assets=createMemoryAssets();
-const checkpoints=createMemoryCheckpoints();
 const sessions=createMemorySessions();
-const engine=createRequestEngine({composer,dataProvider:createMemoryDataProvider({assets}),modelCaller,workshopExecutor:createWorkshopExecutor({composer,modelCaller,assets}),checkpoints});
-const scheduler=createRequestScheduler({sessions,registry:createRequestRegistry(),execute:(record,options)=>engine.run(record,options),resume:(record,answer,options)=>engine.resume(record,{...answer,...options}),retryOutput:(record,options)=>engine.retryOutput(record,options)});
-const server=createRequestHttpServer({scheduler,assets,sessions,testToken:resolveTestToken()});
+// Empty read-only catalog: not the retired Workshop asset store, and never mutated.
+const assets=Object.freeze({read:()=>({revision:0,skills:[],blocks:[],links:[]})});
+const engine=createRequestEngine({composer:createPromptComposer(),dataProvider:createMemoryDataProvider({assets}),modelCaller:createConfiguredGeminiCaller()});
+const scheduler=createRequestScheduler({sessions,registry:createRequestRegistry(),execute:(record,options)=>engine.run(record,options)});
+const server=createRequestHttpServer({scheduler,sessions,assets,testToken:resolveTestToken()});
 const port=Number(process.env.PORT)||10000;
 server.listen(port,'0.0.0.0',()=>console.log('Ovll beta HTTP test service listening on '+port));

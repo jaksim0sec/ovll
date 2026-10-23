@@ -1,5 +1,5 @@
 {
-  "version": "1014-v1",
+  "version": "2026-10-23-action-shell",
   "layers": {
     "gate": [
       "common/concepts.md",
@@ -30,12 +30,6 @@
       "blocks/languageGeneration.md",
       "blocks/contextBlockUpdate.md",
       "blocks/contextDataUpdate.md"
-    ],
-    "workshop": [
-      "common/concepts.md",
-      "base/workshop.md",
-      "common/json.md",
-      "blocks/workshopActions.md"
     ]
   }
 }

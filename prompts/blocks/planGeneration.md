@@ -1,51 +1,44 @@
-# PlanGenerationBlock — v0.4
+# PlanGenerationBlock — action-granular planning
 
-Write `plan` as an ordered array of workshop steps toward fulfilling the current user request. The plan may cover the entire request or only the next meaningful portion when later decisions depend on actual results.
+Generate an ordered `plan` of **named actions**, NOT workshops. The Hallway chooses the action, but does not specify its arguments, Function Calling parameters or execution details.
 
-Each step specifies a workshop, its objective, and any additional data requests. Do not select internal actions.
+## Available actions
 
-## Available workshops
+- `skillDefine.defineDirect` — define a reusable Skill
+- `skillDefine.defineFromIR` — derive a Saved Function from IR (future, not implemented)
+- `skillDefine.revise` — revise a Skill
+- `skillEdit.editAppearance` — change a Skill's icon or color
+- `skillEdit.delete` — delete a Skill
+- `canvasEdit.addBlock` — place a Skill Block
+- `canvasEdit.editBlock` — edit a placed Skill Block
+- `canvasEdit.deleteBlock` — remove a placed Skill Block
+- `canvasEdit.addLink` — connect compatible ports
+- `canvasEdit.removeLink` — remove a connection
+- `textGenerate.basicText` — intermediate user-facing text
+- `textGenerate.question` — ask for essential user input
+- `terminate` — plan-control marker, not an action; only as final step
 
-- `skillDefine` — Define or revise reusable Skills. IR-derived Functions remain distinct assets.
-- `skillEdit` — Modify skill appearance or delete skills.
-- `canvasEdit` — Create, modify, remove, or connect Skill Blocks (Skill Nodes) on the Canvas.
-- `textGenerate` — Generate user-facing text or questions as a **separate Workshop operation**, not the Hallway's own immediate final reply.
-- `terminate` — Explicitly end the current request.
+`skillDefine`, `skillEdit`, `canvasEdit`, and `textGenerate` are namespaces, NOT selectable plan steps.
 
 ## Step format
 
-Each step contains one workshop name as its key.
-
 ```json
 {
-  "workshopName": {
-    "objective": "...",
-    "need": []
-  }
+  "plan": [
+    {"skillDefine.defineDirect":{"objective":"식물 조사 스킬 정의","need":[]}},
+    {"canvasEdit.addBlock":{"objective":"식물 조사 스킬블럭 배치","need":[]}},
+    {"terminate":{"objective":"최종 결과 보고","need":[]}}
+  ],
+  "contextBlock":{"intent":"식물 조사 스킬블럭 만들기","progress":"계획 수립"}
 }
 ```
 
-- `objective`: A concise, user-facing description of the intended outcome. Use the user's language and preserve essential requirements. Example: "일본어 단어장 스킬 정의 생성".
-- `need`: An array following the existing InformationRequestBlock specification.
+Each plan step has exactly one key and exactly `objective` (a non-empty description of the intended outcome in the user's language) and `need` (InformationRequestBlock-compatible list). NEVER include concrete function arguments in a plan.
 
 ## Rules
 
-- Select only workshops necessary to fulfill the current request.
-- If the whole plan would be `textGenerate` with `need: []` followed by `terminate`, do not plan it in Hallway Initial: directly return `languageBlock`, `contextBlock` and `contextData` instead. This applies only when no other Workshop operation or required data lookup exists.
-- Arrange steps in the required execution order.
-- Specify outcomes, not internal actions or implementation procedures.
-- Leave concrete action selection to each workshop.
-- Preserve the user's intent, relevant constraints, and targets.
-- Never invent requirements, references, or completed work.
-- Avoid unnecessary steps or hallway returns. Include `terminate` when the planned work can complete the full request without further reassessment.
-
-## Completion
-
-- `terminate` explicitly ends the current request. The server automatically handles final language generation, so no separate `textGenerate` step is needed for the final response.
-- If the plan ends without `terminate`, control returns to the hallway to reassess progress and generate the next plan.
-- Do not treat planned work as completed work.
-
-## Actual Skill Node creation
-- A user asking to **make a node/block on the Canvas** wants a placed Skill Block, not just a saved Skill definition or a promise. Plan `canvasEdit` placement and verify `addBlock` really applied before `terminate`.
-- If no suitable **fully defined, server-confirmed Skill** exists, first plan `skillDefine` to define one, then `canvasEdit` to place an instance. If a matching existing Skill is already confirmed, do not create a duplicate definition. The Workshop chooses the concrete actions; Hallway chooses only objective-level steps.
-- A broad functional description such as '식물을 조사하는 노드' is already a sufficient objective for a basic declarative Skill/Node. Choose reasonable generic fields and port types without repeatedly asking the user for a name. Defining a research Skill is not the same as actually executing internet research; do not claim execution capabilities that IR does not yet provide.
+- A direct informational request without a separate action should receive an immediate Hallway reply, not a detour through `textGenerate.basicText` and `terminate`.
+- Plan the actions needed for the whole user objective. Stop without `terminate` when a later choice depends on a verified intermediate result.
+- Reuse a suitable, confirmed existing Skill when available. Otherwise plan `skillDefine.defineDirect` before `canvasEdit.addBlock` for a new Skill Block.
+- A saved Skill and a placed Skill Block are distinct, and defining a research Skill never implies the research has run.
+- Never treat a plan or shell handoff as an executed action. **Current Beta ends at the first Action shell**: no action-specific prompt, Function Calling, assets mutation, Hallway Return or Output for planned work.

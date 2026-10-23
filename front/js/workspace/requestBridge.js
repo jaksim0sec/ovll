@@ -2,8 +2,8 @@ import {prepareRequestInput} from './requestInput.js';
 
 const stageLabel=record=>{
  if(record.status==='queued')return '대기열에 등록됨';
- if(record.status==='running')return ({gate:'Gate · 필요한 정보 확인 중',hallwayInitial:'Hallway · 응답 판단 중',workshop:'Workshop · 작업 수행 중',hallwayReturn:'Hallway · 후속 작업 판단 중',output:'Output · 결과 정리 중'})[record.currentLayer]||'요청 처리 중';
- if(record.status==='unsupported_workshop')return 'Workshop 실행 단계는 아직 미구현';
+ if(record.status==='running')return ({gate:'Gate · 필요한 정보 확인 중',hallwayInitial:'Hallway · 응답 판단 중',workshop:'Workshop · 작업 수행 중',actionShell:'Action Shell · 선택 행동 전달',hallwayReturn:'Hallway · 후속 작업 판단 중',output:'Output · 결과 정리 중'})[record.currentLayer]||'요청 처리 중';
+ if(record.status==='unsupported_workshop')return '선택 행동 전달 완료 · 실행 미구현';
  if(record.status==='failed')return record.currentLayer==='output'?'Output · 최종 응답 생성 실패':'요청 처리 실패';
  return '요청 처리 중';
 };
@@ -109,9 +109,9 @@ export function createRequestBridge({fetchImpl=globalThis.fetch,promptForToken=(
    activities.set(requestId,{requestId,label:'사용자 답변 대기 · '+requestId.slice(0,8),detail:'요청: '+requestLabel(requestId),waiting:next.waiting});
    void loadAssets(roomId).catch(()=>{});
   }else if(['failed','unsupported_workshop'].includes(next.status)){
-   void loadAssets(roomId).catch(()=>{});
+   if(next.status==='failed')void loadAssets(roomId).catch(()=>{});
    const applied=Array.isArray(next.verifiedResults)&&next.verifiedResults.some(x=>x.outcome?.status==='applied');
-   const detail=(next.status==='failed'?diagnostic(next.error):'Workshop을 실행할 수 없습니다.')+(applied?' · 일부 자산 변경은 실제 적용됐어.':'');
+   const detail=(next.status==='failed'?diagnostic(next.error):next.handoff?.action?'행동: '+next.handoff.action+' · 작업실 껍데기 도달, 실행·저장은 미구현':'선택 행동 실행 미구현')+(applied?' · 일부 자산 변경은 실제 적용됐어.':'');
    activities.set(requestId,{requestId,label:stageLabel(next)+' · '+requestId.slice(0,8),detail:'요청: '+requestLabel(requestId)+' · '+detail,...(next.status==='failed'&&next.currentLayer==='output'?{retryOutput:true}:{})});
   }else{
    report(requestId,stageLabel(next),next.currentLayer||'queued');

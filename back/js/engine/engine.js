@@ -1,6 +1,7 @@
-/** Port-driven Gate -> Hallway -> non-IR Workshop -> Output coordinator. */
-export function createRequestEngine({composer,modelCaller,dataProvider,workshopExecutor,checkpoints}={}){
- if(!composer?.compose||!modelCaller?.generate||!dataProvider?.resolveNeed)throw new TypeError('Engine ports required');
+/** Gate -> Hallway -> Action shell coordinator. Mutating Workshop execution intentionally absent. */
+import {createActionShell} from './actionShell.js';
+export function createRequestEngine({composer,modelCaller,dataProvider,actionShell=createActionShell()}={}){
+ if(!composer?.compose||!modelCaller?.generate||!dataProvider?.resolveNeed||!actionShell?.accepts||!actionShell?.enter)throw new TypeError('Engine ports required');
  const invalid=(code='ENGINE_OUTPUT_INVALID')=>Object.assign(new Error(code),{code});
  const copy=x=>structuredClone(x);
  const obj=v=>v!==null&&typeof v==='object'&&!Array.isArray(v);
@@ -40,161 +41,54 @@ export function createRequestEngine({composer,modelCaller,dataProvider,workshopE
    const previous=(last?.request?.parts??[]).filter(x=>x.type==='text').map(x=>x.text).join(' ');
    return /(?:할까\?|해\s*줄까\?|진행할까\?|만들까\?|shall i\?|should i\?)/i.test(asked)&&target.test(previous+' '+asked)&&(action.test(previous+' '+asked)||/만들까\?/.test(asked));
  };
- const missingOutcomes=state=>{
-   const original=state.unresolvedRequest?.request??state.request;
-   const words=(original?.parts??[]).filter(p=>p.type==='text').map(p=>p.text).join(' ').trim();
-   const blockCreate=/(?:스킬\s*블[록럭]|블[록럭]|노드|skill[\s-]*block|node)/i.test(words)&&/(?:만들어|생성|추가|배치|create|add|place)/i.test(words)&&!/(?:만들까\?|어떻게|방법|설명|예시|가능해|how to)/i.test(words);
-   const confirmed=state.verifiedResults.filter(x=>x?.outcome?.status==='applied');
-   return blockCreate&&!confirmed.some(x=>x.action==='addBlock')?['canvasEdit.addBlock (place the requested Skill Block on the Canvas)']:[];
- };
+
  const planValid=plan=>Array.isArray(plan)&&plan.length>0&&plan.every((step,index)=>{
   if(!obj(step)||Object.keys(step).length!==1)return false;
-  const [name]=Object.keys(step),detail=step[name];
-  return types.has(name)&&(name!=='terminate'||index===plan.length-1)&&exact(detail,['objective','need'])&&typeof detail.objective==='string'&&detail.objective.trim()&&needValid(detail.need);
+  const [action]=Object.keys(step),detail=step[action];
+  return (action==='terminate'||actionShell.accepts(action))&&(action!=='terminate'||index===plan.length-1)&&exact(detail,['objective','need'])&&typeof detail.objective==='string'&&!!detail.objective.trim()&&needValid(detail.need);
  });
- const finalValid=out=>exact(out,['languageBlock','contextBlock','contextData'])&&typeof out.languageBlock==='string'&&out.languageBlock.trim()&&blockValid(out.contextBlock)&&dataValid(out.contextData);
+ const finalValid=out=>exact(out,['languageBlock','contextBlock','contextData'])&&typeof out.languageBlock==='string'&&!!out.languageBlock.trim()&&blockValid(out.contextBlock)&&dataValid(out.contextData);
  async function call(layer,context){
   const prompt=await composer.compose(layer,{languageSettings:'',interfaceSyntax:''});
   const response=await modelCaller.generate({layer,prompt,context,format:'json'});
   try{return JSON.parse(response.jsonText);}catch{throw Object.assign(invalid(),{detail:layer+': invalid JSON returned by model'});}
- }
- function resolved({roomId,requestId,need,resources,request,contextData,chatHistory}){
-  return dataProvider.resolveNeed({roomId,requestId,need,availableResources:resources,request,contextData,chatHistory});
  }
  function requireLookup(lookup){
   if(!Array.isArray(lookup?.resources)||!Array.isArray(lookup?.missing))throw invalid();
   if(lookup.missing.length)throw Object.assign(new Error('Required data unavailable'),{code:'DATA_UNAVAILABLE',missing:lookup.missing});
   return lookup.resources;
  }
- const errorResult=(error,stage,state)=>({status:'failed',currentLayer:stage,error:{code:error?.code||'MODEL_ERROR',message:String(error?.code||'Execution failed'),...(typeof error?.detail==='string'?{detail:error.detail.slice(0,200)}:{})},contextBlock:state?.contextBlock,verifiedResults:state?.verifiedResults||[]});
- const roomArgs=state=>({scope:state.roomId,requestId:state.requestId});
- function write(state){
-  if(!checkpoints?.save)throw invalid('CHECKPOINT_UNAVAILABLE');
-  const previous=checkpoints.load(roomArgs(state));const expectedRevision=previous?.revision??0;
-  const result=checkpoints.save({...roomArgs(state),expectedRevision,next:state});
-  if(result.status!=='saved')throw invalid('CHECKPOINT_CONFLICT');
-  return result;
- }
- async function nextPlan(state,onStage){
-  state.returnCount++;
-  if(state.returnCount>5)throw invalid('ENGINE_BUDGET_EXCEEDED');
-  onStage('hallwayReturn');
-  state.stage='hallwayReturn';write(state);
-  state.callCount++;
-  const reply=await call('hallwayReturn',{userRequest:state.request,unresolvedRequest:state.unresolvedRequest??null,contextBlock:{...state.contextBlock,focus:'Review verified steps and unmet objectives'},unmetRequirements:missingOutcomes(state),verifiedResults:state.verifiedResults,resources:state.resources,contextData:state.contextData,workspaceAssets:workshopExecutor?.read({scope:state.roomId})??null});
-  if(!exact(reply,['plan','contextBlock'])||!planValid(reply.plan)||!blockValid(reply.contextBlock))throw invalid();
-  state.plan=reply.plan;state.contextBlock=reply.contextBlock;state.planCursor=0;state.actionCursor=0;state.stepStartResultIndex=state.verifiedResults.length;state.stage='workshop';write(state);
- }
- async function finish(state,onStage){
-  onStage('output');state.stage='output';write(state);
-  state.callCount++;
-  const result=await call('output',{userRequest:state.request,unresolvedRequest:state.unresolvedRequest??null,contextBlock:{...state.contextBlock,focus:'Finalize verified outcomes'},contextData:state.contextData,verifiedResults:state.verifiedResults,resources:state.resources});
-  if(!finalValid(result))throw invalid();
-  state.stage='completed';state.contextBlock=result.contextBlock;state.contextData=result.contextData;
-  state.answer=result.languageBlock;write(state);
-  return {status:'completed',currentLayer:'output',result:{languageBlock:result.languageBlock,verifiedResults:copy(state.verifiedResults)},contextBlock:result.contextBlock,contextData:result.contextData};
- }
- async function progress(state,onStage){
-  try{
-   while(true){
-    if(state.callCount>=40||state.actionCount>=24)throw invalid('ENGINE_BUDGET_EXCEEDED');
-    if(state.planCursor>=state.plan.length){await nextPlan(state,onStage);continue;}
-    const step=state.plan[state.planCursor],workshop=Object.keys(step)[0],detail=step[workshop];
-    if(workshop==='terminate'){
-      if(missingOutcomes(state).length){await nextPlan(state,onStage);continue;}
-      return await finish(state,onStage);
-    }
-    onStage('workshop');state.stage='workshop';
-    const looked=await resolved({roomId:state.roomId,requestId:state.requestId,need:detail.need,resources:state.resources,request:state.request,contextData:state.contextData,chatHistory:state.chatHistory});
-    const stepResources=requireLookup(looked);
-    state.callCount++;
-    const selection=await workshopExecutor.decide({workshop,objective:detail.objective,scope:state.roomId,request:state.unresolvedRequest?.request??state.request,contextBlock:state.contextBlock,resources:stepResources,verifiedResults:state.verifiedResults,answer:state.lastAnswer??null,focus:'Workshop '+workshop+' step '+state.planCursor});
-    state.lastAnswer=null;
-    if(selection.done){
-      const actual=state.verifiedResults.slice(state.stepStartResultIndex??0).some(x=>x.workshop===workshop&&(x.outcome?.status==='applied'||x.status==='applied'));
-      if(!actual)throw invalid('WORK_NOT_APPLIED');
-      state.planCursor++;state.actionCursor=0;state.stepStartResultIndex=state.verifiedResults.length;write(state);continue;
-    }
-    state.actionCount++;
-    state.actionCursor++;
-    // Monotonic for the whole request. Hallway Return resets planCursor, not operation identity.
-    const operationId=state.requestId+':op:'+state.actionCount;
-    state.pendingOperation={operationId,action:selection.action,args:copy(selection.args)};
-    write(state); // intent before side effects
-    if(selection.action==='question'||selection.action==='basicText'){
-      const message={operationId,workshop,action:selection.action,status:'applied',text:selection.args.text};
-      state.verifiedResults.push(message);state.pendingOperation=null;
-      if(selection.action==='question'){
-       state.status='awaiting_input';state.waiting={id:operationId,text:selection.args.text};write(state);
-       return {status:'awaiting_input',currentLayer:'workshop',contextBlock:state.contextBlock,waiting:copy(state.waiting),verifiedResults:copy(state.verifiedResults)};
-      }
-      write(state);continue;
-    }
-    let outcome=workshopExecutor.apply({scope:state.roomId,requestId:state.requestId,operationId,action:selection.action,args:selection.args,expectedRevision:workshopExecutor.read({scope:state.roomId}).revision});
-    state.verifiedResults.push({workshop,action:selection.action,operationId,outcome:copy(outcome)});
-    state.pendingOperation=null;write(state);
-    if(outcome.status!=='applied'){await nextPlan(state,onStage);continue;}
-   }
-  }catch(error){
-   const failedAt=state.stage;
-   if(state.stage==='output'||error.code==='UNSUPPORTED_ACTION'||error.code==='ENGINE_BUDGET_EXCEEDED'||error.code==='WORK_NOT_APPLIED'){
-    if(state.stage==='output')state.failedStage='output';
-    state.stage='failed';try{write(state);}catch{}
-   }
-   return errorResult(error,failedAt,state);
-  }
- }
  async function run(snapshot,{onStage=()=>{}}={}){
   if(!snapshot?.request||!Array.isArray(snapshot.initialResources)||typeof onStage!=='function')throw invalid();
   const request=copy(snapshot.request),contextData=copy(snapshot.contextData),initialResources=copy(snapshot.initialResources),chatHistory=copy(snapshot.chatHistory??[]),recentConversation=recent(chatHistory),unresolved=unresolvedRequest(request,chatHistory);
-  const workspaceAssets=workshopExecutor?.read({scope:snapshot.roomId})??null;
-  const gate=await call('gate',{userRequest:request,contextData,initialResources,availableHistory:{completedRequests:chatHistory.length},recentConversation,unresolvedRequest:unresolved,workspaceAssets});
+  const gate=await call('gate',{userRequest:request,contextData,initialResources,availableHistory:{completedRequests:chatHistory.length},recentConversation,unresolvedRequest:unresolved});
   if(!exact(gate,['need'])||!needValid(gate.need))throw invalid();
-  const resources=requireLookup(await resolved({roomId:snapshot.roomId,requestId:snapshot.requestId,need:gate.need,resources:initialResources,request,contextData,chatHistory}));
+  const resources=requireLookup(await dataProvider.resolveNeed({roomId:snapshot.roomId,requestId:snapshot.requestId,need:gate.need,availableResources:initialResources,request,contextData,chatHistory}));
   onStage('hallwayInitial');
   const requiresWork=workIntent(request,chatHistory);
-  const hallwayContext={userRequest:request,unresolvedRequest:unresolved,contextData,resources,recentConversation,workspaceAssets,requiresVerifiedWork:requiresWork};
-  let reply;
-  let retried=false;
+  const hallwayContext={userRequest:request,unresolvedRequest:unresolved,contextData,resources,recentConversation,requiresVerifiedWork:requiresWork};
+  let reply,retried=false;
   try{reply=await call('hallwayInitial',hallwayContext);}
   catch(error){
-    if(error?.code!=='ENGINE_OUTPUT_INVALID')throw error;
-    retried=true;
-    reply=await call('hallwayInitial',{...hallwayContext,correction:'Return a single valid JSON object with exactly plan+contextBlock or languageBlock+contextBlock+contextData. Use an actual Workshop plan for Skill/Canvas mutations.'});
+   if(error?.code!=='ENGINE_OUTPUT_INVALID')throw error;
+   retried=true;reply=await call('hallwayInitial',{...hallwayContext,correction:'Return exactly a valid plan+contextBlock or languageBlock+contextBlock+contextData. For a Skill/Canvas change, plan named actions instead of merely promising.'});
   }
-  // One corrective model call, never accept a promise as evidence of a mutation.
   if(!retried&&((requiresWork&&finalValid(reply))||(!finalValid(reply)&&(!exact(reply,['plan','contextBlock'])||!planValid(reply.plan)||!blockValid(reply.contextBlock))))){
-    const reason=requiresWork&&finalValid(reply)?'This request requires an actual verified Workshop action. A promise or acknowledgment is NOT completion.':'Return exactly one valid shape: languageBlock+contextBlock+contextData OR plan+contextBlock; all required fields must be present.';
-    reply=await call('hallwayInitial',{...hallwayContext,correction:reason});
+   reply=await call('hallwayInitial',{...hallwayContext,correction:requiresWork&&finalValid(reply)?'A promise is not an applied change. Return a plan of qualified action names, not a successful reply.':'Return exactly a valid direct reply or an action plan.'});
   }
   if(finalValid(reply)){
-    if(requiresWork)throw Object.assign(new Error('A verified action is required'),{code:'WORK_REQUIRED',detail:'hallwayInitial: direct reply cannot complete a requested Skill/Canvas change'});
-    return {status:'completed',currentLayer:'hallwayInitial',result:{languageBlock:reply.languageBlock},contextBlock:reply.contextBlock,contextData:reply.contextData};
+   if(requiresWork)throw Object.assign(new Error('Action required'),{code:'WORK_REQUIRED',detail:'hallwayInitial: a reply cannot finish a requested Skill/Canvas change'});
+   return {status:'completed',currentLayer:'hallwayInitial',result:{languageBlock:reply.languageBlock},contextBlock:reply.contextBlock,contextData:reply.contextData};
   }
-  if(!exact(reply,['plan','contextBlock'])||!planValid(reply.plan)||!blockValid(reply.contextBlock))throw Object.assign(new Error('Invalid Hallway output'),{code:'ENGINE_OUTPUT_INVALID',detail:'hallwayInitial: expected plan+contextBlock or languageBlock+contextBlock+contextData'});
-  if(requiresWork&&!reply.plan.some(step=>Object.keys(step)[0]!=='textGenerate'&&Object.keys(step)[0]!=='terminate'))throw Object.assign(new Error('No executable action planned'),{code:'WORK_REQUIRED',detail:'hallwayInitial: requested Skill/Canvas change has no corresponding Workshop'});
-
-  if(!workshopExecutor||!checkpoints)return {status:'unsupported_workshop',currentLayer:'hallwayInitial',plan:reply.plan,contextBlock:reply.contextBlock};
-  const state={roomId:snapshot.roomId,requestId:snapshot.requestId,request,unresolvedRequest:unresolved,contextData,chatHistory,resources,contextBlock:reply.contextBlock,plan:reply.plan,planCursor:0,actionCursor:0,stepStartResultIndex:0,callCount:2,actionCount:0,returnCount:0,verifiedResults:[],stage:'workshop',status:'running',waiting:null,pendingOperation:null};
-  write(state);return progress(state,onStage);
+  if(!exact(reply,['plan','contextBlock'])||!planValid(reply.plan)||!blockValid(reply.contextBlock))throw Object.assign(new Error('Invalid Hallway output'),{code:'ENGINE_OUTPUT_INVALID',detail:'hallwayInitial: plan must contain qualified actions'});
+  const [action,detail]=Object.entries(reply.plan[0])[0];
+  if(action==='terminate')throw Object.assign(new Error('Cannot terminate unexecuted plan'),{code:'WORK_REQUIRED',detail:'No verified action was executed'});
+  if(requiresWork&&!reply.plan.some(step=>Object.keys(step)[0]!=='terminate'&&!Object.keys(step)[0].startsWith('textGenerate.')))
+   throw Object.assign(new Error('No mutation action planned'),{code:'WORK_REQUIRED',detail:'Skill/Canvas change requires an action'});
+  const available=requireLookup(await dataProvider.resolveNeed({roomId:snapshot.roomId,requestId:snapshot.requestId,need:detail.need,availableResources:resources,request,contextData,chatHistory}));
+  onStage('actionShell');
+  const handoff=actionShell.enter({action,objective:detail.objective,need:detail.need,resources:available});
+  return {status:'unsupported_workshop',currentLayer:'actionShell',plan:copy(reply.plan),handoff:copy(handoff),contextBlock:copy(reply.contextBlock)};
  }
- async function resume(snapshot,{waitingId,text,onStage=()=>{}}={}){
-  if(typeof waitingId!=='string'||typeof text!=='string'||!text.trim()||text.length>8000)throw new TypeError('Invalid resume input');
-  const entry=checkpoints?.load({scope:snapshot.roomId,requestId:snapshot.requestId});
-  if(!entry||entry.state?.status!=='awaiting_input'||entry.state.waiting?.id!==waitingId)throw new Error('Request is not waiting for this answer');
-  const state=entry.state;
-  state.status='running';state.waiting=null;state.lastAnswer=text;
-  state.contextData=copy(snapshot.contextData??state.contextData);
-  state.chatHistory=copy(snapshot.chatHistory??state.chatHistory);
-  state.verifiedResults.push({action:'userAnswer',waitingId,text,status:'confirmed'});write(state);
-  return progress(state,onStage);
- }
- async function retryOutput(snapshot,{onStage=()=>{}}={}){
-  const entry=checkpoints?.load({scope:snapshot.roomId,requestId:snapshot.requestId});
-  if(entry?.state?.stage!=='failed'||entry.state.failedStage!=='output')throw new Error('Output retry unavailable');
-  const state=entry.state;state.status='running';
-  try{return await finish(state,onStage);}
-  catch(error){state.failedStage='output';state.stage='failed';write(state);return errorResult(error,'output',state);}
- }
- return Object.freeze({run,resume,retryOutput});
+ return Object.freeze({run});
 }

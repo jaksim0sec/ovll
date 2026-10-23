@@ -1,51 +1,28 @@
-# 요청 처리 아키텍처
+# Beta 요청 처리 아키텍처 — 행동별 계획과 Action Shell
+상태: 2026-10-23 현행. **실제 행동 실행 없음**. 기존 비IR Workshop 엔진은 폐기.
 
-상태: 1014 설계 기준. `beta`에서는 Gate, Hallway Initial, 비IR Workshop 11행동, Hallway Return, Output을 실행하는 메모리 기반 경로를 구현했다. IR/영속 DB/정식 인증은 미구현. 실제 Gemini 및 Render 브라우저 실사용 검증은 별도. `main`은 참조 구현.
+## 모델과 계층
+- Skill은 재사용 가능한 작업 정의. Skill Block(스킬블럭)은 Canvas에 배치한 해당 Skill 인스턴스. 저장 Function과 구분한다.
+- Gate: 사용자 요청, 기존 방 맥락, 제공 자료를 보고 필요한 `need`만 요청한다.
+- Hallway Initial: 직접 대답할지 행동 계획을 만들지 판단한다. **계획의 선택 단위는 작업실 범주가 아니라 구체적인 행동**이다.
+- Action Shell: 선택한 첫 행동과 목표·데이터 요청을 검증하고 **진입 기록만 만든다**. 행동 전용 프롬프트 생성·모델 호출·Function Calling·데이터 변경은 없음.
+- Hallway Return / Output: 향후 행동 실행이 가능해졌을 때 연결할 계층. 현재 계획 분기로는 도달하지 않는다. 즉시 답변은 Hallway Initial에서 종료한다.
 
-## 개념·경계
-- `Skill`: 목적·입출력·지침을 지닌 재사용 작업 정의. 캔버스 밖에서도 존재.
-- `Skill Block` = `Skill Node`: 캔버스에 배치된 Skill 참조 인스턴스(배치·설정·연결 보유). Skill 자체와 구별.
-- IR에서 추출한 저장 Function은 Skill과 별도 자산. 자산 생성, 배치, 실행, 참조는 서로 다른 사실.
-- `Gate`: 요청 진입, 필요한 추가 자료 식별.
-- `Hallway Initial/Return`: 요청 전체 목표에 따른 판단·작업실 계획·재계획.
-- `Workshop`: 할당된 `objective` 안에서 행동 선택·실행; 행동별 프롬프트/Function Calling 지향.
-- `Output`: 검증된 사실 종합·최종 발화·종결 시점 맥락 확정. 신규 실행 금지.
-- **논리 계층 ≠ 매번 독립 LLM 호출.** 호출 수·블록 수를 동일시하지 말 것. 서버가 입력/출력 계약·호출 경계·실행 결과를 책임짐.
+## 계획 계약
+```json
+{"plan":[
+  {"skillDefine.defineDirect":{"objective":"식물 조사 Skill 정의","need":[]}},
+  {"canvasEdit.addBlock":{"objective":"Skill Block 배치","need":[]}},
+  {"terminate":{"objective":"실제 결과 보고","need":[]}}
+],"contextBlock":{"intent":"식물 조사 스킬블럭 만들기","progress":"계획"}}
+```
+- 각 계획 항목: 정확한 행동 키 1개, `objective` 문자열, `need` 배열. 인수는 계획에서 생성하지 않는다.
+- 행동 범주: `skillDefine`(defineDirect, defineFromIR, revise), `skillEdit`(editAppearance, delete), `canvasEdit`(addBlock, editBlock, deleteBlock, addLink, removeLink), `textGenerate`(basicText, question). 총 12개 선택 가능. 모두 **껍데기만** 존재한다.
+- `terminate`는 실제 행동이 아니며 마지막 단계에서만 사용. 현재 단계에서는 선행 행동 실행 없이 `terminate`만 하는 계획을 성공 처리하지 않는다.
+- `planGeneration`에 행동 목록을 제공하며 Action Shell은 첫 선택 행동의 네임스페이스와 목표를 받는다. 이후 행동은 실행되지 않는다.
 
-## 호출 조립
-`prompts/common/concepts.md` + 계층별 고정·얕은 `prompts/base/*` + 필요한 `prompts/blocks/*` + 서버 제공 맥락/계약.
-- 공통 블록 5종: `planGeneration`, `informationRequest`, `contextBlockUpdate`, `contextDataUpdate`, `languageGeneration`.
-- 별도의 "복도 판단" 또는 "맥락체 활용" 공통 블록 없음. 판단은 복도 베이스 책임; 맥락체는 서버가 입력에 주입.
-- 활성화하지 않은 블록의 필드는 모델이 생성/갱신하지 않음. 블록이 작성하는 필드만 정의하고 JSON 조립·검증·서버 적용은 별도 책임.
-- 실제 조립 순서 및 분기별 출력: `prompt-composition.md`. 지침 원문·버전: `prompts/` 및 `prompts/manifest.json`.
-
-## 계획
-- 복도 `plan` = 순서 있는 **작업실 단위** 단계. 각 단계 `{ workshopName: { objective, need } }`.
-- `objective`: 사용자 언어, UI 노출 가능, 결과 중심. 행동 이름·함수 인수·수행 방법을 미리 결정하지 않음.
-- `need`: 공통 정보 요청 문법 `[[datasetName, ...parameters], ...]`; 자동 제공 자료 재요청 금지.
-- 작업실은 `objective` 범위에서 구체적 행동·기존 자산 재사용 여부를 스스로 판단. 구체 행동 책임은 `workshops.md`.
-- 연속된 확정 가능 작업은 하나의 미니 계획으로 묶음; 다음 판단이 실행 결과에 의존하면 그 지점까지만 계획.
-- `terminate`: 명시적 완전종결 항목(행동 없는 작업실 아님). 맨 마지막 단계로 계획되면 Output으로 종결.
-- 계획이 `terminate` 없이 소진되면 **Hallway Return**. 전제 변경·실패 시에도 필요하면 회귀.
-- 작업실마다 복도 호출을 강제하지 않음. 실패 예상 분기를 계획에 억지로 추가하지 않음. 재시도는 새로운 근거가 있을 때만.
-- 사용자의 요청 전체가 종결 기준; 미니 계획의 완료 ≠ 전체 목표 완료.
-
-## 요청 흐름
-`요청 진입 → Gate(need 조회) → Hallway Initial → (직접 응답·종결 | plan → Workshop* → Hallway Return 또는 terminate → Output)`.
-- 순환·조건 분기 구조. 모든 계층이 반드시 직렬로 한 번씩 호출되는 구조 아님.
-- 검증된 스킬/스킬블록 변경·실행 결과만 완료 및 사용자 메시지의 근거가 됨.
-- 기존 IR·실행기·닫힌 댐/열린 댐 스케줄러의 **기능 의미** 보존 목표. 옛 `GraphPatch/ModelTurn` 매핑을 신규 계약으로 강제하지 않음.
-- `execute`: 독립 작업실로 임의 신설 금지. 실제 실행과 종결(언어·맥락체·맥락데이터 갱신)의 세부 연결은 미확정.
-
-## 소유권
-- `contextBlock`: 개별 요청의 `intent`·`progress`(모델의 해당 블록 활성 호출만 수정) + 매 호출 서버 제공 `focus`.
-- `contextData`: 방/세션 전체의 지속 대화 맥락. 상세: `context.md`.
-- 서버: 현재 계층·계획 위치·결과 검증·참조/ID·Revision·실행·저장·최종화 책임. 모델의 주장만으로 성공/상태 변경 금지.
-- 요청 상태·세션·전송/DB 경계의 후속 설계: `docs/notes/request-state-sync.md`.
-- Workshop 베이스 원문, Function Calling 선언·인수, IR 실행 검증, 호출 묶음 기준·실패 전이 등은 아직 확정되지 않음; 문서/지침 부재를 임의 구현 계약으로 대체하지 말 것.
-
-## 2026-10-23 구현 범위와 교체 경계
-- `back/js/engine/workshop.js`: 작업실 이름별 허용 행동을 제한한 모델 판단 및 검증. `memoryAssets.js`는 실재 자산·수정·idempotent operation·revision을 서버 메모리에서 관리하는 **교체 가능한 Beta 어댑터**. 데이터 저장 위치를 엔진의 판단 책임으로 끌어오지 않는다.
-- 엔진은 현재 plan cursor와 action cursor, 검증된 행동 결과를 `createMemoryCheckpoints()` 포트에 저장한다. 적용 전에 pendingOperation을 기록하고 같은 operation ID를 재사용한다. `textGenerate.question`은 `awaiting_input`으로 대기 후 동일 요청을 재개한다.
-- `terminate`는 실행 동작이 아니라 Output 호출을 일으키는 계획 종료 표시. 중간 계획 완료는 Hallway Return으로 복귀한다. Output 실패 후 `retryOutput()`으로 자산 변경을 반복하지 않는 최종 응답 재시도를 지원한다.
-- 아직 서버의 room contextData는 스케줄러 메모리에 존재하며 미래 DB 연결 시 세션 저장 어댑터로 교체해야 한다. 서버 재시작·다중 인스턴스 복구가 되는 척하지 않는다.
+## 부작용·상태 및 보존
+- 서버는 `unsupported_workshop` 상태와 `currentLayer:'actionShell'`을 반환한다. `handoff`의 `status:'not_implemented'`는 라우팅 기록일 뿐 성공 아님.
+- Workshop 실행기·메모리 자산 변경·체크포인트 경로는 제거. 서버 자산 API는 **읽기 전용 빈 목록**으로 대체하며 재시작 후 과거 임시 자산의 복원은 불가능하다. 새로운 자산을 만들지 않는다.
+- 방별 메모리 세션의 성공한 직접 대화 맥락과 실패 기록, FIFO 스케줄러, HTTP 폴링은 유지. 정식 인증·DB 영속화·파일 업로드·IR/함수 실행 없음.
+- 요청 원문, 계획, 확인된 실제 결과를 구분한다. 향후 행동별 프롬프트와 함수 호출을 구현하기 전까지 결과를 임의 확정하지 않는다.

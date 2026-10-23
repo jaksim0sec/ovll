@@ -1,72 +1,21 @@
-# 작업실·행동 계약
+# 작업실 분류 및 행동 껍데기 계약
+상태: 2026-10-23, 구 Beta 비IR Workshop 실행기 **폐기**. 신규 작업실 구현 완료가 아님.
 
-상태: 1014 역할·명칭. **비IR 11행동 Workshop 모델 결정 및 메모리 자산 실행 경로 구현.** 원시 Gemini 도구 호출 대신 모델 JSON 행동 명세를 검증해 엔진 포트에서 실행한다. IR 관련 행동/영속 실행 인프라는 미구현.
+## 개념
+작업실 그룹은 행동을 분류하는 네임스페이스로 남는다. `planGeneration`은 작업실만 지정하는 대신 **정확한 행동 이름**을 계획한다. 선택된 행동의 목표·need만 Action Shell로 전달된다.
 
-## 책임 분할
-- 복도: `workshopName` / `objective` / `need` / 실행 순서 계획. 내부 행동 선택 금지.
-- 작업실: 목표·맥락체·조회 결과를 보고 적절한 행동 결정. 실제 실행은 서버의 검증 가능한 명령·자산·상태 계약 사용.
-- 작업실 기준 복수 행동을 한 호출로 처리할 수도, 결과 의존성/규모에 따라 행동별 호출로 나눌 수도 있음. **분기 기준 미확정**.
-- 공통 지침 5종과 별개로, 작업실 내부는 **선택한 행동의 전용 지침만 조립**. 행동별 지침·Function Calling 함수 선언은 아직 파일이 없음.
+| 그룹 | 계획 가능한 행동 |
+|---|---|
+| skillDefine | defineDirect, defineFromIR, revise |
+| skillEdit | editAppearance, delete |
+| canvasEdit | addBlock, editBlock, deleteBlock, addLink, removeLink |
+| textGenerate | basicText, question |
 
-## 확정한 작업실·행동 분류
+`terminate`는 계획 종료 제어 표식이며 실행 가능한 행동이 아니다. `defineFromIR`도 계획 표기만 인정하며 IR·Saved Function 생성 코드는 없다.
 
-| 계획 항목 | 행동 | 책임 |
-|---|---|---|
-| `skillDefine` | `defineDirect` | 새로운 Skill 정의 직접 작성(초기명 `defineByJSON`) |
-| `skillDefine` | `defineFromIR` | IR 작업 흐름 추출 → 재사용·저장 Function 자산 생성(초기명 `defineByIR`; 기존 `function.save` 목적) |
-| `skillDefine` | `revise` | 기존 Skill 정의 수정 |
-| `skillEdit` | `editAppearance` | Skill 외형 수정 |
-| `skillEdit` | `delete` | Skill 삭제 |
-| `canvasEdit` | `addBlock` | 캔버스에 Skill Block(Skill Node) 배치 |
-| `canvasEdit` | `editBlock` | 배치 인스턴스 수정 |
-| `canvasEdit` | `deleteBlock` | 배치 인스턴스 삭제(초기 오기 `delteBlock`) |
-| `canvasEdit` | `addLink` | 블록 간 연결 추가 |
-| `canvasEdit` | `removeLink` | 블록 간 연결 제거 |
-| `textGenerate` | `basicText` | 자연어 중간 발화 |
-| `textGenerate` | `question` | 사용자 질문 |
-| `terminate` | 없음 | 요청 완전종결을 표시하는 계획 항목 |
-
-- `skillDefine`에서 Skill 직접 정의와 IR→Function 함수화를 논리적으로 함께 선택하되, **Skill과 Saved Function의 자산·버전·실행·저장 계약은 다름**. 임의 병합 금지. 별도 함수화 작업실 신설 금지.
-- `Skill` 정의 자산과 캔버스 `Skill Block` 인스턴스는 별개. 기존 코드의 `node` 명칭에 맞춰 자동 변환/재해석하지 않음.
-- `textGenerate` 전 논의명: `language`; `text.add`는 사용자 발화 인터페이스의 임시안. 확정 분류는 `textGenerate.basicText/question`.
-- `terminate`는 행동을 수행하는 Workshop으로 취급하지 않음. 마지막 답변만을 위한 `textGenerate` 단계도 의무 아님.
-
-## 계획 예시 (스키마 확정안 아님)
-```json
-{
-  "plan": [
-    { "skillDefine": { "objective": "일본어 단어장 스킬 정의", "need": [["skillList"]] } },
-    { "canvasEdit": { "objective": "캔버스에 일본어 단어장 스킬 블록 추가", "need": [] } },
-    { "terminate": { "objective": "작업 결과 안내", "need": [] } }
-  ]
-}
-```
-- `skillList`는 기존 정의 확인용 사례. 캔버스 상태 등 서버가 항상 제공하는 값은 `need`로 중복 요청하지 않음.
-- 기존 정의를 발견했을 때: 목표 안에서 재사용을 판단하거나 필요시 Hallway에 회귀. **발견 = 반드시 회귀**는 아님.
-- 계획대로 진행한 결과와 확인되지 않은 '완료' 주장 구분. 자산 저장·실제 적용 성공은 서버 검증 뒤 반영.
-
-## 진행 발화·종결
-- 중간 발화 가능: 예) "수준과 일본어를 입력하는 일본어 단어장 스킬을 만들어드릴게요." 수행 완료의 증거로 사용하지 않음.
-- 중간 언어화 및 맥락 갱신은 필요한 조립 블록 조합으로 수행 가능; 호출 경계 별도 확정.
-- 계획상 `terminate` → 최종 Output(언어 생성 + 맥락체 갱신 + 맥락데이터 갱신).
-- `terminate` 없이 계획 소진 → Hallway Return. 전제 변경·실패·중요 신규 확인 사실도 복도 재판단 사유가 될 수 있음.
-- 실행 `execute` 경로는 별도 Workshop을 만들지 않기로 논의; 정확한 표현·종결 연결은 미확정.
-
-## 후속 확정 필요
-- 작업실별 Function Calling 도구명·인수·응답 검증·모델 반환 구조.
-- Skill 정의 vs IR→Function 추출의 상위 호출/내부 저장 경계.
-- 호출을 작업실 단위로 묶을지 행동별로 나눌지의 실제 선택 조건.
-- `execute` 계획 표현과 완료/중단/실패 시 처리, 복도회귀 반환 데이터·수정 규칙.
-- 프롬프트 조건부 조립 및 Workshop 베이스 문구.
-
-## 비IR Workshop 현재 구현
-- 작업실별 모델 출력: `{action, args}` 또는 `{done:true}`. `prompts/base/workshop.md`와 `prompts/blocks/workshopActions.md`로 허용 행동·인수·판단 규칙을 제공한다. 작업실 결정은 자산을 직접 변경하지 않으며 실제 변경은 `memoryAssets` 어댑터에서 검증·적용한다.
-- `defineDirect`/`revise`/`editAppearance`/`delete`, Canvas 5행동, `basicText`/`question` 총 11종 지원. `defineFromIR` 미지원 명시적 거절. `terminate`는 Output 단계로 가는 비행동 계획 항목.
-- 서버 메모리 자산의 revision, 참조중 Skill 삭제 거절, 연결 무결성, 재사용 operation ID 중복 적용 방지; action 결과를 읽어야 실제 완료가 확정된다. `question`은 응답을 기다리므로 별도 HTTP `/answer` 경로로 원래 요청을 재개한다.
-
-- 검증된 결과 없이 Workshop이 `{done:true}`로 작업 완료를 주장하면 엔진은 `WORK_NOT_APPLIED`로 거절한다. 각 계획 단계에서 실제 적용된 행동 또는 중간 발화 기록이 존재해야 해당 Workshop이 완료된다. 사용자 요청이 단순 직접 응답이라면 Workshop 진입 없이 최초 Hallway에서 완료한다.
-
-## 2026-10-23 행동 선택·실행 정확성
-- 허용 목록에 없는 모델 행동 선택은 정확한 availableActions와 이전 거부 이름을 제공하여 1회 재선택. 다시 위반하면 실행하지 않고 UNSUPPORTED_ACTION으로 실패하며 선택한 이름을 진단한다.
-- 같은 요청에서 Hallway Return을 여러 번 거쳐도 operationId는 전체 actionCount 기준으로 유일하다. 자산 포트가 ID 재사용과 다른 행동 입력을 감지하여 거부한다.
-- 노드 생성 완료는 정의 자산뿐 아니라 실제 Canvas Block 추가 결과를 요구한다. 연구용 스킬을 정의하는 것과 연구 작업을 실행하는 것은 다르다.
+## 현재 구현 범위
+- `back/js/engine/actionShell.js`: 정적 행동 목록과 `accepts`, `enter` 검증. `enter`는 `{action,workshop,objective,need,status:'not_implemented'}`만 반환.
+- `back/js/engine/engine.js`: Gate need 조회→Hallway Initial 행동별 계획→첫 단계의 자료 확인→Action Shell에 진입. 초기 Hallway 직접 발화는 그대로 완료할 수 있음.
+- **미구현**: 개별 행동 프롬프트, 실행 인수 구성, Gemini 네이티브 Function Calling, 행동 효과 적용·수정·저장, 재계획, 작업 완료 판정, 질문 답변 연계.
+- 서버는 행동 성공을 주장하지 않는다. 상태 `unsupported_workshop`은 API 호환 상태명이며 의미는 'Action Shell 도달·실행 미구현'이다.
+- 이전 `workshop.js`의 JSON 선택→검증→메모리 `apply` 루프와 임시 자산·체크포인트는 삭제됐다.
