@@ -30,6 +30,28 @@ export function createRequestBridge({fetchImpl=globalThis.fetch,promptForToken=(
  const records=[],activities=new Map(),timers=new Set();let token='abcd',destroyed=false;
  const refresh=()=>{if(!destroyed){onRecords(records.map(x=>({...x})));onActivities([...activities.values()].map(x=>({...x})));}};
  async function loadAssets(roomId){const res=await fetchImpl('/api/rooms/'+encodeURIComponent(roomId)+'/assets',{headers:authHeaders(),cache:'no-store'});if(!res.ok)return false;const state=await readResponse(res);if(!destroyed&&Array.isArray(state.skills))onAssets(state);return true;}
+ async function loadHistory(roomId){
+  let response;try{response=await fetchImpl('/api/rooms/'+encodeURIComponent(roomId)+'/history',{headers:authHeaders(),cache:'no-store'});}catch{return false;}
+  if(!response.ok)return false;
+  const state=await readResponse(response);
+  if(destroyed||!Array.isArray(state.entries)||state.roomId!==roomId)return false;
+  const restored=[];
+  const exists=id=>records.some(r=>r.id===id)||restored.some(r=>r.id===id);
+  for(const entry of state.entries.slice(-8)){
+    if(typeof entry?.requestId!=='string'||!Array.isArray(entry.request?.parts))continue;
+    const userId=entry.requestId+':user',assistantId=entry.requestId+':assistant';
+    if(!exists(userId)){
+      const text=entry.request.parts.map(p=>p.type==='text'?p.text:'@'+(p.label||p.id||'첨부')).join(' ').trim();
+      if(text)restored.push({id:userId,requestId:entry.requestId,role:'user',text});
+    }
+    if(typeof entry.assistantResponse==='string'&&entry.assistantResponse&&!exists(assistantId)){
+      const confirmed=confirmedActionReceipts({verifiedResults:entry.verifiedResults});
+      restored.push({id:assistantId,requestId:entry.requestId,role:'assistant',text:entry.assistantResponse,...(confirmed.length?{confirmed}:{})});
+    }
+  }
+  if(restored.length){records.unshift(...restored);refresh();}
+  return true;
+ }
  const requestLabel=id=>(records.find(record=>record.id===id+':user')?.text||'구조화 요청').split('\n')[0].slice(0,100);
  const report=(id,label,detail)=>activities.set(id,{requestId:id,label:label+' · '+id.slice(0,8),detail:'요청: '+requestLabel(id)+' · '+detail});
  const diagnostic=error=>{
@@ -144,5 +166,5 @@ export function createRequestBridge({fetchImpl=globalThis.fetch,promptForToken=(
    refresh();schedule(()=>poll(roomId,requestId));
    return {accepted:true};
  }
- return Object.freeze({submit,answer,retryOutput,loadAssets,destroy(){destroyed=true;for(const timer of timers)clearTimeout(timer);timers.clear();token='';activities.clear();records.length=0;}});
+ return Object.freeze({submit,answer,retryOutput,loadAssets,loadHistory,destroy(){destroyed=true;for(const timer of timers)clearTimeout(timer);timers.clear();token='';activities.clear();records.length=0;}});
 }
