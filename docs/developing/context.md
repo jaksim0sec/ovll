@@ -1,6 +1,6 @@
 # 맥락체·맥락데이터
 
-상태: 1014 설계 계약(런타임 미연결).
+상태: 1014 설계 계약. 2026-10-23 기준 `contextData`의 **단일 프로세스·단일 FIFO 방별 메모리 연속성만 부분 구현**. DB 영속화, 작업실 회귀, `focus`는 아직 미연결.
 
 ## 범위·작성자
 | 구분 | 수명·소유 | 필드·작성 |
@@ -36,3 +36,8 @@
 - Output: 검증 결과를 근거로 최종 `contextBlock` + `contextData` 작성. 실제 영속 적용은 서버 책임.
 - 중단/실패 시 `contextData`를 별도 모델 호출로 갱신할지 등은 아직 확정되지 않음.
 - 작성 규칙 원문: `prompts/blocks/contextBlockUpdate.md`, `prompts/blocks/contextDataUpdate.md`.
+
+## 2026-10-23 부분 구현 기록
+- `back/js/request/scheduler.js`는 roomId별 맥락데이터와 최근 완료 요청 8개의 원문·맥락체·맥락데이터를 **메모리**에 보관한다. 요청이 큐에서 실제 실행될 때 최신 맥락을 주입하며, 완료 후에만 세션을 갱신한다. 실패·미지원 계획은 세션 성공으로 기록하지 않는다.
+- `back/js/engine/dataProvider.js`의 `originalReq`와 `chatContext`는 위 완료 기록으로 해결된다. 범위를 벗어난 기록은 `DATA_UNAVAILABLE`로 처리하고 실제로 없는 기록을 생성하지 않는다.
+- 현재 `contextBlock`은 요청마다 생성·보관되지만 세션 기록의 일부로 활용되는 범위만 확인됐다. 서버 생성 `focus`와 Hallway Return/Output, DB 동시성 정책은 이 단계에 포함되지 않는다.

@@ -115,6 +115,7 @@
 - 구현 명세: `docs/developing/request-engine.md`; 구현 계획: `docs/superpowers/plans/2026-10-23-independent-request-engine.md`.
 - 단위검사: `node --test tests/backend/*.test.mjs`; CLI도 Render와 동일한 Gemini 환경변수 우선순위를 사용하며, 기본 모델을 지정하므로 `GEMINI_MODEL`은 선택. AI 호출에는 지원되는 API 키가 필요하다. 실행: `node back/js/demo.js`. 키·모델을 저장소에 기록하지 말 것.
 - `front/js/workspace/requestInput.js`는 직접 참조 Skill/Skill Block의 자료를 추출하는 독립 준비 함수; 현재 `boot.js`는 `requestBridge.js`의 HTTP 요청 전송·상태 폴링에 연결되어 있음. SSE는 미구현.
+- 시험용 FIFO에서 **같은 roomId의 직전 완료 맥락데이터 + 최근 8개 완료 기록**을 서버 메모리로 이어 전달한다. `DATA_UNAVAILABLE`은 부족한 데이터명을 노출하고, 프론트 실패 상태는 해당 요청 식별자/문장에 귀속된다. 모델 평가용 부분 구현이며 DB 영속 저장은 없다.
 
 ## Render 단일 웹서비스 시험 (2026-10-23)
 - `beta` 전용 `package.json`/`render.yaml`. `npm start`로 `back/js/server.js` 실행, `GET /api/health`로 준비 상태 확인.
