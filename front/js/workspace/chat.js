@@ -21,14 +21,15 @@ export function normalizeRequestActivities(items){
     if(!value||typeof value.requestId!=='string'||!value.requestId.trim()||seen.has(value.requestId)||
        typeof value.label!=='string'||!value.label.trim()||
        (value.detail!==undefined&&typeof value.detail!=='string')||
-       (value.waiting!==undefined&&(!value.waiting||typeof value.waiting.id!=='string'||typeof value.waiting.text!=='string')))
+       (value.waiting!==undefined&&(!value.waiting||typeof value.waiting.id!=='string'||typeof value.waiting.text!=='string'))||
+       (value.retryOutput!==undefined&&typeof value.retryOutput!=='boolean'))
       throw new TypeError('Invalid request activity');
     seen.add(value.requestId);
     return {requestId:value.requestId,label:value.label,
-      ...(value.detail!==undefined?{detail:value.detail}:{}),...(value.waiting!==undefined?{waiting:{id:value.waiting.id,text:value.waiting.text}}:{})};
+      ...(value.detail!==undefined?{detail:value.detail}:{}),...(value.waiting!==undefined?{waiting:{id:value.waiting.id,text:value.waiting.text}}:{}),...(value.retryOutput?{retryOutput:true}:{})};
   });
 }
-export function createChat({onOpenCanvas,onAnswer}={}){
+export function createChat({onOpenCanvas,onAnswer,onRetryOutput}={}){
   const element=document.createElement('section');element.className='workspace-chat';
   element.setAttribute('aria-label','채팅');
   const welcome=document.createElement('div');welcome.className='workspace-welcome';
@@ -65,6 +66,13 @@ export function createChat({onOpenCanvas,onAnswer}={}){
       section.dataset.requestId=activity.requestId;section.setAttribute('role','status');
       section.append(make('span','workspace-request-activity-label',activity.label));
       if(activity.detail)section.append(make('p','workspace-request-activity-detail',activity.detail));
+      if(activity.retryOutput){
+        const retry=document.createElement('button');retry.type='button';retry.textContent='최종 응답만 다시 생성';
+        retry.addEventListener('click',async()=>{
+          retry.disabled=true;const result=await onRetryOutput?.({requestId:activity.requestId});
+          if(!result?.accepted){retry.disabled=false;section.append(make('p','workspace-request-activity-detail',result?.message||'재시도 실패'));}
+        });section.append(retry);
+      }
       if(activity.waiting){
         const form=document.createElement('form');form.className='workspace-answer-form';
         const question=make('p','workspace-request-question',activity.waiting.text);
