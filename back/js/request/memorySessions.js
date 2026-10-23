@@ -13,9 +13,21 @@ export function createMemorySessions(){
   if(value.revision!==expectedRevision)return {status:'conflict',revision:value.revision};
   value.revision++;
   value.contextData=copy(contextData);
-  value.history.push(copy({requestId,request,contextBlock,contextData,assistantResponse,verifiedResults}));
+  value.history.push(copy({requestId,request,contextBlock,contextData,assistantResponse,verifiedResults,status:'completed'}));
   if(value.history.length>8)value.history.splice(0,value.history.length-8);
   rows.set(scope,copy(value));return {status:'committed',revision:value.revision};
  }
- return Object.freeze({load,commit});
+ function recordFailure({scope,requestId,request,contextBlock=null,error=null,verifiedResults=[]}={}){
+  if(typeof requestId!=='string'||!requestId||!request)throw new TypeError('Invalid failed request');
+  const value=load({scope});
+  // Store a failed request as conversational evidence only; never replace confirmed contextData.
+  const prior=value.history.find(x=>x.requestId===requestId);
+  if(prior)return {status:'already_recorded',revision:value.revision};
+  value.revision++;
+  value.history.push(copy({requestId,request,status:'failed',contextBlock,contextData:value.contextData,assistantResponse:'',verifiedResults,error}));
+  if(value.history.length>8)value.history.splice(0,value.history.length-8);
+  rows.set(scope,copy(value));
+  return {status:'recorded',revision:value.revision};
+ }
+ return Object.freeze({load,commit,recordFailure});
 }
