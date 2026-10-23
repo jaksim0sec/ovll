@@ -1,6 +1,6 @@
 # 작업실·행동 계약
 
-상태: 1014에 합의한 역할/명칭. **작업실 베이스 프롬프트·Function Calling 스키마·실행 구현은 미완성.**
+상태: 1014 역할·명칭. **비IR 11행동 Workshop 모델 결정 및 메모리 자산 실행 경로 구현.** 원시 Gemini 도구 호출 대신 모델 JSON 행동 명세를 검증해 엔진 포트에서 실행한다. IR 관련 행동/영속 실행 인프라는 미구현.
 
 ## 책임 분할
 - 복도: `workshopName` / `objective` / `need` / 실행 순서 계획. 내부 행동 선택 금지.
@@ -58,3 +58,8 @@
 - 호출을 작업실 단위로 묶을지 행동별로 나눌지의 실제 선택 조건.
 - `execute` 계획 표현과 완료/중단/실패 시 처리, 복도회귀 반환 데이터·수정 규칙.
 - 프롬프트 조건부 조립 및 Workshop 베이스 문구.
+
+## 비IR Workshop 현재 구현
+- 작업실별 모델 출력: `{action, args}` 또는 `{done:true}`. `prompts/base/workshop.md`와 `prompts/blocks/workshopActions.md`로 허용 행동·인수·판단 규칙을 제공한다. 작업실 결정은 자산을 직접 변경하지 않으며 실제 변경은 `memoryAssets` 어댑터에서 검증·적용한다.
+- `defineDirect`/`revise`/`editAppearance`/`delete`, Canvas 5행동, `basicText`/`question` 총 11종 지원. `defineFromIR` 미지원 명시적 거절. `terminate`는 Output 단계로 가는 비행동 계획 항목.
+- 서버 메모리 자산의 revision, 참조중 Skill 삭제 거절, 연결 무결성, 재사용 operation ID 중복 적용 방지; action 결과를 읽어야 실제 완료가 확정된다. `question`은 응답을 기다리므로 별도 HTTP `/answer` 경로로 원래 요청을 재개한다.
