@@ -20,14 +20,15 @@ export function normalizeRequestActivities(items){
   return items.map(value=>{
     if(!value||typeof value.requestId!=='string'||!value.requestId.trim()||seen.has(value.requestId)||
        typeof value.label!=='string'||!value.label.trim()||
-       (value.detail!==undefined&&typeof value.detail!=='string'))
+       (value.detail!==undefined&&typeof value.detail!=='string')||
+       (value.waiting!==undefined&&(!value.waiting||typeof value.waiting.id!=='string'||typeof value.waiting.text!=='string')))
       throw new TypeError('Invalid request activity');
     seen.add(value.requestId);
     return {requestId:value.requestId,label:value.label,
-      ...(value.detail!==undefined?{detail:value.detail}:{})};
+      ...(value.detail!==undefined?{detail:value.detail}:{}),...(value.waiting!==undefined?{waiting:{id:value.waiting.id,text:value.waiting.text}}:{})};
   });
 }
-export function createChat({onOpenCanvas}={}){
+export function createChat({onOpenCanvas,onAnswer}={}){
   const element=document.createElement('section');element.className='workspace-chat';
   element.setAttribute('aria-label','채팅');
   const welcome=document.createElement('div');welcome.className='workspace-welcome';
@@ -64,6 +65,22 @@ export function createChat({onOpenCanvas}={}){
       section.dataset.requestId=activity.requestId;section.setAttribute('role','status');
       section.append(make('span','workspace-request-activity-label',activity.label));
       if(activity.detail)section.append(make('p','workspace-request-activity-detail',activity.detail));
+      if(activity.waiting){
+        const form=document.createElement('form');form.className='workspace-answer-form';
+        const question=make('p','workspace-request-question',activity.waiting.text);
+        const input=document.createElement('input');input.type='text';input.maxLength=8000;input.required=true;input.placeholder='답변을 입력해 줘';
+        const send=document.createElement('button');send.type='submit';send.textContent='답변 보내기';
+        form.append(question,input,send);
+        form.addEventListener('submit',async event=>{
+          event.preventDefault();const text=input.value.trim();if(!text)return;
+          send.disabled=true;
+          try{const result=await onAnswer?.({requestId:activity.requestId,waitingId:activity.waiting.id,text});
+            if(result?.accepted){input.disabled=true;send.textContent='답변 전송됨';}
+            else {send.disabled=false;section.append(make('p','workspace-request-activity-detail',result?.message||'답변을 전달하지 못했어.'));}
+          }catch{send.disabled=false;}
+        });
+        section.append(form);
+      }
       return section;
     }));
     const visible=records.length>0||activities.length>0;
