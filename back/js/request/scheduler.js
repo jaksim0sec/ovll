@@ -10,8 +10,8 @@ export function createRequestScheduler({registry,execute,resume,retryOutput,sess
   function session(roomId,initialContext){
     return sessions.load({scope:roomId,initialContext});
   }
-  const publicCodes=new Set(['MODEL_ERROR','MODEL_AUTH','MODEL_RATE_LIMIT','MODEL_NETWORK','MODEL_INVALID_RESPONSE','DATA_UNAVAILABLE','ENGINE_OUTPUT_INVALID','UNSUPPORTED_DATASET','UNSUPPORTED_ACTION','ENGINE_BUDGET_EXCEEDED','CHECKPOINT_CONFLICT','SESSION_CONFLICT']);
-  const messageFor=code=>({MODEL_AUTH:'Model authentication failed',MODEL_RATE_LIMIT:'Model rate limit exceeded',MODEL_NETWORK:'Model connection failed',DATA_UNAVAILABLE:'Required data unavailable',ENGINE_OUTPUT_INVALID:'Engine output validation failed',MODEL_INVALID_RESPONSE:'Invalid model response',UNSUPPORTED_DATASET:'Unsupported data request'})[code]||'Request execution failed';
+  const publicCodes=new Set(['MODEL_ERROR','MODEL_AUTH','MODEL_RATE_LIMIT','MODEL_NETWORK','MODEL_INVALID_RESPONSE','DATA_UNAVAILABLE','ENGINE_OUTPUT_INVALID','UNSUPPORTED_DATASET','UNSUPPORTED_ACTION','ENGINE_BUDGET_EXCEEDED','CHECKPOINT_CONFLICT','SESSION_CONFLICT','WORK_REQUIRED']);
+  const messageFor=code=>({MODEL_AUTH:'Model authentication failed',MODEL_RATE_LIMIT:'Model rate limit exceeded',MODEL_NETWORK:'Model connection failed',DATA_UNAVAILABLE:'Required data unavailable',ENGINE_OUTPUT_INVALID:'Engine output validation failed',MODEL_INVALID_RESPONSE:'Invalid model response',UNSUPPORTED_DATASET:'Unsupported data request',WORK_REQUIRED:'Requested action was not planned or executed'})[code]||'Request execution failed';
   function notifyIdle(){if(running===0 && queue.length===0){for(const resolve of idleWaiters.splice(0))resolve();}}
   function pump(){
     while(running<maxConcurrent && queue.length){
@@ -38,7 +38,7 @@ export function createRequestScheduler({registry,execute,resume,retryOutput,sess
           const code=publicCodes.has(e?.code)?e.code:'MODEL_ERROR';
           const missing=code==='DATA_UNAVAILABLE'&&Array.isArray(e?.missing)?
             e.missing.slice(0,20).filter(x=>Array.isArray(x)&&x.length===2&&x.every(v=>typeof v==='string'&&v.length<=200)):[];
-          item.resolve(registry.transition(item.roomId,item.requestId,{status:'failed',error:{code,message:messageFor(code),...(missing.length?{missing}: {})}}));
+          item.resolve(registry.transition(item.roomId,item.requestId,{status:'failed',error:{code,message:messageFor(code),...(missing.length?{missing}:{}),...(typeof e?.detail==='string'&&e.detail.length<=160?{detail:e.detail}:{})}}));
         } finally {if(item.resumeArgs||item.retryOutput)resuming.delete(item.requestId);running--;pump();notifyIdle();}
       });
     }
