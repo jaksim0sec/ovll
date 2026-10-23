@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {createEngine} from '../../back/js/engine/engine.js';
 import {createMemoryActionStore} from '../../back/js/assets/memoryActionStore.js';
 import {createMemoryDataProvider} from '../../back/js/engine/dataProvider.js';
+import {createMemorySessions} from '../../back/js/request/memorySessions.js';
 const skill={name:'식물 조사',description:'식물 정보 조사 정의',instruction:'입력한 식물을 조사하도록 정의한다.',
  icon:'globe',color:'#4F8EF7',inputs:[{id:'in',label:'입력',type:'any',multiple:true}],
  outputs:[{id:'result',label:'결과',type:'research',multiple:true}],
@@ -72,4 +73,49 @@ test('later unsupported action preserves earlier applied result without false co
  assert.equal(result.planCursor,1);
  assert.equal(f.store.read({scope:'r'}).skills.length,1);
  assert.equal(f.store.read({scope:'r'}).blocks.length,0);
+});
+
+test('Output retry reuses confirmed operations and commits one successful conversation entry',async()=>{
+ const store=createMemoryActionStore();
+ let outputAttempts=0,actionCalls=0;
+ const modelCaller={
+  generate:async ({layer})=>{
+   if(layer==='gate')return {jsonText:JSON.stringify({need:[]})};
+   if(layer==='hallwayInitial')return {jsonText:JSON.stringify(makePlan())};
+   if(layer==='output'){
+    outputAttempts++;
+    if(outputAttempts===1)throw Object.assign(new Error('transient output error'),{code:'MODEL_ERROR'});
+    return {jsonText:JSON.stringify({
+     languageBlock:'스킬과 스킬블럭 생성 완료. 조사는 아직 실행하지 않았습니다.',
+     contextBlock:{intent:block.intent,progress:'배치 완료'},contextData:data
+    })};
+   }
+   throw Error('Unexpected model layer');
+  },
+  generateFunction:async ({tool,context})=>{
+   actionCalls++;
+   return {kind:'function_proposal',name:tool.name,args:tool.name==='define_direct'?skill:
+    {skillId:context.verifiedResults[0].outcome.artifacts[0].id,x:120,y:120,expanded:true,values:{request:''}}};
+  }
+ };
+ const sessions=createMemorySessions();
+ const engine=createEngine({composer:{compose:async()=>''},modelCaller,
+  dataProvider:createMemoryDataProvider({assets:store}),actionStore:store,sessions});
+ const job=engine.submit(input);
+ const first=await job.completion;
+ assert.equal(first.status,'failed');
+ assert.equal(first.currentLayer,'output');
+ assert.equal(first.verifiedResults.length,2);
+ assert.equal(store.read({scope:'r'}).revision,2);
+ const retried=await engine.retryOutput('r',job.requestId).completion;
+ assert.equal(retried.status,'completed');
+ assert.equal(retried.requestId,job.requestId);
+ assert.equal(retried.result.languageBlock.includes('아직 실행하지'),true);
+ assert.equal(store.read({scope:'r'}).revision,2);
+ assert.equal(actionCalls,2);
+ assert.equal(outputAttempts,2);
+ const calls=engine.listCalls({roomId:'r',requestId:job.requestId});
+ assert.equal(calls.filter(x=>x.route.layer==='workshop').length,2);
+ assert.equal(calls.filter(x=>x.route.layer==='output').length,2);
+ assert.equal(sessions.load({scope:'r'}).history.filter(x=>x.requestId===job.requestId).length,1);
 });
