@@ -90,6 +90,7 @@ try{
   workspaceController=await createWorkspace({
     root:workspace,data,input,
     onAnswerRequest:answer=>requestBridge.answer(answer),
+    onRetryOutput:answer=>requestBridge.retryOutput(answer),
     onSubmitRequest:draft=>requestBridge.submit({
       draft,roomId:workspaceController.getRoomId(),dataAccess:workspaceController.getDataAccess()
     })
