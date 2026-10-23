@@ -142,3 +142,8 @@
 - CI fake provider 테스트 성공과 **실제 Gemini/Render/Playwright 성공은 구분**해서 보고. 프로세스 메모리 저장은 재시작 시 전부 휘발. `main`은 변경 금지.
 
 - Gemini 도구 스키마: `define_direct`는 `parameters`, 동적 Block `values`를 받는 `add_block`은 API가 지원하는 `parametersJsonSchema`로 선언. 상호 배타적으로 한 가지만 보낸다. 자세한 계약은 `docs/developing/prompt-composition.md`.
+
+## 2026-10-24 Stage 2 안전 보강
+- `requestRunner`는 행동 계획을 실행하기 전에 **최대 24개** 제한을 적용. `CallManager`는 요청별 모델 호출 기본 **40회** 상한(`policy.maxModelCallsPerRequest`)을 Gate/Hallway/Workshop/Output에 공통 적용. 이는 모델 호출 동시성 상한(`policy.maxModelCalls`, 기본 2)과 별도.
+- 실패한 Output은 같은 요청 ID로 Output 모델 호출만 재시도한다. `verifiedResults`와 적용된 operation은 재사용하며 Skill·Block 변경을 반복하지 않는다. 성공한 재시도는 해당 요청의 실패 이력 1건을 완료 기록으로 대체하고 stale 오류 표시를 제거한다.
+- 이 단계의 TDD 회귀: 과도한 Hallway 계획/호출 예산 소진 방어, Output 첫 실패 후 재시도, 실제 적용 결과 보존 및 중복 자산 생성 방지. 기존 메모리/데모 한계와 그 외 행동 미구현 상태 유지.

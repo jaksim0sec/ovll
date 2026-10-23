@@ -35,6 +35,8 @@ Generate an ordered `plan` of **named actions**, NOT workshops. The Hallway choo
 
 Each plan step has exactly one key and exactly `objective` (a non-empty description of the intended outcome in the user's language) and `need` (InformationRequestBlock-compatible list). NEVER include concrete function arguments in a plan.
 
+Never generate more than 24 non-terminate actions in one plan. For larger objectives, use a smaller grounded mini-plan; do not repeat or fabricate completed work. The engine enforces a strict execution budget.
+
 ## Rules
 
 - A direct informational request without a separate action should receive an immediate Hallway reply, not a detour through `textGenerate.basicText` and `terminate`.

@@ -10,3 +10,5 @@
 - 프론트 `requestBridge`는 완료 뒤 자산 재조회. `workspace.applyServerAssets`는 provisional 로컬 캔버스가 별도 수정됐으면 **덮어쓰지 않고** 충돌 경고.
 - 서버 자산·호출·대화는 **메모리 전용**, 재시작으로 사라짐. DB 영속화·실질 사용자별 auth·IR·일반 Hallway Return·질문/답변 연결·모든 행동 실행·실 Skill 연구 수행·다중 worker 미구현.
 - 백엔드 CI는 Node+fake Gemini 계약 검증, 브라우저 독립 프론트 단위 테스트 별도. 실제 Gemini REST 네트워크, Render 배포 후 API, Playwright/Android 모바일 기능은 별도 확인해야 함.
+
+- `POST /api/requests/:id/retry-output`: 해당 room/request의 실패 단계가 Output인 경우 동일 requestId를 재사용해 Output 호출만 재시도. 적용된 Skill/Block을 다시 만들지 않음. 요청별 모델 호출 기본 40회, Hallway 계획 행동 최대 24회 제한. `/answer` 질문 재개는 아직 미구현.

@@ -25,3 +25,10 @@
 - `GET /api/rooms/:roomId/assets`는 서버 최신 Skill/Block/Link·revision, `/history`는 완료 대화·확인된 적용 결과. `front/js/workspace/requestBridge.js`는 성공 뒤 asset 재조회, `applyServerAssets`는 로컬 편집이 갈라졌으면 덮어쓰지 않음.
 - `OVLL_TEST_TOKEN`이 미설정(기본 `abcd`) 또는 16자 미만이면 **실제 작업실 변경 비활성화**. 16자 이상 `abcd`가 아닌 토큰을 명시 설정한 Beta 시험 환경에서만 허용. 이 공용 토큰으로 다중 사용자 권한이 해결된 것은 아님.
 - Render의 실 Gemini 연결, 브라우저 Playwright, PWA/모바일 실동작은 Node fake-model CI 성공과 별도 확인.
+
+## 2026-10-24 실행 예산 및 Output 재시도 보강
+- 초기 Hallway 계획은 `terminate`를 제외한 행동 최대 **24개**. 이를 넘는 계획은 어떤 Workshop 호출이나 자산 변경 전에 `ENGINE_BUDGET_EXCEEDED`로 종료한다.
+- `callManager`가 요청별 모델 호출 수를 별도로 집계한다. 기본 40회(`policy.maxModelCallsPerRequest`), 요청 A의 호출 소진이 요청 B의 예산을 깎지 않는다. `maxModelCalls`는 동시 슬롯 제한이므로 별도 정책. 호출 실패도 예산 소모로 계산. 미지원 Action Shell 진입은 모델 호출이 아니다.
+- `requestRunner.retryOutput(snapshot)`: `terminate`를 포함하는 검증된 계획에서 Output만 실패한 요청은 **같은 requestId**로 새 Output `callId`를 발급하고 Output 호출만 재수행. 기존 Skill/Block `operationId`는 재적용하지 않는다.
+- `scheduler.retryOutput`은 실제 Runner 메서드에 연결. `POST /api/requests/:id/retry-output`은 Output 실패 요청에서만 허용. 성공 시 실패 오류 표시는 지우고, 방 history에 남았던 같은 요청의 임시 실패 기록은 완료 기록으로 대체한다.
+- 여전히 미구현: 일반 Hallway Return, 다른 10개 행동, 영속/분산 재개, 사용자별 정식 인증, 실제 Gemini·브라우저 검증. 위 항목은 단일 프로세스 Node fake-model 통합 테스트로 확인됨.
