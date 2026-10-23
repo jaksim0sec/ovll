@@ -32,3 +32,5 @@ GEMINI_API_KEY='...' node back/js/demo.js  # GEMINI_MODEL은 선택
 
 ## 아직 없는 기능
 SSE, 정식 사용자 인증, DB 영속 저장·재시작 복구·중단, 실물 파일 업로드, 사용자별 요청 접근 제어, Workshop 실행·Function Calling·IR, Hallway Return 실호출, Output 실호출, 서버 확정 Canvas 원본 관리. 프로토타입의 자료 완전성 표기는 인증이나 악의적 입력에 대한 신뢰 검증을 대신하지 않는다.
+
+- Gate는 `availableHistory.completedRequests`(0~8)를 입력받아 이전 대화 조회 가능 범위를 판단한다. 범위를 넘겨 요청한 자료는 결코 생성하거나 성공으로 가장하지 않는다.
