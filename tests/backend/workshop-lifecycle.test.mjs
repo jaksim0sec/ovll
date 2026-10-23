@@ -52,3 +52,37 @@ test('IR actions never mutate existing assets',async()=>{
  const got=await e.run(request);
  assert.notEqual(got.status,'completed');assert.equal(assets.read({scope:'r'}).revision,0);
 });
+
+test('an exhausted mini-plan returns through Hallway Return before Output',async()=>{
+ const assets=createMemoryAssets();const seen=[];let intermediate=false;
+ const caller={generate:async ({layer,context})=>{
+  seen.push(layer);
+  if(layer==='gate')return toJson({need:[]});
+  if(layer==='hallwayInitial')return toJson({plan:[{textGenerate:{objective:'Announce progress',need:[]}}],contextBlock:{intent:'report',progress:'starting'}});
+  if(layer==='workshop'){if(!intermediate){intermediate=true;return toJson({action:'basicText',args:{text:'Starting'}});}return toJson({done:true});}
+  if(layer==='hallwayReturn')return toJson({plan:[{terminate:{objective:'Final',need:[]}}],contextBlock:{intent:'report',progress:'ready'}});
+  if(layer==='output')return toJson(output);
+ }};
+ const composer={compose:async x=>x};
+ const e=createRequestEngine({composer,modelCaller:caller,dataProvider:createMemoryDataProvider(),workshopExecutor:createWorkshopExecutor({modelCaller:caller,composer,assets}),checkpoints:createMemoryCheckpoints()});
+ const result=await e.run(request);assert.equal(result.status,'completed');
+ assert.deepEqual(seen,['gate','hallwayInitial','workshop','workshop','hallwayReturn','output']);
+ assert.equal(result.result.verifiedResults[0].text,'Starting');
+});
+test('Output failure retains applied Skill and a retry only calls Output',async()=>{
+ let outputCalls=0,workshopCalls=0;
+ const assets=createMemoryAssets(),checkpoints=createMemoryCheckpoints();
+ const caller={generate:async ({layer,context})=>{
+  if(layer==='gate')return toJson({need:[]});
+  if(layer==='hallwayInitial')return toJson(plan);
+  if(layer==='workshop'){workshopCalls++;return toJson(context.verifiedResults.length?{done:true}:{action:'defineDirect',args:{definition}});}
+  if(layer==='output'){outputCalls++;return outputCalls===1?toJson({invalid:true}):toJson(output);}
+ }};
+ const composer={compose:async x=>x};
+ const e=createRequestEngine({composer,modelCaller:caller,dataProvider:createMemoryDataProvider(),workshopExecutor:createWorkshopExecutor({modelCaller:caller,composer,assets}),checkpoints});
+ const first=await e.run(request);assert.equal(first.status,'failed');assert.equal(assets.read({scope:'r'}).skills.length,1);
+ const before=workshopCalls;
+ const second=await e.retryOutput(request);
+ assert.equal(second.status,'completed');assert.equal(workshopCalls,before);
+ assert.equal(assets.read({scope:'r'}).skills.length,1);
+});
