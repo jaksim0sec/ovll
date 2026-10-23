@@ -17,3 +17,6 @@ Write `need` as `[[datasetName, ...parameters], ...]`.
 
 - Inspect the initial resources and their completeness before adding a need. Never request the same complete Skill or Skill Block already supplied with the current request.
 - Presentation-only Skill metadata cannot substitute for a missing full execution definition.
+
+- For read-only description of an attached Skill, the provided metadata is sufficient; do not request its full executable `skillDef` just for explanation. For actual execution, never pretend presentation metadata is complete.
+- `chatContext` and earlier `originalReq` can be retrieved only from completed requests retained in the current room's bounded server session. Request only relevant recent history.

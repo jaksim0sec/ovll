@@ -1,8 +1,8 @@
 /** Prototype data supply port. It contains no database or frontend dependencies. */
 export function createMemoryDataProvider({fixtures={}}={}){
   const copy=x=>structuredClone(x);
-  async function resolveNeed({need,availableResources=[],request,contextData}={}){
-    if(!Array.isArray(need)||!Array.isArray(availableResources))throw Object.assign(new Error('Invalid data request'),{code:'UNSUPPORTED_DATASET'});
+  async function resolveNeed({need,availableResources=[],request,contextData,chatHistory=[]}={}){
+    if(!Array.isArray(need)||!Array.isArray(availableResources)||!Array.isArray(chatHistory))throw Object.assign(new Error('Invalid data request'),{code:'UNSUPPORTED_DATASET'});
     const resources=copy(availableResources),missing=[];
     const findComplete=(dataset,key)=>resources.find(r=>r.dataset===dataset&&r.key===key&&r.completeness==='complete');
     const add=(dataset,key)=>{
@@ -23,10 +23,14 @@ export function createMemoryDataProvider({fixtures={}}={}){
       }else if(dataset==='originalReq'){
         if(!Number.isSafeInteger(arg)||arg<0)throw Object.assign(new Error('Invalid originalReq need'),{code:'UNSUPPORTED_DATASET'});
         if(arg===0&&request){const key='0';if(!findComplete(dataset,key))resources.push({dataset,key,source:'current-request',completeness:'complete',value:copy(request)});}
-        else add(dataset,String(arg));
+        else if(arg>0&&arg<=chatHistory.length&&chatHistory[chatHistory.length-arg]?.request){
+          const key=String(arg);if(!findComplete(dataset,key))resources.push({dataset,key,source:'room-history',completeness:'complete',value:copy(chatHistory[chatHistory.length-arg].request)});
+        }else add(dataset,String(arg));
       }else if(dataset==='chatContext'){
         if(!Number.isSafeInteger(arg)||arg<1)throw Object.assign(new Error('Invalid chatContext need'),{code:'UNSUPPORTED_DATASET'});
-        add(dataset,String(arg));
+        if(arg<=chatHistory.length){
+          const key=String(arg);if(!findComplete(dataset,key))resources.push({dataset,key,source:'room-history',completeness:'complete',value:copy(chatHistory.slice(-arg).map(({requestId,contextBlock,contextData})=>({requestId,contextBlock,contextData})))});
+        }else add(dataset,String(arg));
       }else throw Object.assign(new Error('Unknown data resource'),{code:'UNSUPPORTED_DATASET'});
     }
     return {resources,missing};

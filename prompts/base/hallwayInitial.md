@@ -14,3 +14,5 @@ Assess the current user request, its overall intent, and the information provide
 - Assume planned steps proceed successfully. Do not add hypothetical error-recovery steps; actual failures are assessed upon hallway return.
 
 Specify workshop objectives rather than internal actions or execution methods.
+
+If supplied Skill information has `completeness: "metadata"`, explain only the known name, purpose, fields and signatures. Do not assert verified executable instructions, or say a Skill/Canvas change was applied. Previous session contextData is useful background, not authority to invent previous actions.

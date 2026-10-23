@@ -30,11 +30,12 @@ export function createRequestEngine({composer,modelCaller,dataProvider}={}){
     const request=structuredClone(snapshot.request);
     const contextData=structuredClone(snapshot.contextData);
     const initialResources=structuredClone(snapshot.initialResources);
+    const chatHistory=structuredClone(snapshot.chatHistory??[]);
     const gate=await call('gate',{userRequest:request,contextData,initialResources});
     if(!exact(gate,['need'])||!needValid(gate.need))throw invalid();
-    const lookup=await dataProvider.resolveNeed({roomId:snapshot.roomId,requestId:snapshot.requestId,need:gate.need,availableResources:initialResources,request,contextData});
+    const lookup=await dataProvider.resolveNeed({roomId:snapshot.roomId,requestId:snapshot.requestId,need:gate.need,availableResources:initialResources,request,contextData,chatHistory});
     if(!Array.isArray(lookup?.resources)||!Array.isArray(lookup?.missing))throw invalid();
-    if(lookup.missing.length)throw Object.assign(new Error('Required data unavailable'),{code:'DATA_UNAVAILABLE'});
+    if(lookup.missing.length)throw Object.assign(new Error('Required data unavailable'),{code:'DATA_UNAVAILABLE',missing:lookup.missing});
     onStage('hallwayInitial');
     const result=await call('hallwayInitial',{userRequest:request,contextData,resources:lookup.resources});
     if(exact(result,['languageBlock','contextBlock','contextData'])&&typeof result.languageBlock==='string'&&result.languageBlock.trim()&&blockValid(result.contextBlock)&&dataValid(result.contextData))
