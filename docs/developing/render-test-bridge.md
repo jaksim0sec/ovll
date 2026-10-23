@@ -58,3 +58,8 @@ node --test tests/frontend/*.test.mjs
 - 같은 roomId에서 완료된 요청의 `contextData`는 메모리에 보존되며, 다음 요청이 큐에서 실행될 때 전달된다. 최신 완료 요청 8개만 `chatContext`/과거 `originalReq`의 재료로 사용한다. 실패 요청과 Workshop 미지원 상태는 세션 맥락을 바꾸지 않는다.
 - 스킬/블록 설명만 요청하면 제공된 표시용 메타데이터로 직접 응답하도록 Gate/Hallway 프롬프트를 보강했다. 하지만 실제 실행용 정의나 존재하지 않는 데이터를 요구하면 `DATA_UNAVAILABLE`을 유지한다.
 - 재현 권장: ① `내 프로젝트 이름은 A이고 목적은 B야. 기억해.` ② `아까 프로젝트 이름과 목적은?` (같은 방 연속 요청). 스킬 시험은 캔버스 블록 첨부 후 `설정값을 설명만 해줘. 실행하지 마.`; 모델 판정과 실제 Gemini 모델 출력에 따라 실패할 수 있다.
+
+## 2026-10-23 Workshop HTTP 시험
+- 메모리 상태 조회 `GET /api/rooms/:roomId/assets`, 동일 요청의 대기 응답 `POST /api/requests/:requestId/answer`, Output 실패 시 행동 재실행 없는 재시도 `POST /api/requests/:requestId/retry-output`을 추가했다.
+- UI는 요청별 `waiting.id` 질문 폼과 최종 응답 재시도 버튼을 지원한다. Canvas는 서버 확정 자산을 반영하되 기존 로컬과 충돌하면 덮어쓰지 않는다. Beta 공유 테스트 토큰은 정식 인증이 아니다.
+- 현재 실제 Render 재배포, Gemini 호출 및 브라우저 렌더링은 검증되지 않았고 API의 메모리 상태는 재시작하면 지워질 수 있다.
