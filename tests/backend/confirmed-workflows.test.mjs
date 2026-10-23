@@ -103,3 +103,22 @@ test('a Workshop that merely says done without any applied action cannot produce
  assert.equal(assets.read({scope:'r'}).skills.length,0);
  assert.equal(outputCalled,false);
 });
+
+test('Hallway retries one malformed JSON response instead of abandoning an executable task',async()=>{
+ let hallwayCalls=0,calledOutput=false;
+ const assets=createMemoryAssets(),composer={compose:async x=>x};
+ const modelCaller={generate:async ({layer,context})=>{
+  if(layer==='gate')return toText({need:[]});
+  if(layer==='hallwayInitial'){
+   hallwayCalls++;
+   return hallwayCalls===1?{jsonText:'{ broken json'}:toText({plan:[{skillDefine:{objective:'Create 문장 정리기',need:[]}},{terminate:{objective:'finish',need:[]}}],contextBlock:block});
+  }
+  if(layer==='workshop')return toText(context.verifiedResults.length?{done:true}:{action:'defineDirect',args:{definition}});
+  if(layer==='output'){calledOutput=true;return toText({languageBlock:'저장됨',contextBlock:{intent:'create',progress:'done'},contextData});}
+ }};
+ const engine=createRequestEngine({composer,modelCaller,dataProvider:createMemoryDataProvider({assets}),workshopExecutor:createWorkshopExecutor({composer,modelCaller,assets}),checkpoints:createMemoryCheckpoints()});
+ const got=await engine.run(request('문장 정리기 스킬 만들어줘'));
+ assert.equal(got.status,'completed');
+ assert.equal(hallwayCalls,2);
+ assert.equal(calledOutput,true);
+});
