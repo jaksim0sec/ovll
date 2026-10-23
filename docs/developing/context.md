@@ -45,3 +45,6 @@
 ## 2026-10-23 Workshop 연결
 - 최초 Hallway에서 생긴 `contextBlock`은 개별 요청의 체크포인트와 함께 유지하며, Hallway Return과 Output이 실제 검증 결과를 보고 갱신한다. `focus`는 호출 인수에 일시적으로 결합되며 persistent contextBlock에는 넣지 않는다.
 - 질문으로 대기한 요청이 재개되면 스케줄러에서 최신 room `contextData`를 받아 Output에 전달한다. 다중 서버에서의 충돌 방지·영속 원본 확인은 별도 구현이 필요하다.
+
+## 서버 방 맥락 포트 분리 보강
+- `back/js/request/memorySessions.js`의 `createMemorySessions()`가 `load({scope,initialContext?})`와 `commit({scope,expectedRevision,requestId,request,contextBlock,contextData})`를 제공한다. 완료된 요청만 최근 8개 이력에 기록하고 방별 revision을 검사한다. Scheduler는 이 인터페이스를 의존성으로 주입받으며, 향후 DB 저장 어댑터와 교체할 수 있다. DB 영속 저장 자체는 아직 없다.
