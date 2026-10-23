@@ -4,7 +4,7 @@ export function createRequestRegistry({createId = () => crypto.randomUUID()} = {
   const records = new Map();
   const clone = value => structuredClone(value);
   const key = (roomId, requestId) => JSON.stringify([roomId, requestId]);
-  const states = {queued: new Set(['running']), running: new Set(['completed', 'awaiting_input', 'unsupported_workshop', 'failed']), awaiting_input: new Set(['running'])};
+  const states = {queued: new Set(['running']), running: new Set(['completed', 'awaiting_input', 'unsupported_workshop', 'failed']), awaiting_input: new Set(['running']), failed: new Set(['running'])};
   function register({roomId, request, contextData, initialResources=[]} = {}) {
     if (typeof roomId !== 'string' || !roomId || !request || !Array.isArray(request.parts) || !Array.isArray(request.attachments) || !Array.isArray(initialResources))
       throw new TypeError('Invalid request registration');
