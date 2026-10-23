@@ -152,3 +152,41 @@ test('actual scheduler carries failed node request into a follow-up and creates 
  assert.equal(assets.read({scope:'room'}).blocks.length,1);
  assert.deepEqual(sessions.load({scope:'room'}).history.map(x=>x.status),['failed','completed']);
 });
+
+
+test('Skill Block spellings require verified Canvas placement after a premature Hallway finish',async()=>{
+ for(const phrase of ['식물 조사 스킬블럭 만들어줘','식물 조사 스킬 블록 만들어봐','식물 조사 블럭 생성해줘']){
+  const assets=createMemoryAssets();let initial=0,returnCount=0;
+  const caller={generate:async ({layer,context:c})=>{
+   if(layer==='gate')return reply({need:[]});
+   if(layer==='hallwayInitial'){
+    initial++;
+    if(initial===1)return reply({languageBlock:'만들어줄게.',contextBlock:context,contextData:data});
+    return reply({plan:[{skillDefine:{objective:'식물 조사 스킬 정의',need:[]}},{terminate:{objective:'완료 보고',need:[]}}],contextBlock:context});
+   }
+   if(layer==='hallwayReturn'){
+    returnCount++;
+    assert.deepEqual(c.unmetRequirements,['canvasEdit.addBlock (place the requested Skill Block on the Canvas)']);
+    return reply({plan:[{canvasEdit:{objective:'식물 조사 스킬블럭 배치',need:[]}},{terminate:{objective:'결과',need:[]}}],contextBlock:context});
+   }
+   if(layer==='workshop'){
+    const applied=c.verifiedResults.filter(r=>r.outcome?.status==='applied');
+    if(c.workshop==='skillDefine')return reply(applied.some(r=>r.action==='defineDirect')?{done:true}:{action:'defineDirect',args:{definition}});
+    if(c.workshop==='canvasEdit')return reply(applied.some(r=>r.action==='addBlock')?{done:true}:{action:'addBlock',args:{skillId:c.assets.skills[0].id,x:40,y:60}});
+   }
+   if(layer==='output')return reply({languageBlock:'식물 조사 스킬블럭을 캔버스에 배치했어. 실제 조사는 실행하지 않았어.',contextBlock:{...context,progress:'완료'},contextData:data});
+   throw new Error('Unexpected model layer '+layer);
+  }};
+  const composer={compose:async layer=>layer};
+  const engine=createRequestEngine({composer,modelCaller:caller,dataProvider:createMemoryDataProvider({assets}),workshopExecutor:createWorkshopExecutor({composer,modelCaller:caller,assets}),checkpoints:createMemoryCheckpoints()});
+  const result=await engine.run(draft(phrase));
+  assert.equal(result.status,'completed',phrase);
+  assert.equal(initial,2,phrase+' must correct the direct promise');
+  assert.equal(returnCount,1,phrase+' must replan the missing placement');
+  assert.deepEqual(result.result.verifiedResults.map(r=>r.action),['defineDirect','addBlock']);
+  const confirmed=assets.read({scope:'room'});
+  assert.equal(confirmed.skills.length,1);
+  assert.equal(confirmed.blocks.length,1);
+  assert.equal(confirmed.blocks[0].skillId,confirmed.skills[0].id);
+ }
+});

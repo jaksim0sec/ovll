@@ -69,3 +69,43 @@ test('HTTP -> AI plan -> verified Skill -> HTTP assets/history -> frontend chat 
   assert.equal(checkedHistory,true);
  }finally{bridge.destroy();await new Promise(resolve=>server.close(resolve));}
 });
+
+
+test('Skill Block HTTP completion identifies the placed Skill by name in frontend receipts',async()=>{
+ const assets=createMemoryAssets(),sessions=createMemorySessions(),checkpoints=createMemoryCheckpoints();
+ const composer={compose:async layer=>'prompt:'+layer};
+ const caller={generate:async ({layer,context:c})=>{
+  if(layer==='gate')return json({need:[]});
+  if(layer==='hallwayInitial')return json({plan:[{skillDefine:{objective:'정리기 스킬 정의',need:[]}},{canvasEdit:{objective:'정리기 스킬블럭 배치',need:[]}},{terminate:{objective:'최종 결과',need:[]}}],contextBlock:block});
+  if(layer==='workshop'){
+   const applied=c.verifiedResults.filter(r=>r.outcome?.status==='applied');
+   if(c.workshop==='skillDefine')return json(applied.some(r=>r.action==='defineDirect')?{done:true}:{action:'defineDirect',args:{definition}});
+   if(c.workshop==='canvasEdit')return json(applied.some(r=>r.action==='addBlock')?{done:true}:{action:'addBlock',args:{skillId:c.assets.skills[0].id,x:90,y:120}});
+  }
+  if(layer==='output')return json({languageBlock:'문장 정리기 스킬블럭을 배치했어. 실행은 별도야.',contextBlock:{...block,progress:'완료'},contextData});
+  throw new Error('Unexpected model layer '+layer);
+ }};
+ const engine=createRequestEngine({composer,modelCaller:caller,dataProvider:createMemoryDataProvider({assets}),workshopExecutor:createWorkshopExecutor({composer,modelCaller:caller,assets}),checkpoints});
+ const scheduler=createRequestScheduler({sessions,registry:createRequestRegistry(),execute:(r,o)=>engine.run(r,o)});
+ const server=createRequestHttpServer({scheduler,assets,sessions,testToken:'abcd'});
+ await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+ const base='http://127.0.0.1:'+server.address().port;
+ let records=[],liveAssets=null;
+ const bridge=createRequestBridge({fetchImpl:(url,options)=>fetch(base+url,options),pollDelay:10,onRecords:value=>records=value,onAssets:value=>liveAssets=value});
+ const dataAccess={readCanvasSnapshot:()=>({snapshot:{blocks:[]}}),readSkillCatalog:()=>({definitions:[]})};
+ try{
+  const sent=await bridge.submit({roomId:'r',draft:{parts:[{type:'text',text:'문장 정리기 스킬블럭 만들어줘'}],attachments:[]},dataAccess});
+  assert.equal(sent.accepted,true);
+  const until=Date.now()+4000;
+  while(Date.now()<until&&!records.some(r=>r.role==='assistant'))await new Promise(resolve=>setTimeout(resolve,20));
+  const response=records.find(r=>r.role==='assistant');
+  assert.ok(response,'expected server-confirmed reply');
+  assert.equal(response.text,'문장 정리기 스킬블럭을 배치했어. 실행은 별도야.');
+  assert.deepEqual(response.confirmed.map(x=>x.action),['defineDirect','addBlock']);
+  assert.equal(response.confirmed[1].name,'문장 정리기 · 스킬블럭');
+  while(Date.now()<until&&!(liveAssets?.blocks?.length))await new Promise(resolve=>setTimeout(resolve,20));
+  assert.equal(liveAssets.blocks.length,1);
+  assert.equal(liveAssets.blocks[0].skillId,liveAssets.skills[0].id);
+  assert.equal(liveAssets.blocks[0].x,90);
+ }finally{bridge.destroy();await new Promise(resolve=>server.close(resolve));}
+});

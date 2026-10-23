@@ -31,7 +31,7 @@ export function createRequestEngine({composer,modelCaller,dataProvider,workshopE
    if(unresolvedRequest(request,history))return true;
    const text=(request?.parts??[]).filter(x=>x.type==='text').map(x=>x.text).join(' ').trim();
    const action=/만들어\s*(줘|주세요|봐|달라)|생성해\s*(줘|주세요)|정의해\s*(줘|주세요)|추가해\s*(줘|주세요)|배치해\s*(줘|주세요)|수정해\s*(줘|주세요)|삭제해\s*(줘|주세요)|바꿔\s*(줘|주세요)|옮겨\s*(줘|주세요)|(?:create|add|edit|delete|remove|update)\b/i;
-   const target=/(?:스킬|skill|캔버스|블록|block|노드|node)/i;
+   const target=/(?:스킬|skill|캔버스|블[록럭]|block|노드|node)/i;
    const explicit=target.test(text)&&action.test(text)&&!/(?:방법|예시|설명|알려|어떻게|가능해|can you|how to)/i.test(text);
    if(explicit)return true;
    if(!/^(?:응|ㅇㅇ|그래|좋아|네|예|yes|yep|do it|해줘|진행해)$/i.test(text))return false;
@@ -43,9 +43,9 @@ export function createRequestEngine({composer,modelCaller,dataProvider,workshopE
  const missingOutcomes=state=>{
    const original=state.unresolvedRequest?.request??state.request;
    const words=(original?.parts??[]).filter(p=>p.type==='text').map(p=>p.text).join(' ').trim();
-   const nodeCreate=/(노드|블록|node|skill block)/i.test(words)&&/(만들어|생성|추가|배치|create|add)/i.test(words)&&!/(?:만들까\?|어떻게|방법|설명|예시|가능해|how to)/i.test(words);
+   const blockCreate=/(?:스킬\s*블[록럭]|블[록럭]|노드|skill[\s-]*block|node)/i.test(words)&&/(?:만들어|생성|추가|배치|create|add|place)/i.test(words)&&!/(?:만들까\?|어떻게|방법|설명|예시|가능해|how to)/i.test(words);
    const confirmed=state.verifiedResults.filter(x=>x?.outcome?.status==='applied');
-   return nodeCreate&&!confirmed.some(x=>x.action==='addBlock')?['canvasEdit.addBlock (place the requested Skill Block on the Canvas)']:[];
+   return blockCreate&&!confirmed.some(x=>x.action==='addBlock')?['canvasEdit.addBlock (place the requested Skill Block on the Canvas)']:[];
  };
  const planValid=plan=>Array.isArray(plan)&&plan.length>0&&plan.every((step,index)=>{
   if(!obj(step)||Object.keys(step).length!==1)return false;

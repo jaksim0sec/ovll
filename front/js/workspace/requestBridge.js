@@ -13,7 +13,8 @@ const confirmedActionReceipts=result=>{
    if(entry?.outcome?.status!=='applied'||!Array.isArray(entry.outcome.artifacts))continue;
    const artifact=entry.outcome.artifacts[0];
    if(!artifact||typeof artifact.id!=='string'||!artifact.id)continue;
-   const name=typeof artifact.name==='string'&&artifact.name?artifact.name:artifact.id;
+   const linkedSkill=entry.action==='addBlock'&&typeof artifact.skillId==='string'?entry.outcome.changeSet?.skills?.find(skill=>skill.id===artifact.skillId):null;
+   const name=linkedSkill?.name?linkedSkill.name+' · 스킬블럭':typeof artifact.name==='string'&&artifact.name?artifact.name:artifact.id;
    receipts.push({action:entry.action,id:artifact.id,name,revision:Number.isSafeInteger(artifact.revision)&&artifact.revision>0?artifact.revision:entry.outcome.revision});
  }
  return receipts.filter(x=>typeof x.action==='string'&&Number.isSafeInteger(x.revision)&&x.revision>0);

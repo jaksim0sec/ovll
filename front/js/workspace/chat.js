@@ -82,7 +82,7 @@ export function createChat({onOpenCanvas,onAnswer,onRetryOutput}={}){
     }));
     if(confirmedAssets){
       const header=make('div','workspace-assets-header','');
-      header.append(make('strong','workspace-assets-title','서버 확정 자산'),make('small','workspace-assets-revision','rev '+confirmedAssets.revision+' · 스킬 '+confirmedAssets.skills.length+'개 · 블록 '+confirmedAssets.blocks.length+'개'));
+      header.append(make('strong','workspace-assets-title','서버 확정 자산'),make('small','workspace-assets-revision','rev '+confirmedAssets.revision+' · 스킬 '+confirmedAssets.skills.length+'개 · 스킬블럭 '+confirmedAssets.blocks.length+'개'));
       const entries=make('div','workspace-assets-items','');
       for(const skill of confirmedAssets.skills.slice(0,12)){
         const item=make('div','workspace-asset-item','');

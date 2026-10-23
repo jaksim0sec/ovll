@@ -58,3 +58,8 @@ SSE, 정식 사용자 인증·사용자별 요청 접근 제어, DB 영속 저�
 - 실패한 요청은 sessions.recordFailure로 방 이력에 남기되 확정 contextData는 변경하지 않는다. 짧은 재지시에서 직전 실패의 원문을 unresolvedRequest로 전달한다. 실패 이유를 묻는 질문은 자동 재실행하지 않는다.
 - 노드/블록 생성 요청의 완료에는 확인된 canvasEdit.addBlock이 필요하다. Skill 정의만 하고 terminate하면 Hallway Return에서 남은 배치를 재계획한다.
 - Node 22 전체 CI npm test 65개 통과(2026-10-23). 실 Gemini 호출 및 Render 브라우저 시험은 미검증이다.
+
+## 2026-10-23 스킬블럭 표기·확정 표시 회귀 보강
+- 사용자가 `스킬블럭`/`스킬 블럭`/`스킬블록`/`블럭`으로 명시한 생성·배치는 Canvas Skill Block 작업이다. `workIntent` 및 `missingOutcomes`가 이 표기를 인식하며, 생성 요청은 `canvasEdit.addBlock` 실제 적용 전 종료할 수 없다. 기존 `노드` 표현의 호환 인식은 유지한다.
+- Chat의 확인 카드는 `addBlock` 산출물의 `skillId`를 같은 서버 결과의 `changeSet.skills`와 대조해 Skill 이름과 `스킬블럭`을 표시한다. 내부 ID는 이름 조회가 불가능할 때만 보조 표시한다. 정의 생성과 배치, 스킬 실행은 계속 별개다.
+- 회귀는 `tests/backend/real-node-recovery.test.mjs`의 여러 한국어 표기·잘못된 직접 완료 교정·Canvas 배치 확인과 `tests/backend/confirmed-e2e.test.mjs`의 HTTP→프론트 확정 카드·자산 수신을 사용한다. 실제 Gemini/Render/브라우저 실사용은 별도로 검증해야 한다.
