@@ -117,3 +117,38 @@ test('node creation cannot terminate after defining a Skill without actually add
  assert.ok(stages.includes('hallwayReturn'));
  assert.equal(assets.read({scope:'room'}).blocks.length,1);
 });
+
+test('actual scheduler carries failed node request into a follow-up and creates the missing Canvas Block',async()=>{
+ const assets=createMemoryAssets(),sessions=createMemorySessions(),checkpoints=createMemoryCheckpoints();
+ const stages=[];let invalidCount=0;
+ const caller={generate:async ({layer,context:c})=>{
+  stages.push({layer,context:c});
+  if(layer==='gate')return reply({need:[]});
+  if(layer==='hallwayInitial'){
+   const words=c.userRequest.parts.map(p=>p.text??'').join('');
+   if(words.includes('만들어보라니까')){
+    assert.equal(c.unresolvedRequest.request.parts[0].text,'식물을 조사하는 노드를 만들어봐');
+    return reply(plan);
+   }
+   return reply({plan:[{canvasEdit:{objective:'Try impossible action',need:[]}},{terminate:{objective:'finish',need:[]}}],contextBlock:context});
+  }
+  if(layer==='workshop'){
+   if(c.objective==='Try impossible action'){invalidCount++;return reply({action:'createNode',args:{}});}
+   const applied=c.verifiedResults.filter(x=>x.outcome?.status==='applied');
+   if(c.workshop==='skillDefine')return reply(applied.some(x=>x.action==='defineDirect')?{done:true}:{action:'defineDirect',args:{definition}});
+   if(c.workshop==='canvasEdit')return reply(applied.some(x=>x.action==='addBlock')?{done:true}:{action:'addBlock',args:{skillId:c.assets.skills[0].id,x:80,y:80}});
+  }
+  if(layer==='output')return reply({languageBlock:'식물 조사 노드를 캔버스에 배치했어.',contextBlock:{intent:context.intent,progress:'완료'},contextData:data});
+ }};
+ const composer={compose:async x=>x},engine=createRequestEngine({composer,modelCaller:caller,dataProvider:createMemoryDataProvider({assets}),workshopExecutor:createWorkshopExecutor({composer,modelCaller:caller,assets}),checkpoints});
+ const scheduler=createRequestScheduler({sessions,registry:createRequestRegistry(),execute:(r,o)=>engine.run(r,o)});
+ const first=await scheduler.enqueue({roomId:'room',request:draft('식물을 조사하는 노드를 만들어봐').request,initialResources:[],contextData:data}).completion;
+ assert.equal(first.status,'failed');
+ assert.equal(first.error.code,'UNSUPPORTED_ACTION');
+ assert.equal(invalidCount,2);
+ const next=await scheduler.enqueue({roomId:'room',request:draft('만들어보라니까?').request,initialResources:[],contextData:data}).completion;
+ assert.equal(next.status,'completed');
+ assert.equal(next.result.languageBlock,'식물 조사 노드를 캔버스에 배치했어.');
+ assert.equal(assets.read({scope:'room'}).blocks.length,1);
+ assert.deepEqual(sessions.load({scope:'room'}).history.map(x=>x.status),['failed','completed']);
+});
