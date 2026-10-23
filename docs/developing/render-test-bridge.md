@@ -44,3 +44,8 @@ npm test
 node --test tests/frontend/*.test.mjs
 ```
 일부 브라우저 중심 프론트 테스트는 Chromium/Playwright 사용 환경이 필요하다. Node의 백엔드 테스트 통과만으로 실제 모바일 브라우저 또는 Render Gemini 실호출 검증을 주장하지 않는다.
+
+## 기존 main 주소에서 beta를 띄웠을 때의 서비스워커 전환
+- 기존 main의 `front/js/boot.js`는 `/api/version`을 호출하고 `/sw.js`를 등록한다. beta 엔진은 `/api/version`을 구현하지 않고 실험 API에 `OVLL_TEST_TOKEN` 검사를 적용하므로 옛 스크립트가 실행되면 401이 나며, 옛 `ui.js`/`ovllPresence.js`/`app.js`는 beta의 HTML에 없는 DOM 요소를 찾으려다 실패한다.
+- main `front/sw.js`의 `ovll-shell-*` CacheStorage가 같은 origin에 남은 경우 beta HTML/JS와 옛 파일이 섞일 수 있다. `beta/front/sw.js`는 **전환용 1회성 서비스워커**: 설치→즉시 활성화→오래된 `ovll-shell-*` 캐시만 삭제→자신을 등록 해제→동일 origin의 열려 있는 창을 새로고침한다. beta 자체는 서비스워커를 등록하지 않는다. 별도 Render beta 서비스/URL 사용을 우선 권장한다.
+- 확인 기준: beta `front/index.html`은 `./js/boot.js`를 ES module로 로드한다. 버전 API 체크 및 옛 Astra UI는 포함하지 않는다. 실제 Render에서 서비스워커 갱신 결과는 별도로 확인해야 한다.
