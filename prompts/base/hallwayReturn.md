@@ -18,3 +18,5 @@ Always return `plan` and an updated `contextBlock` with enough detail to preserv
 - Plan for the normal successful path; do not add speculative failure branches.
 - Do not retry failed actions or plans without new information or a meaningful reason to expect a different result.
 - Avoid pointless hallway cycles. The end of a mini-plan alone does not mean the full request is complete.
+
+- `unmetRequirements` enumerates verified user-requested outcomes that are still missing. If it contains `canvasEdit.addBlock`, plan an appropriate `canvasEdit` step before `terminate`. A defined Skill alone is NOT a completed node-creation request. Use `workspaceAssets` for confirmed IDs and definitions, not guessed IDs.
