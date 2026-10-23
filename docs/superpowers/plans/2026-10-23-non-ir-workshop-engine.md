@@ -104,3 +104,8 @@
 - [ ] Validate command syntax, test asset read-after-write and repeated operation through HTTP.
 - [ ] Sync docs only with verified implementation, explicitly noting volatile runtime and unverified external Gemini/Render.
 - [ ] Review diff and commit.
+
+## 실행 확인 기록 (2026-10-23)
+- 설계·제품 코드·테스트는 beta에 반영함. JS 동등 환경에서 기존/신규 로직 시나리오 27개 통과.
+- **검증 미완료:** Node의 저장소 전체 `npm test`, 실제 HTTP/브라우저 상호작용, 실 Gemini 호출, Render 배포. 이 항목들은 미검증 상태로 유지하고 완료 판정을 과장하지 않는다.
+- 메모리 포트의 revision/CAS·중복 실행 제약은 확인했으며 DB 영속화, 정식 사용자 인증, IR 실행은 구현 범위 밖이다.
