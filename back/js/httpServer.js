@@ -6,7 +6,7 @@ import {timingSafeEqual} from 'node:crypto';
 
 const MIME={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json; charset=utf-8','.webmanifest':'application/manifest+json','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.ico':'image/x-icon'};
 const json=(res,code,payload)=>{res.writeHead(code,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});res.end(JSON.stringify(payload));};
-const safeRecord=r=>r&&({roomId:r.roomId,requestId:r.requestId,status:r.status,currentLayer:r.currentLayer,...(r.result?{result:r.result}:{}),...(r.error?{error:r.error}:{}),...(r.plan?{plan:r.plan}:{}),...(r.handoff?{handoff:r.handoff}:{}),...(r.waiting?{waiting:r.waiting}:{}),...(r.verifiedResults?{verifiedResults:r.verifiedResults}:{} )});
+const safeRecord=r=>r&&({roomId:r.roomId,requestId:r.requestId,status:r.status,currentLayer:r.currentLayer,...(r.result?{result:r.result}:{}),...(r.error?{error:r.error}:{}),...(r.plan?{plan:r.plan}:{}),...(r.planCursor!==undefined?{planCursor:r.planCursor}:{}),...(r.handoff?{handoff:r.handoff}:{}),...(r.waiting?{waiting:r.waiting}:{}),...(r.verifiedResults?{verifiedResults:r.verifiedResults}:{} )});
 /** Beta-only shared test token: explicitly set OVLL_TEST_TOKEN takes priority. */
 export const resolveTestToken=(env=process.env)=>env.OVLL_TEST_TOKEN||'abcd';
 const sameString=(a,b)=>{
@@ -82,6 +82,16 @@ export function createRequestHttpServer({scheduler,assets,sessions,testToken,fro
      const job=scheduler.enqueue(input);activeCount++;
      job.completion.then(()=>{activeCount--;},()=>{activeCount--;});
      return json(res,202,{roomId:job.roomId,requestId:job.requestId,status:'queued'});
+    }
+    const callMatch=/^\/api\/requests\/([a-zA-Z0-9._-]+)\/calls$/.exec(pathname);
+    if(callMatch&&req.method==='GET'){
+      const roomId=url.searchParams.get('roomId');
+      if(typeof roomId!=='string'||!/^[a-zA-Z0-9._-]{1,100}$/.test(roomId))return json(res,400,{error:'INVALID_ROOM'});
+      if(!scheduler.get(roomId,callMatch[1]))return json(res,404,{error:'REQUEST_NOT_FOUND'});
+      if(typeof scheduler.listCalls!=='function')return json(res,501,{error:'CALL_HISTORY_UNAVAILABLE'});
+      const calls=scheduler.listCalls({roomId,requestId:callMatch[1]}).slice(-100)
+        .map(({callId,path,route,status})=>({callId,path,route,status}));
+      return json(res,200,{roomId,requestId:callMatch[1],calls});
     }
     const match=/^\/api\/requests\/([a-zA-Z0-9._-]+)$/.exec(pathname);
     if(match&&req.method==='GET'){
