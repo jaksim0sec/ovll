@@ -38,9 +38,9 @@
 - 작성 규칙 원문: `prompts/blocks/contextBlockUpdate.md`, `prompts/blocks/contextDataUpdate.md`.
 
 ## 2026-10-23 부분 구현 기록
-- `back/js/request/scheduler.js`는 roomId별 맥락데이터와 최근 완료 요청 8개의 원문·맥락체·맥락데이터를 **메모리**에 보관한다. 요청이 큐에서 실제 실행될 때 최신 맥락을 주입하며, 완료 후에만 세션을 갱신한다. 실패·미지원 계획은 세션 성공으로 기록하지 않는다.
+- `back/js/request/memorySessions.js`는 roomId별 맥락데이터와 최근 완료 요청 8개의 원문·오블의 실제 답변·검증 행동·맥락체·맥락데이터를 **메모리**에 보관하고 `scheduler.js`가 이를 주입받는다. 요청이 큐에서 실제 실행될 때 최신 맥락을 주입하며, 완료 후에만 세션을 갱신한다. 실패·미지원 계획은 세션 성공으로 기록하지 않는다.
 - `back/js/engine/dataProvider.js`의 `originalReq`와 `chatContext`는 위 완료 기록으로 해결된다. 범위를 벗어난 기록은 `DATA_UNAVAILABLE`로 처리하고 실제로 없는 기록을 생성하지 않는다.
-- 현재 `contextBlock`은 요청마다 생성·보관되지만 세션 기록의 일부로 활용되는 범위만 확인됐다. 서버 생성 `focus`와 Hallway Return/Output, DB 동시성 정책은 이 단계에 포함되지 않는다.
+- 요청별 `contextBlock`은 Hallway Initial·Return·Output과 체크포인트에서 유지한다. `focus`는 Workshop/Output 등 호출별 임시 입력에 생성하지만 모든 계층에서 완전히 통일된 서버 생성 정책은 여전히 개선 대상이다. DB 동시성·영속성은 없다.
 
 ## 2026-10-23 Workshop 연결
 - 최초 Hallway에서 생긴 `contextBlock`은 개별 요청의 체크포인트와 함께 유지하며, Hallway Return과 Output이 실제 검증 결과를 보고 갱신한다. `focus`는 호출 인수에 일시적으로 결합되며 persistent contextBlock에는 넣지 않는다.
@@ -48,3 +48,5 @@
 
 ## 서버 방 맥락 포트 분리 보강
 - `back/js/request/memorySessions.js`의 `createMemorySessions()`가 `load({scope,initialContext?})`와 `commit({scope,expectedRevision,requestId,request,contextBlock,contextData})`를 제공한다. 완료된 요청만 최근 8개 이력에 기록하고 방별 revision을 검사한다. Scheduler는 이 인터페이스를 의존성으로 주입받으며, 향후 DB 저장 어댑터와 교체할 수 있다. DB 영속 저장 자체는 아직 없다.
+
+- 최근 완료 대화 최대 4개를 `recentConversation`으로 Gate·Hallway에 주입한다. 사용자 요청 본문과 assistantResponse를 그대로 근거로 삼으며, 이전 assistant의 언어적 약속은 `verifiedResults`의 자산 적용 사실로 격상하지 않는다. 짧은 승인 발화는 해당 맥락을 참조한다.
