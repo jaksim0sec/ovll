@@ -14,3 +14,7 @@
 - 작업실별 공통·전용 프롬프트 파일만 조립, 다른 행동의 instruction을 한꺼번에 넣지 않음. `CallManager`는 요청의 맥락체를 복사해 이번 호출에만 `focus`를 추가, 원본에 누적 저장 안 함.
 - 지원 행동: `skillDefine.defineDirect`, `canvasEdit.addBlock`; 10개 미지원 행동은 Action Shell로 종료. 한 저장 Skill과 배치된 Block은 별개이며 Skill 저장을 실제 사용자 조사의 완료라고 서술하지 말 것.
 - 기존 폐기 `base/workshop.md`, `blocks/workshopActions.md`, 단일 JSON 행동 실행 프롬프트는 다시 만들지 않는다.
+
+## Gemini REST 도구 스키마 확인 (2026-10-24)
+- 고정 필드인 `define_direct`는 `FunctionDeclaration.parameters`(OpenAPI Schema)를 사용. 동적 필드별 문자열 값이 들어가는 `add_block.values`는 `parametersJsonSchema`(JSON Schema의 `additionalProperties:{type:'string'}`)를 사용한다. Google API에서 둘은 상호 배타적인 필드이며 어댑터는 둘 중 하나만 전송한다.
+- `toolConfig.functionCallingConfig={mode:'ANY',allowedFunctionNames:[selectedToolName]}`와 함수 선언 1개로 제한. REST fake-transport 검증을 통과했으나 실 Gemini 연결 성공의 증거는 아니다.

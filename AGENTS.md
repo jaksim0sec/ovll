@@ -140,3 +140,5 @@
 - `front/js/workspace/requestBridge.js`는 완료 뒤 확정 자산을 다시 가져오며 `workspace/controller.js:applyServerAssets`는 로컬 provisional 그래프가 변경되었으면 덮어쓰지 않는다. 실제 DB 동기화/브라우저 실검증은 미구현 또는 미검증.
 - 활성 조립형 프롬프트: `prompts/manifest.json`에 `workshop.skillDefine.defineDirect`, `workshop.canvasEdit.addBlock` 추가. 다른 행동 프롬프트를 전체 주입하지 않는다.
 - CI fake provider 테스트 성공과 **실제 Gemini/Render/Playwright 성공은 구분**해서 보고. 프로세스 메모리 저장은 재시작 시 전부 휘발. `main`은 변경 금지.
+
+- Gemini 도구 스키마: `define_direct`는 `parameters`, 동적 Block `values`를 받는 `add_block`은 API가 지원하는 `parametersJsonSchema`로 선언. 상호 배타적으로 한 가지만 보낸다. 자세한 계약은 `docs/developing/prompt-composition.md`.
