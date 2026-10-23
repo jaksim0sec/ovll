@@ -38,7 +38,7 @@ export function createRequestEngine({composer,modelCaller,dataProvider,workshopE
  async function call(layer,context){
   const prompt=await composer.compose(layer,{languageSettings:'',interfaceSyntax:''});
   const response=await modelCaller.generate({layer,prompt,context,format:'json'});
-  try{return JSON.parse(response.jsonText);}catch{throw invalid();}
+  try{return JSON.parse(response.jsonText);}catch{throw Object.assign(invalid(),{detail:layer+': invalid JSON returned by model'});}
  }
  function resolved({roomId,requestId,need,resources,request,contextData,chatHistory}){
   return dataProvider.resolveNeed({roomId,requestId,need,availableResources:resources,request,contextData,chatHistory});
@@ -114,7 +114,7 @@ export function createRequestEngine({composer,modelCaller,dataProvider,workshopE
    }
   }catch(error){
    const failedAt=state.stage;
-   if(state.stage==='output'||error.code==='UNSUPPORTED_ACTION'||error.code==='ENGINE_BUDGET_EXCEEDED'){
+   if(state.stage==='output'||error.code==='UNSUPPORTED_ACTION'||error.code==='ENGINE_BUDGET_EXCEEDED'||error.code==='WORK_NOT_APPLIED'){
     if(state.stage==='output')state.failedStage='output';
     state.stage='failed';try{write(state);}catch{}
    }
@@ -129,9 +129,16 @@ export function createRequestEngine({composer,modelCaller,dataProvider,workshopE
   const resources=requireLookup(await resolved({roomId:snapshot.roomId,requestId:snapshot.requestId,need:gate.need,resources:initialResources,request,contextData,chatHistory}));
   onStage('hallwayInitial');
   const requiresWork=workIntent(request,chatHistory);
-  let reply=await call('hallwayInitial',{userRequest:request,contextData,resources,recentConversation,requiresVerifiedWork:requiresWork});
+  let reply;
+  let retried=false;
+  try{reply=await call('hallwayInitial',{userRequest:request,contextData,resources,recentConversation,requiresVerifiedWork:requiresWork});}
+  catch(error){
+    if(error?.code!=='ENGINE_OUTPUT_INVALID')throw error;
+    retried=true;
+    reply=await call('hallwayInitial',{userRequest:request,contextData,resources,recentConversation,requiresVerifiedWork:requiresWork,correction:'Return a single valid JSON object with exactly plan+contextBlock or languageBlock+contextBlock+contextData. Use an actual Workshop plan for Skill/Canvas mutations.'});
+  }
   // One corrective model call, never accept a promise as evidence of a mutation.
-  if((requiresWork&&finalValid(reply))||(!finalValid(reply)&&(!exact(reply,['plan','contextBlock'])||!planValid(reply.plan)||!blockValid(reply.contextBlock)))){
+  if(!retried&&((requiresWork&&finalValid(reply))||(!finalValid(reply)&&(!exact(reply,['plan','contextBlock'])||!planValid(reply.plan)||!blockValid(reply.contextBlock))))){
     const reason=requiresWork&&finalValid(reply)?'This request requires an actual verified Workshop action. A promise or acknowledgment is NOT completion.':'Return exactly one valid shape: languageBlock+contextBlock+contextData OR plan+contextBlock; all required fields must be present.';
     reply=await call('hallwayInitial',{userRequest:request,contextData,resources,recentConversation,requiresVerifiedWork:requiresWork,correction:reason});
   }
