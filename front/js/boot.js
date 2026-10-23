@@ -12,7 +12,7 @@ const root=document.querySelector('#app');
 const status=document.querySelector('#boot-status');
 const lifetime=new AbortController();
 let input,theme,releaseTheme,data,shell,pages,hosted,workspaceController,libraryController,requestBridge;
-let disposed=false,closePromise=null;
+let disposed=false,closePromise=null,latestAssets=null;
 const validPages=new Set(['workspace','library']);
 let applyingRoute=true;
 function readRoute(){
@@ -84,7 +84,11 @@ try{
   requestBridge=createRequestBridge({
     onRecords:records=>workspaceController?.setConfirmedChatRecords(records),
     onActivities:items=>workspaceController?.setRequestActivities(items),
-    onAssets:assets=>workspaceController?.applyServerAssets(assets),
+    onAssets:assets=>{
+      latestAssets=assets;
+      workspaceController?.applyServerAssets(assets);
+      libraryController?.setConfirmedItems(assets.skills.map(skill=>({id:skill.id,title:skill.name,kind:'서버 확정 스킬 · v'+skill.revision,detail:skill.description})));
+    },
     onAccepted:()=>{try{if(hosted?.hasSlide('chat'))hosted.goTo('chat');}catch(error){console.warn('Unable to show chat slide',error);}}
   });
   workspaceController=await createWorkspace({
@@ -101,6 +105,7 @@ try{
     workspaceController.activate({signal,controller});
   },onLeave:()=>workspaceController.deactivate()});
   libraryController=createLibraryPage();
+  if(latestAssets)libraryController.setConfirmedItems(latestAssets.skills.map(skill=>({id:skill.id,title:skill.name,kind:'서버 확정 스킬 · v'+skill.revision,detail:skill.description})));
   const library=libraryController.element;
   const librarySlide=document.createElement('div');librarySlide.className='library-slide';
   librarySlide.append(library.firstElementChild);
