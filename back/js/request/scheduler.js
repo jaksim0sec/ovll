@@ -1,14 +1,14 @@
+import {createMemorySessions} from './memorySessions.js';
 /** One queue shared by independent request records. */
-export function createRequestScheduler({registry,execute,resume,retryOutput,maxConcurrent=1} = {}) {
+export function createRequestScheduler({registry,execute,resume,retryOutput,sessions=createMemorySessions(),maxConcurrent=1} = {}) {
   if (!registry?.register || !registry?.get || !registry?.transition || typeof execute !== 'function' || !Number.isSafeInteger(maxConcurrent) || maxConcurrent<1)
     throw new TypeError('Invalid scheduler dependencies');
-  const queue=[],idleWaiters=[],rooms=new Map(),resuming=new Set();let running=0;
+  const queue=[],idleWaiters=[],resuming=new Set();let running=0;
   const clone=value=>structuredClone(value);
   // Session memory lives on the server, not in each browser request. FIFO ensures
   // queued requests observe the last confirmed completion at execution time.
   function session(roomId,initialContext){
-    if(!rooms.has(roomId))rooms.set(roomId,{contextData:clone(initialContext??{overallFlow:'',currentTopic:'',details:''}),history:[]});
-    return rooms.get(roomId);
+    return sessions.load({scope:roomId,initialContext});
   }
   const publicCodes=new Set(['MODEL_ERROR','MODEL_AUTH','MODEL_RATE_LIMIT','MODEL_NETWORK','MODEL_INVALID_RESPONSE','DATA_UNAVAILABLE','ENGINE_OUTPUT_INVALID','UNSUPPORTED_DATASET','UNSUPPORTED_ACTION','ENGINE_BUDGET_EXCEEDED','CHECKPOINT_CONFLICT']);
   const messageFor=code=>({MODEL_AUTH:'Model authentication failed',MODEL_RATE_LIMIT:'Model rate limit exceeded',MODEL_NETWORK:'Model connection failed',DATA_UNAVAILABLE:'Required data unavailable',ENGINE_OUTPUT_INVALID:'Engine output validation failed',MODEL_INVALID_RESPONSE:'Invalid model response',UNSUPPORTED_DATASET:'Unsupported data request'})[code]||'Request execution failed';
@@ -30,9 +30,8 @@ export function createRequestScheduler({registry,execute,resume,retryOutput,maxC
           const updated=registry.transition(item.roomId,item.requestId,{status,currentLayer,contextBlock,
             ...(contextData===undefined?{}:{contextData}),...(answer===undefined?{}:{result:answer}),...(plan===undefined?{}:{plan}),...(waiting===undefined?{}:{waiting}),...(verifiedResults===undefined?{}:{verifiedResults}),...(error===undefined?{}:{error})});
           if(status==='completed'&&contextData!==undefined){
-            state.contextData=clone(contextData);
-            state.history.push(clone({requestId:item.requestId,request:snapshot.request,contextBlock,contextData}));
-            if(state.history.length>8)state.history.shift();
+            const saved=sessions.commit({scope:item.roomId,expectedRevision:state.revision,requestId:item.requestId,request:snapshot.request,contextBlock,contextData});
+            if(saved.status!=='committed')throw Object.assign(new Error('Session context conflict'),{code:'SESSION_CONFLICT'});
           }
           item.resolve(updated);
         } catch(e){
