@@ -22,9 +22,9 @@ test('production composition exposes confirmed Skill and Block through HTTP with
    }};
   }
  };
- const runtime=createBetaRuntime({modelCaller,composer:{compose:async()=> 'prompt'},testToken:'test'});
+ const runtime=createBetaRuntime({modelCaller,composer:{compose:async()=> 'prompt'},testToken:'test-secure-token-1234'});
  await new Promise(resolve=>runtime.server.listen(0,'127.0.0.1',resolve));
- const url='http://127.0.0.1:'+runtime.server.address().port,headers={authorization:'Bearer test','content-type':'application/json'};
+ const url='http://127.0.0.1:'+runtime.server.address().port,headers={authorization:'Bearer test-secure-token-1234','content-type':'application/json'};
  try{
   const post=await fetch(url+'/api/requests',{method:'POST',headers,body:JSON.stringify({
    roomId:'r',request:{parts:[{type:'text',text:'식물 조사 스킬블럭 만들어줘'}],attachments:[]},initialResources:[]
@@ -48,4 +48,17 @@ test('production composition exposes confirmed Skill and Block through HTTP with
   assert.equal(history.entries.length,1);
   assert.equal(history.entries[0].verifiedResults.length,2);
  }finally{await new Promise(resolve=>runtime.server.close(resolve));}
+});
+
+test('insecure default test token never enables actual asset mutations',async()=>{
+ const plan={plan:[{'skillDefine.defineDirect':{objective:'create',need:[]}},{terminate:{objective:'finish',need:[]}}],contextBlock:{intent:'create',progress:'planned'}};
+ const skill={name:'Unsafe',description:'Should never save',instruction:'Do not execute',
+  icon:'globe',color:'#4F8EF7',inputs:[],outputs:[],fields:[]};
+ const runtime=createBetaRuntime({testToken:'abcd',composer:{compose:async()=>''},modelCaller:{
+  generate:async ({layer})=>({jsonText:JSON.stringify(layer==='gate'?{need:[]}:plan)}),
+  generateFunction:async ({tool})=>({kind:'function_proposal',name:tool.name,args:skill})
+ }});
+ const result=await runtime.engine.submit({roomId:'room',initialResources:[],request:{parts:[{type:'text',text:'스킬 만들어줘'}],attachments:[]}}).completion;
+ assert.equal(result.status,'unsupported_workshop');
+ assert.equal(runtime.assets.read({scope:'room'}).skills.length,0);
 });
