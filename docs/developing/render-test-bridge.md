@@ -7,7 +7,7 @@
 - `OVLL_TEST_TOKEN` 기본값은 `abcd`. **기본값이나 16자 미만인 설정값은 실제 Workshop 자산 변경 비활성화**로 안전하게 제한. 강한 비공개 테스트 토큰을 명시 설정한 경우에만 `defineDirect/addBlock` 실행 가능. 토큰 길이 기준만으로 정식 사용자 인증·권한/비밀강도가 보장되는 것은 아니다.
 - `POST /api/requests` 접수 → `GET /api/requests/:id?roomId=...` 폴링. 완료시 `verifiedResults`, `planCursor`, `result.languageBlock` 반환. `GET /api/requests/:id/calls?roomId=...`는 callId·path·route·status 요약만 공개. `/api/rooms/:roomId/assets`는 실제 서버 저장 Skill/Block/Links/revision, `/history`는 완료 대화.
 - 예시 작업: `skillDefine.defineDirect → canvasEdit.addBlock → terminate`를 완료하고 Output, 각 action Call ID와 operation ID 별도. 기타 행동은 `unsupported_workshop` (이전에 적용된 부분 결과 보존).
-- 프론트 `requestBridge`는 완료 뒤 자산 재조회. `workspace.applyServerAssets`는 provisional 로컬 캔버스가 별도 수정됐으면 **덮어쓰지 않고** 충돌 경고.
+- 프론트 `requestBridge`는 완료 또는 실제 부분 적용이 확인된 미지원·실패 뒤 자산 재조회. `workspace.applyServerAssets`는 provisional 로컬 캔버스가 별도 수정됐으면 **덮어쓰지 않고** 충돌 경고.
 - 서버 자산·호출·대화는 **메모리 전용**, 재시작으로 사라짐. DB 영속화·실질 사용자별 auth·IR·일반 Hallway Return·질문/답변 연결·모든 행동 실행·실 Skill 연구 수행·다중 worker 미구현.
 - 백엔드 CI는 Node+fake Gemini 계약 검증, 브라우저 독립 프론트 단위 테스트 별도. 실제 Gemini REST 네트워크, Render 배포 후 API, Playwright/Android 모바일 기능은 별도 확인해야 함.
 

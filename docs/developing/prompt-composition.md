@@ -15,6 +15,7 @@
 - 지원 행동: `skillDefine.defineDirect`, `canvasEdit.addBlock`; 10개 미지원 행동은 Action Shell로 종료. 한 저장 Skill과 배치된 Block은 별개이며 Skill 저장을 실제 사용자 조사의 완료라고 서술하지 말 것.
 - 기존 폐기 `base/workshop.md`, `blocks/workshopActions.md`, 단일 JSON 행동 실행 프롬프트는 다시 만들지 않는다.
 
-## Gemini REST 도구 스키마 확인 (2026-10-24)
-- 고정 필드인 `define_direct`는 `FunctionDeclaration.parameters`(OpenAPI Schema)를 사용. 동적 필드별 문자열 값이 들어가는 `add_block.values`는 `parametersJsonSchema`(JSON Schema의 `additionalProperties:{type:'string'}`)를 사용한다. Google API에서 둘은 상호 배타적인 필드이며 어댑터는 둘 중 하나만 전송한다.
-- `toolConfig.functionCallingConfig={mode:'ANY',allowedFunctionNames:[selectedToolName]}`와 함수 선언 1개로 제한. REST fake-transport 검증을 통과했으나 실 Gemini 연결 성공의 증거는 아니다.
+## 모델 중립 행동 선언 및 공급자 변환 (2026-10-24)
+- `engine/actionDescriptors.js`는 `{name,description,inputSchema}`의 **모델 중립 도구 명세**를 보유한다. 고정 입력과 동적 Block values 모두 JSON Schema를 사용하며 엔진 코드에 Gemini의 `parameters`/`parametersJsonSchema` 필드를 넣지 않는다.
+- `model/gemini.js`가 `tool.inputSchema`를 `FunctionDeclaration.parametersJsonSchema`로 변환해 REST 전송. 과거 모델 포트 호출 형태는 임시 호환으로 지원하되 신규 엔진 작업실 명세에서는 사용하지 않는다. `ANY`, `allowedFunctionNames:[selectedToolName]`, 선언 1개 규칙 유지.
+- Google API 전송 형식과 내부 도메인 유효성 검사는 별개. 응답 도구명·함수 개수 확인 뒤에도 서버의 `validateArgs`와 ActionStore 적용 검증이 필요하다. 실 Gemini REST 요청 성공은 CI fake-provider 시험과 별도.

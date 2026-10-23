@@ -5,78 +5,15 @@
 - 작업 브랜치: `beta`. `main` 수정·병합·배포는 사용자 명시 승인 전 금지.
 - 대상: 웹/PWA. 네이티브·모바일 전용 프로젝트 임의 추가 금지.
 
-## 파일 구조
-
-아래는 `beta` 브랜치의 실제 추적 파일 기준 구조다. 역할 설명은 현재 구현과 구분하며, 파일 추가·삭제 시 현행 트리를 다시 확인한다.
-
-```text
-/
-├── AGENTS.md
-├── package.json                     # Render beta Node ESM 시작·테스트 명령
-├── render.yaml                      # beta 전용 Render Web Service Blueprint
-├── assets/svg/                     # 현재 .gitkeep만 존재
-├── back/js/                        # request/{registry,scheduler}, engine/{promptComposer,dataProvider,engine}, model/gemini, demo.js, httpServer.js, server.js
-├── docs/
-│   ├── VISION.md
-│   ├── developing/
-│   │   ├── architecture.md
-│   │   ├── context.md
-│   │   ├── frontend-data.md
-│   │   ├── frontend-global.md
-│   │   ├── frontend-runtime-and-hosted-swipes.md
-│   │   ├── frontend-workspace.md
-│   │   ├── prompt-composition.md
-│   │   ├── request-engine.md
-│   │   ├── render-test-bridge.md
-│   │   └── workshops.md
-│   ├── notes/
-│   │   ├── frontend-backend-handoff.md
-│   │   └── request-state-sync.md
-│   └── superpowers/plans/
-│       ├── 2026-10-17-beta-hosted-slides.md
-│       └── 2026-10-17-beta-runtime-foundation.md
-├── front/
-│   ├── index.html
-│   ├── manifest.webmanifest
-│   ├── vercel.json
-│   ├── html/                        # 현재 .gitkeep만 존재
-│   ├── css/
-│   │   ├── base.css
-│   │   ├── canvas.css
-│   │   ├── mascot.css
-│   │   ├── composer.css
-│   │   ├── hostedSlides.css
-│   │   ├── shell.css
-│   │   └── workspace.css
-│   └── js/
-│       ├── boot.js
-│       ├── canvas/                 # controller.js, files.js, geometry.js
-│       ├── composer/               # controller.js, draft.js
-│       ├── data/localDataStore.js
-│       ├── mascot/                # actor.js, canvasScene.js
-│       ├── library/controller.js
-│       ├── input/inputManager.js
-│       ├── settings/theme.js
-│       ├── shell/                  # appShell.js, hostedSlides.js,
-│       │                           # pageHost.js, viewportMotion.js
-│       ├── skill/catalog.js
-│       └── workspace/              # chat.js, controller.js, dataAccess.js,
-│       │                           # icons.js, model.js, requestInput.js, requestBridge.js
-├── prompts/
-│   ├── base/                       # hallwayInitial, hallwayReturn, gate, output
-│   ├── blocks/                     # contextBlockUpdate, contextDataUpdate,
-│   │                               # informationRequest, languageGeneration,
-│   │                               # planGeneration
-│   ├── common/                     # concepts.md, json.md
-│   └── manifest.json
-└── tests/
-    ├── backend/                    # request, engine, Gemini, Render HTTP/Chat 시험
-    └── frontend/                   # canvas, composer, hosted, input, shell,
-                                    # theme, viewport, workspace 관련 *.test.mjs
-```
+## 파일 구조 (현재 주요 실행 파일)
+- 백엔드: `back/js/engine/{engine,requestRunner,callManager,actionDescriptors,actionShell,dataProvider,promptComposer}.js`, `back/js/request/{registry,callRegistry,scheduler,memorySessions}.js`, `back/js/model/{gemini,configuredGemini}.js`, `back/js/assets/memoryActionStore.js`, `back/js/{runtime,server,httpServer}.js`.
+- 프론트: `front/js/workspace/{controller,model,requestBridge,dataAccess}.js`, `front/js/skill/catalog.js`, 그 밖의 `front/js/{canvas,composer,library,shell,input,data,mascot,settings}` 기능별 디렉터리.
+- 프롬프트: `prompts/manifest.json`, `prompts/{base,blocks,common}`. 실행 계층은 Gate/Hallway/Output 및 **지원하는 행동 두 개의 전용 Workshop 프롬프트**.
+- 문서: `docs/developing/`은 실제 동작, `docs/notes/`는 미결 논의, `docs/superpowers/{specs,plans}/`는 시기별 설계·계획, `docs/VISION.md`는 제품 비전.
+- 검증: `tests/backend/`는 Node 통합/계약, `tests/frontend/`는 UI/로컬 그래프. 파일을 수정하기 전에 현재 트리를 확인한다.
 
 ## 경로와 역할
-- `back/`: 백엔드. `back/js/`는 서버·API·요청 처리 로직(JS)을 책임에 따라 분리할 위치. **Gate → Hallway Initial → 선택 행동 Action Shell 엔진 + Render 시험 HTTP 서버 구현**. 서버는 `back/js/server.js`에서 `front/`와 `/api/requests`를 함께 제공하며 Chat 폴링으로 진행을 표시한다. SSE·DB·정식 사용자 인증·IR은 아직 없음. 기존 비IR Workshop 실행기·자산 변경기는 폐기. 행동 실행·Function Calling은 미구현.
+- `back/`: 관리형 다중 요청 Engine, Call Manager, 요청별 Runner, 행동 검증, 임시 자산 저장소 및 Render 테스트 HTTP 서버. `skillDefine.defineDirect`·`canvasEdit.addBlock`만 실제 실행한다. 지원하지 않는 행동은 명시적으로 중단. SSE·DB·정식 사용자 인증·IR·일반 Hallway Return은 아직 없음. 과거 비IR Workshop 실행기는 폐기 상태 유지.
 - `front/`: 웹/PWA 정적 배포 루트. `index.html`은 현재 진입 파일이며 `manifest.webmanifest`, `vercel.json`은 배포·PWA 설정. 필수 루트 파일 외 앱 코드·일반 스타일을 루트에 쌓지 말 것.
 - `front/html/`: 별도 HTML 문서·페이지 구조용 위치. **현재 구현 파일 없음**. 실제 화면 구조는 `front/index.html`에도 존재하므로 이전을 임의 강제하지 말 것.
 - `front/js/`: 부팅(`boot.js`), 셸·페이지 호스트(`shell/`), 캔버스(`canvas/`), 컴포저(`composer/`), 워크스페이스(`workspace/`), 라이브러리(`library/`), 스킬 목록(`skill/`), 로컬 데이터(`data/`), 입력(`input/`), 테마(`settings/`) 등 프론트 로직. 기능 변경 시 해당 영역의 실제 코드와 경계를 확인.
@@ -111,39 +48,21 @@
 
 **개발 진행 과정에서의 변화로 AGENTS.md에 수정이 필요하다 판단될 경우, 유저에게 명확히 알릴 것.**
 
-## 2026-10-23: Action Shell 도입 기록 (2026-10-24 현행 사항은 아래)
-- **현재 유효 구조:** Gate → Hallway Initial(정확한 행동 이름으로 plan 생성) → Action Shell(첫 행동 껍데기 진입 및 미구현 상태 보고). 계획된 행동은 실행하지 않음.
-- Plan key 예: `skillDefine.defineDirect`, `canvasEdit.addBlock`, `skillEdit.editAppearance`, `textGenerate.question`. `terminate`는 제어 표식. 범주 이름만으로 된 `skillDefine`/ `canvasEdit` 계획은 거부.
-- `back/js/engine/{engine,actionShell,promptComposer,dataProvider}.js` 사용. 과거 비IR Workshop의 `workshop.js`, `memoryAssets.js`, `checkpoints.js` 및 Workshop 전용 프롬프트·회귀 시험 제거. 실행 방법/도구 스키마는 추후 계약 확정 대상.
-- Action Shell은 어떤 Skill/Canvas 상태도 변경하지 않으며 Function Calling을 수행하지 않음. `status:unsupported_workshop`, `currentLayer:actionShell`, `handoff:{action,workshop,objective,need,status:not_implemented}`로 미구현 상태를 공개. **성공·적용 결과가 아님**.
-- `back/js/server.js`는 조회 전용 빈 자산 목록을 사용하여 Gate의 `skillList` 조회와 HTTP 자산 조회를 지원하되, 어떤 행동도 적용하지 않음. 이것은 영속 DB나 기존 Beta 자산 복원이 아님.
-- Gate/Hallway 직접 대화 분기 및 room 기반 완료 맥락 기록은 유지. Hallway Return, Output, IR 실행, 행동별 지침·네이티브 Function Calling·질문 응답의 실제 실행 연결은 이번 단계 미구현.
-- `AGENTS.md`의 이전 2026-10-23 비IR Workshop 연결 기록은 이 현행 구조로 대체됨. `main`은 손대지 않음.
-- 자동 검증: `npm test` (Node 22 CI). 실 Gemini·Render 브라우저 시험과 분리해서 보고.
+## 현재 실행 계약 (2026-10-24, beta)
 
-## 2026-10-24: 다중 요청 Engine · Call Manager (Stage 1 기록; 아래 Stage 2가 현행)
-- 제품 엔진은 `back/js/engine/engine.js`의 `createEngine()`. 한 요청 전용 Gate/Hallway 처리는 `requestRunner.js`에 분리했으며 `createRequestEngine`은 이전 단위테스트용 얇은 alias임. `server.js`는 `createEngine` 하나를 만들고 HTTP에 같은 인스턴스를 전달.
-- `request/scheduler.js`는 요청 FIFO와 최대 동시 요청 수를 관리(엔진 기본 3), `engine/callManager.js`는 별도 Gemini 모델 호출 동시 수를 관리(기본 2). 같은 요청의 Gate → Hallway → 첫 Action Shell은 순차적으로 진행. 여러 요청은 동시에 관리 가능.
-- `request/callRegistry.js`에 매 호출마다 고유 `callId`, 구조화 `route`, 파생 `callId.route`와 `queued/running/completed/failed/cancelled/unsupported` 이력을 관리. 각 Call은 `roomId`, `requestId`에 귀속되며 Gemini 호출 데이터·시스템 프롬프트를 CallRecord에 저장하지 않는다.
-- Call Manager는 호출마다 `contextBlock.focus`를 **임시 입력에만 추가**. 요청 원본 `contextBlock.intent/progress`와 방별 `contextData`의 수명을 유지.
-- `registry.transition(...,{expectedRevision})`으로 요청 revision 충돌을 검출할 수 있음. 같은 방의 확정 대화 맥락은 `memorySessions.commit(expectedRevision)`으로 CAS 확인 후 적용. 취소는 queued → stopped 또는 running → stopping → stopped로 전이; 늦은 모델 응답으로 취소 요청을 완료시키지 않음.
-- 계획 첫 행동은 `CallRecord`로 등록 후 `unsupported`으로 끝내며 `handoff.callId`와 `planCursor:0` 반환. 후속 행동, Function Calling, 자산 변경은 여전히 **미구현**.
-- `GET /api/requests/:id/calls?roomId=...`가 해당 요청의 최근 호출 기록 최대 100개 중 `callId,path,route,status`만 반환. 테스트용 공용 토큰은 사용자별 인증이 아니므로 프로덕션 격리 보장 불가.
-- 모두 프로세스 메모리 기반. 서버 재시작, 분산 워커, 영속 CallRecord/operationId, 실제 취소 가능한 Gemini 작업 수행은 이 단계의 보장 범위가 아님. 실제 Gemini·Render 환경/브라우저 실검증은 CI와 별도.
+**이 절이 현행 상태의 단일 기준이다.** 과거 Action Shell/Stage 1과 작업실 설계의 시기별 기록은 `docs/superpowers/{specs,plans}/`에 둔다. 이전 문서의 "현재" 표현이 이 절을 덮어쓰지 않는다.
 
-## 2026-10-24 현재: Native Function Calling Stage 2
-- 활성 **작업실 2행동만** `skillDefine.defineDirect`(완전 Skill 정의 저장), `canvasEdit.addBlock`(실제 Skill ID를 참조하는 Block 배치)으로 지원. 다른 10행동, IR/질문/일반 재계획은 미구현. 구 JSON `workshop.js` 복원 금지.
-- `back/js/model/gemini.js:generateFunction`은 `generateContent`의 `ANY` 도구 호출을 정확히 선택된 함수 하나로 제한하고 함수명/개수/args 구조를 검증한다. 반환 값은 **모델 제안**일 뿐 적용 성공 아님.
-- `engine/actionDescriptors.js`는 2행동 도구 정의·인수 검증. `assets/memoryActionStore.js`는 room별 Skill/Block 실자산, 원자적 expectedRevision, operationId 멱등성 및 실제 applied 아티팩트를 제공한다. 서버가 ID를 발급한다.
-- `requestRunner.js`: Hallway 행동 plan에 따라 두 행동을 호출, **적용 전 pendingOperation 체크포인트**, **적용 후 verifiedResults/planCursor 갱신**. `terminate` 후 `output` 호출. Output 실패 시 앞서 적용된 자산·기록 보존. 해당 Skill의 지침(실제 조사)은 여기서 실행하지 않는다.
-- `back/js/runtime.js`는 하나의 Store를 Engine, DataProvider, HTTP API에 공유. **기본 `OVLL_TEST_TOKEN=abcd` 또는 16자 미만이면 실행 포트 미주입** (이전 inert Action Shell 유지). 비공개 16자 이상 테스트 토큰만 변경 활성화. 공용 테스트 토큰은 정식 auth/테넌트 격리 수단 아님.
-- `front/js/workspace/requestBridge.js`는 완료 뒤 확정 자산을 다시 가져오며 `workspace/controller.js:applyServerAssets`는 로컬 provisional 그래프가 변경되었으면 덮어쓰지 않는다. 실제 DB 동기화/브라우저 실검증은 미구현 또는 미검증.
-- 활성 조립형 프롬프트: `prompts/manifest.json`에 `workshop.skillDefine.defineDirect`, `workshop.canvasEdit.addBlock` 추가. 다른 행동 프롬프트를 전체 주입하지 않는다.
-- CI fake provider 테스트 성공과 **실제 Gemini/Render/Playwright 성공은 구분**해서 보고. 프로세스 메모리 저장은 재시작 시 전부 휘발. `main`은 변경 금지.
+- **엔진:** `createEngine`이 다중 요청·FIFO 큐·상태·취소·호출 기록을 관리, `requestRunner`는 요청 하나의 Gate → Hallway Initial → 행동 → terminate/Output을 순차 처리한다. Gate/Hallway 직접 답변은 그대로 작동.
+- **호출:** 각 Gate/Hallway/Workshop/Output 모델 호출에 서로 다른 `callId`와 구조화 `route`; `contextBlock.focus`는 호출마다 임시 투영, `intent/progress`는 요청 수명, `contextData`는 room 수명. `requestId`, `callId`, `operationId` 혼동 금지.
+- **행동:** `skillDefine.defineDirect`는 Skill 정의를 서버 메모리에 저장, `canvasEdit.addBlock`은 확인된 Skill ID로 Block 배치. `terminate`는 엔진 제어 마커. 나머지 행동 10종, IR/Skill 자체 실행/일반 Hallway Return/질문 재개는 미구현.
+- **중립 계약:** `engine/actionDescriptors.js`의 도구는 공급자 중립 `inputSchema`(JSON Schema). `model/gemini.js`가 Gemini의 `parametersJsonSchema`로 변환한다. 모델의 함수 호출 제안은 실제 `assets.apply` 성공이 아니다.
+- **실제 적용:** 서버의 `memoryActionStore`만 임시 beta 자산·revision·멱등 operation 결과를 저장한다. 적용 전 `pendingOperation`, 적용 후 `verifiedResults/planCursor`를 기록한다. Output 실패 시 실제 변경은 그대로 남고 Output만 재시도 가능하다.
+- **프론트:** 성공 또는 부분 적용 뒤 서버 자산을 재조회한다. 로컬에서 따로 편집한 캔버스는 자동 덮어쓰기 금지, 충돌 경고. 자산이 저장됐어도 기존 로컬 그래프에 바로 표시되지 않을 수 있으므로 둘을 동일한 성공 기준으로 간주하지 않는다.
+- **현행 시험 값:** 요청 동시 슬롯 3, 모델 동시 호출 2, 행동 예산 24, 모델 호출 예산 40. 설정 가능한 초기 제한으로서 제품 불변 규칙으로 승격하지 않는다. `OVLL_TEST_TOKEN` 기본 `abcd` 또는 16자 미만은 행동 저장 비활성화. **토큰 길이는 신뢰할 수 있는 인증·사용자 격리 기준이 아니다.** 서버 상태는 재시작 시 휘발.
+- **검증:** Node fake-provider CI와 실제 Gemini API, Render 배포, Playwright/모바일 시험은 별도 근거다. 작업 중 테스트 통과를 서비스 동작 확인으로 표현하지 않는다. `main`은 변경 금지.
 
-- Gemini 도구 스키마: `define_direct`는 `parameters`, 동적 Block `values`를 받는 `add_block`은 API가 지원하는 `parametersJsonSchema`로 선언. 상호 배타적으로 한 가지만 보낸다. 자세한 계약은 `docs/developing/prompt-composition.md`.
-
-## 2026-10-24 Stage 2 안전 보강
-- `requestRunner`는 행동 계획을 실행하기 전에 **최대 24개** 제한을 적용. `CallManager`는 요청별 모델 호출 기본 **40회** 상한(`policy.maxModelCallsPerRequest`)을 Gate/Hallway/Workshop/Output에 공통 적용. 이는 모델 호출 동시성 상한(`policy.maxModelCalls`, 기본 2)과 별도.
-- 실패한 Output은 같은 요청 ID로 Output 모델 호출만 재시도한다. `verifiedResults`와 적용된 operation은 재사용하며 Skill·Block 변경을 반복하지 않는다. 성공한 재시도는 해당 요청의 실패 이력 1건을 완료 기록으로 대체하고 stale 오류 표시를 제거한다.
-- 이 단계의 TDD 회귀: 과도한 Hallway 계획/호출 예산 소진 방어, Output 첫 실패 후 재시도, 실제 적용 결과 보존 및 중복 자산 생성 방지. 기존 메모리/데모 한계와 그 외 행동 미구현 상태 유지.
+## 변경 전 반드시 구분할 사항
+- **사용자에게 합의된 원칙:** 엔진 독립성, 요청과 호출의 분리, 행동 단위 계획, 검증된 결과만 실제 성공, 원본 맥락 수명, 로컬 사용자 편집 보존.
+- **현재 코드에만 존재하는 선택:** 메모리 자산, 숫자로 된 큐/호출 상한, 공용 테스트 토큰과 16자 실행 게이트, 첫 두 행동만 실제 지원. **코드에 존재한다는 사실이 사용자의 영구 정책 승인을 뜻하지 않는다.**
+- **미확정 제품 정책:** 프론트 로컬/서버 캔버스의 최종 원본 및 병합 기준, 실서비스 인증·room 권한, 일반 Hallway Return/질문 대기의 단계 계약, 다음 행동 우선순위. 별도 설계 승인 전 임의 확정·대규모 구현하지 않는다. 논의 기록: `docs/notes/2026-10-24-engine-recovery-boundaries.md`.
+- 기존 범위의 재현 가능한 버그는 테스트 RED → 수정 GREEN → 전체 회귀로 고친다. **새 동작이나 정책은 Superpowers 설계 승인 → 계획 승인 → 코드 변경** 순서를 지킨다. `@Superpowers ㅇㅋ`를 아직 설명하지 않은 범위의 포괄적 승인으로 해석하지 않는다.

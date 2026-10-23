@@ -12,7 +12,7 @@
 `terminate`는 엔진 제어 마커, Function Calling 대상 아님.
 
 ## 행동별 계약
-- `back/js/engine/actionDescriptors.js`: `getActionDescriptor(qualifiedName)`이 지원 2행동의 `promptLayer`, 단 하나의 도구 선언, 인수 검증기를 제공. 미지원 이름은 `null`.
+- `back/js/engine/actionDescriptors.js`: `getActionDescriptor(qualifiedName)`이 지원 2행동의 `promptLayer`, 단 하나의 모델 중립 `inputSchema` 도구 선언, 인수 검증기를 제공. 미지원 이름은 `null`.
 - `skillDefine.defineDirect` → `define_direct`: `name/description/instruction/icon/color/inputs/outputs/fields`를 검증 후 독립 Skill 저장, 서버가 ID 발급. Icon은 현재 렌더러에 존재하는 지원 이름만. 재사용 지침을 저장할 뿐 웹검색/실제 조사 실행 아님.
 - `canvasEdit.addBlock` → `add_block`: `skillId/x/y/expanded/values`, **같은 room에 실제 존재하는 Skill**과 필드 제약 검증 후 별도 Block ID 발급. 직전 검증 결과의 실제 skillId를 다음 함수 인수로 전달.
 - 도구가 반환한 함수명·인수는 모델 제안. `ActionStore.apply`의 applied 결과만 실제 자산 변경. `operationId`/expected revision으로 멱등성·동시 수정 충돌 방어.
