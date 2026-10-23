@@ -50,3 +50,7 @@
 - `back/js/request/memorySessions.js`의 `createMemorySessions()`가 `load({scope,initialContext?})`와 `commit({scope,expectedRevision,requestId,request,contextBlock,contextData})`를 제공한다. 완료된 요청만 최근 8개 이력에 기록하고 방별 revision을 검사한다. Scheduler는 이 인터페이스를 의존성으로 주입받으며, 향후 DB 저장 어댑터와 교체할 수 있다. DB 영속 저장 자체는 아직 없다.
 
 - 최근 완료 대화 최대 4개를 `recentConversation`으로 Gate·Hallway에 주입한다. 사용자 요청 본문과 assistantResponse를 그대로 근거로 삼으며, 이전 assistant의 언어적 약속은 `verifiedResults`의 자산 적용 사실로 격상하지 않는다. 짧은 승인 발화는 해당 맥락을 참조한다.
+
+## 2026-10-23 실패 요청의 대화 연속성
+- memorySessions.recordFailure는 실패 원본 요청을 복구용 방 이력에 기록하지만 확정 contextData는 덮어쓰지 않는다.
+- Gate·Hallway는 직전 실패한 작업 및 검증된 완료 기록을 보고 '만들어보라니까?', '방금 말했잖아' 같은 재지시를 해석한다. 실패 사실을 완료 사실로 승격하지 않는다.
