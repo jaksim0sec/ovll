@@ -15,5 +15,39 @@ export function createGeminiCaller({apiKey,model,fetchImpl=globalThis.fetch}={})
     if(!jsonText)throw Object.assign(new Error('Gemini returned no JSON text'),{code:'MODEL_INVALID_RESPONSE'});
     return {jsonText};
   }
-  return Object.freeze({generate});
+
+  /** Return a proposal only. Tool execution belongs to the server, never this adapter. */
+  async function generateFunction({prompt,context,tool,signal}={}){
+    if(typeof prompt!=='string'||!prompt||!tool||typeof tool.name!=='string'||!/^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(tool.name)||
+       typeof tool.description!=='string'||!tool.description||!tool.parameters||typeof tool.parameters!=='object'||Array.isArray(tool.parameters))
+      throw new TypeError('Invalid function call contract');
+    const declaration={name:tool.name,description:tool.description,parameters:structuredClone(tool.parameters)};
+    const body={
+      systemInstruction:{parts:[{text:prompt}]},
+      contents:[{role:'user',parts:[{text:JSON.stringify(context??{})}]}],
+      tools:[{functionDeclarations:[declaration]}],
+      toolConfig:{functionCallingConfig:{mode:'ANY',allowedFunctionNames:[tool.name]}}
+    };
+    let response;
+    try{
+      response=await fetchImpl(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,{
+        method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':apiKey},body:JSON.stringify(body),signal
+      });
+    }catch{
+      throw Object.assign(new Error('Gemini transport unavailable'),{code:signal?.aborted?'MODEL_CANCELLED':'MODEL_NETWORK'});
+    }
+    if(!response?.ok){
+      const code=response?.status===429?'MODEL_RATE_LIMIT':[401,403].includes(response?.status)?'MODEL_AUTH':'MODEL_ERROR';
+      throw Object.assign(new Error('Gemini request unsuccessful'),{code});
+    }
+    let payload;
+    try{payload=await response.json();}catch{throw Object.assign(new Error('Gemini response unreadable'),{code:'MODEL_INVALID_RESPONSE'});}
+    const parts=payload?.candidates?.[0]?.content?.parts;
+    const found=Array.isArray(parts)?parts.filter(part=>part?.functionCall):[];
+    if(found.length!==1||found[0].functionCall.name!==tool.name||!found[0].functionCall.args||
+       typeof found[0].functionCall.args!=='object'||Array.isArray(found[0].functionCall.args))
+      throw Object.assign(new Error('Gemini function proposal invalid'),{code:'MODEL_INVALID_RESPONSE'});
+    return {kind:'function_proposal',name:tool.name,args:structuredClone(found[0].functionCall.args)};
+  }
+  return Object.freeze({generate,generateFunction});
 }

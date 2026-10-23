@@ -17,6 +17,11 @@ export function createConfiguredGeminiCaller({env=process.env,fetchImpl=globalTh
    if(selection!=='gemini')throw Object.assign(new Error('Beta prototype only supports Gemini'),{code:'MODEL_ERROR'});
    if(!apiKey)throw Object.assign(new Error('Gemini credentials not configured'),{code:'MODEL_AUTH'});
    return createGeminiCaller({apiKey,model,fetchImpl}).generate(call);
+  },
+  async generateFunction(call){
+   if(selection!=='gemini')throw Object.assign(new Error('Beta prototype only supports Gemini'),{code:'MODEL_ERROR'});
+   if(!apiKey)throw Object.assign(new Error('Gemini credentials not configured'),{code:'MODEL_AUTH'});
+   return createGeminiCaller({apiKey,model,fetchImpl}).generateFunction(call);
   }
  });
 }
