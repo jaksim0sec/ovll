@@ -14,7 +14,9 @@ export function createBetaRuntime({
  sessions=createMemorySessions(),
  testToken=resolveTestToken()
 }={}){
- const engine=createEngine({composer,modelCaller,dataProvider:createMemoryDataProvider({assets}),actionStore:assets,sessions});
+ // Mutating actions require an explicit, nontrivial private beta token. The legacy 'abcd' remains read-only.
+ const writable=typeof testToken==='string'&&testToken.length>=16&&testToken!=='abcd';
+ const engine=createEngine({composer,modelCaller,dataProvider:createMemoryDataProvider({assets}),actionStore:writable?assets:undefined,sessions});
  const server=createRequestHttpServer({scheduler:engine,sessions,assets,testToken});
  return Object.freeze({engine,assets,sessions,server});
 }
