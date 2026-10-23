@@ -59,6 +59,15 @@ export function createRequestHttpServer({scheduler,assets,testToken,frontRoot=pa
       catch{return json(res,409,{error:'REQUEST_NOT_WAITING'});}
       return json(res,202,{roomId:resumed.roomId,requestId:resumed.requestId,status:'running'});
     }
+    const retryMatch=/^\/api\/requests\/([a-zA-Z0-9._-]+)\/retry-output$/.exec(pathname);
+    if(retryMatch&&req.method==='POST'){
+      const body=await readJsonBody(req);
+      if(!body||typeof body.roomId!=='string'||! /^[a-zA-Z0-9._-]{1,100}$/.test(body.roomId))return json(res,400,{error:'INVALID_ROOM'});
+      const current=scheduler.get(body.roomId,retryMatch[1]);
+      if(current?.status!=='failed'||current.currentLayer!=='output')return json(res,409,{error:'OUTPUT_NOT_RETRYABLE'});
+      let job;try{job=scheduler.retryOutput(body.roomId,retryMatch[1]);}catch{return json(res,409,{error:'OUTPUT_NOT_RETRYABLE'});}
+      return json(res,202,{roomId:job.roomId,requestId:job.requestId,status:'running'});
+    }
     if(pathname==='/api/requests'&&req.method==='POST'){
      if(activeCount>=6)return json(res,429,{error:'QUEUE_BUSY'});
      const body=await readJsonBody(req);
