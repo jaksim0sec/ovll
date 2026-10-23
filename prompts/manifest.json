@@ -30,6 +30,12 @@
       "blocks/languageGeneration.md",
       "blocks/contextBlockUpdate.md",
       "blocks/contextDataUpdate.md"
+    ],
+    "workshop": [
+      "common/concepts.md",
+      "base/workshop.md",
+      "common/json.md",
+      "blocks/workshopActions.md"
     ]
   }
 }
