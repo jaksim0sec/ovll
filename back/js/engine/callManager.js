@@ -36,6 +36,31 @@ export function createCallManager({callRegistry=createCallRegistry(),composer,mo
    throw error;
   }finally{if(held)free();}
  }
+ async function invokeFunction({roomId,requestId,requestRevision=0,route,context={},tool,bindings={},signal}={}){
+  if(route?.layer!=='workshop'||!tool?.name||typeof modelCaller.generateFunction!=='function')
+   throw Object.assign(new Error('Native Workshop model port unavailable'),{code:'UNSUPPORTED_ACTION'});
+  const record=callRegistry.register({roomId,requestId,requestRevision,route});
+  const started=callRegistry.start({roomId,requestId,callId:record.callId});
+  const layer='workshop.'+route.workshop+'.'+route.action;
+  const frame=structuredClone(context);
+  frame.contextBlock={...(frame.contextBlock??{intent:'',progress:''}),focus:route.workshop+'.'+route.action};
+  let held=false;
+  try{
+   const prompt=await composer.compose(layer,bindings);
+   await slot(signal);held=true;
+   if(signal?.aborted)throw aborted();
+   const proposal=await modelCaller.generateFunction({prompt,context:frame,tool:structuredClone(tool),signal});
+   if(signal?.aborted)throw aborted();
+   if(proposal?.kind!=='function_proposal'||proposal.name!==tool.name)
+    throw Object.assign(new Error('Unexpected Workshop function proposal'),{code:'MODEL_INVALID_RESPONSE'});
+   callRegistry.finish({roomId,requestId,callId:record.callId,status:'completed',expectedRevision:started.revision});
+   return {callId:record.callId,proposal};
+  }catch(error){
+   const current=callRegistry.get({roomId,requestId,callId:record.callId});
+   if(current?.status==='running')callRegistry.finish({roomId,requestId,callId:record.callId,status:signal?.aborted?'cancelled':'failed',expectedRevision:current.revision});
+   throw error;
+  }finally{if(held)free();}
+ }
  async function enterAction({roomId,requestId,requestRevision=0,action,objective,need,resources}={}){
   const [workshop,name,...extra]=String(action).split('.');
   if(extra.length||!actionShell.accepts(action))throw Object.assign(new Error('Unknown Action'),{code:'UNSUPPORTED_ACTION'});
@@ -53,5 +78,5 @@ export function createCallManager({callRegistry=createCallRegistry(),composer,mo
  function cancelRequest({roomId,requestId}){
   for(const row of callRegistry.list({roomId,requestId}))if(row.status==='queued'||row.status==='running')callRegistry.cancel({roomId,requestId,callId:row.callId});
  }
- return Object.freeze({invoke,enterAction,cancelRequest,getCall:q=>callRegistry.get(q),listCalls:q=>callRegistry.list(q),callRegistry});
+ return Object.freeze({invoke,invokeFunction,enterAction,cancelRequest,getCall:q=>callRegistry.get(q),listCalls:q=>callRegistry.list(q),callRegistry});
 }
