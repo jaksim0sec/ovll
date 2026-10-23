@@ -2,9 +2,9 @@ import {prepareRequestInput} from './requestInput.js';
 
 const stageLabel=record=>{
  if(record.status==='queued')return '대기열에 등록됨';
- if(record.status==='running')return record.currentLayer==='hallwayInitial'?'Hallway · 응답 판단 중':'Gate · 필요한 정보 확인 중';
+ if(record.status==='running')return ({gate:'Gate · 필요한 정보 확인 중',hallwayInitial:'Hallway · 응답 판단 중',workshop:'Workshop · 작업 수행 중',hallwayReturn:'Hallway · 후속 작업 판단 중',output:'Output · 결과 정리 중'})[record.currentLayer]||'요청 처리 중';
  if(record.status==='unsupported_workshop')return 'Workshop 실행 단계는 아직 미구현';
- if(record.status==='failed')return '요청 처리 실패';
+ if(record.status==='failed')return record.currentLayer==='output'?'Output · 최종 응답 생성 실패':'요청 처리 실패';
  return '요청 처리 중';
 };
 const describeDraft=draft=>{
@@ -74,7 +74,7 @@ export function createRequestBridge({fetchImpl=globalThis.fetch,promptForToken=(
    void loadAssets(roomId).catch(()=>{});
    const applied=Array.isArray(next.verifiedResults)&&next.verifiedResults.some(x=>x.outcome?.status==='applied');
    const detail=(next.status==='failed'?diagnostic(next.error):'Workshop을 실행할 수 없습니다.')+(applied?' · 일부 자산 변경은 실제 적용됐어.':'');
-   report(requestId,stageLabel(next),detail);
+   activities.set(requestId,{requestId,label:stageLabel(next)+' · '+requestId.slice(0,8),detail:'요청: '+requestLabel(requestId)+' · '+detail,...(next.status==='failed'&&next.currentLayer==='output'?{retryOutput:true}:{})});
   }else{
    report(requestId,stageLabel(next),next.currentLayer||'queued');
    schedule(()=>poll(roomId,requestId));
@@ -108,6 +108,15 @@ export function createRequestBridge({fetchImpl=globalThis.fetch,promptForToken=(
   refresh();try{onAccepted();}catch{/* UI navigation must not undo server acceptance. */}schedule(()=>poll(roomId,payload.requestId));
   return {accepted:true};
  }
+ async function retryOutput({roomId,requestId}){
+   if(destroyed)return {accepted:false,message:'작업실이 닫혔어.'};
+   let response;
+   try{response=await fetchImpl('/api/requests/'+encodeURIComponent(requestId)+'/retry-output',{method:'POST',headers:{'content-type':'application/json',...authHeaders()},body:JSON.stringify({roomId}),cache:'no-store'});}
+   catch{return {accepted:false,message:'서버 연결에 실패했어.'};}
+   if(!response.ok)return {accepted:false,message:'최종 응답만 재시도할 수 없는 상태야.'};
+   report(requestId,'Output 재시도 중','이미 적용된 자산은 다시 실행하지 않아.');
+   refresh();schedule(()=>poll(roomId,requestId));return {accepted:true};
+ }
  async function answer({roomId,requestId,waitingId,text}){
    if(destroyed||typeof text!=='string'||!text.trim())return {accepted:false,message:'유효한 답변을 입력해 줘.'};
    let response;
@@ -120,5 +129,5 @@ export function createRequestBridge({fetchImpl=globalThis.fetch,promptForToken=(
    refresh();schedule(()=>poll(roomId,requestId));
    return {accepted:true};
  }
- return Object.freeze({submit,answer,loadAssets,destroy(){destroyed=true;for(const timer of timers)clearTimeout(timer);timers.clear();token='';activities.clear();records.length=0;}});
+ return Object.freeze({submit,answer,retryOutput,loadAssets,destroy(){destroyed=true;for(const timer of timers)clearTimeout(timer);timers.clear();token='';activities.clear();records.length=0;}});
 }
