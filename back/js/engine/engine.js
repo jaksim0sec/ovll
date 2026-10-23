@@ -98,11 +98,12 @@ export function createRequestEngine({composer,modelCaller,dataProvider,workshopE
     if(outcome.status!=='applied'){await nextPlan(state,onStage);continue;}
    }
   }catch(error){
+   const failedAt=state.stage;
    if(state.stage==='output'||error.code==='UNSUPPORTED_ACTION'||error.code==='ENGINE_BUDGET_EXCEEDED'){
     if(state.stage==='output')state.failedStage='output';
     state.stage='failed';try{write(state);}catch{}
    }
-   return errorResult(error,state.stage,state);
+   return errorResult(error,failedAt,state);
   }
  }
  async function run(snapshot,{onStage=()=>{}}={}){
