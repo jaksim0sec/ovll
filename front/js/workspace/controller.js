@@ -31,15 +31,16 @@ const DEFAULT_ROOM = 'beta-local-workspace';
  * SERVER INTEGRATION: room selection and validated remote snapshots enter here.
  * No main store, request protocol, offline queue or inferred AI result is used.
  */
-export async function createWorkspace({ root, data, input, roomId = DEFAULT_ROOM, skillCatalog, onSubmitRequest, onRunBlock } = {}) {
+export async function createWorkspace({ root, data, input, roomId = DEFAULT_ROOM, skillCatalog, onSubmitRequest, onRunBlock, onAnswerRequest } = {}) {
   if (typeof roomId !== 'string' || !roomId.trim()) throw new TypeError('Workspace roomId is required');
   if (!root || !input || !data?.cache?.read || !data?.cache?.write || !data?.local?.read || !data?.local?.write)
     throw new TypeError('Workspace requires root, input and a local data store');
   if (skillCatalog !== undefined && (!skillCatalog || typeof skillCatalog.get !== 'function' || typeof skillCatalog.list !== 'function'))
     throw new TypeError('Skill catalog must provide get(id) and list()');
   // Keep the provider as method receiver; providers may use their own state.
-  const resolveSkill = skillCatalog?.get ? id => skillCatalog.get(id) : getSkill;
-  const listSkills = skillCatalog?.list ? () => skillCatalog.list() : () => skills;
+  const serverSkills=new Map();
+  const resolveSkill = id => serverSkills.get(id)||(skillCatalog?.get ? skillCatalog.get(id) : getSkill(id));
+  const listSkills = () => {const local=skillCatalog?.list ? skillCatalog.list() : skills;return [...local.filter(s=>!serverSkills.has(s.id)),...serverSkills.values()];};
   if(typeof resolveSkill!=='function'||typeof listSkills!=='function')throw new TypeError('Invalid Skill catalog provider');
   if((onSubmitRequest !== undefined && typeof onSubmitRequest !== 'function') ||
      (onRunBlock !== undefined && typeof onRunBlock !== 'function')) throw new TypeError('Invalid Workspace request callbacks');
@@ -56,7 +57,7 @@ export async function createWorkspace({ root, data, input, roomId = DEFAULT_ROOM
   }
 
   let presentation = null;
-  const chatView = createChat({onOpenCanvas:()=>presentation?.goTo('canvas')});
+  const chatView = createChat({onOpenCanvas:()=>presentation?.goTo('canvas'),onAnswer:({requestId,waitingId,text})=>onAnswerRequest?.({roomId,requestId,waitingId,text})});
   const chat = chatView.element;
   const saveState = chatView.saveState;
   let queued = Promise.resolve(), pending = 0, destroyed = false;
@@ -152,6 +153,7 @@ export async function createWorkspace({ root, data, input, roomId = DEFAULT_ROOM
   const dataAccess = createWorkspaceDataAccess({roomId,model,canvas,composer,data,listSkills,isAlive:()=>!destroyed});
   // Validated local graph operations for callers outside Canvas. Not a server
   // action-plan format, execution IR, authorization check or sync protocol.
+  let lastServerProjection=null;
   const canvasCommands = Object.freeze({
     addBlock(skillId, options) {
       ensureAlive();
@@ -228,6 +230,22 @@ export async function createWorkspace({ root, data, input, roomId = DEFAULT_ROOM
     getCanvasCommands(){ensureAlive();return canvasCommands;},
     setConfirmedChatRecords(value){ensureAlive();chatView.setConfirmedRecords(value);},
     setRequestActivities(value){ensureAlive();chatView.setRequestActivities(value);},
+    applyServerAssets(snapshot){
+      ensureAlive();
+      if(!snapshot||!Array.isArray(snapshot.skills)||!Array.isArray(snapshot.blocks)||!Array.isArray(snapshot.links)||!Number.isSafeInteger(snapshot.revision))throw new TypeError('Invalid confirmed assets');
+      for(const skill of snapshot.skills)if(typeof skill?.id==='string'&&Array.isArray(skill.fields))serverSkills.set(skill.id,structuredClone(skill));
+      canvas.refreshCatalog();composer.refreshCatalog();
+      const local=model.getSnapshot();
+      const empty=local.blocks.length===0&&local.links.length===0;
+      const last=lastServerProjection;
+      if(!empty&&JSON.stringify(local)!==JSON.stringify(last)){
+        if(snapshot.blocks.length)announce('서버에 확정된 캔버스가 있지만 이 기기의 로컬 작업과 충돌해 덮어쓰지 않았습니다.',{persistent:true});
+        return;
+      }
+      const updated={version:1,blocks:snapshot.blocks,links:snapshot.links};
+      try{model.replaceConfirmedSnapshot(updated);lastServerProjection=structuredClone(updated);}
+      catch(error){announce('서버 변경을 캔버스에 표시하지 못했습니다. 로컬 작업은 보존합니다.',{persistent:true});console.warn('Server projection conflict',error);}
+    },
     refreshSkillCatalog(){ensureAlive();model.validateCurrent();canvas.refreshCatalog();composer.refreshCatalog();},
     getPresentation() {ensureAlive();return {
       root, layout: 'immersive', pill: { visible: true },
