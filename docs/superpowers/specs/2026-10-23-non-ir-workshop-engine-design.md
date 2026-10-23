@@ -52,11 +52,16 @@ resources.readWorkbench({scope, selectors})
 actions.apply({scope, requestId, operationId, action, args, expectedRevision})
   -> {status:"applied", operationId, changeSet, revisions, artifacts}
    | {status:"rejected" | "conflict", code, details}
+actions.getOperation({scope, operationId}) -> confirmed outcome | unknown
 
 checkpoints.load({scope, requestId})
   -> revisioned request checkpoint
 checkpoints.save({scope, requestId, expectedRevision, next})
   -> confirmed checkpoint | conflict
+
+sessions.load({scope}) -> {contextData, revision, historyPointer}
+sessions.commit({scope, requestId, expectedRevision, contextData, finalRecord})
+  -> confirmed session revision | conflict
 
 events.publish({scope, requestId, eventId, kind, data})
   -> delivery status
@@ -64,11 +69,13 @@ events.publish({scope, requestId, eventId, kind, data})
 
 - `scope`는 신뢰할 수 있는 서버 인프라가 확인한 접근 범위다. Beta는 room 단위지만, 운영에서는 사용자/테넌트 검증이 필요하다. 클라이언트가 임의로 보낸 roomId는 인증이 아니다.
 - 서버가 `requestId`와 `operationId`를 발급한다. **동일 operationId 재전송은 동일 결과·부작용 1회**를 보장한다. 명시적 재계획에서 새로운 행동이 결정되었을 때만 새 ID를 쓴다.
+- 행동의 **선택된 인수·operationId·대상 revision을 적용 전에 요청 체크포인트에 준비 상태로 저장**한다. 이후 `actions.apply`를 호출하고, 확인된 결과를 체크포인트에 반영한다. 체크포인트 기록 전이면 행동을 실행하지 않는다. 적용 직후 기록이 실패해도 `actions.getOperation`으로 결과를 조회해 복구하며 다른 ID로 재실행하지 않는다.
 - `expectedRevision`이 다르면 `conflict`, **변경 없음**. 아무 대상이나 덮어쓰는 낙관적 갱신은 금지한다.
 - 자산 반영·operation ID 중복키·revision 갱신은 **한 원자적 적용 경계**다. 나중에 DB로 교체하면 어댑터가 이 의미를 트랜잭션으로 제공해야 한다.
 - `actions.apply`에서 `applied`가 반환되었을 때만 자산 적용 성공이다. 브라우저 전달에 실패하더라도 성공한 행동을 취소한 척하거나 재실행하지 않는다. 프론트는 동기화 지연으로 따로 처리한다.
 - 실행 결과를 받기 전 연결이 끊겼다면 operationId로 적용 여부를 확인한 다음 진행한다. **결과 불명인 작업을 새로운 ID로 무조건 재시도하지 않는다.**
-- 체크포인트 최소 필드: `roomId`, `requestId`, `status`, `stage`, `contextBlock`, `contextDataRevision`, `plan`, `planCursor`, `actionCursor`, `verifiedResults`, `waiting`, `checkpointRevision`. 비밀키·모델 내부 지침을 공개 요청 스냅샷에 넣지 않는다.
+- 체크포인트 최소 필드: `roomId`, `requestId`, `status`, `stage`, `contextBlock`, `contextDataRevision`, `plan`, `planCursor`, `actionCursor`, `pendingOperation`, `verifiedResults`, `waiting`, `checkpointRevision`. 비밀키·모델 내부 지침을 공개 요청 스냅샷에 넣지 않는다.
+- 방 맥락 데이터는 요청 체크포인트와 별도의 `sessions` 포트가 소유한다. Output 종결 시 최신 방 revision을 확인하고 `sessions.commit`으로 **맥락데이터와 최종 대화 기록을 함께 확정**한 다음 요청을 완료 처리한다. revision 충돌 시 기존 값을 덮어쓰지 않고 최신 방 맥락을 반영해 최종화를 재평가한다. `contextBlock`의 개별 요청 수명은 그대로 유지한다.
 - 데이터 완전성은 `complete / metadata / missing`으로 유지한다. 없는 자료는 `DATA_UNAVAILABLE`로 명시한다. 출처와 자산 버전을 속이지 않는다.
 
 ## 5. Workshop 행동 목록·사후 조건
@@ -76,7 +83,7 @@ events.publish({scope, requestId, eventId, kind, data})
 | Workshop | 행동 | 성공·거절 기준 |
 |---|---|---|
 | `skillDefine` | `defineDirect` | 이름·설명·직접 작성된 지침·입출력·필드 정의 검증 후 **독립 Skill 자산** 생성; ID/revision 수신 |
-| `skillDefine` | `revise` | 실제 완전 정의가 있는 Skill만 대상 revision으로 수정; 참조 중인 블록을 자동 재작성하지 않음 |
+| `skillDefine` | `revise` | 실제 완전 정의가 있는 Skill만 대상 revision으로 수정; **이미 참조 중인 블록의 필드·포트 호환성을 검증**하고 불일치 수정은 거절; 블록을 자동 재작성하지 않음 |
 | `skillEdit` | `editAppearance` | 스킬 외형 속성만 변경; 동작 지침은 불변 |
 | `skillEdit` | `delete` | 참조 중인 Skill 삭제 거절. 미참조 Skill만 제거하며 임의 연쇄 삭제 금지 |
 | `canvasEdit` | `addBlock` | 존재하는 Skill 참조·배치 좌표·설정값을 검증해 **별도 Skill Block** 생성 |
@@ -122,7 +129,7 @@ queued → running:gate → running:hallwayInitial
 - 전송 연결이 끊겨도 질문은 완료로 변하지 않는다. 외부 입력 포트가 답변 대상과 권한을 확인하고 **동일 요청의 continuation**으로 재개한다. 사용자 답변으로 최초 요청 원문을 덮어쓰지 않는다.
 - 동일 waitingId의 중복 답변·늦은 응답은 한 번만 처리한다. 재개 후 답변과 이전 실행 결과를 이용해 해당 Workshop을 계속 진행하거나 Hallway로 복귀한다.
 - 다른 요청이 대기 중 자산을 바꾸었다면 현재 revision을 다시 확인한다. 오래된 체크포인트를 다른 방의 최신 정보 위에 강제로 적용하지 않는다.
-- `basicText`는 진행 메시지 확정 후 같은 실행을 계속한다. 질문 대기처럼 취급하지 않는다.
+- `basicText`는 진행 메시지 확정 후 같은 실행을 계속한다. 질문 대기처럼 취급하지 않는다. 중간 발화는 동일한 `eventId`를 이용해 재전달하더라도 채팅에 중복 삽입되지 않아야 한다.
 
 ### 6.2 실패 및 반복 상한
 
