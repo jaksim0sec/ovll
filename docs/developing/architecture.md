@@ -1,6 +1,6 @@
 # 요청 처리 아키텍처
 
-상태: 1014 설계 기준. `beta`에서는 Gate → Hallway Initial 직접 응답 **독립 프로토타입만 구현**; Workshop/Hallway Return/Output 실호출은 미구현. 실제 Gemini API 호출 미검증. 기존 `main`은 참조 구현; 구형 내부 데이터 구조·변환 계층 복제 금지.
+상태: 1014 설계 기준. `beta`에서는 Gate, Hallway Initial, 비IR Workshop 11행동, Hallway Return, Output을 실행하는 메모리 기반 경로를 구현했다. IR/영속 DB/정식 인증은 미구현. 실제 Gemini 및 Render 브라우저 실사용 검증은 별도. `main`은 참조 구현.
 
 ## 개념·경계
 - `Skill`: 목적·입출력·지침을 지닌 재사용 작업 정의. 캔버스 밖에서도 존재.
@@ -43,3 +43,9 @@
 - 서버: 현재 계층·계획 위치·결과 검증·참조/ID·Revision·실행·저장·최종화 책임. 모델의 주장만으로 성공/상태 변경 금지.
 - 요청 상태·세션·전송/DB 경계의 후속 설계: `docs/notes/request-state-sync.md`.
 - Workshop 베이스 원문, Function Calling 선언·인수, IR 실행 검증, 호출 묶음 기준·실패 전이 등은 아직 확정되지 않음; 문서/지침 부재를 임의 구현 계약으로 대체하지 말 것.
+
+## 2026-10-23 구현 범위와 교체 경계
+- `back/js/engine/workshop.js`: 작업실 이름별 허용 행동을 제한한 모델 판단 및 검증. `memoryAssets.js`는 실재 자산·수정·idempotent operation·revision을 서버 메모리에서 관리하는 **교체 가능한 Beta 어댑터**. 데이터 저장 위치를 엔진의 판단 책임으로 끌어오지 않는다.
+- 엔진은 현재 plan cursor와 action cursor, 검증된 행동 결과를 `createMemoryCheckpoints()` 포트에 저장한다. 적용 전에 pendingOperation을 기록하고 같은 operation ID를 재사용한다. `textGenerate.question`은 `awaiting_input`으로 대기 후 동일 요청을 재개한다.
+- `terminate`는 실행 동작이 아니라 Output 호출을 일으키는 계획 종료 표시. 중간 계획 완료는 Hallway Return으로 복귀한다. Output 실패 후 `retryOutput()`으로 자산 변경을 반복하지 않는 최종 응답 재시도를 지원한다.
+- 아직 서버의 room contextData는 스케줄러 메모리에 존재하며 미래 DB 연결 시 세션 저장 어댑터로 교체해야 한다. 서버 재시작·다중 인스턴스 복구가 되는 척하지 않는다.
