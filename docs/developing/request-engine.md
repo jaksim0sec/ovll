@@ -39,7 +39,7 @@ SSE, 정식 사용자 인증·사용자별 요청 접근 제어, DB 영속 저�
 - `back/js/engine/workshop.js`: 모델-neutral Workshop decision과 행동별 검증. `back/js/engine/memoryAssets.js`: 메모리 Skill/Canvas 버전 자산·원자적 변경·동일 operationId 멱등 결과. `back/js/engine/checkpoints.js`: revisioned 요청 체크포인트.
 - `createRequestEngine`은 `workshopExecutor`, `checkpoints` 포트를 주입받아 `.run`, `.resume`, `.retryOutput`을 제공한다. Workshop 결과마다 확정 상태를 기록하고 실패·일부 성공을 구분한다. 메모리 어댑터는 영구 저장이 아니며 서버 재시작 시 손실될 수 있다.
 - Beta HTTP 추가: `GET /api/rooms/:roomId/assets`, `POST /api/requests/:requestId/answer`, `POST /api/requests/:requestId/retry-output`. 기존 접수/상태 조회는 유지. UI는 질문 입력과 Output 재시도를 제공하며, 서버 확정 자산이 로컬 작업과 충돌하면 자동 덮어쓰지 않는다.
-- 검증: GitHub Actions `Ovll beta tests`의 Node.js 22 실제 `npm test` 55개 전부 통과(2026-10-23). 실제 Render 배포, Gemini 실호출, 브라우저 렌더링 시험은 별도.
+- 검증: GitHub Actions `Ovll beta tests`의 Node.js 22 실제 `npm test` 57개 전부 통과(2026-10-23). 실제 Render 배포, Gemini 실호출, 브라우저 렌더링 시험은 별도.
 
 - `back/js/request/memorySessions.js`는 스케줄러의 방별 맥락 메모리 구현을 분리한 교체 포트로, `load`/revision-CAS `commit`을 사용한다. 요청이 완료될 때 session commit 성공을 먼저 확인한 후 `completed` 상태를 기록한다. `createRequestScheduler({sessions?})`로 다른 저장 어댑터 주입 가능.
 
@@ -48,3 +48,6 @@ SSE, 정식 사용자 인증·사용자별 요청 접근 제어, DB 영속 저�
 - `back/js/request/memorySessions.js`: 완료된 요청당 원문 요청·최종 assistantResponse·verifiedResults 및 기존 contextBlock/contextData를 같은 방 최대 8개 메모리 기록으로 보관한다. 최근 4개 완료 대화는 Gate·Hallway에 `recentConversation`으로 직접 전달되며, 별도 `chatContext`가 요청되면 기존 데이터 조회 문법대로 동작한다. 실제 적용되지 않은 약속과 확정 자산은 서로 다르게 취급한다.
 - `GET /api/rooms/:roomId/history`: 동일 시험 토큰으로 해당 room의 완료된 최근 8개 user/assistant 턴과 확인된 행동 내역만 반환. `requestBridge.loadHistory()`는 새로고침 후 해당 턴을 중복 없이 채팅에 복원한다. **서버 재시작 시 사라지는 메모리 이력**이며 영속 저장은 아니다.
 - `requestBridge`는 `result.verifiedResults[].outcome.status === 'applied'`인 결과에 대해서만 채팅의 작업 확인 카드를 만든다. `GET /api/rooms/:roomId/assets`의 서버 자산 상태를 Workspace·라이브러리에 전달하고, 채팅에는 현재 확정 Skill/Block 수 및 Skill 목록을 표시한다. 로컬 Canvas와 서버가 다르면 충돌을 표시하고 로컬 작업을 묵시적으로 덮어쓰지 않는다.
+
+- 동일 실제 HTTP 통합 테스트(`tests/backend/confirmed-e2e.test.mjs`)는 요청 접수→Hallway의 실행 없는 약속 교정→Workshop Skill 저장→Output→서버 자산/대화 조회→프론트 확정 카드→후속 '만들긴 한 거야?' 맥락 인식을 검증한다. 실제 Gemini API 응답 안정성을 검증하는 테스트는 아니다.
+- `workIntent` 검사는 Skill을 '만들까?'라고 물어보는 단순 제안과 '만들어줘'라는 변경 지시를 구별한다. 후속 '응/ㅇㅇ'는 바로 전 오블의 실제 제안에 연결해 판단한다.
