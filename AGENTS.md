@@ -127,7 +127,7 @@
 - 설계: `docs/superpowers/specs/2026-10-23-non-ir-workshop-engine-design.md`; 구현 계획: `docs/superpowers/plans/2026-10-23-non-ir-workshop-engine.md`.
 - `back/js/engine/{memoryAssets,checkpoints,workshop,engine}.js`에 버전 자산·체크포인트·행동 결정·실행 루프. `back/js/request/{registry,scheduler}.js`에 `awaiting_input`·resume·output-only retry.
 - 외부 HTTP와 UI는 본문 조회·대기 입력·최종 응답 재시도를 통해 서버 확정 결과를 표시. 원본이 다른 로컬 캔버스를 무조건 덮어쓰지 않는다. `main`은 변경하지 않는다.
-- 구현된 것은 **서버 메모리 기반 Beta 실험**이다. GitHub Actions Node 22 전체 `npm test` 55개 통과(2026-10-23). 실 Gemini, Render, 브라우저 UI 실사용은 별도 검증 필요. DB 영속성·사용자별 인증·IR 실행 없음.
+- 구현된 것은 **서버 메모리 기반 Beta 실험**이다. GitHub Actions Node 22 전체 `npm test` 57개 통과(2026-10-23). 실 Gemini, Render, 브라우저 UI 실사용은 별도 검증 필요. DB 영속성·사용자별 인증·IR 실행 없음.
 
 - 방 전체의 맥락/기록은 `back/js/request/memorySessions.js` 어댑터가 소유하고 스케줄러가 주입받는다. 서버/DB 교체 시 직접 엔진 소스에 DB 로직을 넣지 말 것.
 
