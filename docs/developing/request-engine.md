@@ -39,7 +39,7 @@ SSE, 정식 사용자 인증·사용자별 요청 접근 제어, DB 영속 저�
 - `back/js/engine/workshop.js`: 모델-neutral Workshop decision과 행동별 검증. `back/js/engine/memoryAssets.js`: 메모리 Skill/Canvas 버전 자산·원자적 변경·동일 operationId 멱등 결과. `back/js/engine/checkpoints.js`: revisioned 요청 체크포인트.
 - `createRequestEngine`은 `workshopExecutor`, `checkpoints` 포트를 주입받아 `.run`, `.resume`, `.retryOutput`을 제공한다. Workshop 결과마다 확정 상태를 기록하고 실패·일부 성공을 구분한다. 메모리 어댑터는 영구 저장이 아니며 서버 재시작 시 손실될 수 있다.
 - Beta HTTP 추가: `GET /api/rooms/:roomId/assets`, `POST /api/requests/:requestId/answer`, `POST /api/requests/:requestId/retry-output`. 기존 접수/상태 조회는 유지. UI는 질문 입력과 Output 재시도를 제공하며, 서버 확정 자산이 로컬 작업과 충돌하면 자동 덮어쓰지 않는다.
-- 검증: GitHub Actions `Ovll beta tests`의 Node.js 22 실제 `npm test` 57개 전부 통과(2026-10-23). 실제 Render 배포, Gemini 실호출, 브라우저 렌더링 시험은 별도.
+- 검증: GitHub Actions `Ovll beta tests`의 Node.js 22 실제 `npm test` 65개 전부 통과(2026-10-23). 실제 Render 배포, Gemini 실호출, 브라우저 렌더링 시험은 별도.
 
 - `back/js/request/memorySessions.js`는 스케줄러의 방별 맥락 메모리 구현을 분리한 교체 포트로, `load`/revision-CAS `commit`을 사용한다. 요청이 완료될 때 session commit 성공을 먼저 확인한 후 `completed` 상태를 기록한다. `createRequestScheduler({sessions?})`로 다른 저장 어댑터 주입 가능.
 
@@ -51,3 +51,10 @@ SSE, 정식 사용자 인증·사용자별 요청 접근 제어, DB 영속 저�
 
 - 동일 실제 HTTP 통합 테스트(`tests/backend/confirmed-e2e.test.mjs`)는 요청 접수→Hallway의 실행 없는 약속 교정→Workshop Skill 저장→Output→서버 자산/대화 조회→프론트 확정 카드→후속 '만들긴 한 거야?' 맥락 인식을 검증한다. 실제 Gemini API 응답 안정성을 검증하는 테스트는 아니다.
 - `workIntent` 검사는 Skill을 '만들까?'라고 물어보는 단순 제안과 '만들어줘'라는 변경 지시를 구별한다. 후속 '응/ㅇㅇ'는 바로 전 오블의 실제 제안에 연결해 판단한다.
+
+## 2026-10-23 실사용 장애 복구
+- 미지원 Workshop 행동(예: createNode) 선택 시 availableActions와 거부된 행동명을 포함해 최대 1회 교정하고, 재차 잘못되면 UNSUPPORTED_ACTION 및 구체적 진단으로 실패한다. 알 수 없는 행동을 자동 실행하지 않는다.
+- 실행 ID가 Hallway Return 이후 planCursor 초기화 때문에 충돌하던 오류를 수정: requestId:op:actionCount 형식으로 전체 요청에서 단조 증가한다. 메모리 자산 포트는 같은 ID의 서로 다른 입력에 OPERATION_ID_CONFLICT를 반환하며, 동일 입력의 재전송은 기존 결과를 보존한다.
+- 실패한 요청은 sessions.recordFailure로 방 이력에 남기되 확정 contextData는 변경하지 않는다. 짧은 재지시에서 직전 실패의 원문을 unresolvedRequest로 전달한다. 실패 이유를 묻는 질문은 자동 재실행하지 않는다.
+- 노드/블록 생성 요청의 완료에는 확인된 canvasEdit.addBlock이 필요하다. Skill 정의만 하고 terminate하면 Hallway Return에서 남은 배치를 재계획한다.
+- Node 22 전체 CI npm test 65개 통과(2026-10-23). 실 Gemini 호출 및 Render 브라우저 시험은 미검증이다.
