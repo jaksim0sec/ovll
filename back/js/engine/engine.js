@@ -9,6 +9,7 @@ export function createEngine({composer,modelCaller,dataProvider,actionShell,regi
  const callManager=createCallManager({composer,modelCaller,maxModelCalls:policy.maxModelCalls??2});
  const runner=createRequestRunner({composer,modelCaller,dataProvider,actionShell,callManager});
  const maxConcurrent=policy.maxActiveRequests??3;
+ if(!Number.isSafeInteger(maxConcurrent)||maxConcurrent<1)throw new TypeError('Invalid request concurrency limit');
  const scheduler=createRequestScheduler({registry,sessions,maxConcurrent,execute:(record,options)=>runner.run(record,options)});
  return Object.freeze({
   submit:input=>scheduler.enqueue({...input,contextData:input.contextData??{overallFlow:'',currentTopic:'',details:''}}),
