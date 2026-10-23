@@ -10,7 +10,7 @@ export function createRequestScheduler({registry,execute,resume,retryOutput,sess
   function session(roomId,initialContext){
     return sessions.load({scope:roomId,initialContext});
   }
-  const publicCodes=new Set(['MODEL_ERROR','MODEL_AUTH','MODEL_RATE_LIMIT','MODEL_NETWORK','MODEL_INVALID_RESPONSE','DATA_UNAVAILABLE','ENGINE_OUTPUT_INVALID','UNSUPPORTED_DATASET','UNSUPPORTED_ACTION','ENGINE_BUDGET_EXCEEDED','CHECKPOINT_CONFLICT']);
+  const publicCodes=new Set(['MODEL_ERROR','MODEL_AUTH','MODEL_RATE_LIMIT','MODEL_NETWORK','MODEL_INVALID_RESPONSE','DATA_UNAVAILABLE','ENGINE_OUTPUT_INVALID','UNSUPPORTED_DATASET','UNSUPPORTED_ACTION','ENGINE_BUDGET_EXCEEDED','CHECKPOINT_CONFLICT','SESSION_CONFLICT']);
   const messageFor=code=>({MODEL_AUTH:'Model authentication failed',MODEL_RATE_LIMIT:'Model rate limit exceeded',MODEL_NETWORK:'Model connection failed',DATA_UNAVAILABLE:'Required data unavailable',ENGINE_OUTPUT_INVALID:'Engine output validation failed',MODEL_INVALID_RESPONSE:'Invalid model response',UNSUPPORTED_DATASET:'Unsupported data request'})[code]||'Request execution failed';
   function notifyIdle(){if(running===0 && queue.length===0){for(const resolve of idleWaiters.splice(0))resolve();}}
   function pump(){
@@ -27,12 +27,12 @@ export function createRequestScheduler({registry,execute,resume,retryOutput,sess
           }));
           if(!['completed','awaiting_input','unsupported_workshop','failed'].includes(result?.status))throw Object.assign(new Error('Invalid result'),{code:'ENGINE_OUTPUT_INVALID'});
           const {status,currentLayer,contextBlock,contextData,result:answer,plan,waiting,verifiedResults,error}=result;
-          const updated=registry.transition(item.roomId,item.requestId,{status,currentLayer,contextBlock,
-            ...(contextData===undefined?{}:{contextData}),...(answer===undefined?{}:{result:answer}),...(plan===undefined?{}:{plan}),...(waiting===undefined?{}:{waiting}),...(verifiedResults===undefined?{}:{verifiedResults}),...(error===undefined?{}:{error})});
           if(status==='completed'&&contextData!==undefined){
             const saved=sessions.commit({scope:item.roomId,expectedRevision:state.revision,requestId:item.requestId,request:snapshot.request,contextBlock,contextData});
             if(saved.status!=='committed')throw Object.assign(new Error('Session context conflict'),{code:'SESSION_CONFLICT'});
           }
+          const updated=registry.transition(item.roomId,item.requestId,{status,currentLayer,contextBlock,
+            ...(contextData===undefined?{}:{contextData}),...(answer===undefined?{}:{result:answer}),...(plan===undefined?{}:{plan}),...(waiting===undefined?{}:{waiting}),...(verifiedResults===undefined?{}:{verifiedResults}),...(error===undefined?{}:{error})});
           item.resolve(updated);
         } catch(e){
           const code=publicCodes.has(e?.code)?e.code:'MODEL_ERROR';
