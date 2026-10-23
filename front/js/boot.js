@@ -84,14 +84,17 @@ try{
   requestBridge=createRequestBridge({
     onRecords:records=>workspaceController?.setConfirmedChatRecords(records),
     onActivities:items=>workspaceController?.setRequestActivities(items),
+    onAssets:assets=>workspaceController?.applyServerAssets(assets),
     onAccepted:()=>{try{if(hosted?.hasSlide('chat'))hosted.goTo('chat');}catch(error){console.warn('Unable to show chat slide',error);}}
   });
   workspaceController=await createWorkspace({
     root:workspace,data,input,
+    onAnswerRequest:answer=>requestBridge.answer(answer),
     onSubmitRequest:draft=>requestBridge.submit({
       draft,roomId:workspaceController.getRoomId(),dataAccess:workspaceController.getDataAccess()
     })
   });
+  void requestBridge.loadAssets(workspaceController.getRoomId()).catch(()=>{});
   pages.register('workspace',{element:workspace,onEnter:({signal})=>{
     const controller=hosted.activateForPage({...workspaceController.getPresentation(),signal});
     workspaceController.activate({signal,controller});
