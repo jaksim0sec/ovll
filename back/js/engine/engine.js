@@ -65,7 +65,7 @@ export function createRequestEngine({composer,modelCaller,dataProvider,workshopE
   state.callCount++;
   const reply=await call('hallwayReturn',{contextBlock:{...state.contextBlock,focus:'Review verified steps and unmet objectives'},verifiedResults:state.verifiedResults,resources:state.resources,contextData:state.contextData});
   if(!exact(reply,['plan','contextBlock'])||!planValid(reply.plan)||!blockValid(reply.contextBlock))throw invalid();
-  state.plan=reply.plan;state.contextBlock=reply.contextBlock;state.planCursor=0;state.actionCursor=0;state.stage='workshop';write(state);
+  state.plan=reply.plan;state.contextBlock=reply.contextBlock;state.planCursor=0;state.actionCursor=0;state.stepStartResultIndex=state.verifiedResults.length;state.stage='workshop';write(state);
  }
  async function finish(state,onStage){
   onStage('output');state.stage='output';write(state);
@@ -90,7 +90,9 @@ export function createRequestEngine({composer,modelCaller,dataProvider,workshopE
     const selection=await workshopExecutor.decide({workshop,objective:detail.objective,scope:state.roomId,request:state.request,contextBlock:state.contextBlock,resources:stepResources,verifiedResults:state.verifiedResults,answer:state.lastAnswer??null,focus:'Workshop '+workshop+' step '+state.planCursor});
     state.lastAnswer=null;
     if(selection.done){
-      state.planCursor++;state.actionCursor=0;write(state);continue;
+      const actual=state.verifiedResults.slice(state.stepStartResultIndex??0).some(x=>x.workshop===workshop&&(x.outcome?.status==='applied'||x.status==='applied'));
+      if(!actual)throw invalid('WORK_NOT_APPLIED');
+      state.planCursor++;state.actionCursor=0;state.stepStartResultIndex=state.verifiedResults.length;write(state);continue;
     }
     state.actionCount++;
     const operationId=state.requestId+':'+state.planCursor+':'+state.actionCursor++;
@@ -141,7 +143,7 @@ export function createRequestEngine({composer,modelCaller,dataProvider,workshopE
   if(requiresWork&&!reply.plan.some(step=>Object.keys(step)[0]!=='textGenerate'&&Object.keys(step)[0]!=='terminate'))throw Object.assign(new Error('No executable action planned'),{code:'WORK_REQUIRED',detail:'hallwayInitial: requested Skill/Canvas change has no corresponding Workshop'});
 
   if(!workshopExecutor||!checkpoints)return {status:'unsupported_workshop',currentLayer:'hallwayInitial',plan:reply.plan,contextBlock:reply.contextBlock};
-  const state={roomId:snapshot.roomId,requestId:snapshot.requestId,request,contextData,chatHistory,resources,contextBlock:reply.contextBlock,plan:reply.plan,planCursor:0,actionCursor:0,callCount:2,actionCount:0,returnCount:0,verifiedResults:[],stage:'workshop',status:'running',waiting:null,pendingOperation:null};
+  const state={roomId:snapshot.roomId,requestId:snapshot.requestId,request,contextData,chatHistory,resources,contextBlock:reply.contextBlock,plan:reply.plan,planCursor:0,actionCursor:0,stepStartResultIndex:0,callCount:2,actionCount:0,returnCount:0,verifiedResults:[],stage:'workshop',status:'running',waiting:null,pendingOperation:null};
   write(state);return progress(state,onStage);
  }
  async function resume(snapshot,{waitingId,text,onStage=()=>{}}={}){
