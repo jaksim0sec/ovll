@@ -13,6 +13,8 @@ export function createMemorySessions(){
   if(value.revision!==expectedRevision)return {status:'conflict',revision:value.revision};
   value.revision++;
   value.contextData=copy(contextData);
+  // A successful Output retry supersedes the transient failure for the same request.
+  value.history=value.history.filter(row=>row.requestId!==requestId||row.status!=='failed');
   value.history.push(copy({requestId,request,contextBlock,contextData,assistantResponse,verifiedResults,status:'completed'}));
   if(value.history.length>8)value.history.splice(0,value.history.length-8);
   rows.set(scope,copy(value));return {status:'committed',revision:value.revision};

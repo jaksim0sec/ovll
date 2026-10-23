@@ -41,7 +41,7 @@ export function createRequestScheduler({registry,execute,resume,retryOutput,sess
             sessions.recordFailure({scope:item.roomId,requestId:item.requestId,request:snapshot.request,contextBlock,error,verifiedResults});
           }
           const updated=registry.transition(item.roomId,item.requestId,{status,currentLayer,contextBlock,
-            ...(contextData===undefined?{}:{contextData}),...(answer===undefined?{}:{result:answer}),...(plan===undefined?{}:{plan}),...(planCursor===undefined?{}:{planCursor}),...(handoff===undefined?{}:{handoff}),...(waiting===undefined?{}:{waiting}),...(verifiedResults===undefined?{}:{verifiedResults}),...(error===undefined?{}:{error})});
+            ...(contextData===undefined?{}:{contextData}),...(answer===undefined?{}:{result:answer}),...(plan===undefined?{}:{plan}),...(planCursor===undefined?{}:{planCursor}),...(handoff===undefined?{}:{handoff}),...(waiting===undefined?{}:{waiting}),...(verifiedResults===undefined?{}:{verifiedResults}),...(status==='completed'?{error:null}:error===undefined?{}:{error})});
           item.resolve(updated);
         } catch(e){
           if(item.controller.signal.aborted){item.resolve(registry.transition(item.roomId,item.requestId,{status:'stopped'}));return;}

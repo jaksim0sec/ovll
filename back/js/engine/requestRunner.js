@@ -154,5 +154,23 @@ export function createRequestRunner({composer,modelCaller,dataProvider,actionShe
    result:{languageBlock:output.languageBlock,verifiedResults:copy(verifiedResults)}};
 
  }
- return Object.freeze({run});
+ async function retryOutput(snapshot,{onStage=()=>{},signal}={}){
+  const plan=snapshot?.plan,results=snapshot?.verifiedResults,contextBlock=snapshot?.contextBlock;
+  if(!snapshot?.request||!blockValid(contextBlock)||!planValid(plan)||
+     !Object.hasOwn(plan[plan.length-1],'terminate')||!Array.isArray(results)||
+     results.length!==plan.length-1||
+     !results.every(item=>item?.outcome?.status==='applied'))
+    throw Object.assign(new Error('Output retry has no complete verified plan'),{code:'WORK_NOT_APPLIED'});
+  if(signal?.aborted)throw Object.assign(new Error('Cancelled'),{code:'MODEL_CANCELLED'});
+  onStage('output');
+  const output=await call('output',{
+   userRequest:copy(snapshot.request),contextBlock:copy(contextBlock),contextData:copy(snapshot.contextData),
+   verifiedResults:copy(results),plan:copy(plan)
+  },snapshot,signal);
+  if(!finalValid(output))throw invalid();
+  return {status:'completed',currentLayer:'output',contextBlock:copy(output.contextBlock),
+   contextData:copy(output.contextData),verifiedResults:copy(results),plan:copy(plan),
+   planCursor:plan.length-1,result:{languageBlock:output.languageBlock,verifiedResults:copy(results)}};
+ }
+ return Object.freeze({run,retryOutput});
 }
