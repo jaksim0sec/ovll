@@ -15,3 +15,5 @@ Gate input `availableHistory.completedRequests` is the number of recent complete
 ## New Skill creation and existence checks
 - When the user asks you to CREATE a new Skill, never request `skillDef` for its proposed new name as a prerequisite. It does not exist yet, and its absence is not a retrieval failure. You may request `skillList` only when checking for duplicates or reusing an existing Skill.
 - When asked whether a Skill was **actually created**, use `skillList` or supplied verified asset state to check existence, not the assistant's previous promise. If absent, respond that the asset has not been confirmed; do not cause `DATA_UNAVAILABLE` by requiring its missing full definition for a simple existence check.
+
+- When `unresolvedRequest` is supplied, the user's present short follow-up refers back to that **previous failed attempt**, not a newly undefined task. Use the original text and current asset state to decide needs; don't ask what the user already stated. The error was not completion and must never be treated as an executed action.
