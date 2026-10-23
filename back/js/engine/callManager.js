@@ -1,5 +1,6 @@
 import {createCallRegistry} from '../request/callRegistry.js';
-export function createCallManager({callRegistry=createCallRegistry(),composer,modelCaller,maxModelCalls=2}={}){
+import {createActionShell} from './actionShell.js';
+export function createCallManager({callRegistry=createCallRegistry(),composer,modelCaller,maxModelCalls=2,actionShell=createActionShell()}={}){
  if(!composer?.compose||!modelCaller?.generate||!Number.isInteger(maxModelCalls)||maxModelCalls<1)throw new TypeError('Invalid call manager');
  let active=0;const waiting=[];
  async function slot(){if(active<maxModelCalls){active++;return;}await new Promise(resolve=>waiting.push(resolve));}
@@ -23,5 +24,19 @@ export function createCallManager({callRegistry=createCallRegistry(),composer,mo
    throw error;
   }finally{if(held)free();}
  }
- return Object.freeze({invoke,getCall:q=>callRegistry.get(q),listCalls:q=>callRegistry.list(q),callRegistry});
+ async function enterAction({roomId,requestId,requestRevision=0,action,objective,need,resources}={}){
+  const [workshop,name,...extra]=String(action).split('.');
+  if(extra.length||!actionShell.accepts(action))throw Object.assign(new Error('Unknown Action'),{code:'UNSUPPORTED_ACTION'});
+  const row=callRegistry.register({roomId,requestId,requestRevision,route:{layer:'workshop',workshop,action:name}});
+  const started=callRegistry.start({roomId,requestId,callId:row.callId});
+  try{
+   const handoff=actionShell.enter({action,objective,need,resources});
+   callRegistry.finish({roomId,requestId,callId:row.callId,status:'unsupported',expectedRevision:started.revision});
+   return {callId:row.callId,handoff:{...handoff,callId:row.callId}};
+  }catch(error){
+   callRegistry.finish({roomId,requestId,callId:row.callId,status:'failed',expectedRevision:started.revision});
+   throw error;
+  }
+ }
+ return Object.freeze({invoke,enterAction,getCall:q=>callRegistry.get(q),listCalls:q=>callRegistry.list(q),callRegistry});
 }

@@ -6,7 +6,7 @@ import {createCallManager} from './callManager.js';
 
 /** Product-level managed Engine, not the runner of one request. */
 export function createEngine({composer,modelCaller,dataProvider,actionShell,registry=createRequestRegistry(),sessions=createMemorySessions(),policy={}}={}){
- const callManager=createCallManager({composer,modelCaller,maxModelCalls:policy.maxModelCalls??2});
+ const callManager=createCallManager({composer,modelCaller,maxModelCalls:policy.maxModelCalls??2,actionShell});
  const runner=createRequestRunner({composer,modelCaller,dataProvider,actionShell,callManager});
  const maxConcurrent=policy.maxActiveRequests??3;
  if(!Number.isSafeInteger(maxConcurrent)||maxConcurrent<1)throw new TypeError('Invalid request concurrency limit');

@@ -89,8 +89,8 @@ export function createRequestRunner({composer,modelCaller,dataProvider,actionShe
    throw Object.assign(new Error('No mutation action planned'),{code:'WORK_REQUIRED',detail:'Skill/Canvas change requires an action'});
   const available=requireLookup(await dataProvider.resolveNeed({roomId:snapshot.roomId,requestId:snapshot.requestId,need:detail.need,availableResources:resources,request,contextData,chatHistory}));
   onStage('actionShell');
-  const handoff=actionShell.enter({action,objective:detail.objective,need:detail.need,resources:available});
-  return {status:'unsupported_workshop',currentLayer:'actionShell',plan:copy(reply.plan),handoff:copy(handoff),contextBlock:copy(reply.contextBlock)};
+  const {handoff}=await calls.enterAction({roomId:snapshot.roomId,requestId:snapshot.requestId,requestRevision:snapshot.revision??0,action,objective:detail.objective,need:detail.need,resources:available});
+  return {status:'unsupported_workshop',currentLayer:'actionShell',plan:copy(reply.plan),planCursor:0,handoff:copy(handoff),contextBlock:copy(reply.contextBlock)};
  }
  return Object.freeze({run});
 }

@@ -26,7 +26,7 @@ export function createRequestScheduler({registry,execute,resume,retryOutput,sess
             onStage:layer=>registry.transition(item.roomId,item.requestId,{currentLayer:layer})
           }));
           if(!['completed','awaiting_input','unsupported_workshop','failed'].includes(result?.status))throw Object.assign(new Error('Invalid result'),{code:'ENGINE_OUTPUT_INVALID'});
-          const {status,currentLayer,contextBlock,contextData,result:answer,plan,waiting,verifiedResults,error,handoff}=result;
+          const {status,currentLayer,contextBlock,contextData,result:answer,plan,planCursor,waiting,verifiedResults,error,handoff}=result;
           if(status==='completed'&&contextData!==undefined){
             const saved=sessions.commit({scope:item.roomId,expectedRevision:state.revision,requestId:item.requestId,request:snapshot.request,contextBlock,contextData,assistantResponse:answer?.languageBlock??'',verifiedResults:answer?.verifiedResults??verifiedResults??[]});
             if(saved.status!=='committed')throw Object.assign(new Error('Session context conflict'),{code:'SESSION_CONFLICT'});
@@ -34,7 +34,7 @@ export function createRequestScheduler({registry,execute,resume,retryOutput,sess
             sessions.recordFailure({scope:item.roomId,requestId:item.requestId,request:snapshot.request,contextBlock,error,verifiedResults});
           }
           const updated=registry.transition(item.roomId,item.requestId,{status,currentLayer,contextBlock,
-            ...(contextData===undefined?{}:{contextData}),...(answer===undefined?{}:{result:answer}),...(plan===undefined?{}:{plan}),...(handoff===undefined?{}:{handoff}),...(waiting===undefined?{}:{waiting}),...(verifiedResults===undefined?{}:{verifiedResults}),...(error===undefined?{}:{error})});
+            ...(contextData===undefined?{}:{contextData}),...(answer===undefined?{}:{result:answer}),...(plan===undefined?{}:{plan}),...(planCursor===undefined?{}:{planCursor}),...(handoff===undefined?{}:{handoff}),...(waiting===undefined?{}:{waiting}),...(verifiedResults===undefined?{}:{verifiedResults}),...(error===undefined?{}:{error})});
           item.resolve(updated);
         } catch(e){
           const code=publicCodes.has(e?.code)?e.code:'MODEL_ERROR';

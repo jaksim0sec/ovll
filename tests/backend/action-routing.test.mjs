@@ -1,0 +1,21 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {createEngine} from '../../back/js/engine/engine.js';
+import {createMemoryDataProvider} from '../../back/js/engine/dataProvider.js';
+const plan={plan:[{'skillDefine.defineDirect':{objective:'식물 조사 스킬 정의',need:[]}},{'canvasEdit.addBlock':{objective:'스킬블럭 배치',need:[]}},{terminate:{objective:'종결',need:[]}}],contextBlock:{intent:'스킬블럭 만들기',progress:'계획'}};
+test('first action is an identified call and no actual asset is touched',async()=>{
+ const generated=[];
+ const e=createEngine({composer:{compose:async()=>''},dataProvider:createMemoryDataProvider(),modelCaller:{generate:async ({layer})=>{generated.push(layer);return {jsonText:JSON.stringify(layer==='gate'?{need:[]}:plan)}}}});
+ const job=e.submit({roomId:'r',request:{parts:[{type:'text',text:'식물 조사 스킬블럭 만들어줘'}],attachments:[]},initialResources:[]});
+ const result=await job.completion;
+ assert.equal(result.status,'unsupported_workshop');
+ assert.equal(result.handoff.action,'skillDefine.defineDirect');
+ assert.match(result.handoff.callId,/^[A-Za-z0-9_-]+$/);
+ assert.equal(result.planCursor,0);
+ assert.deepEqual(result.verifiedResults??[],[]);
+ const calls=e.listCalls({roomId:'r',requestId:job.requestId});
+ assert.equal(calls.length,3);
+ assert.equal(calls[2].path,result.handoff.callId+'.workshop.skillDefine.defineDirect');
+ assert.equal(calls[2].status,'unsupported');
+ assert.deepEqual(generated,['gate','hallwayInitial']);
+});
