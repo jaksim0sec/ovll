@@ -99,6 +99,7 @@ export function createRequestEngine({composer,modelCaller,dataProvider,workshopE
    }
   }catch(error){
    if(state.stage==='output'||error.code==='UNSUPPORTED_ACTION'||error.code==='ENGINE_BUDGET_EXCEEDED'){
+    if(state.stage==='output')state.failedStage='output';
     state.stage='failed';try{write(state);}catch{}
    }
    return errorResult(error,state.stage,state);
@@ -124,8 +125,17 @@ export function createRequestEngine({composer,modelCaller,dataProvider,workshopE
   if(!entry||entry.state?.status!=='awaiting_input'||entry.state.waiting?.id!==waitingId)throw new Error('Request is not waiting for this answer');
   const state=entry.state;
   state.status='running';state.waiting=null;state.lastAnswer=text;
+  state.contextData=copy(snapshot.contextData??state.contextData);
+  state.chatHistory=copy(snapshot.chatHistory??state.chatHistory);
   state.verifiedResults.push({action:'userAnswer',waitingId,text,status:'confirmed'});write(state);
   return progress(state,onStage);
  }
- return Object.freeze({run,resume});
+ async function retryOutput(snapshot,{onStage=()=>{}}={}){
+  const entry=checkpoints?.load({scope:snapshot.roomId,requestId:snapshot.requestId});
+  if(entry?.state?.stage!=='failed'||entry.state.failedStage!=='output')throw new Error('Output retry unavailable');
+  const state=entry.state;state.status='running';
+  try{return await finish(state,onStage);}
+  catch(error){state.failedStage='output';state.stage='failed';write(state);return errorResult(error,'output',state);}
+ }
+ return Object.freeze({run,resume,retryOutput});
 }
