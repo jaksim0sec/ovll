@@ -236,6 +236,7 @@ export async function createWorkspace({ root, data, input, roomId = DEFAULT_ROOM
       serverSkills.clear();
       for(const skill of snapshot.skills)if(typeof skill?.id==='string'&&Array.isArray(skill.fields))serverSkills.set(skill.id,structuredClone(skill));
       canvas.refreshCatalog();composer.refreshCatalog();
+      chatView.setConfirmedAssets(snapshot);
       const local=model.getSnapshot();
       const updated={version:1,blocks:snapshot.blocks,links:snapshot.links};
       if(JSON.stringify(local)===JSON.stringify(updated)){lastServerProjection=structuredClone(updated);return;}
