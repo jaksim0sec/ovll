@@ -127,7 +127,7 @@
 - 설계: `docs/superpowers/specs/2026-10-23-non-ir-workshop-engine-design.md`; 구현 계획: `docs/superpowers/plans/2026-10-23-non-ir-workshop-engine.md`.
 - `back/js/engine/{memoryAssets,checkpoints,workshop,engine}.js`에 버전 자산·체크포인트·행동 결정·실행 루프. `back/js/request/{registry,scheduler}.js`에 `awaiting_input`·resume·output-only retry.
 - 외부 HTTP와 UI는 본문 조회·대기 입력·최종 응답 재시도를 통해 서버 확정 결과를 표시. 원본이 다른 로컬 캔버스를 무조건 덮어쓰지 않는다. `main`은 변경하지 않는다.
-- 구현된 것은 **서버 메모리 기반 Beta 실험**이다. GitHub Actions Node 22 전체 `npm test` 57개 통과(2026-10-23). 실 Gemini, Render, 브라우저 UI 실사용은 별도 검증 필요. DB 영속성·사용자별 인증·IR 실행 없음.
+- 구현된 것은 **서버 메모리 기반 Beta 실험**이다. GitHub Actions Node 22 전체 `npm test` 65개 통과(2026-10-23). 실 Gemini, Render, 브라우저 UI 실사용은 별도 검증 필요. DB 영속성·사용자별 인증·IR 실행 없음.
 
 - 방 전체의 맥락/기록은 `back/js/request/memorySessions.js` 어댑터가 소유하고 스케줄러가 주입받는다. 서버/DB 교체 시 직접 엔진 소스에 DB 로직을 넣지 말 것.
 
@@ -136,3 +136,9 @@
 - 완료된 요청의 **실제 assistantResponse와 user request, verifiedResults**가 메모리 세션에 기록된다. Gate·Hallway는 최신 4개 확인된 턴을 직접 참조한다. `contextBlock`/`contextData` 수명 및 분리는 유지한다.
 - 프론트는 서버 자산 API와 완료 기록 API(`/api/rooms/:roomId/assets`, `/api/rooms/:roomId/history`)를 통해 Skill을 **채팅의 확정 내역·현재 자산 목록·라이브러리**에 반영한다. 기존 로컬 Canvas 충돌이면 덮어쓰지 않고 경고한다. 서버 재시작·배포 후 메모리 기반 자산 및 최근 대화는 소실될 수 있다.
 - CI: `.github/workflows/beta-tests.yml`이 beta 푸시마다 Node 22 `npm test` 실행. 실제 Gemini API·브라우저 E2E 검증과 별개로 다룬다.
+
+## 2026-10-23 실사용 노드 생성 오류 수정
+- Workshop 미지원 행동은 허용 행동 목록을 제공해 1회 교정하고, 재차 위반하면 행동명 포함 실패로 종료. 정의 생성과 Canvas Block 배치를 혼동하지 말 것.
+- Hallway Return 뒤 planCursor 초기화와 무관하게 요청 내 operationId를 유일하게 생성한다. idempotent port는 다른 입력의 동일 ID를 거부한다.
+- 실패한 요청은 contextData를 변경하지 않고 대화 이력에 남겨 다음 짧은 재지시가 원래 목표를 찾도록 한다. 관련 회귀: tests/backend/real-node-recovery.test.mjs 및 workshop-assets.test.mjs.
+- Node 22 전체 CI 65/65 검증. 실제 Gemini·Render UI는 별도 실사용 검증이다.
