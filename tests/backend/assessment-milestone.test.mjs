@@ -33,11 +33,13 @@ test('completed room context flows to the next queued Gate; other rooms stay iso
  assert.deepEqual(done.map(x=>x.status),['completed','completed','completed']);
  const followGate=observations.find(x=>x.layer==='gate'&&x.context.userRequest.parts[0].text==='followup');
  assert.equal(followGate.context.contextData.overallFlow,'remember me');
+ assert.equal(followGate.context.availableHistory.completedRequests,1);
  const followHall=observations.find(x=>x.layer==='hallwayInitial'&&x.context.userRequest.parts[0].text==='followup');
  assert.equal(followHall.context.resources.find(x=>x.dataset==='chatContext').value[0].contextData.overallFlow,'remember me');
  assert.equal(followHall.context.resources.find(x=>x.dataset==='originalReq').value.parts[0].text,'first');
  const otherGate=observations.find(x=>x.layer==='gate'&&x.context.userRequest.parts[0].text==='other room');
  assert.equal(otherGate.context.contextData.overallFlow,'');
+ assert.equal(otherGate.context.availableHistory.completedRequests,0);
 });
 test('metadata-only Skill references are available to explanatory Hallway without pretending to be executable',async()=>{
  const skill={dataset:'skillDef',key:'조사하기',source:'local-presentation-catalog',completeness:'metadata',value:{name:'조사하기',description:'자료를 조사함'}};
