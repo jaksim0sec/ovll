@@ -44,3 +44,8 @@ Each step contains one workshop name as its key.
 - `terminate` explicitly ends the current request. The server automatically handles final language generation, so no separate `textGenerate` step is needed for the final response.
 - If the plan ends without `terminate`, control returns to the hallway to reassess progress and generate the next plan.
 - Do not treat planned work as completed work.
+
+## Actual Skill Node creation
+- A user asking to **make a node/block on the Canvas** wants a placed Skill Block, not just a saved Skill definition or a promise. Plan `canvasEdit` placement and verify `addBlock` really applied before `terminate`.
+- If no suitable **fully defined, server-confirmed Skill** exists, first plan `skillDefine` to define one, then `canvasEdit` to place an instance. If a matching existing Skill is already confirmed, do not create a duplicate definition. The Workshop chooses the concrete actions; Hallway chooses only objective-level steps.
+- A broad functional description such as '식물을 조사하는 노드' is already a sufficient objective for a basic declarative Skill/Node. Choose reasonable generic fields and port types without repeatedly asking the user for a name. Defining a research Skill is not the same as actually executing internet research; do not claim execution capabilities that IR does not yet provide.
