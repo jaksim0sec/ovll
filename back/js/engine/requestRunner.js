@@ -1,6 +1,8 @@
 /** Gate -> Hallway -> Action shell coordinator. Mutating Workshop execution intentionally absent. */
 import {createActionShell} from './actionShell.js';
-export function createRequestRunner({composer,modelCaller,dataProvider,actionShell=createActionShell()}={}){
+import {createCallManager} from './callManager.js';
+export function createRequestRunner({composer,modelCaller,dataProvider,actionShell=createActionShell(),callManager}={}){
+ const calls=callManager??createCallManager({composer,modelCaller});
  if(!composer?.compose||!modelCaller?.generate||!dataProvider?.resolveNeed||!actionShell?.accepts||!actionShell?.enter)throw new TypeError('Engine ports required');
  const invalid=(code='ENGINE_OUTPUT_INVALID')=>Object.assign(new Error(code),{code});
  const copy=x=>structuredClone(x);
@@ -48,9 +50,9 @@ export function createRequestRunner({composer,modelCaller,dataProvider,actionShe
   return (action==='terminate'||actionShell.accepts(action))&&(action!=='terminate'||index===plan.length-1)&&exact(detail,['objective','need'])&&typeof detail.objective==='string'&&!!detail.objective.trim()&&needValid(detail.need);
  });
  const finalValid=out=>exact(out,['languageBlock','contextBlock','contextData'])&&typeof out.languageBlock==='string'&&!!out.languageBlock.trim()&&blockValid(out.contextBlock)&&dataValid(out.contextData);
- async function call(layer,context){
-  const prompt=await composer.compose(layer,{languageSettings:'',interfaceSyntax:''});
-  const response=await modelCaller.generate({layer,prompt,context,format:'json'});
+ async function call(layer,context,snapshot){
+  const route=layer==='hallwayInitial'?{layer:'hallway',phase:'initial'}:{layer};
+  const response=await calls.invoke({roomId:snapshot.roomId,requestId:snapshot.requestId,requestRevision:snapshot.revision??0,route,context,bindings:{languageSettings:'',interfaceSyntax:''},format:'json'});
   try{return JSON.parse(response.jsonText);}catch{throw Object.assign(invalid(),{detail:layer+': invalid JSON returned by model'});}
  }
  function requireLookup(lookup){
@@ -61,20 +63,20 @@ export function createRequestRunner({composer,modelCaller,dataProvider,actionShe
  async function run(snapshot,{onStage=()=>{}}={}){
   if(!snapshot?.request||!Array.isArray(snapshot.initialResources)||typeof onStage!=='function')throw invalid();
   const request=copy(snapshot.request),contextData=copy(snapshot.contextData),initialResources=copy(snapshot.initialResources),chatHistory=copy(snapshot.chatHistory??[]),recentConversation=recent(chatHistory),unresolved=unresolvedRequest(request,chatHistory);
-  const gate=await call('gate',{userRequest:request,contextData,initialResources,availableHistory:{completedRequests:chatHistory.length},recentConversation,unresolvedRequest:unresolved});
+  const gate=await call('gate',{userRequest:request,contextData,initialResources,availableHistory:{completedRequests:chatHistory.length},recentConversation,unresolvedRequest:unresolved},snapshot);
   if(!exact(gate,['need'])||!needValid(gate.need))throw invalid();
   const resources=requireLookup(await dataProvider.resolveNeed({roomId:snapshot.roomId,requestId:snapshot.requestId,need:gate.need,availableResources:initialResources,request,contextData,chatHistory}));
   onStage('hallwayInitial');
   const requiresWork=workIntent(request,chatHistory);
   const hallwayContext={userRequest:request,unresolvedRequest:unresolved,contextData,resources,recentConversation,requiresVerifiedWork:requiresWork};
   let reply,retried=false;
-  try{reply=await call('hallwayInitial',hallwayContext);}
+  try{reply=await call('hallwayInitial',hallwayContext,snapshot);}
   catch(error){
    if(error?.code!=='ENGINE_OUTPUT_INVALID')throw error;
-   retried=true;reply=await call('hallwayInitial',{...hallwayContext,correction:'Return exactly a valid plan+contextBlock or languageBlock+contextBlock+contextData. For a Skill/Canvas change, plan named actions instead of merely promising.'});
+   retried=true;reply=await call('hallwayInitial',{...hallwayContext,correction:'Return exactly a valid plan+contextBlock or languageBlock+contextBlock+contextData. For a Skill/Canvas change, plan named actions instead of merely promising.'},snapshot);
   }
   if(!retried&&((requiresWork&&finalValid(reply))||(!finalValid(reply)&&(!exact(reply,['plan','contextBlock'])||!planValid(reply.plan)||!blockValid(reply.contextBlock))))){
-   reply=await call('hallwayInitial',{...hallwayContext,correction:requiresWork&&finalValid(reply)?'A promise is not an applied change. Return a plan of qualified action names, not a successful reply.':'Return exactly a valid direct reply or an action plan.'});
+   reply=await call('hallwayInitial',{...hallwayContext,correction:requiresWork&&finalValid(reply)?'A promise is not an applied change. Return a plan of qualified action names, not a successful reply.':'Return exactly a valid direct reply or an action plan.'},snapshot);
   }
   if(finalValid(reply)){
    if(requiresWork)throw Object.assign(new Error('Action required'),{code:'WORK_REQUIRED',detail:'hallwayInitial: a reply cannot finish a requested Skill/Canvas change'});
