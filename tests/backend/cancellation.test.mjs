@@ -22,7 +22,7 @@ test('running cancellation ignores a late model reply and does not commit contex
 });
 test('queued cancellation immediately releases pending request',async()=>{
  const waiting=pause();let entered=false;
- const engine=createEngine({composer:{compose:async()=>''},dataProvider:createMemoryDataProvider(),policy:{maxActiveRequests:1,maxModelCalls:1},modelCaller:{generate:async ({layer})=>{if(layer==='gate'&&!entered){entered=true;await waiting.promise;}return {jsonText:JSON.stringify(layer==='gate'?{need:[]}:direct)}}});
+ const engine=createEngine({composer:{compose:async()=>''},dataProvider:createMemoryDataProvider(),policy:{maxActiveRequests:1,maxModelCalls:1},modelCaller:{generate:async ({layer})=>{if(layer==='gate'&&!entered){entered=true;await waiting.promise;}return {jsonText:JSON.stringify(layer==='gate'?{need:[]}:direct)}}}});
  const a=engine.submit(sample('a')),b=engine.submit(sample('b'));
  await until(()=>entered);
  assert.equal(engine.getRequest({roomId:'b',requestId:b.requestId}).status,'queued');
