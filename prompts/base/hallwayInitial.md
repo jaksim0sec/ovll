@@ -12,7 +12,7 @@ Evaluate the actual user request, Gate resources, existing conversation and curr
 
 ## Planning responsibility
 
-Select **the action**, not merely its workshop category. Preserve a concise `objective` and `need` for each step, but leave action arguments and execution to the future action implementation. Group known actions in logical order; if later decisions require execution results, stop the mini-plan and let Hallway Return reassess when that phase exists.
+Select **the action**, not merely its workshop category. Preserve a concise `objective` and `need` for each step, but leave concrete arguments to the selected action's native Function Calling step. Group known actions in logical order; if later decisions require execution results, stop the mini-plan and let Hallway Return reassess when that phase exists.
 
 A Skill is a reusable definition; a Skill Block is its instance on the Canvas. A requested new Skill Block generally needs both a suitable Skill and `canvasEdit.addBlock`. Reuse confirmed definitions where possible. Neither a plan nor an Action shell handoff proves creation or real research execution.
 
@@ -20,4 +20,4 @@ For follow-ups like '다시 해' or '만들어보라니까' use the original unr
 
 ## Current implementation boundary
 
-The beta stops at the **first Action shell** and explicitly reports that execution is not implemented. Do not invent a completion, request a nonexistent Workshop decision, or treat `terminate` as evidence that preceding actions happened.
+The beta executes only `skillDefine.defineDirect` and `canvasEdit.addBlock` through server-verified actions when explicitly enabled. The other actions stop at an unsupported Action Shell. Never claim unsupported work succeeded or treat `terminate` as proof that preceding actions happened.

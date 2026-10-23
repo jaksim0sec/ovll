@@ -1,26 +1,25 @@
-# 작업실 분류 및 행동 껍데기 계약
-상태: 2026-10-23, 구 Beta 비IR Workshop 실행기 **폐기**. 신규 작업실 구현 완료가 아님.
+# Workshop 행동 계약 · 네이티브 Function Calling (Stage 2)
 
-## 개념
-작업실 그룹은 행동을 분류하는 네임스페이스로 남는다. `planGeneration`은 작업실만 지정하는 대신 **정확한 행동 이름**을 계획한다. 선택된 행동의 목표·need만 Action Shell로 전달된다.
+기존 beta JSON Workshop 실행기는 폐기 유지. `actionShell.js`의 12개 이름은 계획 가능한 카탈로그일 뿐, 전부 구현됐다는 뜻이 아니다.
 
-| 그룹 | 계획 가능한 행동 |
-|---|---|
-| skillDefine | defineDirect, defineFromIR, revise |
-| skillEdit | editAppearance, delete |
-| canvasEdit | addBlock, editBlock, deleteBlock, addLink, removeLink |
-| textGenerate | basicText, question |
+| 작업실 그룹 | 계획 가능 | **실제 실행 지원** |
+|---|---|---|
+| skillDefine | defineDirect, defineFromIR, revise | **defineDirect** |
+| skillEdit | editAppearance, delete | 없음 |
+| canvasEdit | addBlock, editBlock, deleteBlock, addLink, removeLink | **addBlock** |
+| textGenerate | basicText, question | 없음 |
 
-`terminate`는 계획 종료 제어 표식이며 실행 가능한 행동이 아니다. `defineFromIR`도 계획 표기만 인정하며 IR·Saved Function 생성 코드는 없다.
+`terminate`는 엔진 제어 마커, Function Calling 대상 아님.
 
-## 현재 구현 범위
-- `back/js/engine/actionShell.js`: 정적 행동 목록과 `accepts`, `enter` 검증. `enter`는 `{action,workshop,objective,need,status:'not_implemented'}`만 반환.
-- `back/js/engine/engine.js`: Gate need 조회→Hallway Initial 행동별 계획→첫 단계의 자료 확인→Action Shell에 진입. 초기 Hallway 직접 발화는 그대로 완료할 수 있음.
-- **미구현**: 개별 행동 프롬프트, 실행 인수 구성, Gemini 네이티브 Function Calling, 행동 효과 적용·수정·저장, 재계획, 작업 완료 판정, 질문 답변 연계.
-- 서버는 행동 성공을 주장하지 않는다. 상태 `unsupported_workshop`은 API 호환 상태명이며 의미는 'Action Shell 도달·실행 미구현'이다.
-- 이전 `workshop.js`의 JSON 선택→검증→메모리 `apply` 루프와 임시 자산·체크포인트는 삭제됐다.
+## 행동별 계약
+- `back/js/engine/actionDescriptors.js`: `getActionDescriptor(qualifiedName)`이 지원 2행동의 `promptLayer`, 단 하나의 도구 선언, 인수 검증기를 제공. 미지원 이름은 `null`.
+- `skillDefine.defineDirect` → `define_direct`: `name/description/instruction/icon/color/inputs/outputs/fields`를 검증 후 독립 Skill 저장, 서버가 ID 발급. Icon은 현재 렌더러에 존재하는 지원 이름만. 재사용 지침을 저장할 뿐 웹검색/실제 조사 실행 아님.
+- `canvasEdit.addBlock` → `add_block`: `skillId/x/y/expanded/values`, **같은 room에 실제 존재하는 Skill**과 필드 제약 검증 후 별도 Block ID 발급. 직전 검증 결과의 실제 skillId를 다음 함수 인수로 전달.
+- 도구가 반환한 함수명·인수는 모델 제안. `ActionStore.apply`의 applied 결과만 실제 자산 변경. `operationId`/expected revision으로 멱등성·동시 수정 충돌 방어.
+- `callManager.invokeFunction`은 `callId.workshop.group.action`의 새 호출 이력을 남김. 모델은 다음 Workshop을 직접 호출하지 않으며 `requestRunner`가 검증 후 cursor를 넘긴다.
+- 지원하지 않는 행동에 도달하면 `enterAction`을 통해 `unsupported_workshop` 표시하며 부분 성공 기록은 보존. `Hallway Return`, IR, Saved Function, textGenerate.question, 기타 10행동 구현하지 않음.
 
-## 2026-10-24 호출 ID를 가진 첫 Action Shell
-- `requestRunner.js`에서 Hallway plan의 첫 `skillDefine.defineDirect`를 선택하면 `callManager.enterAction`이 `callRegistry.register({route:{layer:'workshop',workshop:'skillDefine',action:'defineDirect'}})`로 별도 `callId`를 부여한다.
-- Call은 `unsupported` 상태로 끝나며 요청은 `unsupported_workshop` 상태. `handoff.callId`와 `planCursor:0`을 공개하고 실제 Skill/Canvas 변경은 없다. 두 번째 행동은 실행되지 않는다.
-- 기존 문서의 `back/js/engine/engine.js`가 직접 작업실에 진입한다는 표현은 개념적 흐름이다. 실제 호출은 `engine.js` Facade → `requestRunner.js` → `callManager.js` → `actionShell.js` 순서이다.
+## 실행 모드·자산
+- `createBetaRuntime`의 `testToken` 길이 16 이상이면서 `abcd`가 아닐 때만 `actionStore`를 엔진에 주입한다. 기본 `abcd` 환경은 기존 inert Action Shell. **공용 토큰은 정식 인증·권한 분리 수단이 아니다.**
+- 실 자산은 `back/js/assets/memoryActionStore.js`에 room별 보관, 재시작 시 휘발. 브라우저의 로컬 provisional Canvas는 별도이며 서버 원본으로 자동 등록하지 않음.
+- 서버가 확인한 자산을 프론트로 투영하다 로컬 변경과 충돌하면 사용자의 로컬 편집을 보존한다. 별도의 병합·사용자 승인 UI는 없음.

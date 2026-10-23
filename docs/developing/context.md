@@ -1,6 +1,6 @@
 # 맥락체·맥락데이터
 
-상태: 1014 설계 계약. 2026-10-24 단일 프로세스·복수 요청 FIFO 방별 `contextData` 연속성, 요청별 `contextBlock`, 계획된 행동은 Action Shell에서 멈추며 Workshop 복귀·Output 연결은 미구현. DB 영속화·다중 인스턴스·트랜잭션은 미구현.
+상태: 1014 설계 계약, 2026-10-24 Stage 2 단일 프로세스·복수 요청 FIFO, 요청별 `contextBlock`과 방별 `contextData`. 지원되는 2행동은 검증 후 Output으로 이동, Hallway Return은 미구현. DB 영속화·다중 인스턴스·트랜잭션은 미구현.
 
 ## 범위·작성자
 | 구분 | 수명·소유 | 필드·작성 |
@@ -59,3 +59,8 @@
 - `callManager.invoke`는 모델 호출 직전에 전달받은 컨텍스트의 복사본에만 `contextBlock.focus`를 합성(현재 Gate 또는 Hallway route). 원본 요청 상태에 저장하지 않는다.
 - 요청별 두 Call은 `callId`가 달라지고 자체 `CallRecord`를 갖는다. 프로세스 메모리 호출 로그에는 프롬프트 전문과 Gemini 원문을 남기지 않는다.
 - `memorySessions`의 동일 방 contextData 업데이트는 revision CAS로 충돌 감지. 동시 요청의 의미적 자동 병합은 구현하지 않았고 충돌 요청은 `SESSION_CONFLICT`로 실패한다.
+
+## 2026-10-24 Stage 2 실제 호출 맥락
+- `callManager.invokeFunction`은 다른 `callId`로 호출별 `focus`를 생성. 해당 작업실은 전체 요청 `contextBlock`의 `intent/progress`, room `contextData`, 최근 `verifiedResults`, 서버 자산 revision을 입력으로 받지만 원본 맥락을 임의 수정할 수 없다.
+- 실제 적용 후 `verifiedResults`에 서버 `operationId`·artifact ID·revision을 별도 보존해 다음 작업실에 전달. `focus`에 실행 로그 전체를 누적하지 않음. `terminate` 뒤 Output에서만 요청 맥락체·방 맥락 갱신 내용을 작성하며 room commit의 revision을 확인.
+- 계획된 미지원 행동 또는 Output 실패시 앞선 적용 내역을 지우지 않는다. 서버 프로세스 재시작 복구와 영속 DB 복원은 미구현이다.

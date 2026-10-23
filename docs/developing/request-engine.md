@@ -1,36 +1,27 @@
-# Beta 독립 요청 엔진 — Action Shell 단계
-상태: 2026-10-24 Stage 1. 이전 비IR 11행동 실행 구현은 **폐기**했고 이 문서는 현재 동작을 기록한다.
+# Beta 관리형 요청 엔진과 네이티브 행동 호출
 
-## 런타임
-- `request/registry.js`: 방·요청별 큐/진행/완료·미구현 상태 기록. `handoff` 필드 보존.
-- `request/scheduler.js`: FIFO, 같은 방 최근 완료 맥락 인계, 실행 실패 진단, HTTP 상태 스냅샷.
-- `engine/promptComposer.js`: manifest 순서 기반 조립; 사용자 정보는 context로 별도 전달.
-- `engine/dataProvider.js`: need 조회; 대화 이력·요청 원본·초기 참조. 서버에서 조회용 비어 있는 자산 카탈로그를 넣어 `skillList`는 빈 목록으로 조회 가능.
-- `engine/engine.js`: 다중 요청 관리형 `createEngine()` Facade. 개별 `requestRunner.js`가 Gate→Hallway Initial→선택된 첫 Action Shell 또는 직접 응답을 수행. 계획 이후 추가 모델 호출 없음.
-- `engine/actionShell.js`: 12개 자격 행동 검증 및 `not_implemented` 접수 객체. **실행 함수 없음**.
-- `model/gemini.js` & `model/configuredGemini.js`: Gate/Hallway JSON 생성. Gemini 네이티브 Function Calling 사용하지 않음.
-- `back/js/server.js`: Render Web Service, 정적 front + API, room 메모리, 읽기 전용 빈 자산 카탈로그.
+상태: 2026-10-24 Stage 2: 정의 저장·블럭 배치 **2행동** 실행 지원.
 
-## 상태
-- 직접 답변: `completed`, Hallway Initial에서 생성한 `languageBlock`.
-- 행동 계획: `unsupported_workshop` / `currentLayer=actionShell`, `plan`과 `handoff` 반환. `handoff.status=not_implemented`; 실제 스킬/블럭 생성 없음.
-- 잘못된 응답 형태/미등록 행동: `ENGINE_OUTPUT_INVALID`; 실작업 요청을 말로만 완료하려 하면 교정 1회 뒤 `WORK_REQUIRED`; 자료 누락은 `DATA_UNAVAILABLE`.
-- 모델이 `terminate` 계획을 생성해도 선행 작업의 적용 기록이 없으면 성공으로 전이하지 않는다.
-- 세션 `contextData`는 완료된 직접 답변에서만 갱신. 서버 재시작 시 소실됨. 영속 자산이 없고 사용자 인증·IR·Saved Function 실행도 없음.
+## 구성·인터페이스
+- `back/js/runtime.js:createBetaRuntime()`는 `createEngine`, `createMemoryActionStore`, `createMemorySessions`, `createMemoryDataProvider({assets})`, `createRequestHttpServer`를 조립. `server.js`에서 생성/구동.
+- `engine.js:createEngine`: `submit/getRequest/getCall/listCalls/cancel/whenIdle`, HTTP 레거시 호환 `enqueue/get/resume/retryOutput`. 실제 여러 요청 관리, 한 요청만 실행하는 추상화를 엔진 전체와 혼동 금지.
+- `requestRunner.js:createRequestRunner`: Gate/Hallway 직접 응답 또는 action plan. 지원 행동 순차 호출, Output. `actionStore` 미주입 시 Stage 1의 inert Action Shell 유지.
+- `callManager.js`: `invoke`(JSON)·`invokeFunction`(한 selected tool), 별도 `callId`, route/path, 제한된 공급자 슬롯, 호출별 임시 focus, AbortSignal. 모델 응답은 적용 결과가 아니다.
+- `model/gemini.js`: 기존 JSON `generate` 외 `generateFunction`(REST `generateContent`, `ANY`, 허용 함수명 한 개, `functionCall` 1개 검증). 공급자 응답은 인수 **제안**.
+- `actionDescriptors.js`: 두 도구 선언/검증, `memoryActionStore.js`: 서버 실제 적용·room별 revision·opId 중복 방지. 이전 `workshop.js`/임시 JSON router는 복구하지 않음.
+- `scheduler.js`의 `onCheckpoint`는 적용 전 `pendingOperation`, 적용 후 `verifiedResults`·`planCursor`를 Registry에 기록. 예외/Output 오류 시 적용된 결과와 room 자산은 남는다.
 
-## API·프론트
-- `POST /api/requests`, `GET /api/requests/:id?roomId=...`; 결과 상태에 `handoff`가 포함될 수 있다.
-- `GET /api/rooms/:roomId/assets`는 rev 0/빈 자산만 반환. 확인된 새 작업으로 표시하지 않는다.
-- 프론트는 Action Shell 도달과 미구현 상태/선택 행동명을 진행 카드에 표시. 완료 답변으로 위조하지 않는다.
-- 기존 테스트 전용 `/answer`, `/retry-output` 라우트는 서버에 남아 있으나 실행기에 resume/retryOutput을 제공하지 않으므로 이 단계에서 진행 불가능.
-- 테스트: `npm test` (Node 22). 실제 Gemini 모델 응답·Render 브라우저 검증과는 구분.
+## 계약
+- Hallway JSON 직접 응답 `languageBlock,contextBlock,contextData` → 요청 `completed`. 별도 Output 없음.
+- Hallway 계획 `plan,contextBlock`. 각 plan 요소 `{'skillDefine.defineDirect':{objective,need}}`처럼 단일 행동 이름. `skillDefine` 같은 분류만 선택 불가.
+- 실행 지원: `skillDefine.defineDirect`는 유효한 설명/지침/필드/포트/아이콘을 갖춘 **독립 Skill 정의 저장**. `canvasEdit.addBlock`은 기존 확인된 Skill ID를 사용해 별도 Block 배치. Skill의 지침은 **실행하지 않음**.
+- `verifiedResults`의 `outcome.status='applied'`만 실제 성공. `requestId`/각 모델 `callId`/실제 변경 `operationId` 구분. `terminate` 도달 후 Output가 검증된 작업만 언급하고 room `contextData`를 CAS 확정.
+- 나머지 10개 이름은 Action Shell에서 `unsupported_workshop`, 현재까지의 부분 `verifiedResults` 보존, 다음 단계 자동 실행 금지. Hallway Return/임의 재계획 없음.
+- 중복 `operationId` + 같은 인수는 기존 결과 재현, 변경 인수 재사용은 거절. `expectedRevision`이 구식이면 `conflict` 반환, 덮어쓰기 금지. 서버 재시작 후 operation 복원은 **불가능** (메모리).
+- 사용자가 취소하면 새 행동을 시작하지 않도록 AbortSignal 검사. 이미 적용된 서버 자산을 취소할 수 없으므로 존재한 변경을 없던 것으로 보고하지 않는다.
 
-## 2026-10-24 다중 요청·호출 관리 현행
-- 서버는 `createEngine({composer,modelCaller,dataProvider,sessions,policy})` 한 인스턴스를 HTTP에 공급하고 여러 요청을 관리. `submit/getRequest/getCall/listCalls/cancel/whenIdle` 지원. 각 요청은 별도 RequestRecord와 호출 이력을 가진다.
-- Scheduler의 요청 동시 슬롯 기본값 3(`policy.maxActiveRequests`). Call Manager의 Gemini 호출 동시 슬롯 기본값 2(`policy.maxModelCalls`). 단일 프로세스 비동기 중첩이며 CPU 병렬·분산 워커 아님.
-- `callRegistry.js`: `callId`는 고유, `route`는 Gate/ Hallway Initial/ Workshop 네임스페이스/ Output으로 검증. `path`는 사람이 읽는 파생 문자열; 호출 결과/프롬프트 원문 저장하지 않음.
-- `callManager.js`: 호출용 `focus`를 동적으로 첨부하며 시작·종료 결과를 호출 상태에 반영. `requestRunner`는 JSON 결과 구조와 직접 응답/행동 계획을 검증.
-- 결과값이 `unsupported_workshop`이면 `planCursor:0`, `handoff.callId`를 반환. 첫 Action Shell의 호출 상태는 `unsupported`, 실제 `verifiedResults` 없음.
-- `registry.js`는 revision/CAS 검사가 가능하고 `scheduler.js`는 `cancel`로 queued/active 요청을 중단한다. 취소 후 늦게 도착한 모델 결과로 요청 완료·세션 저장하지 않음. 사용자의 질문 대기 resume 경로는 Scheduler에 남아 있지만 현행 Action Shell에서는 진입하지 않음.
-- `GET /api/requests/:id/calls?roomId=...`: 인증된 테스트 토큰과 지정된 roomId 아래 존재하는 요청의 최근 100개 Call 요약(`callId,path,route,status`만) 반환; 미등록 요청은 404. 사용자별 접근권한 체계는 미구현.
-- 아직 없는 것: 작업실 전용 호출/도구 스키마, Gemini 네이티브 Function Calling, 실제 스킬·스킬블럭 변경, operationId, 결과에 따른 다음 plan 단계, Hallway Return/Output 종결, DB/분산 큐/SSE.
+## HTTP·UI
+- `POST /api/requests`, `GET /api/requests/:id?roomId=...`는 상태·`verifiedResults`·`planCursor`·확인된 답변 노출. `GET /api/requests/:id/calls?roomId=...`는 최근 최대 100개의 호출 ID·route·status **요약만**.
+- `GET /api/rooms/:roomId/assets`는 서버 최신 Skill/Block/Link·revision, `/history`는 완료 대화·확인된 적용 결과. `front/js/workspace/requestBridge.js`는 성공 뒤 asset 재조회, `applyServerAssets`는 로컬 편집이 갈라졌으면 덮어쓰지 않음.
+- `OVLL_TEST_TOKEN`이 미설정(기본 `abcd`) 또는 16자 미만이면 **실제 작업실 변경 비활성화**. 16자 이상 `abcd`가 아닌 토큰을 명시 설정한 Beta 시험 환경에서만 허용. 이 공용 토큰으로 다중 사용자 권한이 해결된 것은 아님.
+- Render의 실 Gemini 연결, 브라우저 Playwright, PWA/모바일 실동작은 Node fake-model CI 성공과 별도 확인.

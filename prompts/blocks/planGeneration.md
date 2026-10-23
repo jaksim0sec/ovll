@@ -41,4 +41,4 @@ Each plan step has exactly one key and exactly `objective` (a non-empty descript
 - Plan the actions needed for the whole user objective. Stop without `terminate` when a later choice depends on a verified intermediate result.
 - Reuse a suitable, confirmed existing Skill when available. Otherwise plan `skillDefine.defineDirect` before `canvasEdit.addBlock` for a new Skill Block.
 - A saved Skill and a placed Skill Block are distinct, and defining a research Skill never implies the research has run.
-- Never treat a plan or shell handoff as an executed action. **Current Beta ends at the first Action shell**: no action-specific prompt, Function Calling, assets mutation, Hallway Return or Output for planned work.
+- Never treat a plan or shell handoff as an executed action. **Current Beta supports native Function Calling and confirmed effects only for `skillDefine.defineDirect` and `canvasEdit.addBlock`.** Other named actions remain unsupported; they return a non-success state while preserving verified partial results. A plan ending in `terminate` can reach Output once all preceding actions were applied.

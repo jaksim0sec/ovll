@@ -121,7 +121,7 @@
 - `AGENTS.md`의 이전 2026-10-23 비IR Workshop 연결 기록은 이 현행 구조로 대체됨. `main`은 손대지 않음.
 - 자동 검증: `npm test` (Node 22 CI). 실 Gemini·Render 브라우저 시험과 분리해서 보고.
 
-## 2026-10-24 현재: 다중 요청 Engine · Call Manager (Stage 1)
+## 2026-10-24: 다중 요청 Engine · Call Manager (Stage 1 기록; 아래 Stage 2가 현행)
 - 제품 엔진은 `back/js/engine/engine.js`의 `createEngine()`. 한 요청 전용 Gate/Hallway 처리는 `requestRunner.js`에 분리했으며 `createRequestEngine`은 이전 단위테스트용 얇은 alias임. `server.js`는 `createEngine` 하나를 만들고 HTTP에 같은 인스턴스를 전달.
 - `request/scheduler.js`는 요청 FIFO와 최대 동시 요청 수를 관리(엔진 기본 3), `engine/callManager.js`는 별도 Gemini 모델 호출 동시 수를 관리(기본 2). 같은 요청의 Gate → Hallway → 첫 Action Shell은 순차적으로 진행. 여러 요청은 동시에 관리 가능.
 - `request/callRegistry.js`에 매 호출마다 고유 `callId`, 구조화 `route`, 파생 `callId.route`와 `queued/running/completed/failed/cancelled/unsupported` 이력을 관리. 각 Call은 `roomId`, `requestId`에 귀속되며 Gemini 호출 데이터·시스템 프롬프트를 CallRecord에 저장하지 않는다.
@@ -130,3 +130,13 @@
 - 계획 첫 행동은 `CallRecord`로 등록 후 `unsupported`으로 끝내며 `handoff.callId`와 `planCursor:0` 반환. 후속 행동, Function Calling, 자산 변경은 여전히 **미구현**.
 - `GET /api/requests/:id/calls?roomId=...`가 해당 요청의 최근 호출 기록 최대 100개 중 `callId,path,route,status`만 반환. 테스트용 공용 토큰은 사용자별 인증이 아니므로 프로덕션 격리 보장 불가.
 - 모두 프로세스 메모리 기반. 서버 재시작, 분산 워커, 영속 CallRecord/operationId, 실제 취소 가능한 Gemini 작업 수행은 이 단계의 보장 범위가 아님. 실제 Gemini·Render 환경/브라우저 실검증은 CI와 별도.
+
+## 2026-10-24 현재: Native Function Calling Stage 2
+- 활성 **작업실 2행동만** `skillDefine.defineDirect`(완전 Skill 정의 저장), `canvasEdit.addBlock`(실제 Skill ID를 참조하는 Block 배치)으로 지원. 다른 10행동, IR/질문/일반 재계획은 미구현. 구 JSON `workshop.js` 복원 금지.
+- `back/js/model/gemini.js:generateFunction`은 `generateContent`의 `ANY` 도구 호출을 정확히 선택된 함수 하나로 제한하고 함수명/개수/args 구조를 검증한다. 반환 값은 **모델 제안**일 뿐 적용 성공 아님.
+- `engine/actionDescriptors.js`는 2행동 도구 정의·인수 검증. `assets/memoryActionStore.js`는 room별 Skill/Block 실자산, 원자적 expectedRevision, operationId 멱등성 및 실제 applied 아티팩트를 제공한다. 서버가 ID를 발급한다.
+- `requestRunner.js`: Hallway 행동 plan에 따라 두 행동을 호출, **적용 전 pendingOperation 체크포인트**, **적용 후 verifiedResults/planCursor 갱신**. `terminate` 후 `output` 호출. Output 실패 시 앞서 적용된 자산·기록 보존. 해당 Skill의 지침(실제 조사)은 여기서 실행하지 않는다.
+- `back/js/runtime.js`는 하나의 Store를 Engine, DataProvider, HTTP API에 공유. **기본 `OVLL_TEST_TOKEN=abcd` 또는 16자 미만이면 실행 포트 미주입** (이전 inert Action Shell 유지). 비공개 16자 이상 테스트 토큰만 변경 활성화. 공용 테스트 토큰은 정식 auth/테넌트 격리 수단 아님.
+- `front/js/workspace/requestBridge.js`는 완료 뒤 확정 자산을 다시 가져오며 `workspace/controller.js:applyServerAssets`는 로컬 provisional 그래프가 변경되었으면 덮어쓰지 않는다. 실제 DB 동기화/브라우저 실검증은 미구현 또는 미검증.
+- 활성 조립형 프롬프트: `prompts/manifest.json`에 `workshop.skillDefine.defineDirect`, `workshop.canvasEdit.addBlock` 추가. 다른 행동 프롬프트를 전체 주입하지 않는다.
+- CI fake provider 테스트 성공과 **실제 Gemini/Render/Playwright 성공은 구분**해서 보고. 프로세스 메모리 저장은 재시작 시 전부 휘발. `main`은 변경 금지.
