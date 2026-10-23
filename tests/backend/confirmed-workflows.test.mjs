@@ -74,3 +74,17 @@ test('confirmed Skill creation result retains attributable applied artifact in u
  assert.equal(result.result.verifiedResults[0].outcome.status,'applied');
  assert.equal(result.result.verifiedResults[0].outcome.artifacts[0].name,'문장 정리기');
 });
+
+test('an affirmative answer to a previously offered Skill creation requires a real Workshop',async()=>{
+ let calls=0;
+ const modelCaller={generate:async ({layer})=>{
+  if(layer==='gate')return toText({need:[]});
+  calls++;
+  return toText({languageBlock:'그래, 만들어 줄게.',contextBlock:block,contextData});
+ }};
+ const engine=createRequestEngine({composer:{compose:async x=>x},modelCaller,dataProvider:createMemoryDataProvider()});
+ const input=request('응');
+ input.chatHistory=[{request:{parts:[{type:'text',text:'만들긴 한 거야?'}],attachments:[]},assistantResponse:'아직 문장 정리기 스킬 안 만들었어. 지금 만들까?',contextBlock:block,contextData,verifiedResults:[]}];
+ await assert.rejects(engine.run(input),err=>err.code==='WORK_REQUIRED');
+ assert.equal(calls,2);
+});
