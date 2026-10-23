@@ -23,7 +23,7 @@ test('HTTP returns same-room confirmed conversation, excluding other-room histor
  }finally{await new Promise(r=>server.close(r));}
 });
 test('browser reload rehydrates exactly one copy of each confirmed user and assistant turn',async()=>{
- const messages=[],fetchImpl=async url=>({ok:true,status:200,json:async()=>({entries:[entry]})});
+ const messages=[],fetchImpl=async url=>({ok:true,status:200,json:async()=>({roomId:'r',entries:[entry]})});
  const bridge=createRequestBridge({fetchImpl,onRecords:r=>messages.splice(0,messages.length,...r)});
  try{
   assert.equal(await bridge.loadHistory('r'),true);
