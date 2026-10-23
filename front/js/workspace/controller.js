@@ -237,13 +237,14 @@ export async function createWorkspace({ root, data, input, roomId = DEFAULT_ROOM
       for(const skill of snapshot.skills)if(typeof skill?.id==='string'&&Array.isArray(skill.fields))serverSkills.set(skill.id,structuredClone(skill));
       canvas.refreshCatalog();composer.refreshCatalog();
       const local=model.getSnapshot();
+      const updated={version:1,blocks:snapshot.blocks,links:snapshot.links};
+      if(JSON.stringify(local)===JSON.stringify(updated)){lastServerProjection=structuredClone(updated);return;}
       const empty=local.blocks.length===0&&local.links.length===0;
       const last=lastServerProjection;
       if(!empty&&JSON.stringify(local)!==JSON.stringify(last)){
         if(snapshot.blocks.length)announce('서버에 확정된 캔버스가 있지만 이 기기의 로컬 작업과 충돌해 덮어쓰지 않았습니다.',{persistent:true});
         return;
       }
-      const updated={version:1,blocks:snapshot.blocks,links:snapshot.links};
       try{model.replaceConfirmedSnapshot(updated);lastServerProjection=structuredClone(updated);}
       catch(error){announce('서버 변경을 캔버스에 표시하지 못했습니다. 로컬 작업은 보존합니다.',{persistent:true});console.warn('Server projection conflict',error);}
     },
