@@ -100,6 +100,7 @@ try{
     })
   });
   void requestBridge.loadAssets(workspaceController.getRoomId()).catch(()=>{});
+  void requestBridge.loadHistory(workspaceController.getRoomId()).catch(()=>{});
   pages.register('workspace',{element:workspace,onEnter:({signal})=>{
     const controller=hosted.activateForPage({...workspaceController.getPresentation(),signal});
     workspaceController.activate({signal,controller});
