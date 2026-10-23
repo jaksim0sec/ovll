@@ -14,10 +14,11 @@ const describeDraft=draft=>{
 };
 
 /** Browser-side request/display adapter. Does not own engine or Canvas internals. */
-export function createRequestBridge({fetchImpl=globalThis.fetch,promptForToken=()=>globalThis.prompt('Render에 설정한 OVLL_TEST_TOKEN을 입력하세요.\nGemini API 키가 아닌 별도의 테스트 접근키입니다.'),onRecords=()=>{},onActivities=()=>{},onAccepted=()=>{},pollDelay=900}={}){
+export function createRequestBridge({fetchImpl=globalThis.fetch,promptForToken=()=>globalThis.prompt('Render에 설정한 OVLL_TEST_TOKEN을 입력하세요.\nGemini API 키가 아닌 별도의 테스트 접근키입니다.'),onRecords=()=>{},onActivities=()=>{},onAssets=()=>{},onAccepted=()=>{},pollDelay=900}={}){
  if(typeof fetchImpl!=='function'||typeof promptForToken!=='function')throw new TypeError('Browser transport requires fetch and token prompt');
  const records=[],activities=new Map(),timers=new Set();let token='abcd',destroyed=false;
  const refresh=()=>{if(!destroyed){onRecords(records.map(x=>({...x})));onActivities([...activities.values()].map(x=>({...x})));}};
+ async function loadAssets(roomId){const res=await fetchImpl('/api/rooms/'+encodeURIComponent(roomId)+'/assets',{headers:authHeaders(),cache:'no-store'});if(!res.ok)return false;const state=await readResponse(res);if(!destroyed&&Array.isArray(state.skills))onAssets(state);return true;}
  const requestLabel=id=>(records.find(record=>record.id===id+':user')?.text||'구조화 요청').split('\n')[0].slice(0,100);
  const report=(id,label,detail)=>activities.set(id,{requestId:id,label:label+' · '+id.slice(0,8),detail:'요청: '+requestLabel(id)+' · '+detail});
  const diagnostic=error=>{
@@ -62,9 +63,13 @@ export function createRequestBridge({fetchImpl=globalThis.fetch,promptForToken=(
   }
   if(destroyed)return;
   if(next.status==='completed'){
+   void loadAssets(roomId).catch(()=>{});
    if(typeof next.result?.languageBlock==='string')records.push({id:requestId+':assistant',requestId,role:'assistant',text:next.result.languageBlock});
    else report(requestId,'응답 검증 실패','완료 상태에 응답 본문이 없습니다.');
    if(typeof next.result?.languageBlock==='string')activities.delete(requestId);
+  }else if(next.status==='awaiting_input'){
+   activities.set(requestId,{requestId,label:'사용자 답변 대기 · '+requestId.slice(0,8),detail:'요청: '+requestLabel(requestId),waiting:next.waiting});
+   void loadAssets(roomId).catch(()=>{});
   }else if(['failed','unsupported_workshop'].includes(next.status)){
    report(requestId,stageLabel(next),next.status==='failed'?diagnostic(next.error):'계획은 인식했지만 실제 Workshop 작업은 실행하지 않았습니다.');
   }else{
@@ -100,5 +105,17 @@ export function createRequestBridge({fetchImpl=globalThis.fetch,promptForToken=(
   refresh();try{onAccepted();}catch{/* UI navigation must not undo server acceptance. */}schedule(()=>poll(roomId,payload.requestId));
   return {accepted:true};
  }
- return Object.freeze({submit,destroy(){destroyed=true;for(const timer of timers)clearTimeout(timer);timers.clear();token='';activities.clear();records.length=0;}});
+ async function answer({roomId,requestId,waitingId,text}){
+   if(destroyed||typeof text!=='string'||!text.trim())return {accepted:false,message:'유효한 답변을 입력해 줘.'};
+   let response;
+   try{response=await fetchImpl('/api/requests/'+encodeURIComponent(requestId)+'/answer',{method:'POST',headers:{'content-type':'application/json',...authHeaders()},body:JSON.stringify({roomId,waitingId,text}),cache:'no-store'});}
+   catch{return {accepted:false,message:'서버 연결에 실패했어.'};}
+   if(!response.ok)return {accepted:false,message:'이 질문은 이미 처리됐거나 요청을 재개할 수 없어.'};
+   const id=requestId+':answer:'+waitingId;
+   if(!records.some(r=>r.id===id))records.push({id,role:'user',requestId,text});
+   activities.set(requestId,{requestId,label:'답변 처리 중 · '+requestId.slice(0,8),detail:'요청: '+requestLabel(requestId)});
+   refresh();schedule(()=>poll(roomId,requestId));
+   return {accepted:true};
+ }
+ return Object.freeze({submit,answer,loadAssets,destroy(){destroyed=true;for(const timer of timers)clearTimeout(timer);timers.clear();token='';activities.clear();records.length=0;}});
 }
