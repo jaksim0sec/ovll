@@ -28,14 +28,14 @@
 1. Render의 새로운 `beta` Web Service를 배포한다. AI 요청에는 Gemini API 키가 필요하고 모델명은 선택이다. `OVLL_TEST_TOKEN`을 설정하지 않거나 `abcd`로 지정하면 Composer에서 자동 처리한다. 기존에 다른 값을 설정했다면 `abcd`로 변경하거나 그대로 두고 직접 입력한다.
 2. Render 주소의 `/api/health`가 `ok:true`인지 확인한다.
 3. **Render 주소로 접속한 beta 프론트**의 채팅에서 요청을 보낸다. 기본 `abcd`는 자동 전송되어 접근키 팝업이 없다. 환경변수의 다른 토큰과 충돌할 때에만 401 응답 이후 그 토큰을 묻는다. Gemini API 키는 브라우저에 입력하지 않는다.
-4. 대기열 → Gate → Hallway 진행 카드와 최종 응답을 확인한다. 단순 인사는 직접 응답을 예상할 수 있다. Skill·Canvas 실행 요청은 현재 미구현 Workshop으로 남을 수 있다.
+4. 대기열 → Gate → Hallway → 필요시 Workshop·Hallway Return → Output 진행 카드와 결과를 확인한다. 단순 인사는 직접 응답. 실제 Skill/Canvas 변경 요청은 해당 Workshop 결과가 확인돼야 성공이다.
 5. 실패가 발생하면 Chat 진행 카드의 실패 코드/단계, Render 로그, `/api/health`를 확인한다. 실제 Gemini 출력의 구조/서비스 모델에 따라 실패 가능성이 있으므로 아직 성공을 단정하지 않는다.
 
 ## 제한과 책임
-- 메모리 상태는 Render 인스턴스 종료·재배포·무료 요금제의 슬립 때 사라진다. 프론트도 서버의 채팅 기록을 영속 저장/재조회하지 않는다. 요청별 `contextData`는 초기 빈 값으로 공급하며 세션 원본 병합은 없다.
+- 메모리 상태는 Render 인스턴스 종료·재배포·무료 요금제의 슬립 때 사라진다. 완료된 채팅 최근 8개는 서버 메모리에서 `GET /api/rooms/:roomId/history`로 재조회할 수 있으나 **영속 저장이 아니다**. 요청별 `contextData`는 초기 빈 값으로 공급하며 세션 원본 병합은 없다.
 - 기본값 `abcd`는 소스에 공개되어 인증/보안 기능을 사실상 제공하지 않는다. 선택 테스트 접근키는 **베타 공개 시험을 위한 임시 공유 비밀**이지 사용자 계정 인증/다중 테넌트 접근 제어가 아니다. 본 구성으로 일반 공개 서비스를 운영하지 않는다.
 - 큰 파일은 전송하지 않는다. `prepareRequestInput`은 Skill/Skill Block 직접 참조와 필요한 표시 메타데이터만 보내며 프론트의 Blob은 보내지 않는다. 프론트 메타데이터를 검증된 실행 정의로 주장하지 않는다.
-- Canvas 전체 동기화, Workshop 실제 행동, Hallway Return/Output 실호출, 서버 DB, SSE·재연결 리플레이, 자동 인증 복구는 미구현.
+- Canvas의 로컬 사용자 편집을 서버 원본에 트랜잭션으로 반영하는 완전 동기화, 서버 DB, IR, SSE·재연결 리플레이, 자동 인증 복구는 미구현. 비IR Workshop 11개 행동과 Hallway Return·Output은 Beta 메모리 기반으로 연결돼 있다.
 - **별도 정적 호스팅(Vercel/GitHub Pages)에 올라간 beta 프론트는 이 실험 API와 같은 origin이 아니므로 동작하지 않는다.** 현 단계는 Render에서 제공하는 beta UI를 통해 시험한다.
 
 ## 테스트 명령
@@ -63,3 +63,6 @@ node --test tests/frontend/*.test.mjs
 - 메모리 상태 조회 `GET /api/rooms/:roomId/assets`, 동일 요청의 대기 응답 `POST /api/requests/:requestId/answer`, Output 실패 시 행동 재실행 없는 재시도 `POST /api/requests/:requestId/retry-output`을 추가했다.
 - UI는 요청별 `waiting.id` 질문 폼과 최종 응답 재시도 버튼을 지원한다. Canvas는 서버 확정 자산을 반영하되 기존 로컬과 충돌하면 덮어쓰지 않는다. Beta 공유 테스트 토큰은 정식 인증이 아니다.
 - 현재 실제 Render 재배포, Gemini 호출 및 브라우저 렌더링은 검증되지 않았고 API의 메모리 상태는 재시작하면 지워질 수 있다.
+
+- 2026-10-23 신뢰성 검증: GitHub Actions Node 22 `npm test` 55/55 통과. 독립 실제 Gemini 모델 통화 및 브라우저·Render 환경에서의 전체 E2E 동작은 별도 확인 필요.
+- 동일 방에서 서버 확정 Skill 정의는 `GET /api/rooms/:roomId/assets`로 직접 재조회 가능하다. 채팅의 '서버에서 확인된 작업' 카드에는 적용 결과가 있는 행동만 표시하고, 실제 생성된 Skill은 채팅 자산 목록과 라이브러리에 노출한다. 서버 상태와 다른 로컬 캔버스는 자동으로 덮어쓰지 않는다.
