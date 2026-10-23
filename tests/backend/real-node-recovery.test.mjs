@@ -96,3 +96,24 @@ test('existing Skill and new Skill node placement are distinct confirmed actions
  assert.deepEqual(out.result.verifiedResults.map(x=>x.action),['defineDirect','addBlock']);
  const state=assets.read({scope:'room'});assert.equal(state.blocks[0].skillId,state.skills[0].id);
 });
+
+test('node creation cannot terminate after defining a Skill without actually adding its Canvas Block',async()=>{
+ const assets=createMemoryAssets(),stages=[];
+ const caller={generate:async ({layer,context:c})=>{
+  stages.push(layer);
+  if(layer==='gate')return reply({need:[]});
+  if(layer==='hallwayInitial')return reply({plan:[{skillDefine:{objective:'식물 조사 Skill 생성',need:[]}},{terminate:{objective:'노드 작업 완료',need:[]}}],contextBlock:context});
+  if(layer==='hallwayReturn')return reply({plan:[{canvasEdit:{objective:'식물 조사 Skill Block 실제 배치',need:[]}},{terminate:{objective:'완료',need:[]}}],contextBlock:context});
+  if(layer==='workshop'){
+   const result=c.verifiedResults.filter(x=>x.outcome?.status==='applied');
+   if(c.workshop==='skillDefine')return reply(result.some(x=>x.action==='defineDirect')?{done:true}:{action:'defineDirect',args:{definition}});
+   if(c.workshop==='canvasEdit')return reply(result.some(x=>x.action==='addBlock')?{done:true}:{action:'addBlock',args:{skillId:c.assets.skills[0].id,x:100,y:100}});
+  }
+  if(layer==='output')return reply({languageBlock:'노드 생성',contextBlock:{intent:context.intent,progress:'완료'},contextData:data});
+ }};
+ const composer={compose:async x=>x},e=createRequestEngine({composer,modelCaller:caller,dataProvider:createMemoryDataProvider({assets}),workshopExecutor:createWorkshopExecutor({modelCaller:caller,composer,assets}),checkpoints:createMemoryCheckpoints()});
+ const result=await e.run(draft('식물을 조사하는 노드를 만들어봐'));
+ assert.equal(result.status,'completed');
+ assert.ok(stages.includes('hallwayReturn'));
+ assert.equal(assets.read({scope:'room'}).blocks.length,1);
+});
