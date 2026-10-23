@@ -31,7 +31,7 @@ const DEFAULT_ROOM = 'beta-local-workspace';
  * SERVER INTEGRATION: room selection and validated remote snapshots enter here.
  * No main store, request protocol, offline queue or inferred AI result is used.
  */
-export async function createWorkspace({ root, data, input, roomId = DEFAULT_ROOM, skillCatalog, onSubmitRequest, onRunBlock, onAnswerRequest } = {}) {
+export async function createWorkspace({ root, data, input, roomId = DEFAULT_ROOM, skillCatalog, onSubmitRequest, onRunBlock, onAnswerRequest, onRetryOutput } = {}) {
   if (typeof roomId !== 'string' || !roomId.trim()) throw new TypeError('Workspace roomId is required');
   if (!root || !input || !data?.cache?.read || !data?.cache?.write || !data?.local?.read || !data?.local?.write)
     throw new TypeError('Workspace requires root, input and a local data store');
@@ -57,7 +57,7 @@ export async function createWorkspace({ root, data, input, roomId = DEFAULT_ROOM
   }
 
   let presentation = null;
-  const chatView = createChat({onOpenCanvas:()=>presentation?.goTo('canvas'),onAnswer:({requestId,waitingId,text})=>onAnswerRequest?.({roomId,requestId,waitingId,text})});
+  const chatView = createChat({onOpenCanvas:()=>presentation?.goTo('canvas'),onAnswer:({requestId,waitingId,text})=>onAnswerRequest?.({roomId,requestId,waitingId,text}),onRetryOutput:({requestId})=>onRetryOutput?.({roomId,requestId})});
   const chat = chatView.element;
   const saveState = chatView.saveState;
   let queued = Promise.resolve(), pending = 0, destroyed = false;
