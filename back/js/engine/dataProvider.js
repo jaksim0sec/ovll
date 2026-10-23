@@ -1,12 +1,23 @@
 /** Prototype data supply port. It contains no database or frontend dependencies. */
-export function createMemoryDataProvider({fixtures={}}={}){
+export function createMemoryDataProvider({fixtures={},assets}={}){
   const copy=x=>structuredClone(x);
-  async function resolveNeed({need,availableResources=[],request,contextData,chatHistory=[]}={}){
+  async function resolveNeed({roomId,need,availableResources=[],request,contextData,chatHistory=[]}={}){
     if(!Array.isArray(need)||!Array.isArray(availableResources)||!Array.isArray(chatHistory))throw Object.assign(new Error('Invalid data request'),{code:'UNSUPPORTED_DATASET'});
     const resources=copy(availableResources),missing=[];
     const findComplete=(dataset,key)=>resources.find(r=>r.dataset===dataset&&r.key===key&&r.completeness==='complete');
     const add=(dataset,key)=>{
       if(findComplete(dataset,key))return;
+      if(assets?.read&&roomId){
+        const state=assets.read({scope:roomId});
+        let value;
+        if(dataset==='skillDef')value=state.skills.find(s=>s.name===key);
+        if(dataset==='canvasSkill')value=state.blocks.find(b=>b.id===key);
+        if(dataset==='skillList')value=state.skills.map(s=>({id:s.id,name:s.name,description:s.description,inputs:s.inputs,outputs:s.outputs,icon:s.icon}));
+        if(value){const next={dataset,key,source:'authoritative-memory-assets',completeness:'complete',value:copy(value)};
+          const existing=resources.findIndex(r=>r.dataset===dataset&&r.key===key);
+          if(existing<0)resources.push(next);else resources[existing]=next;return;
+        }
+      }
       let item=fixtures?.[dataset]?.[key];
       if(item?.completeness==='complete'){const next=copy({dataset,key,...item});const existing=resources.findIndex(r=>r.dataset===dataset&&r.key===key);if(existing<0)resources.push(next);else resources[existing]=next;return;}
       missing.push([dataset,key]);
