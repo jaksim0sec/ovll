@@ -1,5 +1,11 @@
 .workspace-canvas{position:relative;width:100%;height:100%;min-width:0;min-height:0;overflow:hidden;isolation:isolate;--canvas-strong-line:color-mix(in srgb,var(--color-text) 20%,transparent)}
-.canvas-surface{position:absolute;inset:0;overflow:hidden;outline:none;touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab;background-image:radial-gradient(circle,var(--color-line) .8px,transparent .8px);background-size:var(--canvas-grid-size,24px) var(--canvas-grid-size,24px);background-position:var(--canvas-grid-x,0px) var(--canvas-grid-y,0px)}
+.canvas-surface{position:absolute;inset:0;overflow:hidden;outline:none;touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab;
+  /* Coarse dots stay readable at any zoom; detail fades before the level changes. */
+  background-image:radial-gradient(circle,var(--color-line) .8px,transparent 1px),
+    radial-gradient(circle,color-mix(in srgb,var(--color-line) var(--canvas-grid-detail-opacity,0%),transparent) .8px,transparent 1px);
+  background-size:var(--canvas-grid-size,24px) var(--canvas-grid-size,24px),
+    var(--canvas-grid-detail-size,12px) var(--canvas-grid-detail-size,12px);
+  background-position:var(--canvas-grid-x,0px) var(--canvas-grid-y,0px);}
 .canvas-surface.is-panning{cursor:grabbing}
 .canvas-world{position:absolute;inset:0;transform-origin:0 0;will-change:transform;pointer-events:none}
 .canvas-blocks{position:absolute;inset:0;pointer-events:none;z-index:2}
@@ -14,6 +20,7 @@
 .canvas-block::before{content:'';position:absolute;inset:0;z-index:1;border:0;border-radius:inherit;background-color:var(--ui-glass);background-image:var(--ui-glass-sheen);backdrop-filter:blur(.85rem) saturate(1.12);-webkit-backdrop-filter:blur(.85rem) saturate(1.12);pointer-events:none}
 .canvas-block:hover,.canvas-block.is-expanded{border-color:color-mix(in srgb,var(--color-text) 16%,transparent)}
 .canvas-block.is-selected{border-color:var(--canvas-strong-line)}
+.canvas-block{transition:border-color .18s ease,box-shadow .18s ease}
 .canvas-block.is-dragging{cursor:grabbing;box-shadow:none;z-index:4}
 .canvas-block-head{position:relative;z-index:2;min-height:1.9rem;display:flex;align-items:center;gap:.28rem}
 .canvas-block-head>.canvas-icon{width:1.75rem;height:1.84rem;flex:0 0 1.75rem;justify-content:flex-start;color:var(--block-color)}
@@ -70,6 +77,7 @@
 .canvas-tools button{pointer-events:auto}
 .canvas-tool-pill{min-width:0;height:2.625rem;padding:0 .875rem;border:1px solid var(--color-line);border-radius:999px;background:var(--ui-glass);color:var(--color-text);box-shadow:var(--ui-glass-shadow);backdrop-filter:blur(.85rem);-webkit-backdrop-filter:blur(.85rem);font-size:.75rem;font-weight:700;letter-spacing:-.01em;gap:.4rem}
 .canvas-tool-pill:hover{background:var(--ui-glass-strong);border-color:var(--canvas-strong-line)}
+.canvas-tool-pill{transition:background-color .18s ease,border-color .18s ease,color .18s ease,box-shadow .18s ease}
 .canvas-tool-pill.is-confirming{border-color:#d65f5f;color:#d65f5f}
 .canvas-view-tools{gap:0;border:1px solid var(--color-line);border-radius:999px;background:var(--ui-glass);box-shadow:var(--ui-glass-shadow);backdrop-filter:blur(.85rem);-webkit-backdrop-filter:blur(.85rem);pointer-events:auto;padding:0 .15rem}
 .canvas-view-tools .canvas-button{height:2.5rem;min-width:2.05rem}
@@ -78,7 +86,7 @@
 .canvas-palette{position:absolute;left:0;bottom:calc(100% + .625rem);width:min(20rem,calc(100vw - 2.25rem));max-height:min(25rem,55dvh);padding:.4rem;overflow-y:auto;border:1px solid var(--color-line);border-radius:1rem;background:var(--ui-glass-strong);backdrop-filter:blur(1.1rem);-webkit-backdrop-filter:blur(1.1rem);box-shadow:var(--ui-glass-shadow);pointer-events:auto}
 .canvas-palette-heading{padding:.55rem .6rem .42rem;font-size:.84rem;font-weight:680}
 .canvas-palette-list{display:grid;gap:.12rem}
-.canvas-palette-option{display:flex;align-items:center;gap:.7rem;width:100%;min-height:3rem;padding:.48rem .58rem;border-radius:.7rem;text-align:left}
+.canvas-palette-option{display:flex;align-items:center;gap:.7rem;width:100%;min-height:3rem;padding:.48rem .58rem;border-radius:.7rem;text-align:left;transition:background-color .18s ease}
 .canvas-palette-option:hover,.canvas-palette-option:focus-visible{background:var(--color-hover);outline-offset:-2px}
 .canvas-palette-option>.canvas-icon{width:1.95rem;height:1.95rem;border-radius:.58rem;background:var(--color-hover);color:var(--block-color)}
 .canvas-palette-option>.canvas-icon svg{width:1.34rem;height:1.34rem}
@@ -97,7 +105,7 @@
 @media(max-width:37.5rem){.canvas-block{width:11.125rem;min-height:3rem;padding:.56rem .76rem}.canvas-block-title{font-size:.82rem}.canvas-block-head>.canvas-icon{width:1.704rem;height:1.82rem;flex-basis:1.704rem}}
 @media(hover:none) and (pointer:coarse){.canvas-field textarea:focus,.canvas-field select:focus{font-size:16px}}
 @media(max-width:22rem){.canvas-tool-pill:first-child{padding:0 .6rem}.canvas-tool-label{font-size:.7rem}.canvas-view-tools .canvas-button{min-width:1.8rem}.canvas-zoom-label{width:2.7rem}.canvas-tools{left:.6rem;right:.6rem}}
-@media(prefers-reduced-motion:reduce){.canvas-button,.canvas-port-dot,.canvas-port-label,.canvas-link,.canvas-block-toggle .canvas-icon svg{transition:none!important}}
+@media(prefers-reduced-motion:reduce){.canvas-button,.canvas-block,.canvas-tool-pill,.canvas-palette-option,.canvas-port-dot,.canvas-port-label,.canvas-link,.canvas-block-toggle .canvas-icon svg{transition:none!important}}
 .canvas-file-image-preview{width:100%;margin:.45rem 0;border:1px solid var(--color-line);border-radius:.62rem;overflow:hidden;background:var(--color-hover)}
 .canvas-file-image-preview img{display:block;width:100%;max-height:11rem;object-fit:contain}
 .canvas-file-preview{max-height:8rem;overflow:auto;margin:.45rem 0;padding:.5rem .55rem;border:1px solid var(--color-line);border-radius:.62rem;background:var(--color-hover);color:var(--color-secondary);white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;font-size:.64rem;line-height:1.55;user-select:text;-webkit-user-select:text;touch-action:pan-y;cursor:text}

@@ -71,6 +71,12 @@ svg{display:block;width:1.4rem;height:1.4rem;flex:0 0 auto;fill:none;stroke:curr
   /* Only visual geometry is shared: controls belong to separate owners. */
   --shell-top-control-height:2.75rem;
   --shell-top-control-top:calc(var(--safe-top) + .6875rem);
+  /* Shared optical surface for the global menu control and hosted pill. */
+  --ui-chrome-surface:color-mix(in srgb,var(--color-bg) 78%,var(--color-panel));
+  --ui-chrome-selected:color-mix(in srgb,var(--color-bg) 36%,var(--color-panel));
+  --ui-chrome-line:color-mix(in srgb,var(--color-text) 8%,transparent);
+  --ui-chrome-selected-line:color-mix(in srgb,var(--color-text) 10%,transparent);
+  --ui-chrome-shadow:0 .13rem .48rem rgba(0,0,0,.16);
   position:fixed;top:var(--shell-visible-top,0px);left:0;right:0;
   height:var(--shell-visible-height,100dvh);overflow:hidden;background:var(--color-bg);
   isolation:isolate;

@@ -100,9 +100,33 @@ export function createCanvas({model,input,onRun,onNotice,onAttach,resolveSkill=g
   function setViewport(next,{motion=false}={}) {
     if(!motion)stopMotion();
     camera=normalizeViewport(next);world.style.transform=`translate(${camera.x}px, ${camera.y}px) scale(${camera.zoom})`;
-    surface.style.setProperty('--canvas-grid-size',`${24*camera.zoom}px`);surface.style.setProperty('--canvas-grid-x',`${camera.x}px`);surface.style.setProperty('--canvas-grid-y',`${camera.y}px`);
+    // Keep the visible dot spacing readable on zoom-out without losing world alignment.
+    // The next finer world-aligned grid fades out before each power-of-two LOD switch.
+    const nativeSpacing=24*camera.zoom;
+    const level=Math.max(0,Math.ceil(Math.log2(24/nativeSpacing)));
+    const coarseSpacing=nativeSpacing*2**level;
+    const detailSpacing=coarseSpacing/2;
+    const detailOpacity=Math.min(1,Math.max(0,(detailSpacing-12)/12));
+    surface.style.setProperty('--canvas-grid-size',`${coarseSpacing}px`);
+    surface.style.setProperty('--canvas-grid-detail-size',`${detailSpacing}px`);
+    surface.style.setProperty('--canvas-grid-detail-opacity',`${(detailOpacity*100).toFixed(2)}%`);
+    surface.style.setProperty('--canvas-grid-x',`${camera.x}px`);surface.style.setProperty('--canvas-grid-y',`${camera.y}px`);
     zoom.firstChild.textContent=`${Math.round(camera.zoom*100)}%`;
     element.dispatchEvent(new CustomEvent('canvasviewportchange',{detail:{...camera}}));
+  }
+  function animateViewport(next) {
+    stopMotion();
+    const from={...camera},to=normalizeViewport(next);
+    if(reducedMotion() || (Math.abs(from.x-to.x)<.1 && Math.abs(from.y-to.y)<.1 && Math.abs(from.zoom-to.zoom)<.0001)){
+      setViewport(to,{motion:true});return;
+    }
+    const started=performance.now(),duration=270;
+    const tick=now=>{
+      const t=Math.min(1,(now-started)/duration),ease=1-Math.pow(1-t,3);
+      setViewport({x:from.x+(to.x-from.x)*ease,y:from.y+(to.y-from.y)*ease,zoom:from.zoom+(to.zoom-from.zoom)*ease},{motion:true});
+      if(t<1)motionFrame=requestAnimationFrame(tick);else motionFrame=0;
+    };
+    motionFrame=requestAnimationFrame(tick);
   }
   function queueField(control) {
     const blockId=control.closest('.canvas-block').dataset.blockId;
@@ -274,7 +298,7 @@ export function createCanvas({model,input,onRun,onNotice,onAttach,resolveSkill=g
     const left=Math.min(...blocks.map(b=>b.x)),top=Math.min(...blocks.map(b=>b.y)),right=Math.max(...blocks.map(b=>b.x+(blockViews.get(b.id)?.element.offsetWidth||205))),bottom=Math.max(...blocks.map(b=>b.y+(blockViews.get(b.id)?.element.offsetHeight||60)));
     return fitViewport({x:left,y:top,width:right-left,height:bottom-top},{width:surface.clientWidth,height:surface.clientHeight},{padding:45,top:72,bottom:bottomSpace()});
   }
-  function fit(){setViewport(fittedViewport())}
+  function fit(){animateViewport(fittedViewport())}
   function arrangeBlocks(){
     cancel();const fromCamera={...camera},from=new Map(model.getBlocks().map(block=>[block.id,{x:block.x,y:block.y}]));
     safe(()=>model.arrange());const targetCamera=fittedViewport(),targets=model.getBlocks();
@@ -291,7 +315,7 @@ export function createCanvas({model,input,onRun,onNotice,onAttach,resolveSkill=g
   }
   function focusBlock(id) {
     const block=model.getBlock(id),node=blockViews.get(id)?.element;if(!block||!node)return;
-    selectBlock(id);const zoom=Math.max(.65,Math.min(camera.zoom,1.2));setViewport({zoom,x:surface.clientWidth/2-(block.x+node.offsetWidth/2)*zoom,y:72+Math.max(100,(surface.clientHeight-bottomSpace()-72)/2)-(block.y+node.offsetHeight/2)*zoom});
+    selectBlock(id);const zoom=Math.max(.65,Math.min(camera.zoom,1.2));animateViewport({zoom,x:surface.clientWidth/2-(block.x+node.offsetWidth/2)*zoom,y:72+Math.max(100,(surface.clientHeight-bottomSpace()-72)/2)-(block.y+node.offsetHeight/2)*zoom});
   }
   function clearPreview(){clearPickup();if(preview){const record=blockViews.get(preview.id),block=model.getBlock(preview.id);if(record&&block){record.element.style.left=`${block.x}px`;record.element.style.top=`${block.y}px`;record.element.classList.remove('is-dragging');if(record.expanded!==block.expanded)setExpanded(record,block.expanded,{immediate:!active})}}preview=null;dragLink=null;surface.classList.remove('is-panning');renderLinks()}
   function start(event) {
@@ -391,7 +415,7 @@ export function createCanvas({model,input,onRun,onNotice,onAttach,resolveSkill=g
     listen(palette,'keydown',event=>{if(event.key==='Escape'){event.preventDefault();closePalette(true)}else if(['ArrowDown','ArrowUp','Home','End'].includes(event.key)){event.preventDefault();const items=[...paletteList.querySelectorAll('button')],index=items.indexOf(document.activeElement);let next=event.key==='Home'?0:event.key==='End'?items.length-1:(index+(event.key==='ArrowDown'?1:-1)+items.length)%items.length;items[next]?.focus()}});
     listen(reset,'click',()=>{if(resetTimer){disarmReset();cancel();safe(()=>model.clear());notice('캔버스를 초기화했습니다. 실행 취소로 복원할 수 있습니다.')}else{reset.classList.add('is-confirming');resetText.textContent='한 번 더';reset.setAttribute('aria-label','캔버스 초기화 확인');resetTimer=setTimeout(disarmReset,3500);notice('한 번 더 누르면 모든 스킬블럭과 연결을 삭제합니다.')}});
     listen(arrange,'click',arrangeBlocks);listen(undo,'click',()=>{cancel();safe(()=>model.undo())});listen(redo,'click',()=>{cancel();safe(()=>model.redo())});
-    const zoomBy=factor=>setViewport(zoomAt(camera,{x:surface.clientWidth/2,y:(surface.clientHeight-bottomSpace())/2},camera.zoom*factor));
+    const zoomBy=factor=>animateViewport(zoomAt(camera,{x:surface.clientWidth/2,y:(surface.clientHeight-bottomSpace())/2},camera.zoom*factor));
     listen(out,'click',()=>zoomBy(1/1.2));listen(inside,'click',()=>zoomBy(1.2));listen(zoom,'click',fit);
     listen(linkDelete,'click',()=>{safe(()=>model.disconnect(selectedLink));selectedLink=null;linkDelete.hidden=true;surface.focus()});
     listen(surface,'click',event=>{
