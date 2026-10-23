@@ -91,11 +91,16 @@ export function createMemoryAssets({createId=()=>crypto.randomUUID()}={}){
   return copy(result);
  }
  function read({scope}){return publicState(room(scope));}
- function getOperation({scope,operationId}){const r=room(scope).operations.get(operationId);return r?copy(r):null;}
+ function getOperation({scope,operationId}){const r=room(scope).operations.get(operationId);return r?copy(r.outcome):null;}
  function apply({scope,requestId,operationId,action,args,expectedRevision}={}){
   if(!safe(requestId,120)||!safe(operationId,160)||!safe(action,80)||!Number.isSafeInteger(expectedRevision)||expectedRevision<0)throw new TypeError('Invalid action port input');
   const current=room(scope);const existing=current.operations.get(operationId);
-  if(existing)return copy(existing);
+  // Identical retries return the same outcome; conflicting reuse can never impersonate success.
+  const fingerprint=JSON.stringify({requestId,action,args,expectedRevision});
+  if(existing){
+    if(existing.fingerprint!==fingerprint)return {status:'rejected',operationId,code:'OPERATION_ID_CONFLICT',revision:current.revision};
+    return copy(existing.outcome);
+  }
   if(expectedRevision!==current.revision)return {status:'conflict',code:'REVISION_CONFLICT',revision:current.revision};
   const next={...publicState(current)};
   try{
@@ -103,11 +108,11 @@ export function createMemoryAssets({createId=()=>crypto.randomUUID()}={}){
    next.revision++;
    current.revision=next.revision;current.skills=next.skills;current.blocks=next.blocks;current.links=next.links;
    const outcome={status:'applied',operationId,revision:current.revision,artifacts:[artifact],changeSet:publicState(current)};
-   current.operations.set(operationId,copy(outcome));return copy(outcome);
+   current.operations.set(operationId,{fingerprint,outcome:copy(outcome)});return copy(outcome);
   }catch(error){
    if(!error.code)throw error;
    const outcome={status:'rejected',operationId,code:error.code,details:error.details??null,revision:current.revision};
-   current.operations.set(operationId,copy(outcome));return copy(outcome);
+   current.operations.set(operationId,{fingerprint,outcome:copy(outcome)});return copy(outcome);
   }
  }
  return Object.freeze({read,apply,getOperation});
