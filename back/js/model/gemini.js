@@ -19,9 +19,13 @@ export function createGeminiCaller({apiKey,model,fetchImpl=globalThis.fetch}={})
   /** Return a proposal only. Tool execution belongs to the server, never this adapter. */
   async function generateFunction({prompt,context,tool,signal}={}){
     if(typeof prompt!=='string'||!prompt||!tool||typeof tool.name!=='string'||!/^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(tool.name)||
-       typeof tool.description!=='string'||!tool.description||!tool.parameters||typeof tool.parameters!=='object'||Array.isArray(tool.parameters))
+       typeof tool.description!=='string'||!tool.description||
+       (Object.hasOwn(tool,'parameters')===Object.hasOwn(tool,'parametersJsonSchema'))||
+       typeof (tool.parameters??tool.parametersJsonSchema)!=='object'||
+       (tool.parameters??tool.parametersJsonSchema)===null||Array.isArray(tool.parameters??tool.parametersJsonSchema))
       throw new TypeError('Invalid function call contract');
-    const declaration={name:tool.name,description:tool.description,parameters:structuredClone(tool.parameters)};
+    const schemaKey=Object.hasOwn(tool,'parametersJsonSchema')?'parametersJsonSchema':'parameters';
+    const declaration={name:tool.name,description:tool.description,[schemaKey]:structuredClone(tool[schemaKey])};
     const body={
       systemInstruction:{parts:[{text:prompt}]},
       contents:[{role:'user',parts:[{text:JSON.stringify(context??{})}]}],

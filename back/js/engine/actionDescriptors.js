@@ -62,7 +62,7 @@ const defineTool={
 };
 const addTool={
  name:'add_block',description:'Propose a Canvas Skill Block referencing an already confirmed Skill ID.',
- parameters:{type:'object',properties:{
+ parametersJsonSchema:{type:'object',properties:{
  skillId:{type:'string'},x:{type:'number'},y:{type:'number'},expanded:{type:'boolean'},
  values:{type:'object',additionalProperties:{type:'string'}}
  },required:['skillId','x','y','expanded','values']}
