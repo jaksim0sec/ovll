@@ -65,3 +65,8 @@
 - 서버 메모리 자산의 revision, 참조중 Skill 삭제 거절, 연결 무결성, 재사용 operation ID 중복 적용 방지; action 결과를 읽어야 실제 완료가 확정된다. `question`은 응답을 기다리므로 별도 HTTP `/answer` 경로로 원래 요청을 재개한다.
 
 - 검증된 결과 없이 Workshop이 `{done:true}`로 작업 완료를 주장하면 엔진은 `WORK_NOT_APPLIED`로 거절한다. 각 계획 단계에서 실제 적용된 행동 또는 중간 발화 기록이 존재해야 해당 Workshop이 완료된다. 사용자 요청이 단순 직접 응답이라면 Workshop 진입 없이 최초 Hallway에서 완료한다.
+
+## 2026-10-23 행동 선택·실행 정확성
+- 허용 목록에 없는 모델 행동 선택은 정확한 availableActions와 이전 거부 이름을 제공하여 1회 재선택. 다시 위반하면 실행하지 않고 UNSUPPORTED_ACTION으로 실패하며 선택한 이름을 진단한다.
+- 같은 요청에서 Hallway Return을 여러 번 거쳐도 operationId는 전체 actionCount 기준으로 유일하다. 자산 포트가 ID 재사용과 다른 행동 입력을 감지하여 거부한다.
+- 노드 생성 완료는 정의 자산뿐 아니라 실제 Canvas Block 추가 결과를 요구한다. 연구용 스킬을 정의하는 것과 연구 작업을 실행하는 것은 다르다.
